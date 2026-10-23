@@ -1,0 +1,134 @@
+// Actions sensibles d'AXIA : jamais exécutées directement. L'outil crée une
+// demande de confirmation (AxiaProposition "confirmation") affichée dans la
+// bulle AXIA ; l'action ne part qu'au clic « Autoriser » du marchand
+// (app/api/axia/propositions). Le blocage est côté serveur : le modèle ne
+// peut pas le contourner, même par délégation à un agent ou via le cron.
+import { randomUUID, createHash } from "crypto";
+import { prisma } from "@/lib/prisma";
+
+// Argent, prix, envois aux clients, publication, retours, livraison.
+const SENSIBLES: Record<string, string> = {
+  // Outils AXIA (lib/axia/tools.ts)
+  mettre_a_jour_prix: "Changer un prix",
+  supprimer_produit: "Supprimer définitivement un produit",
+  payer_commission_affilie: "Payer une commission",
+  creer_code_promo: "Créer un code promo",
+  router_commande_fournisseur: "Préparer une commande fournisseur",
+  configurer_livraison: "Modifier la livraison",
+  ajouter_regle_livraison: "Ajouter un tarif de livraison",
+  publier_boutique: "Publier la boutique",
+  envoyer_campagne_email: "Envoyer une campagne email",
+  envoyer_email_client: "Envoyer un email à un client",
+  creer_automation: "Créer une automatisation",
+  initier_retour: "Lancer un retour",
+  creer_retour: "Créer un retour",
+  mettre_a_jour_retour: "Modifier un retour",
+  assigner_livreur: "Assigner un livreur",
+  changer_statut_commande: "Changer le statut d'une commande",
+  marquer_especes_remises: "Confirmer la remise des espèces d'un livreur",
+  sync_fournisseurs: "Synchroniser les fournisseurs (peut changer les prix de vente)",
+  creer_popup: "Créer un popup (actif tout de suite)",
+  // Outils des agents autonomes (app/api/ai/agent-*)
+  ajuster_prix_produit: "Changer un prix",
+  creer_offre_flash: "Créer une offre flash",
+  creer_code_vip: "Créer un code VIP",
+  relancer_clients_abandons: "Relancer des clients",
+  campagne_reactivation: "Lancer une campagne de réactivation",
+  campagne_acquisition_email: "Envoyer une campagne email",
+  message_anniversaire: "Envoyer un message d'anniversaire",
+  creer_programme_parrainage: "Créer un programme de parrainage",
+  creer_pack_bundle: "Créer un pack produits",
+  desactiver_produit_rupture: "Désactiver un produit",
+  mettre_a_jour_statut: "Changer le statut d'une commande",
+  // Caisse & magasin (lib/axia/pos-tools.ts) : actions préparées, jamais exécutées sans validation
+  pos_preparer_bon_commande: "Préparer un bon de commande fournisseur (brouillon)",
+  pos_preparer_promotion: "Préparer une promotion (inactive)",
+  pos_preparer_inventaire: "Ouvrir un inventaire",
+  pos_preparer_transfert: "Préparer un transfert de stock (brouillon)",
+  // Académie (lib/axia/academie-tools.ts) : génération IA payante, publication
+  academie_lancer_generation: "Lancer une génération IA de formation (coût estimé débité du plafond IA)",
+  academie_publier_formation: "Publier le studio en formation (inactive)",
+};
+
+// Connecteurs (Meta, WhatsApp, Gmail, SMS…) : tout ce qui publie ou envoie.
+// Higgsfield : chaque génération consomme des crédits payants.
+const PREFIXES_ENVOI = /^(meta|whatsapp|gmail|sms|tiktok|google_ads|higgsfield)_/;
+const LECTURE = /(^|_)(lister|lire|stats|statut)(_|$)/;
+
+/** Consigne à ajouter au prompt de tout assistant qui passe par demanderConfirmation. */
+export const CONSIGNE_ACCORD = `─── ACTIONS SENSIBLES : ACCORD DU MARCHAND ───
+Prix (y compris via modifier_produit), suppression d'un produit, codes promo, synchronisation fournisseurs, popups, générations Higgsfield (crédits payants), envois aux clients (email, WhatsApp, SMS, réseaux sociaux), paiements, publication, retours, livraisons (assigner un livreur, changer le statut d'une commande, confirmer une remise d'espèces) : quand tu appelles un de ces outils, l'action n'est PAS exécutée tout de suite. Le marchand reçoit une demande d'autorisation dans la bulle AXIA en bas à droite. Dis-lui en une phrase ce que tu t'apprêtes à faire et que tu attends son feu vert — ne dis jamais que c'est fait.
+- Quand le marchand te demande explicitement une de ces actions (« assigne… », « passe la commande en… », « envoie… »), appelle l'outil tout de suite : la bulle EST la demande d'accord. Ne lui redemande pas « tu valides ? » dans le texte, sinon il doit dire oui deux fois.
+- Si c'est toi qui as l'idée (il ne l'a pas demandée), propose-la d'abord en une phrase et attends sa réponse avant d'appeler l'outil.
+- Ne parle JAMAIS de la bulle ni d'une validation en attente si tu n'as pas appelé l'outil dans cette réponse et reçu « EN ATTENTE DE CONFIRMATION ».`;
+
+// modifier_produit n'attend l'accord que s'il touche un prix (produit ou variante), comme mettre_a_jour_prix.
+const touchePrix = (args?: Record<string, any>) =>
+  !!args && (args.prix !== undefined || args.prixCompare !== undefined || (Array.isArray(args.variantes) && args.variantes.some((v: any) => v?.prix !== undefined)));
+
+export function estSensible(nom: string, args?: Record<string, any>): boolean {
+  return nom in SENSIBLES || (PREFIXES_ENVOI.test(nom) && !LECTURE.test(nom)) || (nom === "modifier_produit" && touchePrix(args));
+}
+
+// Les ids techniques ne disent rien au marchand qui doit décider : on les remplace par des noms.
+async function lisibles(tenantId: string, args: Record<string, any>): Promise<Record<string, any>> {
+  const a = { ...(args ?? {}) };
+  if (a.livreurId) {
+    const l = await prisma.livreur.findUnique({ where: { id: String(a.livreurId) }, select: { nom: true, telephone: true } }).catch(() => null);
+    delete a.livreurId;
+    if (l) a.livreur = `${l.nom} (${l.telephone})`;
+  }
+  if (a.produitId) {
+    const p = await prisma.produit.findFirst({ where: { id: String(a.produitId), tenantId }, select: { nom: true } }).catch(() => null);
+    delete a.produitId;
+    if (p) a.produit = p.nom;
+  }
+  if (a.commandeId) {
+    const c = await prisma.commande.findFirst({ where: { tenantId, OR: [{ id: String(a.commandeId) }, { numero: String(a.commandeId) }] }, select: { numero: true } }).catch(() => null);
+    delete a.commandeId;
+    if (c) a.commande = `#${c.numero}`;
+  }
+  return a;
+}
+
+function resumerArgs(args: Record<string, any>): string {
+  return Object.entries(args ?? {})
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .slice(0, 5)
+    .map(([k, v]) => {
+      const texte = typeof v === "string" ? v : JSON.stringify(v);
+      return `${k.replace(/_/g, " ")} : ${texte.length > 90 ? texte.slice(0, 90) + "…" : texte}`;
+    })
+    .join(" · ");
+}
+
+function semaine() {
+  return Math.floor(Date.now() / (7 * 86_400_000));
+}
+
+/** Enregistre l'action en attente et renvoie au modèle la consigne à suivre. */
+export async function demanderConfirmation(tenantId: string, outil: string, args: Record<string, any>, agent?: string, interactif = false, origine?: string, ia?: { connexionId: string; actionId: string }) {
+  const libelle = SENSIBLES[outil] ?? (outil === "modifier_produit" ? "Modifier un produit (prix compris)" : outil.replace(/_/g, " "));
+  const details = resumerArgs(await lisibles(tenantId, args));
+  // Agent autonome (cron horaire) : la même action n'est proposée qu'une fois par semaine.
+  // En conversation (interactif), chaque demande compte : le marchand peut redemander après un refus.
+  const cle = agent && !interactif
+    ? `confirmation:${agent}:${semaine()}:${createHash("sha1").update(outil + JSON.stringify(args)).digest("hex")}`
+    : `confirmation:${randomUUID()}`;
+  await prisma.axiaProposition.createMany({
+    skipDuplicates: true,
+    data: {
+      tenantId,
+      type: "confirmation",
+      cle,
+      // `origine` : IA externe qui demande (« Claude »…), voir lib/controle-ia.
+      message: (origine ? `${origine} · ` : "") + (details ? `${libelle} — ${details}` : libelle),
+      // `ia` : demande d'une IA externe, exécutée à l'accord par lib/controle-ia (executerAccordIA).
+      action: { outil, args, ...(agent && { agent }), ...(ia && { ia }) },
+    },
+  });
+  return {
+    succes: true,
+    resultat: `EN ATTENTE DE CONFIRMATION : « ${libelle} » n'est PAS encore fait. Le marchand doit l'autoriser dans la bulle AXIA en bas à droite. Dis-lui en une phrase ce que tu t'apprêtes à faire et que tu attends son feu vert ; ne dis jamais que c'est fait.`,
+  };
+}

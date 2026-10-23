@@ -1,0 +1,105 @@
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Minus } from "lucide-react";
+import { useT } from "@/components/I18nProvider";
+import { SECTION, SURTITRE, TITRE } from "./charte";
+
+const faqs = [
+  { q: "Est-ce vraiment gratuit ?", r: "Oui ! Le plan Essentiel est gratuit à vie et suffit largement pour lancer votre boutique, la gérer et commencer à vendre. Et quand vos ventes décollent, les plans Pro et Illimité vont encore plus loin : commandes illimitées, IA pour vos visuels pub, statistiques avancées, plusieurs boutiques, équipe et pub Meta & TikTok intégrée." },
+  { q: "Comment mes clients paient-ils ?", r: "Orange Money et MTN Mobile Money (via NotchPay), ou paiement à la livraison. La configuration prend 2 minutes." },
+  { q: "Puis-je utiliser mon propre nom de domaine ?", r: "Oui ! Vous obtenez d'abord une URL gratuite (axsoafrica.com/votre-boutique), puis vous pouvez connecter votre propre domaine depuis les paramètres." },
+  { q: "L'assistant IA parle-t-il français ?", r: "Absolument. L'IA d'Axso est configurée pour comprendre et répondre en français (et en anglais). Elle connaît les marchés africains et peut vous aider à rédiger vos fiches produits." },
+  { q: "Ai-je besoin de compétences techniques ?", r: "Aucune. Le constructeur Axso fonctionne par glisser-déposer, sans code. Décrivez votre boutique à Axia et elle configure l'essentiel à votre place en 3 minutes." },
+  { q: "Puis-je importer mes produits depuis un fichier Excel ?", r: "Oui ! Depuis la page Produits, cliquez sur « Importer (Excel) », téléchargez le modèle, remplissez une ligne par produit et envoyez-le. Fichiers Excel et CSV acceptés, jusqu'à 1 000 produits par import." },
+  { q: "Les notifications WhatsApp sont-elles automatiques ?", r: "Oui ! Chaque nouvelle commande vous est notifiée dans votre tableau de bord, et vos clients reçoivent sur WhatsApp la confirmation de leur commande et le lien pour la suivre." },
+  { q: "Puis-je vendre dans plusieurs pays africains ?", r: "Oui. Vous pouvez configurer des zones de livraison et des tarifs différents selon les pays. Les paiements en ligne passent aujourd'hui par Orange Money et MTN Mobile Money ; le paiement à la livraison fonctionne partout." },
+  { q: "Et si j'ai besoin d'aide ?", r: "Notre équipe vous répond sur WhatsApp au +237 6 98 67 73 55, du lundi au vendredi de 8h à 20h. Axia, l'IA intégrée, répond à vos questions 24h/24, et des guides en français sont en cours de rédaction." },
+];
+
+export function FaqSection() {
+  const t = useT();
+  const [ouvert, setOuvert] = useState<number | null>(0);
+  const [visible, setVisible] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    if (sectionRef.current) obs.observe(sectionRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <section ref={sectionRef} className={`${SECTION} bg-[#FAFAFA] relative overflow-hidden`} id="faq">
+      {/* Subtle background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-[#F5A623]/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div
+          className="text-center mb-16"
+          style={{
+            opacity: visible ? 1 : 0,
+            animation: visible ? "flip3dIn 0.7s cubic-bezier(0.23,1,0.32,1) both" : "none",
+          }}
+        >
+          <span className={SURTITRE}>FAQ</span>
+          <h2 className={TITRE}>{t("Questions fréquentes")}</h2>
+        </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq, i) => (
+            <div
+              key={i}
+              className={`rounded-2xl border-2 transition-all duration-300 hover:scale-[1.005] ${
+                ouvert === i ? "bg-white shadow-md shadow-[#F5A623]/10" : "bg-white hover:border-gray-200"
+              }`}
+              style={{
+                opacity: visible ? 1 : 0,
+                animation: visible ? `slideRevealLeft 0.5s ${i * 60}ms cubic-bezier(0.23,1,0.32,1) both` : "none",
+                borderColor: ouvert === i ? "rgba(245,166,35,0.45)" : "#f3f4f6",
+                boxShadow: ouvert === i ? "0 8px 30px rgba(245,166,35,0.10), 0 0 0 1px rgba(245,166,35,0.18)" : "none",
+              }}
+            >
+              <button
+                onClick={() => setOuvert(ouvert === i ? null : i)}
+                className="w-full flex items-center justify-between p-6 text-left"
+              >
+                <span className={`font-semibold transition-colors duration-200 ${ouvert === i ? "text-[#111111]" : "text-gray-800"}`}>
+                  {t(faq.q)}
+                </span>
+                <div
+                  className={`flex-shrink-0 ml-4 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    ouvert === i ? "bg-[#111111] border-[#111111] scale-110 shadow-md shadow-[#111111]/25" : "border-gray-200 hover:border-[#F5A623]/50"
+                  }`}
+                  style={{
+                    transform: ouvert === i ? "rotate(0deg) scale(1.1)" : "rotate(0deg) scale(1)",
+                  }}
+                >
+                  {ouvert === i
+                    ? <Minus size={13} className="text-white" />
+                    : <Plus size={13} className="text-gray-400" />
+                  }
+                </div>
+              </button>
+              <div
+                className="overflow-hidden transition-all duration-300"
+                style={{
+                  maxHeight: ouvert === i ? "500px" : "0",
+                  opacity: ouvert === i ? 1 : 0,
+                }}
+              >
+                <div className="px-6 pb-6">
+                  <p className="text-gray-500 leading-relaxed">{t(faq.r)}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

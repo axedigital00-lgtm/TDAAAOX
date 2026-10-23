@@ -1,0 +1,261 @@
+import { NavbarMarketing } from "@/components/marketing/NavbarMarketing";
+import { FooterMarketing } from "@/components/marketing/FooterMarketing";
+import Link from "next/link";
+import { Star, Quote, ArrowRight, BadgeCheck } from "lucide-react";
+import { avisPublies } from "@/lib/avis-plateforme";
+import type { Metadata } from "next";
+import { getT } from "@/lib/i18n/serveur";
+
+export const metadata: Metadata = {
+  title: "Témoignages marchands",
+  description: "Des marchands africains racontent leur expérience avec AXSO.",
+};
+
+const TEMOIGNAGES = [
+  {
+    nom: "Aminata Koné",
+    role: "Fondatrice, Wax & Prestige",
+    pays: "Côte d'Ivoire",
+    code: "CI",
+    avatar: "AK",
+    accentBg: "#F5A623",
+    note: 5,
+    contenu: "Avant AXSO, je gérais tout sur WhatsApp et les transferts manuels. Aujourd'hui j'ai une vraie boutique en ligne, mes clients paient via Wave ou Orange Money et je reçois mes fonds directement dans mon wallet. Axia gère mes descriptions produits et même mes relances clients — c'est comme avoir une assistante disponible 24h/24.",
+  },
+  {
+    nom: "Moussa Traoré",
+    role: "Directeur, ElectroShop Mali",
+    pays: "Mali",
+    code: "ML",
+    avatar: "MT",
+    accentBg: "#7c3aed",
+    note: 5,
+    contenu: "Je vendais uniquement en magasin à Bamako. Grâce à AXSO j'ai ouvert ma boutique en ligne en 2 heures et mes clients du Sénégal et du Burkina commandent maintenant. Le module livraison avec suivi GPS a vraiment rassuré mes acheteurs.",
+  },
+  {
+    nom: "Fatou Diallo",
+    role: "CEO, FormationAfrique.com",
+    pays: "Sénégal",
+    code: "SN",
+    avatar: "FD",
+    accentBg: "#10b981",
+    note: 5,
+    contenu: "Je vends des formations vidéo et j'avais besoin d'une solution de livraison digitale fiable. AXSO livre l'accès automatiquement après le paiement, sans intervention manuelle. Mes étudiants reçoivent leur lien dès que le paiement est confirmé.",
+  },
+  {
+    nom: "Koffi Mensah",
+    role: "Fondateur, Natura Togo",
+    pays: "Togo",
+    code: "TG",
+    avatar: "KM",
+    accentBg: "#3b82f6",
+    note: 5,
+    contenu: "Le programme d'affiliation d'AXSO est une révolution. Des affiliés recommandent mes produits naturels et je ne paie qu'à la commission. Axia gère les relances, envoie les SMS automatiques et segmente mes clients.",
+  },
+  {
+    nom: "Issa Coulibaly",
+    role: "Gérant, TechGadgets BF",
+    pays: "Burkina Faso",
+    code: "BF",
+    avatar: "IC",
+    accentBg: "#ef4444",
+    note: 5,
+    contenu: "La gestion de stock en temps réel d'AXSO m'a sauvé. Avant je découvrais les ruptures quand les clients réclamaient. Maintenant Axia me prévient dès que j'atteins le seuil critique et peut même passer une commande fournisseur automatiquement. Plus aucune vente perdue pour cause de rupture.",
+  },
+  {
+    nom: "Nadia Benali",
+    role: "Dropshippeur, Mode Express",
+    pays: "Cameroun",
+    code: "CM",
+    avatar: "NB",
+    accentBg: "#F5A623",
+    note: 5,
+    contenu: "J'ai commencé avec zéro stock grâce au dropshipping intégré dans AXSO. J'importe des produits depuis AliExpress en quelques clics, les descriptions sont générées en français par Axia, et mes clients ne voient aucune différence.",
+  },
+  {
+    nom: "Boubacar Barry",
+    role: "Fondateur, BarryDeco Guinée",
+    pays: "Guinée",
+    code: "GN",
+    avatar: "BB",
+    accentBg: "#7c3aed",
+    note: 5,
+    contenu: "J'ai deux boutiques — une d'artisanat et une de déco intérieure. Sur AXSO je les gère depuis un seul tableau de bord. Axia me génère du contenu différent pour chaque boutique, adapté au ton et aux produits. Le plan Illimité me coûte moins qu'un seul employé et fait bien plus.",
+  },
+  {
+    nom: "Grace Akosua",
+    role: "Créatrice, Ghana Beauty Hub",
+    pays: "Ghana",
+    code: "GH",
+    avatar: "GA",
+    accentBg: "#10b981",
+    note: 5,
+    contenu: "La boutique AXSO est si belle que mes clientes pensent que j'ai embauché un designer. J'ai personnalisé le thème sans coder, ajouté mes produits beauty et lancé une campagne email via AXSO.",
+  },
+  {
+    nom: "Omar Diop",
+    role: "CEO, FreightSN Logistique",
+    pays: "Sénégal",
+    code: "SN",
+    avatar: "OD",
+    accentBg: "#3b82f6",
+    note: 5,
+    contenu: "On utilise le module livraison AXSO pour nos clients marchands. Suivi GPS pour les livreurs, notifications automatiques pour les clients, RMA intégré — tout ce qu'il faut pour une opération professionnelle. On gère nos livraisons sur la plateforme sans friction.",
+  },
+];
+
+const LOGOS = [
+  "Wax & Prestige", "ElectroShop", "FormationAfrique", "Natura Togo",
+  "TechGadgets", "Mode Express", "BarryDeco", "Ghana Beauty Hub",
+];
+
+export default async function TemoignagesPage() {
+  const tr = await getT();
+  const avis = await avisPublies(30);
+  return (
+    <main className="bg-white text-[#111111] min-h-screen" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+      <NavbarMarketing />
+
+      {/* ── Hero ── */}
+      <section className="pt-36 pb-20 px-6 sm:px-10 lg:px-16 xl:px-24 relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at top, rgba(245,166,35,0.1) 0%, transparent 65%)" }} />
+        <div className="max-w-3xl mx-auto text-center relative">
+          <h1 className="text-4xl sm:text-6xl font-black mb-6 leading-[1.08]">
+            {tr("Ils ont transformé")}<br />
+            <span style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              {tr("leur business")}
+            </span>
+          </h1>
+          <p className="text-[#666666] text-xl leading-relaxed max-w-2xl mx-auto">
+            {tr("Des marchands africains partagent leur expérience avec AXSO.")}
+          </p>
+        </div>
+      </section>
+
+      {/* ── Featured testimonial ── */}
+      <section className="px-6 sm:px-10 lg:px-16 xl:px-24 pb-20">
+        <div className="max-w-5xl mx-auto rounded-3xl p-10 sm:p-14 relative overflow-hidden border"
+          style={{ background: "linear-gradient(135deg, rgba(245,166,35,0.08) 0%, rgba(124,58,237,0.05) 100%)", borderColor: "rgba(245,166,35,0.2)" }}>
+          <div className="absolute top-6 right-8 opacity-10">
+            <Quote size={80} style={{ color: "#F5A623" }} />
+          </div>
+          <div className="flex gap-1 mb-6">
+            {Array(5).fill(0).map((_, i) => <Star key={i} size={18} fill="#F5A623" style={{ color: "#F5A623" }} />)}
+          </div>
+          <blockquote className="text-xl sm:text-2xl font-medium text-[#333333] leading-relaxed mb-8 max-w-3xl">
+            {tr("\"Avant AXSO, je gérais tout sur WhatsApp et les transferts manuels. Aujourd'hui j'ai une vraie boutique en ligne, mes clients paient via Wave ou Orange Money et je reçois mes fonds directement dans mon wallet. Axia gère mes descriptions produits et même mes relances clients — c'est comme avoir une assistante disponible 24h/24.\"")}
+          </blockquote>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"
+              style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", color: "#080808" }}>AK</div>
+            <div>
+              <p className="font-bold text-[#111111]">{tr("Aminata Koné")}</p>
+              <p className="text-[#737373] text-sm">{tr("Fondatrice, Wax & Prestige ·")}{" "}<span className="text-[10px] font-bold px-1 py-0.5 rounded" style={{ background: "rgba(245,166,35,0.15)", color: "#F5A623" }}>CI</span>{" "}{tr("Côte d'Ivoire")}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Avis vérifiés (déposés par les marchands, validés par Axso) ── */}
+      {avis.length > 0 && (
+        <section className="px-6 sm:px-10 lg:px-16 xl:px-24 pb-20">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-black text-[#111111] mb-3 text-center">{tr("Avis vérifiés")}</h2>
+            <p className="text-center text-[#737373] mb-10">{tr("Déposés par des marchands Axso depuis leur tableau de bord.")}</p>
+            <div className="columns-1 sm:columns-2 lg:columns-3 gap-5 space-y-5">
+              {avis.map((a) => (
+                <div key={a.id} className="break-inside-avoid rounded-2xl border p-6" style={{ background: "rgba(0,0,0,0.02)", borderColor: "rgba(0,0,0,0.07)" }}>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex gap-0.5" aria-label={`${a.note} / 5`}>{Array.from({ length: 5 }, (_, i) => <Star key={i} size={13} fill={i < a.note ? "#F5A623" : "none"} style={{ color: i < a.note ? "#F5A623" : "#D4D4D4" }} />)}</div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700"><BadgeCheck size={11} />{tr("Avis vérifié")}</span>
+                  </div>
+                  <p className="text-[#595959] text-sm leading-relaxed mb-4">« {a.texte} »</p>
+                  <p className="font-bold text-[#111111] text-sm">{a.auteurNom}</p>
+                  <p className="text-[#808080] text-xs">{[a.auteurRole, a.ville].filter(Boolean).join(" · ")}{a.auteurRole || a.ville ? " · " : ""}<Link href={`/${a.slug}`} className="underline hover:text-[#111111]">{a.boutique}</Link></p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Grid témoignages ── */}
+      <section className="px-6 sm:px-10 lg:px-16 xl:px-24 pb-28">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-black text-[#111111] mb-3">{tr("Toutes les histoires")}</h2>
+          </div>
+
+          <div className="columns-1 sm:columns-2 lg:columns-3 gap-5 space-y-5">
+            {TEMOIGNAGES.slice(1).map((t) => (
+              <div key={t.nom}
+                className="break-inside-avoid rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-0.5"
+                style={{ background: "rgba(0,0,0,0.02)", borderColor: "rgba(0,0,0,0.07)" }}>
+
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"
+                    style={{ background: `${t.accentBg}20`, color: t.accentBg, border: `1.5px solid ${t.accentBg}35` }}>
+                    {tr(t.avatar)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[#111111] text-sm">{tr(t.nom)}</p>
+                    <p className="text-[#808080] text-xs truncate">{tr(t.role)} · <span className="font-bold" style={{ color: t.accentBg }}>{t.code}</span> {tr(t.pays)}</p>
+                  </div>
+                  <div className="flex gap-0.5 flex-shrink-0">
+                    {Array(t.note).fill(0).map((_, i) => (
+                      <Star key={i} size={10} fill="#F5A623" style={{ color: "#F5A623" }} />
+                    ))}
+                  </div>
+                </div>
+
+
+                {/* Contenu */}
+                <p className="text-[#595959] text-sm leading-relaxed">{tr(t.contenu)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Logos wall ── */}
+      <section className="px-6 sm:px-10 lg:px-16 xl:px-24 pb-24">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-center text-[#B3B3B3] text-xs font-bold uppercase tracking-[0.25em] mb-8">{tr("Ils vendent avec AXSO")}</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {LOGOS.map(logo => (
+              <div key={logo}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold"
+                style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.07)", color: "rgba(0,0,0,0.35)" }}>
+                {tr(logo)}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="px-6 sm:px-10 lg:px-16 xl:px-24 pb-28">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-black text-[#111111] mb-4">{tr("Rejoignez-les aujourd'hui")}</h2>
+          <p className="text-[#737373] text-lg mb-8">{tr("Démarrez gratuitement — aucune carte requise. Votre boutique en ligne en 3 minutes.")}</p>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link href="/inscription"
+              className="inline-flex items-center gap-2 font-bold px-10 py-4 rounded-2xl transition-all hover:scale-105"
+              style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", color: "#080808", boxShadow: "0 8px 30px rgba(245,166,35,0.35)" }}>
+              {tr("Créer ma boutique gratuitement")}{" "}<ArrowRight size={18} />
+            </Link>
+            <Link href="/contact"
+              className="font-semibold px-8 py-4 rounded-2xl transition-all hover:bg-gray-50"
+              style={{ border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.65)" }}>
+              {tr("Parler à l'équipe")}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <FooterMarketing />
+    </main>
+  );
+}

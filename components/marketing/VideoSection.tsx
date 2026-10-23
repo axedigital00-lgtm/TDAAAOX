@@ -1,0 +1,294 @@
+"use client";
+// v4 — lucide icons only, no emoji
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Lock, Rocket, Zap, Bot, Globe, Play, Pause } from "lucide-react";
+import { CartParallax } from "./CartParallax";
+import { useT } from "@/components/I18nProvider";
+import { SECTION, SURTITRE, TITRE, INTRO } from "./charte";
+
+const HIGHFIELD_VIDEO_URL = "https://res.cloudinary.com/mn6mspfb/video/upload/v1791498714/axso-video-3min-web.mp4";
+const HIGHFIELD_IFRAME_URL = "";
+const HIGHFIELD_POSTER_URL = "/axso-video-poster.jpg";
+
+const VIDEO_CARTS = [
+  { size: 600, top: "5%",  duration: 20, delay: 0,  opacity: 0.05, direction: "rtl" as const },
+  { size: 400, top: "60%", duration: 16, delay: 5,  opacity: 0.04, direction: "ltr" as const },
+  { size: 280, top: "38%", duration: 28, delay: 11, opacity: 0.055, direction: "rtl" as const },
+];
+
+export function VideoSection() {
+  const t = useT();
+  const [visible, setVisible] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [lancee, setLancee] = useState(false);
+  const [enLecture, setEnLecture] = useState(false);
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) setVisible(true);
+      },
+      { threshold: 0.2 }
+    );
+    if (sectionRef.current) obs.observe(sectionRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  // Effet parallax lié au scroll écrit directement dans le DOM (via rAF) au lieu
+  // de passer par le state React — évite un re-render de toute la section à
+  // chaque event de scroll (c'était la cause du blocage/saccades au défilement).
+  // useLayoutEffect + appel immédiat pour appliquer la bonne position dès que
+  // la section devient visible, sans attendre le prochain scroll (pas de flash).
+  useLayoutEffect(() => {
+    if (!visible) return;
+    let ticking = false;
+    const appliquer = () => {
+      // Progression de la section dans l'écran (0 = elle entre par le bas, 1 = elle sort par le haut).
+      // Avant : décalage = 4 % du défilement ABSOLU — sur mobile (page longue) le lecteur remontait
+      // de ~280 px, recouvrait le texte et laissait un trou dessous.
+      const r = sectionRef.current?.getBoundingClientRect();
+      if (playerRef.current && r) {
+        const p = Math.min(1, Math.max(0, (window.innerHeight - r.top) / (window.innerHeight + r.height)));
+        playerRef.current.style.transform =
+          `translateY(${(0.5 - p) * 40}px) perspective(1200px) rotateX(${Math.max(0, 0.5 - p) * 8}deg)`;
+      }
+      ticking = false;
+    };
+    appliquer();
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(appliquer);
+        ticking = true;
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [visible]);
+
+  const hasVideo = !!HIGHFIELD_VIDEO_URL;
+  const hasIframe = !!HIGHFIELD_IFRAME_URL;
+
+  return (
+    <section
+      id="video-demo"
+      ref={sectionRef}
+      className={`${SECTION} relative overflow-hidden bg-gradient-to-b from-white via-orange-50/20 to-white`}
+    >
+      <CartParallax carts={VIDEO_CARTS} color="#F5A623" />
+
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[500px] rounded-full"
+          style={{ background: "radial-gradient(ellipse, rgba(245,166,35,0.08) 0%, transparent 65%)" }}
+        />
+      </div>
+
+      <div className="w-full px-4 sm:px-10 lg:px-16 xl:px-24 relative z-10">
+
+        {/* Header */}
+        <div
+          className="text-center mb-10 sm:mb-16"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "none" : "translateY(30px)",
+            transition: "all 0.8s cubic-bezier(0.23,1,0.32,1)",
+          }}
+        >
+          <span className={SURTITRE}>{t("Vois ton empire naître en direct")}</span>
+          <h2 className={`${TITRE} mb-5`}>
+            3 minutes.
+            <br />
+            <span className="text-[#F5A623]">{t("C'est tout ce qu'il faut.")}</span>
+          </h2>
+          <p className={`${INTRO} max-w-2xl mx-auto`}>
+            {t("Dis-nous ce que tu vends. AXSO crée ta boutique, tes prix, tes visuels et ton premier post Instagram. En direct. Sous tes yeux.")}
+          </p>
+        </div>
+
+        {/* Player vidéo */}
+        <div
+          ref={playerRef}
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? undefined : "translateY(60px) perspective(1200px) rotateX(8deg)",
+            transition: visible ? "opacity 0.9s 0.2s, transform 0.9s 0.2s cubic-bezier(0.23,1,0.32,1)" : "none",
+            willChange: "transform",
+          }}
+        >
+          {/* Glow */}
+          <div
+            className="absolute inset-0 rounded-3xl pointer-events-none"
+            style={{
+              background: "radial-gradient(ellipse 80% 60% at 50% 100%, rgba(245,166,35,0.18), transparent)",
+              filter: "blur(30px)",
+              transform: "translateY(20px) scale(1.05)",
+            }}
+          />
+
+          <div
+            className="relative rounded-3xl overflow-hidden border"
+            style={{
+              borderColor: "rgba(245,166,35,0.2)",
+              boxShadow: "0 0 80px rgba(245,166,35,0.12), 0 40px 100px rgba(0,0,0,0.12), 0 0 0 1px rgba(245,166,35,0.08)",
+              background: "#f9fafb",
+            }}
+          >
+            {/* Browser chrome */}
+            <div className="bg-white px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 flex items-center gap-2 sm:gap-3">
+              <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
+                <div className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full bg-red-400/80"/>
+                <div className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full bg-yellow-400/80"/>
+                <div className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full bg-green-400/80"/>
+              </div>
+              <div className="flex-1 min-w-0 bg-gray-50 rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 border border-gray-200/80">
+                <Lock size={14} className="text-gray-300 flex-shrink-0" />
+                <span className="text-xs sm:text-sm text-gray-400 flex-1 text-center truncate">{t("axsoafrica.com — Construction de ton empire")}</span>
+              </div>
+              <span className="flex-shrink-0 text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full bg-[#F5A623]/10 text-[#F5A623]">
+                {t("● LIVE")}
+              </span>
+            </div>
+
+            {/* Zone vidéo */}
+            <div className="group relative bg-gray-950" style={{ aspectRatio: "16/9" }}>
+              {hasVideo && (
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  src={HIGHFIELD_VIDEO_URL}
+                  poster={HIGHFIELD_POSTER_URL || undefined}
+                  controls={lancee} playsInline preload="metadata"
+                  onPlay={() => { setLancee(true); setEnLecture(true); }}
+                  onPause={() => setEnLecture(false)}
+                  onEnded={() => setEnLecture(false)}
+                />
+              )}
+              {/* Play/pause central — visible à l'arrêt, au survol pendant la lecture (comme YouTube). */}
+              {hasVideo && (
+                <button type="button" aria-label={t(enLecture ? "Mettre en pause" : "Lancer la vidéo")}
+                  onClick={() => { const v = videoRef.current; if (!v) return; if (v.paused) v.play(); else v.pause(); }}
+                  className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 ${enLecture ? "opacity-0 group-hover:opacity-100 focus-visible:opacity-100" : "opacity-100"}`}
+                  style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)", boxShadow: "0 0 50px rgba(245,166,35,0.55)" }}>
+                  {!lancee && <span className="absolute inset-0 rounded-full bg-[#F5A623]/40 animate-ping" />}
+                  {enLecture
+                    ? <Pause size={32} className="relative text-white" fill="white" />
+                    : <Play size={34} className="relative text-white ml-1" fill="white" />}
+                </button>
+              )}
+              {hasIframe && !hasVideo && (
+                <iframe
+                  className="w-full h-full"
+                  src={HIGHFIELD_IFRAME_URL}
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                  style={{ border: "none" }}
+                />
+              )}
+              {!hasVideo && !hasIframe && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center"
+                  style={{ background: "linear-gradient(145deg, #0d0d0d, #141414, #0e0e0e)" }}>
+                  <div className="relative flex items-center justify-center mb-8">
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="absolute rounded-full border"
+                        style={{
+                          width: `${i * 80}px`,
+                          height: `${i * 80}px`,
+                          borderColor: `rgba(245,166,35,${0.35 / i})`,
+                          animation: `ripple ${1.5 + i * 0.5}s ease-out ${i * 0.3}s infinite`,
+                        }}
+                      />
+                    ))}
+                    <div
+                      className="relative w-20 h-20 rounded-full flex items-center justify-center text-4xl cursor-pointer z-10 transition-transform hover:scale-110"
+                      style={{
+                        background: "linear-gradient(135deg, #F5A623, #e8950f)",
+                        boxShadow: "0 0 40px rgba(245,166,35,0.5)",
+                      }}
+                    >
+                      ▶
+                    </div>
+                  </div>
+                  <p className="text-white/60 text-lg font-medium mb-2">{t("Démo AXSO en direct")}</p>
+                  <p className="text-white/35 text-sm text-center max-w-xs px-4">
+                    {t("La vidéo de démo arrive bientôt — ton empire se construit en temps réel")}
+                  </p>
+                  <div className="absolute bottom-8 left-8 right-8">
+                    <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: "42%",
+                          background: "linear-gradient(90deg, #F5A623, #FFD280)",
+                          animation: "progressLoop 8s linear infinite",
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-white/30 text-xs">0:00</span>
+                      <span className="text-white/30 text-xs inline-flex items-center gap-1"><Rocket size={12} />{" "}{t("Empire en construction")}</span>
+                      <span className="text-white/30 text-xs">3:00</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {hasIframe && !hasVideo && (
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
+                  style={{ background: "linear-gradient(to top, rgba(0,0,0,0.4), transparent)" }}
+                />
+              )}
+            </div>
+
+            {/* Bottom bar */}
+            <div className="bg-white px-3 sm:px-5 py-2.5 sm:py-3 border-t border-gray-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-lg bg-[#F5A623]/10 flex items-center justify-center text-[#F5A623]"><Bot size={16} /></div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-700">AXIA</p>
+                  <p className="text-[10px] text-gray-400">{t("Boutique créée en 3 minutes")}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-2.5 py-1 rounded-full bg-green-100 text-green-700 font-semibold whitespace-nowrap">{t("✓ Boutique live")}</span>
+                <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-full bg-[#F5A623]/10 text-[#F5A623] font-semibold items-center gap-1"><Zap size={10} />{" "}{t("AXIA active")}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Points de réassurance */}
+        <div
+          className="grid grid-cols-3 gap-3 sm:gap-8 mt-10 sm:mt-16 text-center"
+          style={{ opacity: visible ? 1 : 0, transition: "opacity 1s 0.6s" }}
+        >
+          {[
+            { icon: <Zap size={36} />, title: "3 min pour lancer", desc: "De ta vision à la boutique live" },
+            { icon: <Bot size={36} />, title: "AXIA bosse pour toi", desc: "Ton assistante IA, active 24h/24" },
+            { icon: <Globe size={36} />, title: "Actif dans les 54 pays en Afrique", desc: "Paiements et livraisons localisés" },
+          ].map((item) => (
+            <div key={item.title} className="group">
+              <div
+                className="mb-3 inline-block transition-transform duration-300 group-hover:scale-125"
+                style={{ filter: "drop-shadow(0 0 12px rgba(245,166,35,0.3))", color: "#F5A623" }}
+              >
+                {item.icon}
+              </div>
+              <p className="font-bold text-[#111111] mb-1 text-sm sm:text-base leading-snug">{t(item.title)}</p>
+              <p className="text-xs sm:text-sm text-gray-400">{t(item.desc)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes ripple { 0%{transform:scale(0.8);opacity:0.8} 100%{transform:scale(1.6);opacity:0} }
+        @keyframes progressLoop { 0%{width:0%} 100%{width:100%} }
+        @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+      `}</style>
+    </section>
+  );
+}

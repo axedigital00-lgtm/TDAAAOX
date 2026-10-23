@@ -1,0 +1,598 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { LogOut, LayoutList, Settings2, LayoutTemplate, Monitor, Tablet, Smartphone, Undo2, Redo2, ExternalLink, Save, Check, RefreshCw, Rocket, EyeOff, ChevronRight, ArrowLeft, LifeBuoy, type LucideIcon } from "lucide-react";
+import { lienSignalement } from "@/lib/signalements";
+import type { BlockNode, ThemeConfig } from "@/lib/theme-config";
+import {
+  ZONES, zoneDe, ordonnerParZone, insertNode, moveNode, removeNode, duplicateNode, toggleNodeActif,
+  updateNodeConfig, updateNodeStyle, updateNodeResponsiveStyle, findNode, getSiblingPosition, genBlockId, type Zone,
+} from "@/lib/block-tree";
+import { MANIFESTE_LIBRAIRIE } from "@/lib/axso-design-manifest";
+import { PCOnlyGate } from "@/components/dashboard/PCOnlyGate";
+import { BlockStylePanel } from "../canvas/BlockStylePanel";
+import { AxiaBuilderPanel } from "../canvas/AxiaBuilderPanel";
+import { createDefaultNode, STARTER_TEMPLATES } from "../canvas/blockDefaults";
+import { PanneauSections } from "./PanneauSections";
+import { MenuAjout, type ChoixAjout } from "./MenuAjout";
+import { ReglagesSection } from "./ReglagesSection";
+import { Apercu } from "./Apercu";
+import { ApercuFiche, useFicheCible } from "./ApercuFiche";
+import { ApercuPage } from "../pages/ApercuPage";
+import { PanneauPage } from "../pages/PanneauPage";
+import { SelecteurPage } from "../pages/SelecteurPage";
+import { PAGES, cleLibre, pageDepuisChemin, type PageEditee } from "../pages/pages";
+import { selecteurDe, lireContenu, type ElementsPage, type ContenuPage } from "@/lib/elements-pages";
+import { nomNoeud } from "./libelles";
+import { convertirDesignEnSections } from "@/lib/decoupage-design";
+import { lireElement, modifierElement, appliquerContenu, selectionnerParent, racineElement, nomElement } from "./elements-dom";
+import { PanneauElement, type ContenuElement } from "../PanneauElement";
+import { RechercheConstructeur, type ResultatRecherche } from "../RechercheConstructeur";
+import { poserIdElement } from "../elements-arbre";
+import { StyleCss } from "@/components/storefront/StyleCss";
+import { CSS_MENUS_DEROULANTS } from "../menusDeroulants";
+import { majStyleElement, type ElementStyles } from "@/lib/element-styles";
+import { useT } from "@/components/I18nProvider";
+import { urlBoutique } from "@/lib/utils";
+
+type Device = "desktop" | "tablet" | "mobile";
+type Onglet = "sections" | "parametres" | "modeles";
+export interface Reglage { id: string; label: string; desc: string; Icon: LucideIcon; contenu: ReactNode }
+
+interface Props {
+  tenant: any;
+  config: ThemeConfig;
+  set: (u: (p: ThemeConfig) => ThemeConfig) => void;
+  device: Device;
+  setDevice: (d: Device) => void;
+  undo: () => void;
+  redo: () => void;
+  peutAnnuler: boolean;
+  peutRetablir: boolean;
+  handleSave: () => void;
+  saving: boolean;
+  saved: boolean;
+  hasChanges: boolean;
+  publier: () => void;
+  depublier: () => void; // boutique en ligne → en pause (invisible au public)
+  publishing: boolean;
+  criteresManquants: { label: string }[];
+  bandeaux: ReactNode;
+  reglages: Reglage[];
+  modeles: ReactNode;
+  // Panneaux des pages à sections (fiche produit, À propos, Contact).
+  panneauxPages: Partial<Record<PageEditee, ReactNode>>;
+  onSyncWithServer: () => Promise<void>;
+  pageInitiale?: PageEditee; // ?page= dans l'adresse (ex. page importée à l'instant)
+}
+
+// Constructeur des boutiques physiques (catalogue), sur le modèle de l'éditeur
+// de thème Shopify : barre du haut fixe (jamais stylée par le design de la
+// boutique — son CSS est confiné à l'aperçu, voir lib/scope-css.ts), sections
+// En-tête / Modèle / Pied de page à gauche, aperçu en direct au centre,
+// réglages de l'élément sélectionné à droite.
+export function BoutiqueBuilder(p: Props) {
+  const tr = useT();
+  const { config, set, tenant, device } = p;
+  const [onglet, setOnglet] = useState<Onglet>("sections");
+  // Page de la boutique en cours d'édition (sélecteur de la barre du haut).
+  const [page, setPageBrute] = useState<PageEditee>(p.pageInitiale ?? "accueil");
+  const setPage = (pg: PageEditee) => { setPageBrute(pg); setOnglet("sections"); setReglageOuvert(null); setAjout(null); setSelectedId(null); setElPage(null); };
+  // Aperçus en cadre (catalogue, panier…) : rechargés à chaque enregistrement.
+  const [versionApercu, setVersionApercu] = useState(0);
+  useEffect(() => { if (p.saved) setVersionApercu((v) => v + 1); }, [p.saved]);
+  // Page libre (page importée…) : sections modifiables comme l'accueil, dans pagesPerso.
+  const pagesLibres = ((config as any).pagesPerso ?? {}) as Record<string, { nom?: string; builderTree?: BlockNode[]; css?: string; ordre?: number }>;
+  const cle = cleLibre(page);
+  const libre = cle ? pagesLibres[cle] : undefined;
+  const avecSections = page === "accueil" || !!libre;
+  const libellePage = libre ? libre.nom || cle! : PAGES.find((pg) => pg.id === page)?.label ?? "";
+  const pageEnCadre = !avecSections && page !== "produit";
+  // Sur ces pages, enregistrement rapide pour que l'aperçu suive sans attendre.
+  useEffect(() => {
+    if (!pageEnCadre || !p.hasChanges || p.saving) return;
+    const t = setTimeout(p.handleSave, 800);
+    return () => clearTimeout(t);
+  }, [pageEnCadre, p.hasChanges, p.saving, config, p.handleSave]);
+  const [reglageOuvert, setReglageOuvert] = useState<string | null>(null);
+  const [selectedId, setSelectedIdBrut] = useState<string | null>(null);
+  // Élément d'une section de design (titre, bouton, image…) sélectionné dans
+  // l'aperçu ; selectedId est alors le bloc embed-html qui le contient.
+  const [selectedEl, setSelectedEl] = useState<string | null>(null);
+  const setSelectedId = useCallback((id: string | null | ((s: string | null) => string | null)) => { setSelectedEl(null); setSelectedIdBrut(id); }, []);
+  // Élément d'une page sans sections (catalogue, commande, À propos, contact, fiche produit),
+  // repéré par son chemin CSS (lib/elements-pages.ts) ; `tous` : réglage appliqué à ses semblables.
+  const [elPage, setElPage] = useState<{
+    el: Element; exact: string; groupe: string | null; nbGroupe: number; tous: boolean;
+    nom: string; contenu: ContenuElement; lienPage: PageEditee | null;
+  } | null>(null);
+  const choisirElPage = (el: Element) => {
+    const sel = selecteurDe(el);
+    if (!sel) return;
+    const href = el.closest("a")?.getAttribute("href");
+    let lienPage: PageEditee | null = null;
+    try { if (href && !href.startsWith("#")) lienPage = pageDepuisChemin(tenant.slug, new URL(href, el.ownerDocument.location.href).pathname); } catch { /* lien invalide */ }
+    setSelectedId(null);
+    setElPage({
+      el, ...sel, nbGroupe: sel.groupe ? el.ownerDocument.querySelectorAll(sel.groupe).length : 1, tous: false,
+      nom: nomElement(el.tagName, String(el.getAttribute("class") || "")), contenu: lireContenu(el), lienPage: lienPage !== page ? lienPage : null,
+    });
+  };
+  const cleEl = elPage ? (elPage.tous && elPage.groupe ? elPage.groupe : elPage.exact) : "";
+  const reglagesPage = config.elementsPages?.[page];
+  const majPage = (fn: (r: ElementsPage) => ElementsPage) =>
+    set((c) => ({ ...c, elementsPages: { ...c.elementsPages, [page]: fn(c.elementsPages?.[page] ?? {}) } }));
+  const [ajout, setAjout] = useState<{ mode: "section"; zone: Zone; index: number } | { mode: "bloc"; sectionId: string } | null>(null);
+  // Section/bloc survolé, partagé entre le panneau de gauche et l'aperçu (surbrillance seulement).
+  const [survolId, setSurvolId] = useState<string | null>(null);
+  // Choix survolé dans le menu d'ajout : montré en place dans l'aperçu, rien n'est écrit avant le clic.
+  const [choixSurvole, setChoixSurvole] = useState<ChoixAjout | null>(null);
+  useEffect(() => setChoixSurvole(null), [ajout]);
+
+  const tree = ordonnerParZone((libre ? libre.builderTree : config.builderTree) ?? []);
+  const setTree = useCallback(
+    (u: (t: BlockNode[]) => BlockNode[]) => set((c) => {
+      if (!cle) return { ...c, builderTree: ordonnerParZone(u(ordonnerParZone(c.builderTree ?? []))) };
+      const pages = (c as any).pagesPerso ?? {};
+      if (!pages[cle]) return c;
+      return { ...c, pagesPerso: { ...pages, [cle]: { ...pages[cle], builderTree: ordonnerParZone(u(ordonnerParZone(pages[cle].builderTree ?? []))) } } } as ThemeConfig;
+    }),
+    [set, cle],
+  );
+  // Page libre sans en-tête ni pied de page propres : ceux de l'accueil, affichés dans l'aperçu (comme sur la boutique).
+  const accueil = ordonnerParZone(config.builderTree ?? []);
+  const herite = (z: Zone) => (libre && !tree.some((n) => zoneDe(n) === z) ? accueil.filter((n) => zoneDe(n) === z) : []);
+
+  // Design importé → sections éditables une à une (voir decoupage.ts). Une
+  // vraie modification (enregistrée automatiquement), pas une conversion en
+  // mémoire : sinon AXIA, qui écrit l'arbre en base, repartirait d'un arbre
+  // vide et ferait disparaître le design. Idempotent (setter fonctionnel).
+  const aConvertir = (!config.builderTree?.length && !!config.builderHtml)
+    || !!config.builderTree?.some((n) => n.children?.[0]?.children?.[0]?.children?.[0]?.config?.css);
+  useEffect(() => { if (aConvertir) set(convertirDesignEnSections); }, [aConvertir, set]);
+
+  const deplacer = (id: string, conteneur: string, versIndex: number) => {
+    setTree((t) => {
+      if ((ZONES as string[]).includes(conteneur)) {
+        const cible = t.filter((n) => zoneDe(n) === conteneur)[versIndex];
+        return cible ? moveNode(t, id, null, t.indexOf(cible)) : t;
+      }
+      return moveNode(t, id, conteneur, versIndex);
+    });
+  };
+
+  // Nœud d'aperçu du choix survolé : construit une fois par choix (ids stables).
+  const cleChoix = choixSurvole && ajout ? `${ajout.mode}:${choixSurvole.kind === "modele" ? choixSurvole.id : choixSurvole.type}` : null;
+  const noeudApercu = useMemo(() => {
+    if (!choixSurvole || !ajout) return null;
+    if (ajout.mode === "bloc") return choixSurvole.kind === "bloc" ? { ...createDefaultNode(choixSurvole.type), id: ID_APERCU_AJOUT } : null;
+    const n = choixSurvole.kind === "modele"
+      ? STARTER_TEMPLATES.find((m) => m.id === choixSurvole.id)?.build()
+      : envelopperEnSection(createDefaultNode(choixSurvole.type));
+    return n ? { ...n, id: ID_APERCU_AJOUT, config: ajout.zone !== "template" ? { ...n.config, zone: ajout.zone } : n.config } : null;
+  }, [cleChoix]); // eslint-disable-line react-hooks/exhaustive-deps
+  const treeApercu = useMemo(() => {
+    const complet = libre ? ordonnerParZone([...herite("header"), ...tree, ...herite("footer")]) : tree;
+    if (!noeudApercu || !ajout) return complet;
+    if (ajout.mode === "section") return insertNode(complet, null, indexGlobal(complet, ajout.zone, ajout.index), noeudApercu);
+    const section = findNode(complet, ajout.sectionId);
+    const colonne = section && premiereColonne(section);
+    return colonne ? insertNode(complet, colonne.id, (colonne.children ?? []).length, noeudApercu) : complet;
+  }, [noeudApercu, ajout, config.builderTree, libre]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const supprimer = (id: string) => { setTree((t) => removeNode(t, id)); setSelectedId((s) => (s === id ? null : s)); };
+
+  const choisirAjout = (choix: ChoixAjout) => {
+    if (!ajout) return;
+    if (ajout.mode === "section") {
+      const noeud: BlockNode = choix.kind === "modele"
+        ? STARTER_TEMPLATES.find((m) => m.id === choix.id)!.build()
+        : envelopperEnSection(createDefaultNode(choix.type));
+      if (ajout.zone !== "template") noeud.config = { ...noeud.config, zone: ajout.zone };
+      setTree((t) => insertNode(t, null, indexGlobal(t, ajout.zone, ajout.index), noeud));
+      setSelectedId(noeud.id);
+    } else if (choix.kind === "bloc") {
+      const bloc = createDefaultNode(choix.type);
+      setTree((t) => {
+        const section = findNode(t, ajout.sectionId);
+        const colonne = section && premiereColonne(section);
+        return colonne ? insertNode(t, colonne.id, (colonne.children ?? []).length, bloc) : t;
+      });
+      setSelectedId(bloc.id);
+    }
+    setAjout(null);
+  };
+
+  const selection = selectedId ? findNode(tree, selectedId) : null;
+  const estSection = !!selection && tree.some((n) => n.id === selection.id);
+  const position = (() => {
+    if (!selection) return null;
+    if (!estSection) return getSiblingPosition(tree, selection.id);
+    const liste = tree.filter((n) => zoneDe(n) === zoneDe(selection));
+    return { index: liste.indexOf(selection), total: liste.length };
+  })();
+  const decaler = (sens: -1 | 1) => {
+    if (!selection || !position) return;
+    if (estSection) deplacer(selection.id, zoneDe(selection), position.index + sens);
+    else {
+      const parent = trouverParent(tree, selection.id);
+      if (parent) deplacer(selection.id, parent.id, position.index + sens);
+    }
+  };
+
+  // ── Élément sélectionné dans une section de design ─────────────────────
+  const embed = selectedEl && selection?.type === "embed-html" ? selection : null;
+  const infoEl = useMemo(() => (embed && selectedEl ? lireElement(embed.config?.html || "", selectedEl) : null), [embed, selectedEl]);
+  const majEmbed = (fn: (cfg: Record<string, any>) => Record<string, any>) => {
+    if (!embed) return;
+    const id = embed.id;
+    setTree((t) => { const n = findNode(t, id); return n ? updateNodeConfig(t, id, fn(n.config ?? {})) : t; });
+  };
+  // Section de design sélectionnée (liste, étiquette) : ses réglages sont ceux
+  // de la racine du design — styler l'enveloppe du bloc ne se voyait pas sous
+  // le fond et les couleurs propres du design.
+  const feuilles = (n: BlockNode): BlockNode[] => (n.children?.length ? n.children.flatMap(feuilles) : [n]);
+  const embedSeul = selection && !selectedEl ? feuilles(selection) : [];
+  const embedDeSection = embedSeul.length === 1 && embedSeul[0].type === "embed-html" ? embedSeul[0] : null;
+  const racine = embedDeSection && racineElement(embedDeSection.config?.html || "");
+  useEffect(() => {
+    if (!embedDeSection || !racine) return;
+    if (racine.html !== embedDeSection.config?.html) setTree((t) => updateNodeConfig(t, embedDeSection.id, { html: racine.html }));
+    setSelectedIdBrut(embedDeSection.id);
+    setSelectedEl(racine.id);
+  }, [embedDeSection?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const estRacine = !!embed && !!selectedEl && racineElement(embed.config?.html || "")?.id === selectedEl;
+  const sectionDe = (id: string) => tree.find((n) => n.id === id || !!findNode(n.children ?? [], id)) ?? null;
+
+  // Élément d'un design désigné par son rang (arborescence, recherche) : identifiant posé puis sélection.
+  const selectionnerElement = (embedId: string, index: number) => {
+    const n = findNode(tree, embedId);
+    const res = n && poserIdElement(n.config?.html || "", index);
+    if (!res) return;
+    if (res.html !== n.config?.html) setTree((t) => updateNodeConfig(t, embedId, { html: res.html }));
+    setSelectedIdBrut(embedId);
+    setSelectedEl(res.id);
+  };
+
+  const ouvrirResultat = (r: ResultatRecherche) => {
+    if (r.kind === "page") return setPage(r.page);
+    if (r.kind === "fiche") { setPage("produit"); useFicheCible.getState().ouvrir(r.type); return; }
+    if (r.kind === "reglage") { setAjout(null); setOnglet("parametres"); setReglageOuvert(r.id); return; }
+    if (!avecSections) setPage("accueil");
+    else { setOnglet("sections"); setAjout(null); }
+    if (r.kind === "noeud") setSelectedId(r.id);
+    else selectionnerElement(r.embedId, r.index);
+  };
+
+  const design = MANIFESTE_LIBRAIRIE.find((e) => typeof tenant.themeSlug === "string" && tenant.themeSlug.startsWith(`axso-design-${e.fichier.replace(".html", "")}-`));
+  const reglage = p.reglages.find((r) => r.id === reglageOuvert);
+
+  return (
+    <div className="ax-constructeur fixed inset-0 z-[9999] flex flex-col bg-[#F1F2F4] text-[#111111] overflow-hidden" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+      <StyleCss css={CSS_MENUS_DEROULANTS} />
+      <PCOnlyGate label={tr("Le Constructeur de boutique")} />
+
+      {/* ── Barre du haut : fixe, identique quel que soit le design ── */}
+      <header className="h-[60px] flex-shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-3 bg-white border-b border-[#E5E5E5]">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Link href="/dashboard" title={tr("Quitter le constructeur")} aria-label={tr("Quitter le constructeur")}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors">
+            <LogOut size={20} className="rotate-180" />
+          </Link>
+          <span className="w-px h-6 bg-[#E5E5E5] mx-1" />
+          {([["sections", LayoutList, "Sections"], ["parametres", Settings2, "Paramètres du thème"], ["modeles", LayoutTemplate, "Modèles"]] as [Onglet, LucideIcon, string][]).map(([id, Icon, label]) => (
+            <button key={id} onClick={() => { setOnglet(id); setReglageOuvert(null); setAjout(null); }} title={label} aria-label={label} aria-pressed={onglet === id}
+              className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${onglet === id ? "bg-[#FFF1D6] text-[#C77C0A]" : "text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5]"}`}>
+              <Icon size={20} />
+            </button>
+          ))}
+          <span className="w-px h-6 bg-[#E5E5E5] mx-1" />
+          <RechercheConstructeur tree={tree} reglages={p.reglages} onChoisir={ouvrirResultat} />
+        </div>
+
+        <div className="flex items-center gap-3 text-[14px] min-w-0">
+          <span className="flex items-center gap-2 font-medium text-[#111111] truncate">
+            <LayoutTemplate size={18} className="text-[#777777] flex-shrink-0" />
+            {tr(design?.nom) ?? tr("Mon thème")}
+          </span>
+          {tenant.statut === "active"
+            ? <span className="px-2 py-0.5 rounded-md text-[12.5px] font-semibold bg-[#DCFCE7] text-[#15803D]">{tr("En ligne")}</span>
+            : tenant.statut === "brouillon"
+              ? <span className="px-2 py-0.5 rounded-md text-[12.5px] font-semibold bg-[#FFF1D6] text-[#B45309]">{tr("Brouillon")}</span>
+              : <span className="px-2 py-0.5 rounded-md text-[12.5px] font-semibold bg-[#F3F4F6] text-[#4B5563]">{tr("Hors ligne")}</span>}
+          <span className="w-px h-5 bg-[#E5E5E5]" />
+          <SelecteurPage page={page} onChange={setPage}
+            pagesLibres={Object.entries(pagesLibres).sort(([, a], [, b]) => (a.ordre ?? 0) - (b.ordre ?? 0)).map(([c, pg]) => ({ cle: c, nom: pg.nom || c }))} />
+        </div>
+
+        <div className="flex items-center justify-end gap-1.5 min-w-0">
+          <span className="hidden xl:block text-[13px] text-[#888888] mr-1 truncate">
+            {p.saving ? tr("Enregistrement…") : p.saved ? tr("Enregistré") : p.hasChanges ? tr("Modifications non enregistrées") : ""}
+          </span>
+          <div className="flex items-center rounded-lg bg-[#F3F3F3] p-0.5">
+            {([["desktop", Monitor, "Ordinateur"], ["tablet", Tablet, "Tablette"], ["mobile", Smartphone, "Mobile"]] as [Device, LucideIcon, string][]).map(([d, Icon, label]) => (
+              <button key={d} onClick={() => p.setDevice(d)} title={label} aria-label={label} aria-pressed={device === d}
+                className={`w-10 h-10 flex items-center justify-center rounded-md transition-all ${device === d ? "bg-white text-[#111111] shadow-sm" : "text-[#777777] hover:text-[#111111]"}`}>
+                <Icon size={18} />
+              </button>
+            ))}
+          </div>
+          <BoutonBarre titre={tr("Annuler (Ctrl+Z)")} onClick={p.undo} disabled={!p.peutAnnuler}><Undo2 size={19} /></BoutonBarre>
+          <BoutonBarre titre={tr("Rétablir (Ctrl+Y)")} onClick={p.redo} disabled={!p.peutRetablir}><Redo2 size={19} /></BoutonBarre>
+          {tenant.statut === "active" && (
+            <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer" title={tr("Voir la boutique")} aria-label={tr("Voir la boutique")}
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors">
+              <ExternalLink size={19} />
+            </a>
+          )}
+          {/* Nouvel onglet : le Constructeur reste ouvert avec ses modifications. */}
+          <a href={lienSignalement("/dashboard/builder")} target="_blank" rel="noopener noreferrer" title={tr("Signaler un problème")} aria-label={tr("Signaler un problème")}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors">
+            <LifeBuoy size={19} />
+          </a>
+          <button onClick={p.handleSave} disabled={p.saving || (!p.hasChanges && !p.saved)}
+            className={`h-10 flex items-center gap-2 px-4 rounded-lg text-[14px] font-semibold transition-colors disabled:cursor-not-allowed ${
+              p.saved ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#F5A623] text-[#111111] hover:bg-[#E8990F] disabled:bg-[#EDEDED] disabled:text-[#AAAAAA]"}`}>
+            {p.saving ? <RefreshCw size={15} className="animate-spin" /> : p.saved ? <Check size={15} /> : <Save size={15} />}
+            {p.saving ? tr("Enregistrement…") : p.saved ? tr("Enregistré") : tr("Enregistrer")}
+          </button>
+          {tenant.statut === "active" ? (
+            <button onClick={p.depublier} disabled={p.publishing} title={tr("Retirer la boutique de la vente en ligne")}
+              className="h-10 flex items-center gap-2 px-4 rounded-lg text-[14px] font-semibold border border-[#E5E5E5] text-[#444444] hover:border-[#FCA5A5] hover:text-[#DC2626] hover:bg-[#FEF2F2] disabled:opacity-40 transition-colors">
+              {p.publishing ? <RefreshCw size={15} className="animate-spin" /> : <EyeOff size={15} />}
+              {p.publishing ? "…" : tr("Dépublier")}
+            </button>
+          ) : (
+            <button onClick={p.publier} disabled={p.publishing || p.criteresManquants.length > 0}
+              title={p.criteresManquants.length ? tr("Complète d'abord : {0}", p.criteresManquants.map((c) => c.label).join(", ")) : undefined}
+              className="h-10 flex items-center gap-2 px-4 rounded-lg text-[14px] font-semibold bg-[#111111] text-white hover:bg-[#333333] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              {p.publishing ? <RefreshCw size={15} className="animate-spin" /> : <Rocket size={15} />}
+              {p.publishing ? tr("Publication…") : tr("Publier")}
+            </button>
+          )}
+        </div>
+      </header>
+
+      {tr(p.bandeaux)}
+
+      <div className="flex-1 flex min-h-0">
+        {/* ── Panneau de gauche ── */}
+        <aside className="relative w-[320px] flex-shrink-0 flex flex-col bg-white border-r border-[#E5E5E5]">
+          {onglet === "sections" && !avecSections && (
+            p.panneauxPages[page]
+              ? <div className="flex-1 flex flex-col min-h-0">
+                  <div className="px-5 h-14 flex items-center border-b border-[#EEEEEE] flex-shrink-0"><p className="text-[15px] font-semibold">{tr(PAGES.find((pg) => pg.id === page)?.label)}</p></div>
+                  <div className="flex-1 overflow-y-auto scrollbar-thin text-[14px]">{tr(p.panneauxPages[page])}</div>
+                </div>
+              : <PanneauPage page={page} onPage={setPage} />
+          )}
+
+          {onglet === "sections" && avecSections && (
+            <PanneauSections
+              titre={libre ? libellePage : undefined}
+              tree={tree}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              selectedEl={selectedEl}
+              onSelectElement={selectionnerElement}
+              survolId={survolId}
+              onSurvol={setSurvolId}
+              onDeplacer={deplacer}
+              onToggleActif={(id) => setTree((t) => toggleNodeActif(t, id))}
+              onDupliquer={(id) => setTree((t) => duplicateNode(t, id))}
+              onSupprimer={supprimer}
+              onAjouterSection={(zone, index) => setAjout({ mode: "section", zone, index })}
+              onAjouterBloc={(sectionId) => setAjout({ mode: "bloc", sectionId })}
+            />
+          )}
+
+          {onglet === "parametres" && !reglage && (
+            <div className="flex-1 overflow-y-auto scrollbar-thin">
+              <div className="px-5 py-4 border-b border-[#EEEEEE]"><p className="text-[16px] font-semibold">{tr("Paramètres du thème")}</p></div>
+              <ul className="p-2">
+                {p.reglages.map((r) => (
+                  <li key={r.id}>
+                    <button onClick={() => setReglageOuvert(r.id)} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left hover:bg-[#F5F5F5] transition-colors">
+                      <span className="w-10 h-10 flex-shrink-0 rounded-lg bg-[#F5F5F5] flex items-center justify-center text-[#666666]"><r.Icon size={19} /></span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[14px] font-medium">{tr(r.label)}</span>
+                        <span className="block text-[12.5px] text-[#888888] truncate">{tr(r.desc)}</span>
+                      </span>
+                      <ChevronRight size={18} className="text-[#AAAAAA]" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {onglet === "parametres" && reglage && (
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-center gap-2 px-3 h-14 border-b border-[#EEEEEE] flex-shrink-0">
+                <button onClick={() => setReglageOuvert(null)} aria-label={tr("Retour")} className="w-10 h-10 flex items-center justify-center rounded-lg text-[#666666] hover:text-[#111111] hover:bg-[#F5F5F5]"><ArrowLeft size={19} /></button>
+                <p className="text-[15px] font-semibold">{tr(reglage.label)}</p>
+              </div>
+              <div className="flex-1 overflow-y-auto scrollbar-thin text-[14px]">{tr(reglage.contenu)}</div>
+            </div>
+          )}
+
+          {onglet === "modeles" && (
+            <div className="flex-1 overflow-y-auto scrollbar-thin">
+              <div className="px-5 py-4 border-b border-[#EEEEEE]"><p className="text-[16px] font-semibold">{tr("Modèles")}</p></div>
+              {tr(p.modeles)}
+            </div>
+          )}
+
+          {ajout && <MenuAjout mode={ajout.mode} onChoisir={choisirAjout} onSurvol={setChoixSurvole} onFermer={() => setAjout(null)} />}
+        </aside>
+
+        {/* ── Aperçu ── (fiche produit quand son panneau est ouvert) */}
+        {page === "produit" ? <ApercuFiche config={config} tenant={tenant} device={device} selection={elPage ? cleEl : null} onChoisir={choisirElPage} />
+          : pageEnCadre ? <ApercuPage slug={tenant.slug} chemin={PAGES.find((pg) => pg.id === page)!.chemin} device={device} version={versionApercu} onNaviguer={setPage}
+              reglages={reglagesPage} selection={elPage ? cleEl : null} onChoisir={choisirElPage} />
+          : <Apercu
+          onNaviguer={setPage}
+          config={config}
+          tree={treeApercu}
+          slug={tenant.slug}
+          collections={tenant.collections ?? []}
+          device={device}
+          selectedId={noeudApercu ? ID_APERCU_AJOUT : selectedId}
+          onSelect={setSelectedId}
+          survolId={noeudApercu ? ID_APERCU_AJOUT : survolId}
+          onSurvol={setSurvolId}
+          onChangeConfig={(id, patch) => setTree((t) => updateNodeConfig(t, id, patch))}
+          onAjouterSection={(zone, index) => { setOnglet("sections"); setAjout({ mode: "section", zone, index }); }}
+          cssPage={libre?.css}
+          pageVide={libre ? tr("La page « {0} » est vide", libellePage) : undefined}
+          selectedEl={selectedEl}
+          onSelectElement={(noeudId, elId) => { setSelectedIdBrut(noeudId); setSelectedEl(elId); }}
+        />}
+
+        {/* ── Réglages de l'élément sélectionné ── */}
+        {elPage && !avecSections && (
+          <PanneauElement
+            key={cleEl}
+            collections={tenant.collections ?? []}
+            titre={elPage.nom}
+            sousTitre={tr("Page « {0} »", libellePage)}
+            contenu={elPage.tous ? undefined : elPage.contenu}
+            onContenu={(patch) => {
+              majPage((r) => ({ ...r, contenus: { ...r.contenus, [elPage.exact]: { ...r.contenus?.[elPage.exact], ...(patch as ContenuPage) } } }));
+              setElPage((e) => e && { ...e, contenu: { ...e.contenu, ...patch } });
+            }}
+            styles={reglagesPage?.styles?.[cleEl] ?? {}}
+            device={device}
+            onStyle={(etat, patch) => majPage((r) => ({ ...r, styles: majStyleElement(r.styles, cleEl, etat, patch) }))}
+            onReinitialiser={() => majPage((r) => { const { [cleEl]: _retire, ...reste } = r.styles ?? {}; return { ...r, styles: reste }; })}
+            onParent={elPage.el.parentElement && selecteurDe(elPage.el.parentElement) ? () => choisirElPage(elPage.el.parentElement!) : undefined}
+            onClose={() => setElPage(null)}
+            extra={(elPage.lienPage || elPage.nbGroupe > 1) && (
+              <div className="space-y-2">
+                {elPage.lienPage && (
+                  <button onClick={() => setPage(elPage.lienPage!)}
+                    className="w-full h-10 flex items-center justify-between px-3 rounded-lg border border-[#E5E5E5] text-[14px] hover:bg-[#F5F5F5]">
+                    {tr("Ouvrir la page liée : {0}", tr(PAGES.find((pg) => pg.id === elPage.lienPage)?.label ?? elPage.lienPage))}
+                    <ChevronRight size={17} className="text-[#999999]" />
+                  </button>
+                )}
+                {elPage.nbGroupe > 1 && (
+                  <label className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-[#F7F7F8] text-[13.5px] cursor-pointer">
+                    <input type="checkbox" checked={elPage.tous} onChange={(e) => setElPage((x) => x && { ...x, tous: e.target.checked })} className="mt-0.5 w-4 h-4 accent-[#F5A623]" />
+                    <span>{tr("Appliquer le style aux {0} éléments semblables (ex. toutes les cartes produit)", String(elPage.nbGroupe))}</span>
+                  </label>
+                )}
+              </div>
+            )}
+          />
+        )}
+        {embed && selectedEl && infoEl && (
+          <PanneauElement
+            key={selectedEl}
+            collections={tenant.collections ?? []}
+            titre={infoEl.nom}
+            sousTitre={tr("Dans « {0} »", nomNoeud(sectionDe(embed.id) ?? embed))}
+            contenu={{ texte: infoEl.texte, lien: infoEl.lien, image: infoEl.image, alt: infoEl.alt, placeholder: infoEl.placeholder, texteEnLigne: infoEl.texteEnLigne }}
+            onContenu={(patch) => majEmbed((c) => ({ html: modifierElement(c.html || "", selectedEl, (el) => appliquerContenu(el, patch)) }))}
+            styles={(embed.config?.elementStyles as ElementStyles | undefined)?.[selectedEl] ?? {}}
+            device={device}
+            onStyle={(etat, patch) => majEmbed((c) => ({ elementStyles: majStyleElement(c.elementStyles, selectedEl, etat, patch) }))}
+            onReinitialiser={() => majEmbed((c) => { const { [selectedEl]: _retire, ...reste } = (c.elementStyles ?? {}) as ElementStyles; return { elementStyles: reste }; })}
+            onParent={estRacine ? undefined : () => {
+              const parent = selectionnerParent(embed.config?.html || "", selectedEl);
+              if (!parent) { const sec = sectionDe(embed.id); setSelectedId(sec?.id ?? null); return; }
+              majEmbed(() => ({ html: parent.html }));
+              setSelectedEl(parent.id);
+            }}
+            onSupprimer={() => { majEmbed((c) => ({ html: modifierElement(c.html || "", selectedEl, (el) => el.remove()) })); setSelectedEl(null); }}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+        {selection && !(embed && selectedEl && infoEl) && !racine && (
+          <BlockStylePanel
+            key={selection.id}
+            node={selection}
+            collections={tenant.collections ?? []}
+            bibliotheque={imagesUtilisees(tree)}
+            reglagesSection={estSection ? <ReglagesSection section={selection} setTree={setTree} /> : undefined}
+            titre={nomNoeud(selection)}
+            device={device}
+            canMoveUp={!!position && position.index > 0}
+            canMoveDown={!!position && position.index < position.total - 1}
+            onMoveUp={() => decaler(-1)}
+            onMoveDown={() => decaler(1)}
+            onChangeStyle={(patch) => setTree((t) => updateNodeStyle(t, selection.id, patch))}
+            onChangeResponsiveStyle={(bp, patch) => setTree((t) => updateNodeResponsiveStyle(t, selection.id, bp, patch))}
+            onChangeConfig={(patch) => setTree((t) => updateNodeConfig(t, selection.id, patch))}
+            onDuplicate={() => setTree((t) => duplicateNode(t, selection.id))}
+            onDelete={() => supprimer(selection.id)}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+      </div>
+
+      <AxiaBuilderPanel onSyncWithServer={p.onSyncWithServer} decalageDroite={selection || elPage ? 340 : 0} contexte={[
+        libre ? `page libre « ${libellePage} » (p/${cle})` : `page « ${libellePage} »`,
+        selection && `section sélectionnée « ${nomNoeud(selection)} » (id ${selection.id})`,
+        elPage && `élément sélectionné sur cette page : ${elPage.nom}${elPage.contenu.texte ? ` « ${elPage.contenu.texte.slice(0, 60)} »` : ""}`,
+        selectedEl && `élément sélectionné ${selectedEl}${infoEl ? ` (${infoEl.nom}${infoEl.texte ? ` « ${infoEl.texte.slice(0, 60)} »` : ""})` : ""}`,
+      ].filter(Boolean).join(", ")} />
+    </div>
+  );
+}
+
+const ID_APERCU_AJOUT = "apercu-ajout";
+
+function BoutonBarre({ titre, onClick, disabled, children }: { titre: string; onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  return (
+    <button onClick={onClick} disabled={disabled} title={titre} aria-label={titre}
+      className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+      {children}
+    </button>
+  );
+}
+
+function envelopperEnSection(widget: BlockNode): BlockNode {
+  return {
+    id: genBlockId("section"),
+    type: "section",
+    children: [{ id: genBlockId("row"), type: "row", children: [{ id: genBlockId("col"), type: "column", children: [widget] }] }],
+  };
+}
+
+// Images déjà utilisées dans l'arbre (blocs Image, fonds) : la bibliothèque du sélecteur d'image.
+function imagesUtilisees(liste: BlockNode[]): string[] {
+  return liste.flatMap((n) => [
+    n.type === "image" ? n.config?.url : undefined,
+    n.style?.background?.image,
+    ...imagesUtilisees(n.children ?? []),
+  ]).filter((u): u is string => !!u && !u.startsWith("data:"));
+}
+
+function premiereColonne(node: BlockNode): BlockNode | null {
+  for (const c of node.children ?? []) {
+    if (c.type === "column") return c;
+    const trouve = premiereColonne(c);
+    if (trouve) return trouve;
+  }
+  return null;
+}
+
+function trouverParent(liste: BlockNode[], id: string, parent: BlockNode | null = null): BlockNode | null {
+  for (const n of liste) {
+    if (n.id === id) return parent;
+    const t = trouverParent(n.children ?? [], id, n);
+    if (t) return t;
+  }
+  return null;
+}
+
+// Position dans l'arbre complet correspondant à `index` dans la zone donnée.
+function indexGlobal(tree: BlockNode[], zone: Zone, index: number): number {
+  const liste = tree.filter((n) => zoneDe(n) === zone);
+  if (index < liste.length) return tree.indexOf(liste[index]);
+  if (liste.length) return tree.indexOf(liste[liste.length - 1]) + 1;
+  return tree.filter((n) => ZONES.indexOf(zoneDe(n)) < ZONES.indexOf(zone)).length;
+}
+

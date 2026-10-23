@@ -1,0 +1,2215 @@
+// Axia — surface d'outils complète (actions boutique + connecteurs MCP + délégation experte)
+import { lienBoutique } from "@/lib/origine-site";
+import { calculerOptionsLivraison, paysDepuisTexte, decrireRegle } from "@/lib/livraison";
+import { lireReglagesLivraison, trouverZone } from "@/lib/livraison-reglages";
+import { prisma } from "@/lib/prisma";
+import { synchroniserFournisseurs } from "@/lib/sync-fournisseurs";
+import { creerRetour, mettreAJourRetour } from "@/lib/remboursement";
+import { AVEC_EMAIL_REEL } from "@/lib/email";
+import { Resend } from "resend";
+import type { AgentTool, ToolExecutor } from "@/lib/agent-runner";
+import { getAxiaAgentById, AXIA_AGENTS } from "./agents";
+import { notifierMarchand } from "@/lib/notifications-marchand";
+import { changerStatutCommande, assignerLivreurCommande, marquerEspecesRemises } from "@/lib/cycle-livraison";
+import { PAIEMENT, STATUTS_COURSE_ACTIVE, clientsInactifs } from "@/lib/commandes";
+import { executerOutilMcp } from "@/lib/mcp/executor";
+import { generateProductImage, buildProductImagePrompt } from "@/lib/image-gen";
+import { generateSpeechGemini, startVideoGemini, GEMINI_TTS_VOICES } from "@/lib/llm-client";
+import { slugify } from "@/lib/utils";
+import { filtrerOutilsParPalier, type Palier } from "@/lib/plans";
+import { planActif } from "@/lib/abonnement";
+import { appliquerNouveauTheme } from "@/lib/theme-config";
+import { resolveThemeConfigAsync } from "@/lib/theme-config-server";
+import { selectionnerGabaritLibrairie, provisionerThemeInitial } from "@/lib/axso-design-library";
+import { agentConstructeurLibre } from "@/lib/gemini";
+import { validerActions, applyAgentActions, protegerEntete } from "@/lib/agent-actions";
+import { SECTIONS_FICHE, TYPES_FICHE, LAYOUTS_FICHE, appliquerActionFiche, resumerFiche, type ActionFiche } from "@/lib/fiche-produit";
+import { BLOCS_PAGE, appliquerActionPage, resumerPage, type ActionPage, type CleePage } from "@/lib/pages-annexes";
+import { estSensible, demanderConfirmation } from "./confirmation";
+import { assurerSections, decrireAccueil, appliquerActionDesign, type ActionDesign } from "@/lib/design-accueil";
+import { reglagesTheme } from "./reglages-theme";
+import { findNode } from "@/lib/block-tree";
+import { FONTS } from "@/lib/theme-fonts";
+import { AXIA_POS_TOOLS, executerOutilPos } from "./pos-tools";
+import { AXIA_ACADEMIE_TOOLS, executerOutilAcademie } from "./academie-tools";
+import { PAGES_DASHBOARD, resultatOuverture } from "./pages";
+import { modifierProduit, supprimerProduit } from "@/lib/produits";
+import { mouvementStock } from "@/lib/pos/stock";
+import { evaluerPublication } from "@/lib/boutique-completion";
+import { commandesCeMois } from "@/lib/abonnement";
+import { LIMITES, NOMS_PALIERS } from "@/lib/plans";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
+
+// tier absent = disponible dès le Palier 0. "palier1"/"palier2" = outil
+// réservé, filtré par lib/plans.ts::filtrerOutilsParPalier avant chaque appel
+// IA (voir app/api/ai/axia, /universal, /orchestrator).
+export type AxiaToolDef = AgentTool & { tier?: Palier };
+
+export const AXIA_TOOLS: AxiaToolDef[] = [
+  // ─── IMAGES ───────────────────────────────────────────────────────────────
+  {
+    name: "generer_image",
+    tier: "palier2",
+    description: "Génère une image produit ultra HD via Gemini (modèle image natif). TOUJOURS appeler avant ajouter_produit.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        description: { type: "string", description: "Description précise du produit/visuel à générer" },
+        categorie: { type: "string", description: "Catégorie : mode, cosmétiques, artisanat, électronique, alimentaire, etc." },
+        style: { type: "string", enum: ["product_white", "product_lifestyle", "social_media", "banner"], description: "Style de rendu" },
+      },
+      required: ["description", "categorie"],
+    },
+  },
+  // ─── VIDÉO ────────────────────────────────────────────────────────────────
+  {
+    name: "generer_video",
+    tier: "palier2",
+    description: "Lance une génération vidéo IA (Gemini Veo) depuis un prompt. La génération prend plusieurs minutes : l'outil démarre le rendu et le marchand retrouve la vidéo prête dans Contenus dès qu'elle est prête.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        prompt: { type: "string", description: "Description cinématique précise de la vidéo" },
+        ratio: { type: "string", enum: ["16:9", "9:16", "1:1"], description: "Format vidéo" },
+        sujet: { type: "string", description: "Contexte : produit à filmer, style, ambiance" },
+      },
+      required: ["prompt"],
+    },
+  },
+  // ─── AUDIO / TTS ──────────────────────────────────────────────────────────
+  {
+    name: "generer_voiceover",
+    tier: "palier2",
+    description: "Génère un audio voix off professionnel via le TTS natif Gemini. Retourne l'audio au format WAV.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        texte: { type: "string", description: "Texte à lire (max 500 mots)" },
+        voix: { type: "string", enum: GEMINI_TTS_VOICES.map(v => v.id), description: "Voix TTS Gemini" },
+      },
+      required: ["texte"],
+    },
+  },
+  // ─── PRODUITS ─────────────────────────────────────────────────────────────
+  {
+    name: "ajouter_produit",
+    tier: "palier1",
+    description: "Ajoute un nouveau produit à la boutique (passe imageUrl si tu as généré une image avant). Demande toujours le type (physique, digital ou dropshipping) avant de créer le produit si le marchand ne l'a pas précisé : les infos à recueillir diffèrent selon le type (stock/poids pour physique, fichier à livrer pour digital, fournisseur pour dropshipping).",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string" },
+        description: { type: "string" },
+        prix: { type: "number" },
+        categorie: { type: "string" },
+        imageUrl: { type: "string", description: "URL de l'image générée par generer_image" },
+        tags: { type: "array", items: { type: "string" } },
+        type: { type: "string", enum: ["physique", "digital", "dropshipping"], description: "Type de produit — défaut physique" },
+        // Produit physique
+        stock: { type: "number", description: "Quantité en stock (produit physique)" },
+        poids: { type: "number", description: "Poids en kg, utilisé pour calculer les frais de livraison (produit physique)" },
+        // Produit digital
+        fichierUrl: { type: "string", description: "URL du fichier téléchargeable livré après achat (produit digital)" },
+        fichierNom: { type: "string", description: "Nom du fichier affiché au client (produit digital)" },
+        instructionsTelechargement: { type: "string", description: "Instructions affichées au client après achat (produit digital) : comment utiliser/activer le fichier" },
+        // Dropshipping
+        prixFournisseur: { type: "number", description: "Prix d'achat auprès du fournisseur (dropshipping)" },
+        urlFournisseur: { type: "string", description: "URL de la fiche produit chez le fournisseur (dropshipping)" },
+        nomFournisseur: { type: "string", description: "Nom du fournisseur (dropshipping)" },
+      },
+      required: ["nom", "prix", "categorie"],
+    },
+  },
+  {
+    name: "lister_produits",
+    description: "Liste les produits du catalogue avec leur statut",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        limite: { type: "number" },
+        sans_image_seulement: { type: "boolean", description: "Lister uniquement les produits sans image" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "enrichir_produit",
+    tier: "palier1",
+    description: "Met à jour description, SEO et tags d'un produit",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        produitId: { type: "string" },
+        description: { type: "string" },
+        metaTitle: { type: "string" },
+        metaDesc: { type: "string" },
+        tags: { type: "array", items: { type: "string" } },
+        imageUrl: { type: "string" },
+      },
+      required: ["produitId"],
+    },
+  },
+  {
+    name: "mettre_a_jour_prix",
+    tier: "palier1",
+    description: "Change le prix d'un produit avec option prix barré",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        produitId: { type: "string" },
+        prix: { type: "number" },
+        prixCompare: { type: "number" },
+      },
+      required: ["produitId", "prix"],
+    },
+  },
+  {
+    name: "modifier_produit",
+    tier: "palier1",
+    description: "Modifie un produit comme le formulaire produit du dashboard. Ne passe QUE les champs à changer. Appelé avec seulement produitId, renvoie la fiche actuelle (images numérotées, variantes avec leur id) : fais-le avant de retirer une image ou de toucher aux variantes. Stock : uniquement la quantité donnée par le marchand, jamais estimée ni inventée. Mettre en brouillon / retirer de la vente = actif false.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        produitId: { type: "string" },
+        nom: { type: "string" },
+        description: { type: "string" },
+        prix: { type: "number", description: "Prix de vente" },
+        prixCompare: { type: "number", description: "Prix barré (doit être au-dessus du prix) ; 0 pour le retirer" },
+        cout: { type: "number", description: "Coût d'achat unitaire (marge)" },
+        categorie: { type: "string" },
+        tags: { type: "array", items: { type: "string" }, description: "Remplace la liste des tags" },
+        actif: { type: "boolean", description: "true = en vente sur la boutique, false = brouillon (invisible)" },
+        featured: { type: "boolean", description: "Mis en avant" },
+        visibleListage: { type: "boolean", description: "false = absent du catalogue, accessible par son lien" },
+        masquerVentes: { type: "boolean", description: "Masquer le compteur de ventes" },
+        texteBoutonAchat: { type: "string", description: "Texte du bouton d'achat" },
+        type: { type: "string", enum: ["physique", "digital", "dropshipping"] },
+        stock: { type: "number", description: "Nouvelle quantité en stock (produit physique sans variantes)" },
+        poids: { type: "number", description: "Poids en kg" },
+        sku: { type: "string" },
+        codeBarres: { type: "string" },
+        images: { type: "array", items: { type: "string" }, description: "Remplace TOUTES les images (URLs)" },
+        ajouter_images: { type: "array", items: { type: "string" }, description: "URLs d'images à ajouter à la fin" },
+        retirer_images: { type: "array", items: { type: "number" }, description: "Numéros (1, 2…) des images à retirer, d'après la fiche actuelle" },
+        videos: { type: "array", items: { type: "string" }, description: "Remplace les vidéos (URLs)" },
+        metaTitle: { type: "string", description: "Titre SEO (60 caractères max)" },
+        metaDesc: { type: "string", description: "Description SEO (155 caractères max)" },
+        ogImage: { type: "string", description: "Image de partage sur les réseaux" },
+        fichierUrl: { type: "string", description: "Digital : fichier livré après achat" },
+        fichierNom: { type: "string", description: "Digital : nom du fichier affiché" },
+        instructionsTelechargement: { type: "string", description: "Digital : instructions après achat" },
+        prixFournisseur: { type: "number", description: "Dropshipping : prix d'achat fournisseur" },
+        urlFournisseur: { type: "string", description: "Dropshipping : page du produit chez le fournisseur" },
+        nomFournisseur: { type: "string", description: "Dropshipping : nom du fournisseur" },
+        affiliationActive: { type: "boolean", description: "Produit ouvert aux affiliés" },
+        tauxCommissionAff: { type: "number", description: "Commission des affiliés en % (ex. 20)" },
+        faq: { type: "array", items: { type: "object", properties: { question: { type: "string" }, reponse: { type: "string" } }, required: ["question", "reponse"] }, description: "Remplace la FAQ du produit" },
+        variantes: {
+          type: "array",
+          description: "Variantes à ajouter (sans varianteId) ou à modifier (avec varianteId). Stock : quantité donnée par le marchand.",
+          items: {
+            type: "object",
+            properties: {
+              varianteId: { type: "string" }, nom: { type: "string", description: "Option, ex. Taille" }, valeur: { type: "string", description: "Valeur, ex. XL" },
+              prix: { type: "number", description: "Prix propre à la variante" }, sku: { type: "string" }, image: { type: "string" },
+              stock: { type: "number" }, actif: { type: "boolean" },
+            },
+          },
+        },
+        retirer_variantes: { type: "array", items: { type: "string" }, description: "Ids des variantes à supprimer" },
+      },
+      required: ["produitId"],
+    },
+  },
+  {
+    name: "supprimer_produit",
+    tier: "palier1",
+    description: "Supprime DÉFINITIVEMENT un produit (demande l'accord du marchand). Refusé si le produit a déjà été commandé ou mouvementé en stock : propose alors de le désactiver (modifier_produit actif false). Pour un produit qu'on veut juste retirer de la vente, préfère la désactivation.",
+    parameters: { type: "object" as const, properties: { produitId: { type: "string" } }, required: ["produitId"] },
+  },
+  // ─── NAVIGATION & VUE D'ENSEMBLE ──────────────────────────────────────────
+  {
+    name: "ouvrir_page",
+    description: "Ouvre une page du dashboard Axso à l'écran du marchand (« ouvre mes commandes », « montre-moi ce produit »), ou sa boutique publique dans un nouvel onglet. Avec produitId : la fiche d'édition du produit ; avec commandeId : le détail de la commande.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        page: { type: "string", enum: [...Object.keys(PAGES_DASHBOARD), "boutique_publique"] },
+        produitId: { type: "string" },
+        commandeId: { type: "string", description: "Id ou numéro de la commande" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "etat_general",
+    description: "Vue d'ensemble de TOUTE l'activité en un appel : boutique publiée ou non et ce qui manque, plan et quota de commandes, commandes à traiter, livraisons en cours ou en échec, ruptures et stock bas, retours, messages et avis en attente, revenus récents. À appeler pour « comment va ma boutique ? », « quoi de neuf ? », « qu'est-ce que je dois faire ? », ou avant de prendre la main sur la boutique.",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  // ─── BOUTIQUE ─────────────────────────────────────────────────────────────
+  {
+    name: "lire_boutique",
+    description: "Lit toutes les infos de la boutique : tenant, produits, stats récentes",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "publier_boutique",
+    description: "Publie la boutique (passe de brouillon à active, visible publiquement sur son URL). Vérifie d'abord que les critères minimum sont remplis (nom, WhatsApp, pays, description, au moins 1 produit actif) — si un élément manque, retourne la liste précise à compléter au lieu de publier. Propose cette action dès que la conversation d'onboarding touche à sa fin.",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "modifier_boutique",
+    tier: "palier1",
+    description: "Modifie le design visuel, la description, les coordonnées de contact ou les paramètres de la boutique. Pour le design, donne une catégorie/ambiance (ex: 'bijoux', 'mode', 'tech') : un nouveau design de la bibliothèque AXSO Design est provisionné avec les vrais produits déjà branchés. Le numéro WhatsApp est essentiel : c'est le canal par lequel arrivent les commandes en paiement à la livraison — demande-le si la boutique n'en a pas encore.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        categorieDesign: { type: "string", description: "Catégorie/ambiance du nouveau design recherché — omets ce champ si le marchand ne demande pas de changer de design" },
+        description: { type: "string" },
+        metaTitle: { type: "string" },
+        metaDescription: { type: "string" },
+        whatsapp: { type: "string", description: "Numéro WhatsApp au format international (ex: +237690000000) — reçoit les commandes physiques en paiement à la livraison" },
+        telephone: { type: "string", description: "Numéro de téléphone de contact affiché aux clients" },
+        email: { type: "string", description: "Email de contact affiché aux clients" },
+        adresse: { type: "string", description: "Adresse physique de la boutique, si applicable" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "configurer_livraison",
+    tier: "palier1",
+    description: "Configure les règles générales de livraison de la boutique : livraison gratuite ou non, frais fixes, montant minimum pour débloquer la livraison gratuite, et zones desservies. C'est la config que verront tous les clients au checkout. Pour des tarifs différents par zone/poids, utilise plutôt ajouter_regle_livraison.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        gratuite: { type: "boolean", description: "Livraison gratuite pour toutes les commandes" },
+        frais: { type: "number", description: "Frais de livraison fixes (ignoré si gratuite=true)" },
+        minimumGratuit: { type: "number", description: "Montant de commande à partir duquel la livraison devient gratuite (0 = désactivé)" },
+        zones: { type: "array", items: { type: "string" }, description: "Zones/villes/pays desservis (remplace la liste existante)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "ajouter_regle_livraison",
+    tier: "palier1",
+    description: "Ajoute une règle tarifaire de livraison précise pour une zone donnée (ex: 'Douala 1000 FCFA sous 24h', 'International gratuit au-dessus de 2kg'). Utilise ceci quand le marchand veut des tarifs différents selon la zone, le poids ou le montant de la commande — pour une règle simple valable partout, utilise configurer_livraison.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string", description: "Nom de la règle (ex: 'Douala express')" },
+        zone: { type: "string", description: "Pays couvert ('Cameroun', 'Nigeria'), groupe ('UEMOA', 'CEMAC'), 'International' pour tous les pays, ou quartier/ville du pays de la boutique ('Douala', 'Akwa')" },
+        frais: { type: "number", description: "Frais fixes (ignoré si gratuit=true)" },
+        gratuit: { type: "boolean", description: "Livraison gratuite pour cette règle" },
+        poidsMin: { type: "number", description: "Poids minimum en kg pour que la règle s'applique (défaut 0)" },
+        poidsMax: { type: "number", description: "Poids maximum en kg (omets pour illimité)" },
+        montantMin: { type: "number", description: "Montant de commande minimum pour que la règle s'applique" },
+        delai: { type: "string", description: "Délai annoncé (ex: '24-48h', '3-5 jours')" },
+        transporteur: { type: "string", description: "Nom du transporteur ou livreur (ex: 'Campost', 'livreur local')" },
+      },
+      required: ["nom", "zone"],
+    },
+  },
+  {
+    name: "modifier_couleurs",
+    tier: "palier1",
+    description: "Change les couleurs GLOBALES de la boutique (celles du panneau « Couleurs » du Constructeur) : accent (boutons, prix, liens), fond de page, texte, surfaces (cartes), texte secondaire, bordures. S'applique à toutes les pages, y compris aux designs AXSO. Format hexadécimal #RRGGBB uniquement ; ne renseigne que les couleurs demandées.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        accent: { type: "string", description: "Couleur principale, ex : #E11D48" },
+        accentSecondaire: { type: "string", description: "Couleur secondaire" },
+        fond: { type: "string", description: "Fond des pages" },
+        texte: { type: "string", description: "Texte principal" },
+        surface: { type: "string", description: "Fond des cartes et blocs" },
+        texteMuted: { type: "string", description: "Texte secondaire" },
+        bordure: { type: "string", description: "Bordures" },
+      },
+    },
+  },
+  {
+    name: "personnaliser_page_boutique",
+    tier: "palier1",
+    description: "Modifie la page d'accueil de la boutique construite avec le Constructeur libre : ajoute, supprime, déplace, duplique ou masque un bloc (section, titre, texte, image, bouton, grille de produits, avantages, statistiques, compte à rebours, logos, vidéo, galerie, preuve sociale, bande CTA, texte riche, espacement, onglets, colonnes), ou change son style (couleur, espacement, police, alignement, largeur de colonne, visibilité par appareil). Utilise cet outil pour TOUTE demande de personnalisation visuelle de la page d'accueil — jamais modifier_boutique pour ça (réservé au thème/description globale).",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        instruction: { type: "string", description: "La demande du marchand reformulée clairement, avec tout le contexte utile (ex: \"mets le titre principal en plus grand et centré\", \"ajoute une section avec 3 avantages : livraison rapide, paiement sécurisé, support 24/7\")" },
+      },
+      required: ["instruction"],
+    },
+  },
+  {
+    name: "modifier_design_accueil",
+    tier: "palier1",
+    // Mêmes gestes que le clic dans l'aperçu du Constructeur (lib/design-accueil.ts).
+    description: "Modifie les SECTIONS DU DESIGN de la page d'accueil, exactement comme le marchand dans le Constructeur : réécrire un titre, un texte ou un bouton, changer un lien ou une image, styler un élément (police, taille, graisse, couleur, fond, dégradé, bordure, arrondi, marges, alignement, masquer — pour l'état base, hover, tablet ou mobile), masquer/afficher/supprimer/dupliquer/déplacer une section. Appelle-le d'abord avec actions vides pour lire la page (sections et éléments avec leurs identifiants el_…). Pour AJOUTER un nouveau bloc, utilise personnaliser_page_boutique.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        actions: {
+          type: "array",
+          description: "Actions à appliquer (vide = lire la page).",
+          items: {
+            type: "object",
+            properties: {
+              action: { type: "string", enum: ["texte", "lien", "image", "style", "masquer_section", "afficher_section", "supprimer_section", "dupliquer_section", "deplacer_section"] },
+              element: { type: "string", description: "Identifiant el_… de l'élément (texte, lien, image, style)" },
+              section: { type: "string", description: "Identifiant de la section (actions *_section)" },
+              valeur: { type: "string", description: "Nouveau texte, lien ou URL d'image" },
+              alt: { type: "string", description: "Texte alternatif de l'image" },
+              index: { type: "number", description: "Nouvelle position dans sa zone, 0-based (deplacer_section)" },
+              etat: { type: "string", enum: ["base", "hover", "tablet", "mobile"] },
+              style: { type: "object", description: "Champs : police (id de police), taille, graisse, interligne, espacementLettres, casse (none|uppercase|lowercase|capitalize), alignement (left|center|right|justify), couleur, fond, degrade, imageFond, bordureEpaisseur, bordureCouleur, rayon, paddingHaut/Droite/Bas/Gauche, margeHaut/Droite/Bas/Gauche, largeur, largeurMax, hauteur, masque (booléen). Valeurs CSS (ex \"24px\", \"#E11D48\")." },
+            },
+            required: ["action"],
+          },
+        },
+      },
+      required: ["actions"],
+    },
+  },
+  {
+    name: "modifier_theme",
+    tier: "palier1",
+    // Panneaux Typographie, Mise en page, Boutons & navigation, Animations du Constructeur.
+    description: `Modifie les réglages GLOBAUX du thème, comme les panneaux du Constructeur (appel sans paramètre = lire les réglages actuels) : polices (${FONTS.map((f) => f.v).join(", ")}), arrondi, mise en page, boutons, barre de navigation, animations. Pour les couleurs, utilise modifier_couleurs.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        polices: { type: "object", description: "titre, corps (id de police), poidsTitre (400-900), tailleBase (13px-18px), lettreEspacement, hauteurLigne, transformTitre (none|uppercase|capitalize)" },
+        arrondi: { type: "string", enum: ["0px", "4px", "8px", "12px", "16px", "24px", "9999px"] },
+        miseEnPage: { type: "object", description: "largeurContainer (1024px|1280px|1440px|1600px|100%), paddingSection (sm|md|lg|xl), colonnesProduits (2-5), colonnesMobile (1-2), styleCarte (shadow|bordered|flat|lifted), ombre (none|sm|md|lg|xl)" },
+        boutons: { type: "object", description: "style (filled|outlined|ghost|pill|square), taille (sm|md|lg|xl), hover (lighten|darken|scale|glow|slide)" },
+        navigation: { type: "object", description: "type (classic|centered|floating|minimal|mega|transparent-scroll), style (light|dark|glass|transparent), hauteur (48px|64px|80px), sticky, showSearch, showWishlist (booléens)" },
+        animations: { type: "object", description: "preset (luxury|dynamic|elegant|playful|none) OU global (none|fade-in|slide-up|slide-left|zoom-in|flip|blur-in), vitesse (fast|normal|slow), stagger, parallax, smoothScroll (booléens)" },
+      },
+    },
+  },
+  {
+    name: "modifier_fiche_produit",
+    tier: "palier1",
+    // Mêmes opérations que le panneau « Fiche produit » du Constructeur (lib/fiche-produit.ts).
+    description: `Modifie la FICHE PRODUIT (page de chaque produit, commune à tous les produits) exactement comme le panneau « Fiche produit » du Constructeur : ajouter/supprimer/déplacer/masquer/afficher une section, modifier ses options (config) ou son style, changer la mise en page. Appelle d'abord avec actions=[] pour lire l'ordre et les ids actuels. Plusieurs actions possibles en un appel, appliquées dans l'ordre. `
+      + `Types de section et options de config : ${TYPES_FICHE.map((t) => `${t}{${Object.keys(SECTIONS_FICHE[t].defaut()).join(",")}}`).join(" ; ")}. `
+      + `quantity accepte aussi commanderWhatsApp (true/false) : bouton « Commander via WhatsApp » sur la fiche. `
+      + `Style (action styliser) : bgColor, textColor (hex), paddingY (none|sm|md|lg|xl), marginY (none|sm|md|lg), maxWidth (full|medium|narrow), align (left|center), fontScale (sm|md|lg|xl). `
+      + `Mises en page : ${LAYOUTS_FICHE.join(", ")}. Les sections de base (gallery, info, variants, quantity, trust, description, reviews, similar) se masquent mais ne se suppriment pas ; une seule section par type sauf richtext, features, banner, video. `
+      + `"section" = id OU type de la section. index = position 0-based dans la liste.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        actions: {
+          type: "array",
+          description: "Liste d'actions à appliquer (vide = lire la fiche actuelle).",
+          items: {
+            type: "object",
+            properties: {
+              action: { type: "string", enum: ["ajouter", "supprimer", "deplacer", "afficher", "masquer", "configurer", "styliser", "mise_en_page"] },
+              type: { type: "string", description: "Type de section (action ajouter)" },
+              section: { type: "string", description: "Id ou type de la section visée" },
+              index: { type: "number", description: "Position (ajouter, deplacer)" },
+              config: { type: "object", description: "Options à fusionner (ajouter, configurer)" },
+              style: { type: "object", description: "Style à fusionner (styliser)" },
+              layout: { type: "string", enum: LAYOUTS_FICHE },
+            },
+            required: ["action"],
+          },
+        },
+      },
+      required: ["actions"],
+    },
+  },
+  {
+    name: "modifier_page",
+    tier: "palier1",
+    // Mêmes opérations que les pages À propos / Contact du Constructeur (lib/pages-annexes.ts).
+    description: `Modifie la page À PROPOS ou CONTACT de la boutique exactement comme le Constructeur : afficher/masquer la page, ajouter/supprimer/dupliquer/déplacer/masquer/afficher un bloc, modifier son contenu (config) ; pour Contact, l'introduction et l'affichage du formulaire. Appelle d'abord avec actions=[] pour lire l'état, l'ordre et les ids. Plusieurs actions possibles en un appel, appliquées dans l'ordre. `
+      + `Types de bloc et options de config : ${Object.entries(BLOCS_PAGE).map(([t, b]) => `${t}{${Object.keys(b.defaut()).join(",")}}`).join(" ; ")}. `
+      + `"bloc" = id, libellé ou type du bloc visé. index = position 0-based. Pour la page d'accueil utilise personnaliser_page_boutique, pour la fiche produit modifier_fiche_produit.`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        page: { type: "string", enum: ["a-propos", "contact"], description: "Page à modifier" },
+        actions: {
+          type: "array",
+          description: "Liste d'actions à appliquer (vide = lire la page actuelle).",
+          items: {
+            type: "object",
+            properties: {
+              action: { type: "string", enum: ["afficher_page", "masquer_page", "ajouter", "supprimer", "dupliquer", "deplacer", "afficher", "masquer", "configurer", "reglages_contact"] },
+              type: { type: "string", description: "Type de bloc (action ajouter)" },
+              bloc: { type: "string", description: "Id, libellé ou type du bloc visé" },
+              index: { type: "number", description: "Position (ajouter, deplacer)" },
+              config: { type: "object", description: "Contenu à fusionner (ajouter, configurer)" },
+              label: { type: "string", description: "Nom du bloc dans le Constructeur (ajouter, configurer)" },
+              intro: { type: "string", description: "Texte d'introduction (reglages_contact)" },
+              afficherFormulaire: { type: "boolean", description: "Formulaire de contact visible (reglages_contact)" },
+            },
+            required: ["action"],
+          },
+        },
+      },
+      required: ["page", "actions"],
+    },
+  },
+  // ─── MARKETING ────────────────────────────────────────────────────────────
+  {
+    name: "creer_code_promo",
+    tier: "palier1",
+    description: "Crée un code promotionnel actif",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        code: { type: "string" },
+        type: { type: "string", enum: ["pourcentage", "montant_fixe"] },
+        valeur: { type: "number" },
+        minCommande: { type: "number" },
+      },
+      required: ["code", "type", "valeur"],
+    },
+  },
+  {
+    name: "envoyer_campagne_email",
+    tier: "palier1",
+    description: "Envoie une campagne email HTML à tous les clients",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        sujet: { type: "string" },
+        html: { type: "string" },
+        segment: { type: "string", enum: ["tous", "vip", "inactifs_30j", "nouveaux"] },
+      },
+      required: ["sujet", "html"],
+    },
+  },
+  {
+    name: "generer_post_social",
+    tier: "palier1",
+    description: "Génère un post prêt à publier pour les réseaux sociaux",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        plateforme: { type: "string", enum: ["instagram", "facebook", "tiktok", "whatsapp"] },
+        theme: { type: "string" },
+        produitNom: { type: "string" },
+      },
+      required: ["plateforme", "theme"],
+    },
+  },
+  // ─── ANALYTICS ────────────────────────────────────────────────────────────
+  {
+    name: "stats_globales",
+    description: "KPIs : CA, commandes, clients, panier moyen sur une période",
+    parameters: {
+      type: "object" as const,
+      properties: { periode: { type: "string", enum: ["7j", "30j", "90j", "365j"] } },
+      required: ["periode"],
+    },
+  },
+  {
+    name: "rapport_complet",
+    tier: "palier1",
+    description: "Rapport business complet 30j : tous les KPIs, top produits, clients",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "produits_performance",
+    tier: "palier1",
+    description: "Classement produits par ventes ou revenus",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        tri: { type: "string", enum: ["ventes", "revenu", "stock_critique"] },
+        limite: { type: "number" },
+      },
+      required: ["tri"],
+    },
+  },
+  // ─── CLIENTS ──────────────────────────────────────────────────────────────
+  {
+    name: "lister_clients",
+    description: "Liste les clients avec options de tri et filtrage",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        tri: { type: "string", enum: ["depense_desc", "commandes_desc", "recent"] },
+        limite: { type: "number" },
+        segment: { type: "string", enum: ["tous", "vip", "inactifs_30j", "nouveaux"] },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "envoyer_email_client",
+    description: "Envoie un email personnalisé à un segment de clients",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        destinataires: { type: "string", enum: ["tous", "inactifs_30j", "vip", "nouveaux"] },
+        sujet: { type: "string" },
+        html: { type: "string" },
+      },
+      required: ["destinataires", "sujet", "html"],
+    },
+  },
+  // ─── LIVRAISON ────────────────────────────────────────────────────────────
+  {
+    name: "dashboard_livraison",
+    description: "Vue d'ensemble des livraisons : commandes confirmées sans livreur, courses en route (et celles en route depuis plus d'une heure), échecs à replanifier, espèces non remises par les livreurs",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "lister_commandes",
+    description: "Liste les commandes de la boutique avec statut, client, ville, montant, livreur, départ et échec. Filtre par statut, ou sans_livreur pour celles à assigner. Donne le numéro de chaque commande, nécessaire pour agir dessus.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        statut: { type: "string", enum: ["en_attente", "confirmee", "en_preparation", "expediee", "tentative_echouee", "livree", "annulee"] },
+        sans_livreur: { type: "boolean", description: "true = seulement les commandes sans livreur assigné" },
+        limite: { type: "number", description: "10 par défaut, 30 maximum" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "lister_livreurs",
+    description: "Livreurs assignables par la boutique (les siens + indépendants) : disponibilité, zone, véhicule, courses en cours, espèces non remises. Donne l'id de chaque livreur, nécessaire pour assigner.",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "assigner_livreur",
+    description: "Assigne un livreur à une commande (ou le retire avec livreurId vide). Le livreur et le client sont prévenus par WhatsApp. Choisis de préférence un livreur disponible, de la bonne zone, avec peu de courses en cours.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        commande: { type: "string", description: "Numéro de la commande (ou son id)" },
+        livreurId: { type: "string", description: "id donné par lister_livreurs ; vide pour retirer le livreur" },
+      },
+      required: ["commande"],
+    },
+  },
+  {
+    name: "changer_statut_commande",
+    description: "Fait avancer une commande comme le marchand à la main : confirmee, en_preparation, expediee (la livraison démarre, le client reçoit son code de livraison), livree, tentative_echouee (avec raison), annulee. Le client est prévenu par WhatsApp.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        commande: { type: "string", description: "Numéro de la commande (ou son id)" },
+        statut: { type: "string", enum: ["confirmee", "en_preparation", "expediee", "livree", "tentative_echouee", "annulee"] },
+        raison: { type: "string", description: "Raison de l'échec (obligatoire pour tentative_echouee)" },
+      },
+      required: ["commande", "statut"],
+    },
+  },
+  {
+    name: "marquer_especes_remises",
+    description: "Confirme que la boutique a bien reçu l'argent liquide encaissé par un livreur (paiement à la livraison) : toutes ses commandes livrées non remises, ou seulement celles listées.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        livreurId: { type: "string", description: "id du livreur (lister_livreurs)" },
+        commandes: { type: "array", items: { type: "string" }, description: "Numéros de commandes précis (optionnel)" },
+      },
+      required: ["livreurId"],
+    },
+  },
+  // ─── CONNECTEURS MCP ──────────────────────────────────────────────────────
+  {
+    name: "meta_poster_facebook",
+    tier: "palier1",
+    description: "Publie MAINTENANT sur Facebook (message + image optionnelle)",
+    parameters: { type: "object" as const, properties: { message: { type: "string" }, imageUrl: { type: "string" }, lienUrl: { type: "string" } }, required: ["message"] },
+  },
+  {
+    name: "meta_poster_instagram",
+    tier: "palier1",
+    description: "Publie MAINTENANT sur Instagram (image obligatoire)",
+    parameters: { type: "object" as const, properties: { caption: { type: "string" }, imageUrl: { type: "string" } }, required: ["caption", "imageUrl"] },
+  },
+  {
+    name: "meta_planifier_post",
+    tier: "palier1",
+    description: "Programme un post Facebook ou Instagram pour une date future",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        plateforme: { type: "string", enum: ["facebook", "instagram"] },
+        contenu: { type: "string" },
+        imageUrl: { type: "string" },
+        planifieLe: { type: "string", description: "ISO 8601 : 2026-06-15T18:00:00" },
+      },
+      required: ["plateforme", "contenu", "planifieLe"],
+    },
+  },
+  {
+    name: "meta_creer_campagne_ads",
+    tier: "palier2",
+    description: "Crée une campagne publicitaire Meta Ads",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string" },
+        objectif: { type: "string", enum: ["OUTCOME_TRAFFIC", "OUTCOME_SALES", "OUTCOME_LEADS", "OUTCOME_AWARENESS"] },
+        budget_jour: { type: "number" },
+        pays: { type: "array", items: { type: "string" } },
+        url_destination: { type: "string" },
+      },
+      required: ["nom", "objectif", "budget_jour"],
+    },
+  },
+  {
+    name: "whatsapp_envoyer_message",
+    description: "Envoie un message WhatsApp à un numéro",
+    parameters: { type: "object" as const, properties: { telephone: { type: "string" }, message: { type: "string" } }, required: ["telephone", "message"] },
+  },
+  {
+    name: "whatsapp_diffusion",
+    tier: "palier1",
+    description: "Diffuse un message WhatsApp à tous les clients ou un segment (tous/vip/inactifs/nouveaux)",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        message: { type: "string" },
+        segment: { type: "string", enum: ["tous", "vip", "inactifs", "nouveaux"] },
+        code_promo: { type: "string" },
+      },
+      required: ["message"],
+    },
+  },
+  {
+    name: "gmail_envoyer",
+    tier: "palier1",
+    description: "Envoie un email depuis Gmail (nécessite Gmail connecté)",
+    parameters: { type: "object" as const, properties: { destinataire: { type: "string" }, sujet: { type: "string" }, corps_html: { type: "string" } }, required: ["destinataire", "sujet", "corps_html"] },
+  },
+  {
+    name: "sms_campagne",
+    tier: "palier1",
+    description: "Envoie un SMS en masse via Africa's Talking",
+    parameters: { type: "object" as const, properties: { message: { type: "string" }, segment: { type: "string", enum: ["tous", "vip", "inactifs"] } }, required: ["message", "segment"] },
+  },
+  // ─── HIGGSFIELD AI ────────────────────────────────────────────────────────
+  {
+    name: "higgsfield_generer_video",
+    tier: "palier2",
+    description: "Génère une vidéo ultra HD avec Higgsfield (Kling 3.0, Veo 3.1, Sora 2, Cinema 3.5). Pour publicités, produits, contenus sociaux.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        prompt: { type: "string", description: "Description cinématique précise de la vidéo" },
+        model: { type: "string", enum: ["kling-3.0", "veo-3.1", "sora-2", "cinema-3.5", "seedance-2.0"], description: "Modèle vidéo" },
+        duration: { type: "number", description: "Durée en secondes (5 ou 10)" },
+        aspect_ratio: { type: "string", enum: ["16:9", "9:16", "1:1"] },
+        style: { type: "string", description: "Style : cinematic, commercial, ugc, lifestyle" },
+      },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "higgsfield_generer_image",
+    tier: "palier2",
+    description: "Génère une image ultra HD (Recraft 4.1, GPT Image, Seedream 4.0). Pour visuels produits, bannières, posts.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        prompt: { type: "string" },
+        model: { type: "string", enum: ["recraft-4.1", "gpt-image", "seedream-4.0", "wan-2.5"] },
+        style: { type: "string", description: "photorealistic, illustration, 3d, cinematic" },
+      },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "higgsfield_video_produit",
+    tier: "palier2",
+    description: "Génère automatiquement une vidéo produit professionnelle depuis un produit de la boutique",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        produitId: { type: "string" },
+        style: { type: "string", enum: ["commercial", "lifestyle", "ugc", "cinematic"] },
+        model: { type: "string" },
+      },
+      required: ["produitId"],
+    },
+  },
+  {
+    name: "higgsfield_lister_outils",
+    tier: "palier2",
+    description: "Liste tous les outils disponibles sur le serveur MCP Higgsfield de l'utilisateur",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "higgsfield_appeler_outil",
+    tier: "palier2",
+    description: "Appelle directement n'importe quel outil Higgsfield MCP (accès aux 40+ outils)",
+    parameters: {
+      type: "object" as const,
+      properties: { outil: { type: "string" }, arguments: { type: "object" } },
+      required: ["outil"],
+    },
+  },
+  // ─── RECHERCHE & COMMANDES ────────────────────────────────────────────────
+  {
+    name: "rechercher_produits",
+    description: "Recherche des produits par nom, catégorie ou mot-clé dans le catalogue",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        q: { type: "string", description: "Mot-clé, nom de produit ou catégorie" },
+        categorie: { type: "string", description: "Filtrer par catégorie" },
+        prix_max: { type: "number", description: "Prix maximum" },
+        limite: { type: "number" },
+      },
+      required: ["q"],
+    },
+  },
+  {
+    name: "statut_commande",
+    description: "Détail d'une commande à partir de son numéro ou ID : statut, livreur, départ, position du livreur, échecs, paiement, lien de suivi client",
+    parameters: {
+      type: "object" as const,
+      properties: { numero: { type: "string", description: "Numéro de commande (ex: CMD-2024-001) ou ID" } },
+      required: ["numero"],
+    },
+  },
+  {
+    name: "recommandations_client",
+    description: "Génère des recommandations produits personnalisées basées sur l'historique d'achats",
+    parameters: {
+      type: "object" as const,
+      properties: { clientId: { type: "string", description: "ID du client (optionnel — si absent, recommandations globales)" }, limite: { type: "number" } },
+      required: [],
+    },
+  },
+  {
+    name: "contexte_client",
+    description: "Récupère le profil complet d'un client : historique d'achats, commandes récentes, dépenses totales",
+    parameters: {
+      type: "object" as const,
+      properties: { clientEmail: { type: "string", description: "Email du client" }, clientId: { type: "string", description: "ID du client (alternatif à l'email)" } },
+      required: [],
+    },
+  },
+  {
+    name: "initier_retour",
+    description: "Initie une procédure de retour ou d'échange pour une commande",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        commandeId: { type: "string", description: "ID ou numéro de la commande" },
+        raison: { type: "string", description: "Motif du retour : défaut, taille, changement d'avis, etc." },
+        type: { type: "string", enum: ["retour", "echange"], description: "Type de procédure" },
+      },
+      required: ["commandeId", "raison"],
+    },
+  },
+  {
+    name: "escalader_vers_humain",
+    description: "Signale une situation complexe ou sensible qui nécessite une intervention humaine",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        raison: { type: "string", description: "Description du problème ou de la demande à traiter" },
+        urgence: { type: "string", enum: ["basse", "normale", "haute"], description: "Niveau d'urgence" },
+        contexte: { type: "string", description: "Informations complémentaires (numéro de commande, client, etc.)" },
+      },
+      required: ["raison"],
+    },
+  },
+  // ─── LOGISTIQUE AVANCÉE ───────────────────────────────────────────────────
+  {
+    name: "calculer_frais_livraison",
+    description: "Calcule les frais de livraison pour une commande selon la zone et le poids",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        zone: { type: "string", description: "Pays de destination (ex: Cameroun, Nigeria) ou quartier/ville du pays de la boutique (ex: Akwa)" },
+        poids: { type: "number", description: "Poids total en kg (optionnel)" },
+        montantCommande: { type: "number", description: "Montant total de la commande" },
+      },
+      required: ["zone"],
+    },
+  },
+  {
+    name: "lister_regles_livraison",
+    description: "Liste toutes les règles tarifaires de livraison configurées",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  // ─── RETOURS / RMA ────────────────────────────────────────────────────────
+  {
+    name: "creer_retour",
+    description: "Crée une demande de retour (remboursement, échange ou avoir) pour une commande",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        commandeId: { type: "string", description: "ID ou numéro de la commande" },
+        raison: { type: "string", enum: ["defaut", "erreur_commande", "change_avis", "endommage", "non_recu"] },
+        type: { type: "string", enum: ["remboursement", "echange", "avoir"] },
+        description: { type: "string", description: "Détails supplémentaires" },
+      },
+      required: ["commandeId", "raison"],
+    },
+  },
+  {
+    name: "lister_retours",
+    description: "Liste les demandes de retour (RMA) avec leur statut",
+    parameters: {
+      type: "object" as const,
+      properties: { statut: { type: "string", enum: ["ouvert", "en_cours", "accepte", "rejete", "clos"] } },
+      required: [],
+    },
+  },
+  {
+    name: "mettre_a_jour_retour",
+    description: "Met à jour le statut d'un retour (accepter, rejeter, clore)",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        retourId: { type: "string" },
+        statut: { type: "string", enum: ["en_cours", "accepte", "rejete", "clos"] },
+        notes: { type: "string", description: "Notes internes" },
+      },
+      required: ["retourId", "statut"],
+    },
+  },
+  // ─── FACTURATION ──────────────────────────────────────────────────────────
+  {
+    name: "generer_facture",
+    description: "Génère automatiquement une facture pour une commande",
+    parameters: { type: "object" as const, properties: { commandeId: { type: "string", description: "ID de la commande" } }, required: ["commandeId"] },
+  },
+  {
+    name: "lister_factures",
+    description: "Liste les factures générées avec leur statut de paiement",
+    parameters: { type: "object" as const, properties: { limite: { type: "number" } }, required: [] },
+  },
+  // ─── FOURNISSEURS ─────────────────────────────────────────────────────────
+  {
+    name: "lister_fournisseurs",
+    description: "Liste les fournisseurs dropshipping avec leur fiabilité et marges",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "ajouter_fournisseur",
+    tier: "palier1",
+    description: "Ajoute un nouveau fournisseur dropshipping",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string" },
+        type: { type: "string", enum: ["aliexpress", "cj", "jumia", "local", "autre"] },
+        pays: { type: "string" },
+        url: { type: "string" },
+        delaiLivraison: { type: "number" },
+        margeAuto: { type: "number", description: "Marge en pourcentage (ex: 30 = 30%)" },
+      },
+      required: ["nom"],
+    },
+  },
+  // ─── POPUPS & BANDEAUX ────────────────────────────────────────────────────
+  {
+    name: "creer_popup",
+    tier: "palier1",
+    description: "Crée un popup ou bandeau promotionnel sur la boutique",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string" },
+        type: { type: "string", enum: ["popup", "bandeau", "slide_in"] },
+        declencheur: { type: "string", enum: ["delai", "exit_intent", "premiere_visite"] },
+        titre: { type: "string" },
+        message: { type: "string" },
+        codePromo: { type: "string" },
+        ctaTexte: { type: "string" },
+        ctaUrl: { type: "string" },
+        delaiSec: { type: "number" },
+      },
+      required: ["nom", "titre", "message"],
+    },
+  },
+  // ─── AUTOMATION ───────────────────────────────────────────────────────────
+  {
+    name: "creer_automation",
+    tier: "palier1",
+    description: "Crée une séquence marketing automatique (panier abandonné, bienvenue, etc.)",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string" },
+        type: { type: "string", enum: ["panier_abandonne", "bienvenue", "apres_achat", "inactif"], description: "panier_abandonne = paiement en ligne commencé mais pas payé ; inactif = sans commande depuis delaiHeures" },
+        canal: { type: "string", enum: ["email", "whatsapp"] },
+        // Variables du message : {{nom}} (prénom du client), {{boutique}}, {{lien}} (lien de la boutique).
+        message: { type: "string" },
+        sujet: { type: "string" },
+        delaiHeures: { type: "number" },
+      },
+      required: ["nom", "type", "message"],
+    },
+  },
+  // ─── GAMIFICATION ─────────────────────────────────────────────────────────
+  {
+    name: "verifier_badges",
+    description: "Vérifie et attribue les badges/trophées mérités selon les performances de la boutique",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  // ─── ANALYSE AVIS ─────────────────────────────────────────────────────────
+  {
+    name: "analyser_avis",
+    tier: "palier1",
+    description: "Analyse les avis clients et génère des insights et recommandations",
+    parameters: { type: "object" as const, properties: { produitId: { type: "string", description: "Filtrer par produit (optionnel)" } }, required: [] },
+  },
+  // ─── MULTI-ENTREPÔTS ─────────────────────────────────────────────────────
+  {
+    name: "lister_entrepots",
+    tier: "palier2",
+    description: "Liste les entrepôts configurés avec leur stock",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "creer_entrepot",
+    tier: "palier2",
+    description: "Crée un nouvel entrepôt pour la gestion multi-site du stock",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string", description: "Nom de l'entrepôt" },
+        ville: { type: "string", description: "Ville" },
+        pays: { type: "string", description: "Pays (défaut: Cameroun)" },
+        adresse: { type: "string", description: "Adresse complète" },
+        principal: { type: "boolean", description: "Entrepôt principal ?" },
+      },
+      required: ["nom"],
+    },
+  },
+  // ─── DROPSHIPPING AUTO-ROUTING ───────────────────────────────────────────
+  {
+    name: "router_commande_fournisseur",
+    tier: "palier2",
+    description: "Prépare une commande fournisseur (en attente) pour une commande dont les produits viennent d'un fournisseur dropshipping — rien n'est envoyé : le marchand la transmet depuis Sourcing → Commandes fournisseurs",
+    parameters: { type: "object" as const, properties: { commandeId: { type: "string", description: "ID ou numéro de la commande" } }, required: ["commandeId"] },
+  },
+  {
+    name: "lister_commandes_fournisseur",
+    description: "Liste les commandes transmises aux fournisseurs dropshipping",
+    parameters: {
+      type: "object" as const,
+      properties: { statut: { type: "string", description: "Filtrer par statut: en_attente | envoye | confirme | expedie | livre | annule" } },
+      required: [],
+    },
+  },
+  // ─── AFFILIATION ENTRANTE & PAIEMENTS ────────────────────────────────────
+  {
+    name: "ajouter_programme_affiliation_entrante",
+    tier: "palier2",
+    description: "Ajoute un programme d'affiliation externe où le marchand est affilié (ex: Jumia, Amazon, partenaire local)",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        nom: { type: "string", description: "Nom du programme" },
+        marchand: { type: "string", description: "Nom du marchand/plateforme" },
+        url: { type: "string", description: "Lien d'affiliation avec tracking" },
+        categorie: { type: "string", description: "Catégorie produits" },
+        commission: { type: "number", description: "Taux de commission en % (ex: 10 pour 10%)" },
+      },
+      required: ["nom", "marchand", "url"],
+    },
+  },
+  {
+    name: "payer_commission_affilie",
+    tier: "palier2",
+    description: "Enregistre un paiement de commission vers un affilié via mobile money ou virement",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        affilieurId: { type: "string", description: "ID de l'affilié" },
+        montant: { type: "number", description: "Montant à payer" },
+        methode: { type: "string", description: "mobile_money | virement | wallet" },
+        telephone: { type: "string", description: "Numéro mobile money" },
+        notes: { type: "string", description: "Notes sur le paiement" },
+      },
+      required: ["affilieurId", "montant"],
+    },
+  },
+  // ─── POS & TVA ────────────────────────────────────────────────────────────
+  {
+    name: "calculer_tva",
+    tier: "palier1",
+    description: "Calcule la TVA applicable selon la juridiction de la boutique ou d'un pays donné",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        montant: { type: "number", description: "Montant TTC à décomposer" },
+        juridiction: { type: "string", description: "Code pays ISO (CM, FR, SN, CI, NG…) — utilise celui de la boutique par défaut" },
+      },
+      required: ["montant"],
+    },
+  },
+  {
+    name: "sync_fournisseurs",
+    tier: "palier2",
+    description: "Lance la synchronisation des prix et stocks des produits dropshipping depuis les fournisseurs, et détecte les retards de livraison",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "verifier_retards_fournisseurs",
+    tier: "palier2",
+    description: "Vérifie les commandes fournisseurs en retard et liste les clients à prévenir",
+    parameters: { type: "object" as const, properties: {}, required: [] },
+  },
+  // ─── AGENTS SPÉCIALISÉS ───────────────────────────────────────────────────
+  {
+    name: "deleguer_vers_agent",
+    tier: "palier1",
+    description: "Délègue une tâche complexe à l'agent spécialisé du module concerné. Chaque agent a une expertise profonde dans son domaine et exécute les actions nécessaires de façon autonome. Utilise cet outil dès qu'une tâche dépasse une simple requête et nécessite de l'expertise : audit catalogue, campagne marketing complète, analyse financière approfondie, optimisation boutique, gestion logistique, etc.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        agent: {
+          type: "string",
+          enum: AXIA_AGENTS.map((a) => a.id),
+          description: "L'agent spécialisé à activer selon le domaine de la tâche",
+        },
+        tache: { type: "string", description: "Description précise de ce que l'agent doit accomplir, avec tout le contexte nécessaire" },
+        contexte_supplementaire: { type: "string", description: "Informations additionnelles de la conversation à transmettre à l'agent (préférences du marchand, contraintes, etc.)" },
+      },
+      required: ["agent", "tache"],
+    },
+  },
+  // ─── CAISSE & MAGASIN (lib/axia/pos-tools.ts) ─────────────────────────────
+  ...AXIA_POS_TOOLS,
+  // ─── ACADÉMIE (lib/axia/academie-tools.ts) ────────────────────────────────
+  ...AXIA_ACADEMIE_TOOLS,
+];
+
+// ─── AIDES PRODUIT & VUE D'ENSEMBLE ───────────────────────────────────────────
+// Champs du formulaire produit recopiés tels quels par modifier_produit (les autres sont traités à part).
+const CHAMPS_PRODUIT = [
+  "nom", "description", "prix", "cout", "categorie", "tags", "actif", "featured", "visibleListage", "masquerVentes",
+  "texteBoutonAchat", "type", "poids", "sku", "codeBarres", "videos", "ogImage", "fichierUrl", "fichierNom",
+  "instructionsTelechargement", "prixFournisseur", "urlFournisseur", "nomFournisseur", "affiliationActive", "faq",
+];
+
+function ficheProduit(p: Prisma.ProduitGetPayload<{ include: { variantes: true } }>): string {
+  return [
+    `Produit « ${p.nom} » (${p.type}) — ${p.actif ? "en vente" : "brouillon (invisible)"} | prix ${p.prix}${p.prixCompare ? ` (barré ${p.prixCompare})` : ""} | stock ${p.type === "physique" ? p.stock : "non suivi"} | catégorie : ${p.categorie || "aucune"}`,
+    `Description : ${p.description?.slice(0, 400) || "aucune"}`,
+    `Tags : ${p.tags.join(", ") || "aucun"} | SEO : ${p.metaTitle || "—"} / ${p.metaDesc || "—"}`,
+    `Images : ${p.images.length ? p.images.map((u, i) => `${i + 1}. ${u}`).join(" ; ") : "aucune"}`,
+    `Variantes : ${p.variantes.length ? p.variantes.map((v) => `[${v.id}] ${v.nom} ${v.valeur} — stock ${v.stock}${v.prix ? `, prix ${v.prix}` : ""}${v.actif ? "" : ", inactive"}`).join(" ; ") : "aucune"}`,
+    p.type === "digital" && `Fichier livré : ${p.fichierNom || p.fichierUrl || "aucun (à ajouter)"}`,
+    p.type === "dropshipping" && `Fournisseur : ${p.nomFournisseur || "?"}${p.prixFournisseur ? `, achat ${p.prixFournisseur}` : ""}${p.urlFournisseur ? `, ${p.urlFournisseur}` : ""}`,
+  ].filter(Boolean).join("\n");
+}
+
+/** Fixe le stock à la quantité donnée, par un ajustement journalisé (lib/pos/stock.ts) comme le reste de la plateforme. */
+async function fixerStock(tenantId: string, produitId: string, varianteId: string | null, cible: number) {
+  await prisma.$transaction(async (tx) => {
+    const actuel = varianteId
+      ? (await tx.variante.findFirstOrThrow({ where: { id: varianteId, produitId }, select: { stock: true } })).stock
+      : (await tx.produit.findFirstOrThrow({ where: { id: produitId, tenantId }, select: { stock: true } })).stock;
+    if (actuel !== cible) await mouvementStock(tx, { tenantId, produitId, varianteId, type: "ajustement", quantite: cible - actuel, motif: "Ajusté par AXIA à la demande du marchand" });
+  });
+}
+
+/** Œil général d'AXIA : tout ce qui demande l'attention du marchand, en une lecture. */
+async function etatGeneral(tenantId: string): Promise<string> {
+  const ilYA = (jours: number) => new Date(Date.now() - jours * 86_400_000);
+  const ca = (jours: number) => prisma.commande.aggregate({ where: { tenantId, paiementStatut: PAIEMENT.PAYE, createdAt: { gte: ilYA(jours) } }, _sum: { montantTotal: true }, _count: true });
+  const [tenant, publication, { plan }, commandesMois, enAttente, aAssigner, bloquees, enRoute, echecs, especes, produitsBas, paiementsEnAttente, retours, messages, avisAttente, avisNegatifs, ca7, ca30] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, statut: true, devise: true, planType: true, planExpiresAt: true } }),
+    evaluerPublication(tenantId),
+    planActif(tenantId),
+    commandesCeMois(tenantId),
+    prisma.commande.count({ where: { tenantId, statut: "en_attente" } }),
+    prisma.commande.count({ where: { tenantId, statut: { in: ["confirmee", "en_preparation"] }, livreurId: null } }),
+    prisma.commande.count({ where: { tenantId, statut: { in: ["en_attente", "confirmee", "en_preparation"] }, updatedAt: { lt: ilYA(2) }, createdAt: { gte: ilYA(30) } } }),
+    prisma.commande.count({ where: { tenantId, statut: "expediee" } }),
+    prisma.commande.count({ where: { tenantId, statut: "tentative_echouee" } }),
+    prisma.commande.aggregate({ where: { tenantId, methodePaiement: { in: ["whatsapp_cod", "direct_cod"] }, statut: "livree", codRemis: false }, _sum: { montantTotal: true }, _count: true }),
+    prisma.produit.findMany({ where: { tenantId, actif: true, type: "physique", stock: { lte: 10 } }, select: { nom: true, stock: true, stockMin: true }, orderBy: { stock: "asc" }, take: 100 }),
+    prisma.commande.count({ where: { tenantId, paiementStatut: PAIEMENT.ATTENTE, statut: { not: "annulee" }, methodePaiement: { not: { contains: "cod" } }, createdAt: { gte: ilYA(3) } } }),
+    prisma.retourRMA.count({ where: { tenantId, statut: { in: ["ouvert", "en_cours"] } } }),
+    prisma.messageRecu.count({ where: { tenantId, direction: "entrant", repondu: false, createdAt: { gte: ilYA(7) } } }),
+    prisma.avis.count({ where: { tenantId, approuve: false } }),
+    prisma.avis.count({ where: { tenantId, note: { lte: 2 }, createdAt: { gte: ilYA(7) } } }),
+    ca(7),
+    ca(30),
+  ]);
+  const dev = tenant?.devise ?? "XAF";
+  const manque = publication.criteres.filter((c) => !c.ok).map((c) => c.label);
+  const statut = tenant?.statut === "active" ? "publiée" : tenant?.statut === "brouillon" ? "brouillon (pas encore publiée)" : tenant?.statut ?? "?";
+  const limite = LIMITES[plan]?.commandesParMois ?? null;
+  const echeance = tenant?.planType === plan && tenant.planExpiresAt ? ` jusqu'au ${tenant.planExpiresAt.toLocaleDateString("fr-FR")}` : "";
+  const ruptures = produitsBas.filter((p) => p.stock <= 0).map((p) => p.nom);
+  const bas = produitsBas.filter((p) => p.stock > 0 && p.stock <= (p.stockMin ?? 3)).map((p) => `${p.nom} (${p.stock})`);
+  const liste = (l: string[]) => (l.length ? `${l.slice(0, 8).join(", ")}${l.length > 8 ? ` et ${l.length - 8} autre(s)` : ""}` : "aucun");
+  return [
+    `Boutique « ${tenant?.nomBoutique ?? "?"} » : ${statut}${manque.length ? ` — manque pour publier : ${manque.join(", ")}` : ""}`,
+    `Plan : ${NOMS_PALIERS[plan]}${echeance} — commandes ce mois : ${commandesMois}${limite !== null ? `/${limite}${commandesMois >= limite ? " (QUOTA ATTEINT : le marchand ne peut plus traiter ses commandes sans passer au Pro)" : ""}` : " (illimité)"}`,
+    `Commandes : ${enAttente} en attente de confirmation, ${aAssigner} à assigner à un livreur, ${bloquees} sans mouvement depuis plus de 2 jours`,
+    `Livraisons : ${enRoute} en route, ${echecs} en échec à replanifier${especes._count ? `, espèces non remises par les livreurs : ${Math.round(especes._sum.montantTotal ?? 0)} ${dev} (${especes._count} commande(s))` : ""}`,
+    `Stock : ruptures — ${liste(ruptures)} ; stock bas — ${liste(bas)}`,
+    `Paiements en ligne non finalisés (3 derniers jours) : ${paiementsEnAttente}`,
+    `Retours à traiter : ${retours}`,
+    `Messages clients sans réponse (7 j) : ${messages} | Avis en attente de validation : ${avisAttente} | Avis négatifs cette semaine : ${avisNegatifs}`,
+    `Revenus encaissés : 7 j ${Math.round(ca7._sum.montantTotal ?? 0)} ${dev} (${ca7._count} commande(s)) | 30 j ${Math.round(ca30._sum.montantTotal ?? 0)} ${dev} (${ca30._count} commande(s))`,
+  ].join("\n");
+}
+
+// ─── EXÉCUTEUR ────────────────────────────────────────────────────────────────
+/** Exécute l'outil sans contrôle de confirmation — à n'appeler qu'après accord du marchand (app/api/axia/propositions). */
+export const executerOutilDirect: ToolExecutor = async (nom, args, tenantId) => {
+  try {
+    switch (nom) {
+
+      case "generer_image": {
+        const prompt = buildProductImagePrompt(args.description, args.categorie, args.style || "product_white");
+        const url = await generateProductImage({ prompt, tenantId });
+        if (!url) return { succes: false, resultat: "Génération d'image indisponible pour le moment (quota Gemini atteint) — réessaie dans quelques instants." };
+        return { succes: true, resultat: `IMAGE:${url}` };
+      }
+
+      case "generer_video": {
+        const fullPrompt = args.sujet ? `${args.prompt}, ${args.sujet}` : args.prompt;
+        try {
+          const operationName = await startVideoGemini(fullPrompt, args.ratio || "16:9");
+          await prisma.videoGeneree.create({
+            data: { tenantId, prompt: fullPrompt, style: "product", statut: "en_cours", requestId: operationName },
+          });
+          return { succes: true, resultat: "La génération vidéo a démarré (Gemini Veo) — elle apparaîtra dans Contenus dans quelques minutes." };
+        } catch (err: any) {
+          return { succes: false, resultat: `Génération vidéo indisponible pour le moment : ${err?.message?.slice(0, 150) ?? "erreur Gemini"}` };
+        }
+      }
+
+      case "generer_voiceover": {
+        try {
+          const url = await generateSpeechGemini(args.texte, args.voix || "Kore");
+          return { succes: true, resultat: `AUDIO:${url}` };
+        } catch (err: any) {
+          return { succes: false, resultat: `Voix off indisponible pour le moment : ${err?.message?.slice(0, 150) ?? "erreur Gemini"}` };
+        }
+      }
+
+      case "ajouter_produit": {
+        const prodSlug = slugify(args.nom) || `produit-${Date.now()}`;
+        const images = args.imageUrl ? [args.imageUrl] : [];
+        const type = args.type === "digital" || args.type === "dropshipping" ? args.type : "physique";
+
+        const data: any = {
+          tenantId, nom: args.nom, slug: prodSlug, description: args.description || "",
+          prix: args.prix, categorie: args.categorie, type,
+          images, tags: args.tags || [], actif: true,
+        };
+
+        if (type === "digital") {
+          // Un produit digital n'a pas de stock physique à gérer.
+          data.stock = 0;
+          if (args.fichierUrl) data.fichierUrl = args.fichierUrl;
+          if (args.fichierNom) data.fichierNom = args.fichierNom;
+          if (args.instructionsTelechargement) data.instructionsTelechargement = args.instructionsTelechargement;
+        } else {
+          // Stock strict : celui fourni par le marchand, sinon 0 (invendable) — jamais inventé.
+          data.stock = Math.max(0, Math.floor(Number(args.stock) || 0));
+          if (args.poids != null) data.poids = args.poids;
+          if (type === "dropshipping") {
+            if (args.prixFournisseur != null) data.prixFournisseur = args.prixFournisseur;
+            if (args.urlFournisseur) data.urlFournisseur = args.urlFournisseur;
+            if (args.nomFournisseur) data.nomFournisseur = args.nomFournisseur;
+          }
+        }
+
+        const cree = await prisma.produit.create({ data, select: { id: true } });
+
+        const details = [images.length ? "image IA" : null, type === "digital" && !args.fichierUrl ? "fichier à ajouter" : null,
+          type !== "digital" && data.stock === 0 ? "stock à 0 : invendable tant que le stock réel n'est pas renseigné" : null].filter(Boolean).join(", ");
+        // `donnees` : lu par les IA externes (lib/controle-ia) pour enchaîner une étape sur ce produit.
+        return { succes: true, resultat: `✅ Produit ${type} "${args.nom}" créé à ${args.prix}${details ? ` (${details})` : ""}`, donnees: { produitId: cree.id } };
+      }
+
+      case "lister_produits": {
+        const where: any = { tenantId, actif: true };
+        if (args.sans_image_seulement) where.images = { isEmpty: true };
+        const produits = await prisma.produit.findMany({
+          where, take: args.limite ?? 15, orderBy: { createdAt: "desc" },
+          select: { id: true, nom: true, prix: true, categorie: true, images: true, ventes: true, stock: true, description: true },
+        });
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } });
+        const dev3 = tenant?.devise ?? "XAF";
+        const lines = produits.map(p => `- [${p.id}] ${p.nom} | ${p.prix} ${dev3} | stock: ${p.stock} | ventes: ${p.ventes} | image: ${p.images?.length ? "oui" : "non"}`).join("\n");
+        return { succes: true, resultat: `${produits.length} produit(s) (${dev3}):\n${lines || "aucun"}` };
+      }
+
+      case "enrichir_produit": {
+        const data: any = {};
+        if (args.description) data.description = args.description;
+        if (args.metaTitle) data.metaTitle = args.metaTitle.slice(0, 60);
+        if (args.metaDesc) data.metaDesc = args.metaDesc.slice(0, 155);
+        if (args.tags) data.tags = args.tags;
+        if (args.imageUrl) data.images = [args.imageUrl];
+        const p = await prisma.produit.findFirst({ where: { id: args.produitId, tenantId }, select: { nom: true } });
+        if (!p) return { succes: false, resultat: "Produit introuvable" };
+        await prisma.produit.update({ where: { id: args.produitId }, data });
+        return { succes: true, resultat: `✅ "${p.nom}" enrichi avec succès` };
+      }
+
+      case "mettre_a_jour_prix": {
+        const p = await prisma.produit.findFirst({ where: { id: args.produitId, tenantId }, select: { nom: true, prix: true } });
+        if (!p) return { succes: false, resultat: "Produit introuvable" };
+        await prisma.produit.update({ where: { id: args.produitId }, data: { prix: args.prix, prixCompare: args.prixCompare ?? null } });
+        return { succes: true, resultat: `✅ Prix "${p.nom}" : ${p.prix} → ${args.prix}` };
+      }
+
+      case "modifier_produit": {
+        const id = String(args.produitId ?? "");
+        const p = await prisma.produit.findFirst({ where: { id, tenantId }, include: { variantes: { orderBy: { nom: "asc" } } } });
+        if (!p) return { succes: false, resultat: "Produit introuvable" };
+
+        // Mêmes champs que le formulaire produit ; seuls ceux fournis sont envoyés.
+        const body: Record<string, any> = {};
+        for (const c of CHAMPS_PRODUIT) if (args[c] !== undefined) body[c] = args[c];
+        // Comme le formulaire : un prix barré qui n'est pas au-dessus du prix est retiré.
+        if (args.prixCompare !== undefined) body.prixCompare = Number(args.prixCompare) > Number(args.prix ?? p.prix) ? Number(args.prixCompare) : null;
+        if (args.tauxCommissionAff !== undefined) body.tauxCommissionAff = args.tauxCommissionAff ? Number(args.tauxCommissionAff) / 100 : null;
+        if (args.metaTitle) body.metaTitle = String(args.metaTitle).slice(0, 60);
+        if (args.metaDesc) body.metaDesc = String(args.metaDesc).slice(0, 155);
+        if (args.images || args.ajouter_images || args.retirer_images) {
+          const retirer = new Set<number>((args.retirer_images ?? []).map(Number));
+          body.images = [...(args.images ?? p.images).filter((_: string, i: number) => !retirer.has(i + 1)), ...(args.ajouter_images ?? [])];
+        }
+
+        // Stock strict : uniquement une quantité entière donnée par le marchand, vérifiée avant toute écriture.
+        const variantes: any[] = Array.isArray(args.variantes) ? args.variantes : [];
+        const retirerVariantes: string[] = Array.isArray(args.retirer_variantes) ? args.retirer_variantes : [];
+        const stockInvalide = [args.stock, ...variantes.map((v) => v.stock)].some((s) => s !== undefined && !(Number.isInteger(s) && s >= 0));
+        if (stockInvalide) return { succes: false, resultat: "Le stock doit être un nombre entier positif, donné par le marchand. Rien n'a été modifié." };
+        if (args.stock !== undefined && (body.type ?? p.type) !== "physique") return { succes: false, resultat: "Seul un produit physique a un stock suivi. Rien n'a été modifié." };
+        if (args.stock !== undefined && p.variantes.length) return { succes: false, resultat: "Ce produit a des variantes : donne le stock de chaque variante (variantes avec varianteId). Rien n'a été modifié." };
+        const inconnue = [...variantes.map((v) => v.varianteId).filter(Boolean), ...retirerVariantes].find((vid) => !p.variantes.some((v) => v.id === vid));
+        if (inconnue) return { succes: false, resultat: "Variante introuvable sur ce produit — appelle modifier_produit avec seulement produitId pour voir ses variantes. Rien n'a été modifié." };
+        if (variantes.some((v) => !v.varianteId && !v.valeur)) return { succes: false, resultat: "Une nouvelle variante doit avoir une valeur (ex. XL). Rien n'a été modifié." };
+
+        if (!Object.keys(body).length && args.stock === undefined && !variantes.length && !retirerVariantes.length) {
+          return { succes: true, resultat: ficheProduit(p) };
+        }
+
+        const faits: string[] = [];
+        if (Object.keys(body).length) {
+          try {
+            await modifierProduit(tenantId, id, body);
+          } catch (e: any) {
+            if (e instanceof z.ZodError) return { succes: false, resultat: `Données refusées : ${e.issues.map((i) => `${i.path.join(".")} — ${i.message}`).join(" ; ")}. Rien n'a été modifié.` };
+            if (e?.code === "P2002") return { succes: false, resultat: "Ce code-barres est déjà utilisé par un autre produit de la boutique. Rien n'a été modifié." };
+            throw e;
+          }
+          faits.push(...Object.keys(body));
+        }
+        if (args.stock !== undefined) {
+          await fixerStock(tenantId, id, null, args.stock);
+          faits.push("stock");
+        }
+        for (const v of variantes) {
+          const champs = Object.fromEntries(Object.entries({ nom: v.nom, valeur: v.valeur, prix: v.prix, sku: v.sku, image: v.image, actif: v.actif }).filter(([, x]) => x !== undefined));
+          const varianteId = v.varianteId
+            ? (await prisma.variante.update({ where: { id: v.varianteId }, data: champs, select: { id: true } })).id
+            : (await prisma.variante.create({ data: { ...champs, produitId: id, nom: v.nom || "Variante", valeur: String(v.valeur) }, select: { id: true } })).id;
+          if (v.stock !== undefined && (v.varianteId || v.stock > 0)) await fixerStock(tenantId, id, varianteId, v.stock);
+          faits.push(v.varianteId ? `variante ${v.valeur ?? ""} modifiée` : `variante ${v.valeur} ajoutée`);
+        }
+        for (const vid of retirerVariantes) {
+          // Comme la suppression d'une variante dans le formulaire, avec sa ventilation par entrepôt.
+          await prisma.$transaction([prisma.stockEntrepot.deleteMany({ where: { varianteId: vid } }), prisma.variante.delete({ where: { id: vid } })]);
+          faits.push("variante supprimée");
+        }
+
+        const apres = await prisma.produit.findFirst({ where: { id, tenantId }, include: { variantes: { orderBy: { nom: "asc" } } } });
+        return { succes: true, resultat: `✅ « ${p.nom} » mis à jour (${faits.join(", ")}).\n\n${apres ? ficheProduit(apres) : ""}` };
+      }
+
+      case "supprimer_produit": {
+        const r = await supprimerProduit(tenantId, String(args.produitId ?? ""));
+        return r.ok ? { succes: true, resultat: `✅ « ${r.nom} » supprimé définitivement.` } : { succes: false, resultat: r.error };
+      }
+
+      case "ouvrir_page": {
+        if (args.produitId) {
+          const p = await prisma.produit.findFirst({ where: { id: String(args.produitId), tenantId }, select: { id: true, nom: true } });
+          if (!p) return { succes: false, resultat: "Produit introuvable" };
+          return { succes: true, resultat: resultatOuverture(`/dashboard/produits/${p.id}`, p.nom) };
+        }
+        if (args.commandeId) {
+          const c = await prisma.commande.findFirst({ where: { tenantId, OR: [{ id: String(args.commandeId) }, { numero: String(args.commandeId).replace(/^#/, "") }] }, select: { id: true, numero: true } });
+          if (!c) return { succes: false, resultat: "Commande introuvable" };
+          return { succes: true, resultat: resultatOuverture(`/dashboard/commandes/${c.id}`, `Commande #${c.numero}`) };
+        }
+        if (args.page === "boutique_publique") {
+          const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, statut: true } });
+          if (!t) return { succes: false, resultat: "Boutique introuvable" };
+          const lien = await lienBoutique(t.slug);
+          return { succes: true, resultat: `${resultatOuverture(lien, "Boutique publique")}${t.statut === "brouillon" ? " Elle est encore en brouillon : seul le marchand la voit." : ""} Adresse : ${lien}` };
+        }
+        const page = PAGES_DASHBOARD[args.page];
+        if (!page) return { succes: false, resultat: `Page inconnue. Pages possibles : ${Object.keys(PAGES_DASHBOARD).join(", ")}, boutique_publique.` };
+        return { succes: true, resultat: resultatOuverture(...page) };
+      }
+
+      case "etat_general":
+        return { succes: true, resultat: await etatGeneral(tenantId) };
+
+      case "lire_boutique": {
+        const [tenant, produits, nbCommandes, nbClients] = await Promise.all([
+          prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, categorie: true, pays: true, devise: true, description: true, themeId: true, slug: true, whatsapp: true, telephone: true, email: true, adresse: true, parametresLivraison: true, statut: true } }),
+          prisma.produit.findMany({ where: { tenantId, actif: true }, orderBy: { ventes: "desc" }, take: 5, select: { nom: true, prix: true, ventes: true, images: true, type: true } }),
+          prisma.commande.count({ where: { tenantId, statut: { in: ["confirmee", "livree"] } } }),
+          prisma.client.count({ where: { tenantId } }),
+        ]);
+        const devise = tenant?.devise ?? "XAF";
+        const prodLines = produits.map(p => `- ${p.nom} (${p.type}, ${p.prix} ${devise}, ${p.ventes} ventes, image: ${p.images?.length ? "oui" : "non"})`).join("\n");
+        const livraison = lireReglagesLivraison(tenant?.parametresLivraison);
+        const livraisonResume = livraison.gratuite
+          ? "gratuite pour tous"
+          : `${livraison.frais} ${devise}${livraison.minimum > 0 ? `, offerte dès ${livraison.minimum}` : ""}`;
+        const statutLabel = tenant?.statut === "brouillon" ? "brouillon (pas encore publiée)" : tenant?.statut === "pause" ? "en pause" : "publiée";
+        const ctx = `Boutique: ${tenant?.nomBoutique} | Statut: ${statutLabel} | Pays: ${tenant?.pays ?? "?"} | Devise: ${devise} | Catégorie: ${tenant?.categorie ?? "?"}\nContact — WhatsApp: ${tenant?.whatsapp || "non renseigné"} | Téléphone: ${tenant?.telephone || "non renseigné"} | Email: ${tenant?.email || "non renseigné"} | Adresse: ${tenant?.adresse || "non renseignée"}\nLivraison : ${livraisonResume}${livraison.zones.length ? ` — zones : ${livraison.zones.map((z) => (z.frais != null ? `${z.nom} (${z.frais} ${devise})` : z.nom)).join(", ")}` : ""}\nProduits actifs (${produits.length}):\n${prodLines || "aucun"}\nCommandes confirmées: ${nbCommandes} | Clients inscrits: ${nbClients}`;
+        return { succes: true, resultat: ctx };
+      }
+
+      case "publier_boutique": {
+        const { evaluerPublication } = await import("@/lib/boutique-completion");
+        const evaluation = await evaluerPublication(tenantId);
+        if (!evaluation.prete) {
+          const manquants = evaluation.criteres.filter(c => !c.ok).map(c => c.label);
+          return { succes: false, resultat: `Impossible de publier — il manque : ${manquants.join(", ")}.` };
+        }
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { statut: true, slug: true } });
+        if (tenant?.statut === "active") return { succes: true, resultat: "La boutique est déjà publiée." };
+        if (tenant?.statut !== "brouillon") return { succes: false, resultat: "La boutique est en pause ou suspendue — utilise les réglages de la boutique pour la réactiver." };
+        await prisma.tenant.update({ where: { id: tenantId }, data: { statut: "active" } });
+        await (await import("@/lib/tenant")).oublierRappelsBrouillon(tenantId);
+        await (await import("@/lib/domaines")).declarerSousDomaine(tenant.slug);
+        return { succes: true, resultat: `✅ Boutique publiée — elle est maintenant visible sur /${tenant.slug}` };
+      }
+
+      case "modifier_couleurs": {
+        const maj = Object.fromEntries(["accent", "accentSecondaire", "fond", "texte", "surface", "texteMuted", "bordure"]
+          .filter((k) => typeof args[k] === "string" && /^#[0-9a-f]{6}$/i.test(args[k].trim()))
+          .map((k) => [k, args[k].trim()]));
+        if (!Object.keys(maj).length) return { succes: false, resultat: "Aucune couleur valide reçue (format attendu : #RRGGBB)." };
+        const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { themeConfig: true } });
+        const cfg = (t?.themeConfig as Record<string, any>) ?? {};
+        await prisma.tenant.update({ where: { id: tenantId }, data: { themeConfig: { ...cfg, colors: { ...(cfg.colors ?? {}), ...maj } } } });
+        return { succes: true, resultat: `Couleurs mises à jour sur toute la boutique : ${Object.entries(maj).map(([k, v]) => `${k} ${v}`).join(", ")}` };
+      }
+
+      case "modifier_boutique": {
+        const data: any = {};
+        if (args.description) data.description = args.description;
+        if (args.metaTitle) data.metaTitle = args.metaTitle;
+        if (args.metaDescription) data.metaDescription = args.metaDescription;
+        if (args.whatsapp) data.whatsapp = args.whatsapp;
+        if (args.telephone) data.telephone = args.telephone;
+        if (args.email) data.email = args.email;
+        if (args.adresse) data.adresse = args.adresse;
+
+        let resultatDesign = "";
+        if (args.categorieDesign) {
+          const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+          if (!tenant) return { succes: false, resultat: "Boutique introuvable" };
+          const entree = selectionnerGabaritLibrairie(args.categorieDesign);
+          const theme = await provisionerThemeInitial({
+            tenantId,
+            categorie: args.categorieDesign,
+            slug: tenant.slug,
+            nomBoutique: tenant.nomBoutique,
+            devise: tenant.devise,
+            commissionRate: tenant.commissionRate ?? 0.1,
+            fichier: entree.fichier,
+          });
+          // Fusionne (sans reprendre l'ancien builderTree, qui appartient au
+          // design précédent) plutôt que de laisser themeConfig tel quel —
+          // sinon un builderTree périmé restait affiché à la place du
+          // nouveau design (voir même correctif sur POST /api/themes/provisionner).
+          const ancienConfig = await resolveThemeConfigAsync(tenant.themeId, tenantId, (tenant.themeConfig as any) || {});
+          const nouveauBase = await resolveThemeConfigAsync(theme.id, tenantId, {});
+          data.themeConfig = appliquerNouveauTheme(ancienConfig, nouveauBase) as any;
+          data.themeId = theme.id;
+          resultatDesign = `design "${entree.nom}" activé`;
+        }
+
+        if (Object.keys(data).length === 0) return { succes: false, resultat: "Rien à modifier" };
+        await prisma.tenant.update({ where: { id: tenantId }, data });
+        const autres = Object.keys(data).filter((k) => k !== "themeId");
+        return { succes: true, resultat: `✅ Boutique mise à jour : ${[resultatDesign, ...autres].filter(Boolean).join(", ")}` };
+      }
+
+      case "configurer_livraison": {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { parametresLivraison: true } });
+        if (!tenant) return { succes: false, resultat: "Boutique introuvable" };
+        const actuel = (tenant.parametresLivraison as any) || {};
+        const lu = lireReglagesLivraison(actuel);
+        // Zones données par nom : une zone gardée garde son tarif et son délai.
+        const zones = Array.isArray(args.zones)
+          ? lireReglagesLivraison({ zones: args.zones.map((n: string) => trouverZone(lu.zones, n) ?? n) }).zones
+          : lu.zones;
+        const parametresLivraison = {
+          ...actuel,
+          gratuite: args.gratuite ?? lu.gratuite,
+          frais: args.frais ?? lu.frais,
+          minimum: args.minimumGratuit ?? lu.minimum,
+          zones,
+        };
+        await prisma.tenant.update({ where: { id: tenantId }, data: { parametresLivraison } });
+        const resume = parametresLivraison.gratuite
+          ? "livraison gratuite pour tous"
+          : `${parametresLivraison.frais} de frais${parametresLivraison.minimum > 0 ? `, offerte dès ${parametresLivraison.minimum}` : ""}`;
+        return { succes: true, resultat: `✅ Livraison configurée : ${resume}${zones.length ? ` — zones : ${zones.map((z) => z.nom).join(", ")}` : ""}` };
+      }
+
+      case "ajouter_regle_livraison": {
+        // Pays/groupe/« International » → règle par pays ; sinon quartier du pays de la boutique.
+        const paysZone = paysDepuisTexte(args.zone);
+        const paysBoutique = paysZone ? null : (await prisma.tenant.findUnique({ where: { id: tenantId }, select: { pays: true } }))?.pays;
+        const regle = await (prisma as any).reglePort.create({
+          data: {
+            tenantId, nom: args.nom,
+            pays: paysZone ?? (paysBoutique ? [paysBoutique] : []),
+            zone: paysZone ? "" : String(args.zone ?? "").trim(),
+            frais: args.gratuit ? 0 : (args.frais ?? 0),
+            gratuit: !!args.gratuit,
+            poidsMin: args.poidsMin ?? 0,
+            poidsMax: args.poidsMax ?? null,
+            montantMin: args.montantMin ?? null,
+            delai: args.delai || "3-5 jours",
+            transporteur: args.transporteur || null,
+            actif: true,
+          },
+        });
+        return { succes: true, resultat: `✅ Règle "${regle.nom}" créée pour ${decrireRegle(regle)} : ${regle.gratuit ? "gratuit" : `${regle.frais}`} — ${regle.delai}` };
+      }
+
+      case "personnaliser_page_boutique": {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, categorie: true, themeId: true, themeConfig: true } });
+        if (!tenant) return { succes: false, resultat: "Boutique introuvable" };
+        // Anciennement gaté par THEMES_LIBRE_ELIGIBLES ("terre-et-or" seul) —
+        // périmé depuis que le Constructeur (BuilderCanvas) est devenu le
+        // SEUL éditeur de page d'accueil, quel que soit le thème (voir la
+        // note d'architecture dans BuilderCanvas.tsx : "plus de bascule
+        // classique/libre"). Le gate bloquait AXIA sur toute boutique utilisant
+        // un thème de la bibliothèque AXSO Design — la quasi-totalité des
+        // boutiques réelles — alors que le marchand pouvait éditer exactement
+        // le même builderTree à la main sans restriction.
+        const config: any = assurerSections((tenant.themeConfig as any) || {});
+        const arbreActuel = config.builderTree ?? [];
+        const { actions, resume } = await agentConstructeurLibre({
+          instruction: args.instruction,
+          tree: arbreActuel,
+          boutique: { nom: tenant.nomBoutique, categorie: tenant.categorie || "", couleurs: config.colors },
+        });
+        // Le HTML d'une section de design ne se réécrit jamais en bloc (l'agent n'en voit qu'un extrait) :
+        // ses textes, liens, images et styles passent par modifier_design_accueil.
+        // L'en-tête (navbar) n'est jamais supprimé ni masqué par AXIA (lib/agent-actions.ts::protegerEntete).
+        const actionsValidees = protegerEntete(arbreActuel, validerActions(actions)).filter((a) =>
+          !(a.op === "updateConfig" && findNode(arbreActuel, a.nodeId)?.type === "embed-html" && ("html" in a.config || "css" in a.config)));
+        if (!actionsValidees.length) {
+          return { succes: false, resultat: resume || "Je n'ai pas identifié de changement concret à appliquer sur la page — peux-tu préciser ta demande ?" };
+        }
+        const nouvelArbre = applyAgentActions(arbreActuel, actionsValidees);
+        await prisma.tenant.update({ where: { id: tenantId }, data: { themeConfig: { ...config, builderTree: nouvelArbre } } });
+        return { succes: true, resultat: `✅ ${resume}` };
+      }
+
+      case "modifier_design_accueil": {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { themeConfig: true } });
+        if (!tenant) return { succes: false, resultat: "Boutique introuvable" };
+        const config: any = assurerSections((tenant.themeConfig as any) || {});
+        let arbre = config.builderTree ?? [];
+        const actions: ActionDesign[] = Array.isArray(args.actions) ? args.actions : [];
+        try {
+          for (const a of actions) arbre = appliquerActionDesign(arbre, a);
+        } catch (e: any) {
+          // Rien n'est enregistré si une action échoue : état toujours cohérent.
+          return { succes: false, resultat: `${e.message} (aucune modification enregistrée)` };
+        }
+        const { tree, resume } = decrireAccueil(arbre);
+        await prisma.tenant.update({ where: { id: tenantId }, data: { themeConfig: { ...config, builderTree: tree } } });
+        return { succes: true, resultat: `${actions.length ? `✅ ${actions.length} modification(s) enregistrée(s).\n\n` : ""}Page d'accueil :\n${resume}` };
+      }
+
+      case "modifier_theme": {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { themeConfig: true } });
+        if (!tenant) return { succes: false, resultat: "Boutique introuvable" };
+        const cfg = (tenant.themeConfig as any) || {};
+        const { patch, refus } = reglagesTheme(args);
+        if (refus.length && !Object.keys(patch).length) return { succes: false, resultat: `Valeurs refusées : ${refus.join(", ")}` };
+        const suivant = {
+          ...cfg,
+          ...(patch.fonts && { fonts: { ...cfg.fonts, ...patch.fonts } }),
+          ...(patch.radius && { radius: patch.radius }),
+          ...(patch.layout && { layout: { ...cfg.layout, ...patch.layout } }),
+          ...(patch.boutons && { boutons: { ...cfg.boutons, ...patch.boutons } }),
+          ...(patch.navigationStyle && { navigationStyle: { ...cfg.navigationStyle, ...patch.navigationStyle } }),
+          ...(patch.animations && { animations: { ...cfg.animations, ...patch.animations } }),
+          // Comme dans le Constructeur : ces panneaux s'appliquent aussi au design importé (lib/reglages-design.ts).
+          ...((patch.boutons || patch.navigationStyle || patch.animations) && { reglagesDesign: {
+            ...cfg.reglagesDesign,
+            ...(patch.boutons && { boutons: true }), ...(patch.navigationStyle && { navigation: true }), ...(patch.animations && { animations: true }),
+          } }),
+        };
+        if (Object.keys(patch).length) await prisma.tenant.update({ where: { id: tenantId }, data: { themeConfig: suivant } });
+        const actuel = { polices: suivant.fonts, arrondi: suivant.radius, miseEnPage: suivant.layout, boutons: suivant.boutons, navigation: suivant.navigationStyle, animations: suivant.animations, couleurs: suivant.colors };
+        return { succes: true, resultat: `${Object.keys(patch).length ? "✅ Réglages enregistrés." : "Réglages actuels :"}${refus.length ? ` Ignoré (valeur invalide) : ${refus.join(", ")}.` : ""}\n${JSON.stringify(actuel)}` };
+      }
+
+      case "modifier_fiche_produit": {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, themeConfig: true } });
+        if (!tenant) return { succes: false, resultat: "Boutique introuvable" };
+        const config = (tenant.themeConfig as any) || {};
+        const actions: ActionFiche[] = Array.isArray(args.actions) ? args.actions : [];
+        let pp = config.productPage ?? null;
+        const faits: string[] = [];
+        for (const a of actions) {
+          try {
+            pp = appliquerActionFiche(pp, a).pp;
+            faits.push(`✓ ${a.action}${"section" in a && a.section ? ` ${a.section}` : ""}${"type" in a && a.type ? ` ${a.type}` : ""}`);
+          } catch (e: any) {
+            // Rien n'est enregistré si une action échoue : état toujours cohérent.
+            return { succes: false, resultat: `${e.message}${faits.length ? ` (aucune modification enregistrée ; actions valides avant l'erreur : ${faits.join(", ")})` : ""}\n\nFiche actuelle :\n${resumerFiche(config.productPage)}` };
+          }
+        }
+        if (actions.length) {
+          await prisma.tenant.update({ where: { id: tenantId }, data: { themeConfig: { ...config, productPage: pp } } });
+          // Invalidation du cache vitrine : sans effet (et sans erreur) hors requête Next, ex. tâche planifiée.
+          try { (await import("next/cache")).revalidatePath(`/${tenant.slug}`, "layout"); } catch {}
+        }
+        return { succes: true, resultat: `${actions.length ? `✅ Fiche produit mise à jour (${faits.join(", ")}).\n\n` : ""}${resumerFiche(pp)}` };
+      }
+
+      case "modifier_page": {
+        const cle: CleePage = args.page === "contact" ? "contactPage" : "aboutPage";
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, themeConfig: true } });
+        if (!tenant) return { succes: false, resultat: "Boutique introuvable" };
+        const config = (tenant.themeConfig as any) || {};
+        const actions: ActionPage[] = Array.isArray(args.actions) ? args.actions : [];
+        let page = config[cle] ?? null;
+        const faits: string[] = [];
+        for (const a of actions) {
+          try {
+            page = appliquerActionPage(page, cle, a).page;
+            faits.push(`✓ ${a.action}${"bloc" in a && a.bloc ? ` ${a.bloc}` : ""}${"type" in a && a.type ? ` ${a.type}` : ""}`);
+          } catch (e: any) {
+            // Rien n'est enregistré si une action échoue : état toujours cohérent.
+            return { succes: false, resultat: `${e.message}${faits.length ? ` (aucune modification enregistrée ; actions valides avant l'erreur : ${faits.join(", ")})` : ""}\n\n${resumerPage(config[cle], cle)}` };
+          }
+        }
+        if (actions.length) {
+          await prisma.tenant.update({ where: { id: tenantId }, data: { themeConfig: { ...config, [cle]: page } } });
+          try { (await import("next/cache")).revalidatePath(`/${tenant.slug}`, "layout"); } catch {}
+        }
+        return { succes: true, resultat: `${actions.length ? `✅ Page mise à jour (${faits.join(", ")}).\n\n` : ""}${resumerPage(page, cle)}` };
+      }
+
+      case "creer_code_promo": {
+        const exists = await prisma.codePromo.findUnique({ where: { tenantId_code: { tenantId, code: args.code.toUpperCase() } } });
+        if (exists) return { succes: false, resultat: `Code "${args.code.toUpperCase()}" existe déjà` };
+        await prisma.codePromo.create({ data: { tenantId, code: args.code.toUpperCase(), type: args.type, valeur: args.valeur, minCommande: args.minCommande ?? null, actif: true } });
+        const label = args.type === "pourcentage" ? `${args.valeur}%` : `${args.valeur} de réduction`;
+        return { succes: true, resultat: `✅ Code "${args.code.toUpperCase()}" créé — ${label}` };
+      }
+
+      case "envoyer_campagne_email": {
+        const resendKey = process.env.RESEND_API_KEY;
+        if (!resendKey) return { succes: false, resultat: "RESEND_API_KEY manquante" };
+        const [clients, tenant] = await Promise.all([
+          prisma.client.findMany({ where: { tenantId, ...AVEC_EMAIL_REEL }, select: { email: true, nom: true }, take: 50 }),
+          prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true } }),
+        ]);
+        if (!clients.length) return { succes: false, resultat: "Aucun client enregistré" };
+        const resend = new Resend(resendKey);
+        let envoyes = 0;
+        for (const c of clients) {
+          try {
+            await resend.emails.send({ from: `${tenant?.nomBoutique} <noreply@axsoafrica.com>`, to: c.email!, subject: args.sujet, html: args.html.replace(/\{\{nom\}\}/g, c.nom) });
+            envoyes++;
+          } catch { /* continue */ }
+        }
+        return { succes: true, resultat: `✅ Campagne envoyée : ${envoyes}/${clients.length} emails` };
+      }
+
+      case "generer_post_social": {
+        let ctx = `Plateforme: ${args.plateforme}, Thème: ${args.theme}`;
+        if (args.produitNom) {
+          const p = await prisma.produit.findFirst({ where: { tenantId, nom: { contains: args.produitNom, mode: "insensitive" } }, select: { nom: true, prix: true } });
+          if (p) ctx += `. Produit: ${p.nom} à ${p.prix}`;
+        }
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, devise: true } });
+        return { succes: true, resultat: `Contexte récupéré pour ${args.plateforme}: ${ctx}. Boutique: ${tenant?.nomBoutique}. Génère le post maintenant.` };
+      }
+
+      case "stats_globales": {
+        const jours = args.periode === "7j" ? 7 : args.periode === "30j" ? 30 : args.periode === "90j" ? 90 : 365;
+        const depuis = new Date(Date.now() - jours * 86400000);
+        const [commandes, clients, tenant] = await Promise.all([
+          prisma.commande.findMany({ where: { tenantId, createdAt: { gte: depuis } }, select: { montantTotal: true, statut: true, devise: true, paiementStatut: true } }),
+          prisma.client.count({ where: { tenantId, createdAt: { gte: depuis } } }),
+          prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true, nomBoutique: true } }),
+        ]);
+        // CA = commandes payées (définition officielle, lib/commandes.ts) ; confirmées = suivi opérationnel.
+        const payees = commandes.filter(c => c.paiementStatut === PAIEMENT.PAYE);
+        const conf = commandes.filter(c => ["confirmee", "livree"].includes(c.statut));
+        const ca = payees.reduce((s, c) => s + c.montantTotal, 0);
+        const dev = tenant?.devise ?? "XAF";
+        return { succes: true, resultat: `Stats ${args.periode} — CA (payé): ${Math.round(ca)} ${dev} | Commandes: ${commandes.length} (${payees.length} payées, ${conf.length} confirmées/livrées) | Taux de confirmation: ${commandes.length ? Math.round(conf.length / commandes.length * 100) : 0}% | Panier moyen: ${payees.length ? Math.round(ca / payees.length) : 0} ${dev} | Nouveaux clients: ${clients}` };
+      }
+
+      case "rapport_complet": {
+        const depuis = new Date(Date.now() - 30 * 86400000);
+        const [commandes, clients, topProduits, tenant] = await Promise.all([
+          prisma.commande.findMany({ where: { tenantId, createdAt: { gte: depuis } }, select: { montantTotal: true, statut: true, devise: true, paiementStatut: true } }),
+          prisma.client.aggregate({ where: { tenantId }, _count: true, _sum: { totalDepense: true } }),
+          prisma.produit.findMany({ where: { tenantId, actif: true }, orderBy: { ventes: "desc" }, take: 5, select: { nom: true, ventes: true, prix: true } }),
+          prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, devise: true, pays: true } }),
+        ]);
+        const payees = commandes.filter(c => c.paiementStatut === PAIEMENT.PAYE);
+        const conf = commandes.filter(c => ["confirmee", "livree"].includes(c.statut));
+        const ca = payees.reduce((s, c) => s + c.montantTotal, 0);
+        const dev2 = tenant?.devise ?? "XAF";
+        const topStr = topProduits.map(p => `${p.nom} (${p.ventes} ventes, ${p.prix} ${dev2})`).join(", ");
+        return { succes: true, resultat: `Rapport 30j — ${tenant?.nomBoutique} | CA (payé): ${Math.round(ca)} ${dev2} | Commandes: ${commandes.length} (${payees.length} payées, ${conf.length} confirmées/livrées) | Taux de confirmation: ${commandes.length ? Math.round(conf.length / commandes.length * 100) : 0}% | Clients total: ${clients._count} | LTV cumulé: ${Math.round(clients._sum.totalDepense ?? 0)} ${dev2} | Top produits: ${topStr || "aucun"}` };
+      }
+
+      case "produits_performance": {
+        const produits = await prisma.produit.findMany({ where: { tenantId }, select: { id: true, nom: true, prix: true, ventes: true, stock: true, images: true }, take: args.limite ?? 10, orderBy: args.tri === "ventes" || args.tri === "revenu" ? { ventes: "desc" } : { stock: "asc" } });
+        const avecRevenu = produits.map(p => ({ ...p, revenu: Math.round(p.prix * p.ventes), stock_ok: p.stock > 3 }));
+        if (args.tri === "revenu") avecRevenu.sort((a, b) => b.revenu - a.revenu);
+        return { succes: true, resultat: JSON.stringify(avecRevenu) };
+      }
+
+      case "lister_clients": {
+        let where: any = { tenantId };
+        if (args.segment === "inactifs_30j") Object.assign(where, clientsInactifs(30));
+        else if (args.segment === "nouveaux") where.createdAt = { gte: new Date(Date.now() - 7 * 86400000) };
+        const orderBy: any = args.tri === "depense_desc" ? { totalDepense: "desc" } : args.tri === "commandes_desc" ? { totalCommandes: "desc" } : { createdAt: "desc" };
+        const clients = await prisma.client.findMany({ where, orderBy, take: args.limite ?? 15, select: { id: true, nom: true, email: true, totalCommandes: true, totalDepense: true, createdAt: true } });
+        const clientLines = clients.map((c: any) => `- ${c.nom} (${c.email}) | ${c.totalCommandes} commandes | ${c.totalDepense} dépensé`).join("\n");
+        return { succes: true, resultat: `${clients.length} client(s):\n${clientLines || "aucun"}` };
+      }
+
+      case "envoyer_email_client": {
+        const resendKey = process.env.RESEND_API_KEY;
+        if (!resendKey) return { succes: false, resultat: "RESEND_API_KEY manquante" };
+        let where: any = { tenantId };
+        if (args.destinataires === "inactifs_30j") Object.assign(where, clientsInactifs(30));
+        else if (args.destinataires === "vip") { const agg = await prisma.client.aggregate({ where: { tenantId }, _avg: { totalDepense: true } }); where.totalDepense = { gte: (agg._avg.totalDepense ?? 0) * 2 }; }
+        else if (args.destinataires === "nouveaux") where.createdAt = { gte: new Date(Date.now() - 7 * 86400000) };
+        const clients = await prisma.client.findMany({ where: { ...where, ...AVEC_EMAIL_REEL }, select: { email: true, nom: true }, take: 50 });
+        if (!clients.length) return { succes: false, resultat: "Aucun client dans ce segment" };
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true } });
+        const resend = new Resend(resendKey);
+        let envoyes = 0;
+        for (const c of clients) {
+          try { await resend.emails.send({ from: `${tenant?.nomBoutique} <noreply@axsoafrica.com>`, to: c.email!, subject: args.sujet, html: args.html.replace(/\{\{nom\}\}/g, c.nom) }); envoyes++; } catch { /* continue */ }
+        }
+        return { succes: true, resultat: `✅ ${envoyes}/${clients.length} emails envoyés (segment: ${args.destinataires})` };
+      }
+
+      case "dashboard_livraison": {
+        const uneHeure = new Date(Date.now() - 3_600_000);
+        const [aAssigner, enRoute, enRouteLongtemps, echecs, especes, dispos] = await Promise.all([
+          prisma.commande.findMany({ where: { tenantId, statut: { in: ["confirmee", "en_preparation"] }, livreurId: null }, select: { numero: true, ville: true }, orderBy: { createdAt: "asc" }, take: 10 }),
+          prisma.commande.count({ where: { tenantId, statut: "expediee" } }),
+          prisma.commande.findMany({ where: { tenantId, statut: "expediee", expedieeAt: { lt: uneHeure } }, select: { numero: true, livreurNom: true, expedieeAt: true }, take: 5 }),
+          prisma.commande.findMany({ where: { tenantId, statut: "tentative_echouee" }, select: { numero: true, echecRaison: true, echecCount: true }, take: 5 }),
+          prisma.commande.aggregate({ where: { tenantId, methodePaiement: { in: ["whatsapp_cod", "direct_cod"] }, statut: "livree", codRemis: false }, _sum: { montantTotal: true }, _count: true }),
+          // Livreurs disponibles avec leur charge : de quoi proposer une assignation sans autre appel
+          prisma.livreur.findMany({
+            where: { actif: true, disponible: true, OR: [{ tenantId }, { tenantId: null }] },
+            select: { id: true, nom: true, zone: true, tenantId: true, _count: { select: { commandes: { where: { statut: { in: STATUTS_COURSE_ACTIVE } } } } } },
+            take: 15,
+          }),
+        ]);
+        const dev = (await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } }))?.devise ?? "XAF";
+        const lignes = [
+          `Commandes à assigner (confirmées ou en préparation, sans livreur) : ${aAssigner.length}${aAssigner.length ? ` — ${aAssigner.map(c => `#${c.numero} (${c.ville || "ville ?"})`).join(", ")}` : ""}`,
+          `Livreurs disponibles : ${dispos.length ? dispos.sort((a, b) => a._count.commandes - b._count.commandes).map(l => `${l.nom} (id ${l.id}, ${l.tenantId ? "de la boutique" : "indépendant"}${l.zone ? `, zone ${l.zone}` : ""}, ${l._count.commandes} course(s) en cours)`).join(" ; ") : "aucun"}`,
+          `Courses en route : ${enRoute}`,
+          enRouteLongtemps.length && `En route depuis plus d'une heure : ${enRouteLongtemps.map(c => `#${c.numero} (${c.livreurNom ?? "livreur"}, parti à ${c.expedieeAt!.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})`).join(", ")}`,
+          echecs.length && `Échecs à replanifier : ${echecs.map(c => `#${c.numero}${c.echecRaison ? ` (${c.echecRaison})` : ""}${c.echecCount > 1 ? ` ×${c.echecCount}` : ""}`).join(", ")}`,
+          especes._count && `Espèces encaissées par les livreurs, pas encore remises : ${especes._sum.montantTotal ?? 0} ${dev} sur ${especes._count} commande(s)`,
+        ].filter(Boolean);
+        return { succes: true, resultat: lignes.join("\n") };
+      }
+
+      case "lister_commandes": {
+        const commandes = await prisma.commande.findMany({
+          where: { tenantId, ...(args.statut && { statut: args.statut }), ...(args.sans_livreur && { livreurId: null, statut: args.statut ?? { in: ["confirmee", "en_preparation"] } }) },
+          orderBy: { createdAt: args.sans_livreur ? "asc" : "desc" },
+          take: Math.min(Number(args.limite) || 10, 30),
+          select: { numero: true, statut: true, clientNom: true, ville: true, montantTotal: true, devise: true, methodePaiement: true, livreurNom: true, expedieeAt: true, echecRaison: true, createdAt: true },
+        });
+        if (!commandes.length) return { succes: true, resultat: "Aucune commande ne correspond." };
+        return { succes: true, resultat: commandes.map(c => [
+          `#${c.numero} — ${c.statut} — ${c.clientNom}, ${c.ville} — ${c.montantTotal} ${c.devise ?? "XAF"}${c.methodePaiement.includes("cod") ? " (paiement à la livraison)" : ""}`,
+          c.livreurNom ? `livreur ${c.livreurNom}` : "sans livreur",
+          c.expedieeAt && c.statut === "expediee" && `parti à ${c.expedieeAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
+          c.echecRaison && c.statut === "tentative_echouee" && `échec : ${c.echecRaison}`,
+          `passée le ${c.createdAt.toLocaleDateString("fr-FR")}`,
+        ].filter(Boolean).join(" — ")).join("\n") };
+      }
+
+      case "lister_livreurs": {
+        const livreurs = await prisma.livreur.findMany({
+          where: { actif: true, OR: [{ tenantId }, { tenantId: null }] },
+          orderBy: [{ disponible: "desc" }, { nom: "asc" }],
+          take: 40,
+          select: {
+            id: true, nom: true, vehicule: true, zone: true, disponible: true, tenantId: true, positionAt: true,
+            _count: { select: { commandes: { where: { statut: { in: STATUTS_COURSE_ACTIVE } } } } },
+          },
+        });
+        if (!livreurs.length) return { succes: true, resultat: "Aucun livreur assignable. Le marchand peut en créer dans Logistique → Livreurs." };
+        const especes = await prisma.commande.groupBy({
+          by: ["livreurId"],
+          where: { tenantId, livreurId: { in: livreurs.map(l => l.id) }, methodePaiement: { in: ["whatsapp_cod", "direct_cod"] }, statut: "livree", codRemis: false },
+          _sum: { montantTotal: true },
+        });
+        const du = new Map(especes.map(e => [e.livreurId, e._sum.montantTotal ?? 0]));
+        return { succes: true, resultat: livreurs.map(l => [
+          `${l.nom} (id ${l.id})`,
+          l.tenantId ? "livreur de la boutique" : "indépendant",
+          l.disponible ? "disponible" : "indisponible",
+          l.vehicule, l.zone && `zone ${l.zone}`,
+          `${l._count.commandes} course(s) en cours`,
+          du.get(l.id) && `${du.get(l.id)} en espèces à remettre`,
+        ].filter(Boolean).join(" — ")).join("\n") };
+      }
+
+      case "assigner_livreur": {
+        const ref = String(args.commande ?? args.commandeId ?? "").replace(/^#/, "");
+        const commande = await prisma.commande.findFirst({ where: { tenantId, OR: [{ id: ref }, { numero: ref }] }, select: { id: true } });
+        if (!commande) return { succes: false, resultat: `Commande « ${ref} » introuvable : utilise lister_commandes pour obtenir son numéro exact.` };
+        const r = await assignerLivreurCommande({ commandeId: commande.id, tenantId, livreurId: args.livreurId || null, source: "axia" });
+        if (!r.ok) return { succes: false, resultat: r.error };
+        return { succes: true, resultat: r.livreurNom ? `✅ Commande #${r.numero} assignée à ${r.livreurNom}. Le livreur et le client sont prévenus.` : `✅ Livreur retiré de la commande #${r.numero}.` };
+      }
+
+      case "changer_statut_commande": {
+        const ref = String(args.commande ?? "").replace(/^#/, "");
+        const commande = await prisma.commande.findFirst({ where: { tenantId, OR: [{ id: ref }, { numero: ref }] }, select: { id: true } });
+        if (!commande) return { succes: false, resultat: `Commande « ${ref} » introuvable : utilise lister_commandes pour obtenir son numéro exact.` };
+        if (args.statut === "tentative_echouee" && !args.raison) return { succes: false, resultat: "Indique la raison de l'échec (client absent, injoignable, refus, adresse introuvable…)." };
+        const r = await changerStatutCommande({ commandeId: commande.id, statut: args.statut, echecRaison: args.raison, acteur: { type: "marchand", tenantId, source: "axia" } });
+        if (!r.ok) return { succes: false, resultat: r.error };
+        return { succes: true, resultat: `✅ Commande #${r.numero} passée à « ${r.statut} ». ${r.envoyeAuto ? "Le client a été prévenu par WhatsApp." : "Le WhatsApp au client n'est pas parti automatiquement : un lien pour l'envoyer est dans les notifications du marchand."}` };
+      }
+
+      case "marquer_especes_remises": {
+        const numeros = Array.isArray(args.commandes) ? args.commandes.map((n: string) => String(n).replace(/^#/, "")) : [];
+        const ids = numeros.length
+          ? (await prisma.commande.findMany({ where: { tenantId, livreurId: args.livreurId, numero: { in: numeros } }, select: { id: true } })).map(c => c.id)
+          : undefined;
+        if (numeros.length && !ids?.length) return { succes: false, resultat: "Aucune de ces commandes n'appartient à ce livreur." };
+        const r = await marquerEspecesRemises({ tenantId, userId: null, livreurId: args.livreurId, commandeIds: ids });
+        if (!r.ok) return { succes: false, resultat: r.error };
+        return { succes: true, resultat: r.count ? `✅ ${r.count} commande(s) marquée(s) comme remise(s).` : "Rien à marquer : ce livreur n'a pas d'espèces en attente de remise." };
+      }
+
+      case "rechercher_produits": {
+        const where: any = { tenantId, actif: true };
+        if (args.q) where.OR = [
+          { nom: { contains: args.q, mode: "insensitive" } },
+          { description: { contains: args.q, mode: "insensitive" } },
+          { tags: { has: args.q.toLowerCase() } },
+        ];
+        if (args.categorie) where.categorie = { contains: args.categorie, mode: "insensitive" };
+        if (args.prix_max) where.prix = { lte: args.prix_max };
+        const produits = await prisma.produit.findMany({
+          where, take: args.limite ?? 10, orderBy: { ventes: "desc" },
+          select: { id: true, nom: true, prix: true, categorie: true, stock: true, ventes: true, images: true },
+        });
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } });
+        const dev = tenant?.devise ?? "XAF";
+        if (!produits.length) return { succes: false, resultat: `Aucun produit trouvé pour "${args.q}"` };
+        const lines = produits.map(p => `- ${p.nom} | ${p.prix} ${dev} | stock: ${p.stock} | ${p.ventes} ventes | image: ${p.images?.length ? "oui" : "non"} | id: ${p.id}`).join("\n");
+        return { succes: true, resultat: `${produits.length} résultat(s) pour "${args.q}":\n${lines}` };
+      }
+
+      case "statut_commande": {
+        const commande = await prisma.commande.findFirst({
+          where: { tenantId, OR: [{ numero: { contains: String(args.numero).replace(/^#/, ""), mode: "insensitive" } }, { id: args.numero }] },
+          select: {
+            numero: true, statut: true, montantTotal: true, devise: true, methodePaiement: true, paiementStatut: true, codRemis: true,
+            clientNom: true, clientTelephone: true, adresseLivraison: true, ville: true, createdAt: true,
+            livreurNom: true, livreurTelephone: true, expedieeAt: true, livreeAt: true, livreurPosition: true,
+            echecRaison: true, echecCount: true, trackingToken: true, tenant: { select: { slug: true } },
+          },
+        });
+        if (!commande) return { succes: false, resultat: `Commande "${args.numero}" introuvable. Vérifie le numéro.` };
+        const heure = (d: Date) => d.toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+        const pos = commande.livreurPosition as { updatedAt?: string } | null;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+        return { succes: true, resultat: [
+          `Commande #${commande.numero} — ${commande.statut} — ${commande.montantTotal} ${commande.devise ?? "XAF"} — passée le ${heure(commande.createdAt)}`,
+          `Client : ${commande.clientNom} (${commande.clientTelephone}) — ${commande.adresseLivraison}, ${commande.ville}`,
+          `Paiement : ${commande.methodePaiement.includes("cod") ? "à la livraison" : "en ligne"} — ${commande.paiementStatut}${commande.methodePaiement.includes("cod") && commande.statut === "livree" ? (commande.codRemis ? " — espèces remises à la boutique" : " — espèces pas encore remises par le livreur") : ""}`,
+          commande.livreurNom ? `Livreur : ${commande.livreurNom}${commande.livreurTelephone ? ` (${commande.livreurTelephone})` : ""}` : "Aucun livreur assigné",
+          commande.expedieeAt && `Départ : ${heure(commande.expedieeAt)}`,
+          pos?.updatedAt && commande.statut === "expediee" && `Dernière position du livreur : ${heure(new Date(pos.updatedAt))}`,
+          commande.livreeAt && `Livrée : ${heure(commande.livreeAt)}`,
+          commande.echecCount > 0 && `Échecs de livraison : ${commande.echecCount}${commande.echecRaison ? ` (dernier : ${commande.echecRaison})` : ""}`,
+          commande.trackingToken && `Lien de suivi client : ${await lienBoutique(commande.tenant.slug, `/tracking/${commande.trackingToken}`)}`,
+        ].filter(Boolean).join("\n") };
+      }
+
+      case "recommandations_client": {
+        const topProduits = await prisma.produit.findMany({
+          where: { tenantId, actif: true, stock: { gt: 0 } }, orderBy: { ventes: "desc" }, take: args.limite ?? 5,
+          select: { nom: true, prix: true, categorie: true, ventes: true },
+        });
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } });
+        const dev = tenant?.devise ?? "XAF";
+        if (!topProduits.length) return { succes: false, resultat: "Pas assez de données pour générer des recommandations." };
+        const lines = topProduits.map((p, i) => `${i + 1}. ${p.nom} (${p.prix} ${dev}) — ${p.ventes} ventes`).join("\n");
+        return { succes: true, resultat: `Top produits recommandés (basé sur les ventes):\n${lines}` };
+      }
+
+      case "contexte_client": {
+        let clientWhere: any = { tenantId };
+        if (args.clientEmail) clientWhere.email = args.clientEmail;
+        else if (args.clientId) clientWhere.id = args.clientId;
+        else return { succes: false, resultat: "Précise l'email ou l'ID du client." };
+        const client = await prisma.client.findFirst({ where: clientWhere, select: { id: true, nom: true, email: true, telephone: true, totalCommandes: true, totalDepense: true, createdAt: true } });
+        if (!client) return { succes: false, resultat: `Client introuvable avec les infos fournies.` };
+        const commandes = await prisma.commande.findMany({
+          where: { tenantId, clientId: client.id }, orderBy: { createdAt: "desc" }, take: 5,
+          select: { numero: true, statut: true, montantTotal: true, devise: true, createdAt: true },
+        });
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } });
+        const dev = tenant?.devise ?? "XAF";
+        const cmdLines = commandes.map(c => `  - ${c.numero} | ${c.statut} | ${c.montantTotal} ${c.devise ?? dev} | ${c.createdAt.toLocaleDateString("fr-FR")}`).join("\n");
+        return { succes: true, resultat: `Client : ${client.nom} (${client.email}) | Tél: ${client.telephone ?? "?"} | Inscrit le ${client.createdAt.toLocaleDateString("fr-FR")} | ${client.totalCommandes} commandes | ${client.totalDepense} ${dev} dépensé\nDernières commandes:\n${cmdLines || "  aucune"}` };
+      }
+
+      case "initier_retour": {
+        // Ouvre un vrai retour (RMA) — la commande garde son statut ; l'accepter la remboursera.
+        const r = await creerRetour({ tenantId, commande: String(args.commandeId), raison: args.raison, type: args.type === "echange" ? "echange" : "remboursement" });
+        if (!r.ok) return { succes: false, resultat: r.error };
+        return { succes: true, resultat: `✅ Retour ouvert pour la commande ${r.numero} (${args.type === "echange" ? "échange" : "remboursement"}). Motif : ${args.raison}. Accepte-le dans Logistique → Retours pour déclencher le remboursement.` };
+      }
+      case "escalader_vers_humain": {
+        const urgenceLabel = args.urgence === "haute" ? "🔴 HAUTE" : args.urgence === "basse" ? "🟢 BASSE" : "🟡 NORMALE";
+        await notifierMarchand({
+          tenantId,
+          type: "escalade_humain",
+          titre: `[${urgenceLabel}] Escalade Axia`,
+          message: `${args.raison}${args.contexte ? `\nContexte : ${args.contexte}` : ""}`,
+        });
+        return { succes: true, resultat: `Escalade enregistrée (urgence: ${urgenceLabel}). L'équipe sera notifiée pour traiter : ${args.raison}` };
+      }
+
+      case "calculer_frais_livraison": {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true, pays: true } });
+        const dev = tenant?.devise ?? "XAF";
+        // Même calcul que le checkout (lib/livraison.ts) : « zone » peut être un pays ou un quartier du pays de la boutique.
+        const poids = args.poids ?? 0;
+        const montantCommande = args.montantCommande ?? 0;
+        const zone = args.zone ?? "";
+        const paysZone = paysDepuisTexte(zone);
+        const pays = paysZone?.length === 1 ? paysZone[0] : (paysZone ? "" : tenant?.pays ?? "");
+        const options = await calculerOptionsLivraison({ tenantId, pays, zone: paysZone ? "" : zone, poids, montantCommande });
+        const lignes = options.map((o) => `• ${o.nom} (${o.transporteur ?? "Standard"}) : ${o.gratuit ? "Gratuit" : `${o.frais} ${dev}`}${o.delai ? ` — ${o.delai}` : ""}`).join("\n");
+        return { succes: true, resultat: `Frais de livraison pour ${zone} (${poids}kg, ${montantCommande} ${dev}):\n${lignes}` };
+      }
+
+      case "lister_regles_livraison": {
+        const regles = await (prisma as any).reglePort.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }).catch(() => []);
+        if (!regles.length) return { succes: true, resultat: "Aucune règle configurée. Va dans Livraison → Règles tarifaires." };
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } });
+        const dev = tenant?.devise ?? "XAF";
+        const lines = regles.map((r: any) => `• ${r.nom} | Zone: ${decrireRegle(r)} | ${r.gratuit ? "Gratuit" : `${r.frais} ${dev} (+${r.fraisKg}/kg)`} | ${r.delai} | ${r.actif ? "Actif" : "Inactif"}`).join("\n");
+        return { succes: true, resultat: `${regles.length} règle(s) de livraison:\n${lines}` };
+      }
+
+      case "creer_retour": {
+        const r = await creerRetour({ tenantId, commande: String(args.commandeId), raison: args.raison, description: args.description ?? null, type: args.type ?? "remboursement" });
+        if (!r.ok) return { succes: false, resultat: r.error };
+        return { succes: true, resultat: `✅ Retour créé pour la commande ${r.numero} — Type: ${args.type ?? "remboursement"} — Raison: ${args.raison}` };
+      }
+      case "lister_retours": {
+        const where: any = { tenantId };
+        if (args.statut) where.statut = args.statut;
+        const retours = await (prisma as any).retourRMA.findMany({ where, take: 15, orderBy: { createdAt: "desc" } }).catch(() => []);
+        if (!retours.length) return { succes: true, resultat: "Aucun retour" + (args.statut ? ` avec le statut "${args.statut}"` : "") + "." };
+        const lines = retours.map((r: any) => `• Cmd ${r.commandeId.slice(-8)} | ${r.clientNom} | ${r.raison} → ${r.type} | ${r.statut} | ${r.montant ?? "?"}${r.createdAt ? ` | ${new Date(r.createdAt).toLocaleDateString("fr")}` : ""}`).join("\n");
+        return { succes: true, resultat: `${retours.length} retour(s):\n${lines}` };
+      }
+
+      case "mettre_a_jour_retour": {
+        // Même chemin que l'interface : accepter un remboursement rend l'argent, le stock et coupe les accès.
+        const r = await mettreAJourRetour({ tenantId, retourId: args.retourId, statut: args.statut, notes: args.notes });
+        if (!r.ok) return { succes: false, resultat: r.error };
+        return { succes: true, resultat: `✅ Retour mis à jour : statut → ${r.retour.statut}${args.statut === "accepte" && r.retour.type === "remboursement" ? " (commande remboursée, stock et accès mis à jour)" : ""}` };
+      }
+      case "generer_facture": {
+        const commande = await prisma.commande.findFirst({
+          where: { tenantId, OR: [{ id: args.commandeId }, { numero: { contains: args.commandeId } }] },
+          include: { lignes: true },
+        });
+        if (!commande) return { succes: false, resultat: "Commande introuvable." };
+        const existing = await (prisma as any).facture.findFirst({ where: { commandeId: commande.id } }).catch(() => null);
+        if (existing) return { succes: true, resultat: `Facture ${existing.numero} déjà générée (statut: ${existing.statut}).` };
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { tauxTVA: true, devise: true } });
+        const tauxTVA = (tenant as any)?.tauxTVA ?? 0;
+        const count = await (prisma as any).facture.count({ where: { tenantId } }).catch(() => 0);
+        const numero = `FAC-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+        const montantHT = tauxTVA > 0 ? commande.montantSousTotal / (1 + tauxTVA) : commande.montantSousTotal;
+        const facture = await (prisma as any).facture.create({
+          data: {
+            tenantId, commandeId: commande.id, numero, clientNom: commande.clientNom, clientEmail: commande.clientEmail, clientAdresse: commande.adresseLivraison,
+            lignes: commande.lignes.map((l: any) => ({ nom: l.nom, quantite: l.quantite, prixHT: l.prix, tauxTVA, prixTTC: l.prix })),
+            montantHT, tauxTVA, montantTVA: commande.montantSousTotal - montantHT, montantTTC: commande.montantTotal, devise: commande.devise,
+            statut: commande.paiementStatut === PAIEMENT.PAYE ? "payee" : "emise",
+          },
+        }).catch(() => null);
+        if (!facture) return { succes: false, resultat: "Erreur lors de la génération de la facture." };
+        return { succes: true, resultat: `✅ Facture ${numero} générée pour ${commande.clientNom} — ${commande.montantTotal} ${commande.devise}` };
+      }
+
+      case "lister_factures": {
+        const factures = await (prisma as any).facture.findMany({ where: { tenantId }, take: args.limite ?? 10, orderBy: { emiseAt: "desc" } }).catch(() => []);
+        if (!factures.length) return { succes: true, resultat: "Aucune facture générée pour l'instant." };
+        const lines = factures.map((f: any) => `• ${f.numero} | ${f.clientNom} | ${f.montantTTC} ${f.devise} | ${f.statut} | ${new Date(f.emiseAt).toLocaleDateString("fr")}`).join("\n");
+        return { succes: true, resultat: `${factures.length} facture(s):\n${lines}` };
+      }
+
+      case "lister_fournisseurs": {
+        const fournisseurs = await (prisma as any).fournisseur.findMany({ where: { tenantId }, orderBy: { nom: "asc" } }).catch(() => []);
+        if (!fournisseurs.length) return { succes: true, resultat: "Aucun fournisseur configuré. Ajoute-en un depuis Dropshipping." };
+        const lines = fournisseurs.map((f: any) => `• ${f.nom} (${f.type}) | ${f.pays} | Délai: ${f.delaiLivraison != null ? `${f.delaiLivraison}j` : "non communiqué"} | Livraisons réussies: ${f.livraisonsTotal > 0 ? `${f.livraisonsOk}/${f.livraisonsTotal}` : "aucun historique"} | Marge auto: ${Math.round(f.margeAuto * 100)}%`).join("\n");
+        return { succes: true, resultat: `${fournisseurs.length} fournisseur(s):\n${lines}` };
+      }
+
+      case "ajouter_fournisseur": {
+        const f = await (prisma as any).fournisseur.create({
+          data: { tenantId, nom: args.nom, type: args.type ?? "local", pays: args.pays ?? "Cameroun", url: args.url ?? null, delaiLivraison: args.delaiLivraison ?? null, margeAuto: (args.margeAuto ?? 30) / 100 },
+        }).catch((e: any) => ({ error: e.message }));
+        if ((f as any).error) return { succes: false, resultat: `Erreur: ${(f as any).error}` };
+        return { succes: true, resultat: `✅ Fournisseur "${args.nom}" ajouté — Marge auto: ${args.margeAuto ?? 30}%` };
+      }
+
+      case "creer_popup": {
+        const popup = await (prisma as any).popupCampagne.create({
+          data: { tenantId, nom: args.nom, type: args.type ?? "popup", declencheur: args.declencheur ?? "delai", delaiSec: args.delaiSec ?? 5, titre: args.titre, message: args.message, ctaTexte: args.ctaTexte ?? null, ctaUrl: args.ctaUrl ?? null, codePromo: args.codePromo ?? null },
+        }).catch((e: any) => ({ error: e.message }));
+        if ((popup as any).error) return { succes: false, resultat: `Erreur: ${(popup as any).error}` };
+        return { succes: true, resultat: `✅ Popup "${args.nom}" créé et actif sur ta boutique — Déclencheur: ${args.declencheur ?? "delai"}` };
+      }
+
+      case "creer_automation": {
+        const wf = await (prisma as any).automationWorkflow.create({
+          data: { tenantId, nom: args.nom, type: args.type, canal: args.canal ?? "email", message: args.message, sujet: args.sujet ?? null, delaiHeures: args.delaiHeures ?? 1 },
+        }).catch((e: any) => ({ error: e.message }));
+        if ((wf as any).error) return { succes: false, resultat: `Erreur: ${(wf as any).error}` };
+        const typeLabels: Record<string, string> = { panier_abandonne: "panier abandonné", bienvenue: "bienvenue", apres_achat: "après achat", anniversaire: "anniversaire", inactif: "relance inactifs" };
+        return { succes: true, resultat: `✅ Automation "${args.nom}" créée — Type: ${typeLabels[args.type] ?? args.type} — Canal: ${args.canal ?? "email"} — Déclenché après ${args.delaiHeures ?? 1}h` };
+      }
+
+      case "verifier_badges": {
+        const [nbCommandes, caTotal, nbProduits, avisStats] = await Promise.all([
+          prisma.commande.count({ where: { tenantId, paiementStatut: PAIEMENT.PAYE } }),
+          prisma.commande.aggregate({ where: { tenantId, paiementStatut: PAIEMENT.PAYE }, _sum: { montantTotal: true } }),
+          prisma.produit.count({ where: { tenantId, actif: true } }),
+          prisma.avis.aggregate({ where: { tenantId, approuve: true }, _avg: { note: true }, _count: true }),
+        ]);
+        const ca = caTotal._sum.montantTotal ?? 0;
+        const existing = await (prisma as any).badgeMarchand.findMany({ where: { tenantId } }).catch(() => []);
+        const obtenuTypes = new Set(existing.map((b: any) => b.type));
+        const BADGES = [
+          { type: "premiere_vente", titre: "Première vente", emoji: "🎉", cond: nbCommandes >= 1 },
+          { type: "10_commandes", titre: "10 commandes", emoji: "🔟", cond: nbCommandes >= 10 },
+          { type: "50_commandes", titre: "50 commandes", emoji: "🚀", cond: nbCommandes >= 50 },
+          { type: "100_commandes", titre: "Centenaire", emoji: "💯", cond: nbCommandes >= 100 },
+          { type: "1m_xaf", titre: "Premier million", emoji: "💰", cond: ca >= 1_000_000 },
+          { type: "catalogue_riche", titre: "Catalogue riche", emoji: "📦", cond: nbProduits >= 10 },
+          { type: "avis_parfaits", titre: "5 étoiles", emoji: "⭐", cond: (avisStats._count >= 5) && ((avisStats._avg.note ?? 0) >= 4.8) },
+        ];
+        const nouveaux = BADGES.filter(b => b.cond && !obtenuTypes.has(b.type));
+        if (nouveaux.length > 0) {
+          await (prisma as any).badgeMarchand.createMany({ data: nouveaux.map(b => ({ tenantId, type: b.type, titre: b.titre, emoji: b.emoji })), skipDuplicates: true }).catch(() => null);
+        }
+        const obtenus = BADGES.filter(b => obtenuTypes.has(b.type) || b.cond);
+        const reste = BADGES.filter(b => !obtenuTypes.has(b.type) && !b.cond);
+        const r = nouveaux.length > 0 ? `🎉 Nouveau(x) badge(s) obtenu(s) : ${nouveaux.map(b => `${b.emoji} ${b.titre}`).join(", ")}\n` : "";
+        return { succes: true, resultat: `${r}Badges obtenus : ${obtenus.map(b => `${b.emoji} ${b.titre}`).join(", ") || "aucun"}\nÀ débloquer : ${reste.map(b => b.titre).join(", ") || "tous obtenus !"}` };
+      }
+
+      case "analyser_avis": {
+        const where: any = { tenantId, approuve: true };
+        if (args.produitId) where.produitId = args.produitId;
+        const avis = await prisma.avis.findMany({ where, select: { note: true, commentaire: true, createdAt: true }, take: 50, orderBy: { createdAt: "desc" } });
+        if (!avis.length) return { succes: true, resultat: "Pas encore d'avis approuvés à analyser." };
+        const moy = avis.reduce((s, a) => s + a.note, 0) / avis.length;
+        const dist = [1, 2, 3, 4, 5].map(n => ({ note: n, count: avis.filter(a => a.note === n).length }));
+        const distStr = dist.map(d => `${d.note}★: ${d.count}`).join(", ");
+        const commentaires = avis.filter(a => a.commentaire).map(a => `${a.note}★: "${a.commentaire}"`).slice(0, 10).join("\n");
+        return { succes: true, resultat: `Analyse ${avis.length} avis — Note moyenne: ${moy.toFixed(1)}/5\nDistribution: ${distStr}\n\nDerniers commentaires:\n${commentaires}\n\nContexte disponible pour générer des insights.` };
+      }
+
+      case "lister_entrepots": {
+        const entrepots = await (prisma as any).entrepot.findMany({ where: { tenantId }, orderBy: { principal: "desc" } }).catch(() => []);
+        if (!entrepots.length) return { succes: true, resultat: "Aucun entrepôt configuré. Va dans Opérations → Entrepôts pour en créer un." };
+        const lines = entrepots.map((e: any) => `• ${e.nom}${e.principal ? " [Principal]" : ""} | ${[e.ville, e.pays].filter(Boolean).join(", ")} | ${e.actif ? "Actif" : "Inactif"}`).join("\n");
+        return { succes: true, resultat: `${entrepots.length} entrepôt(s):\n${lines}` };
+      }
+
+      case "creer_entrepot": {
+        const e = await (prisma as any).entrepot.create({
+          data: { tenantId, nom: args.nom, ville: args.ville, pays: args.pays ?? "Cameroun", adresse: args.adresse, principal: args.principal ?? false },
+        }).catch((e: any) => ({ error: e.message }));
+        if ((e as any).error) return { succes: false, resultat: `Erreur: ${(e as any).error}` };
+        return { succes: true, resultat: `✅ Entrepôt "${args.nom}" créé à ${args.ville ?? ""}${args.principal ? " (principal)" : ""}` };
+      }
+
+      case "router_commande_fournisseur": {
+        const commande = await prisma.commande.findFirst({
+          where: { tenantId, OR: [{ id: args.commandeId }, { numero: { contains: args.commandeId } }] },
+          include: { lignes: { include: { produit: { select: { fournisseurId: true, prixFournisseur: true, nom: true } } } } },
+        });
+        if (!commande) return { succes: false, resultat: "Commande introuvable." };
+        const fournisseurId = commande.lignes.find((l: any) => l.produit?.fournisseurId)?.produit?.fournisseurId;
+        if (!fournisseurId) return { succes: false, resultat: "Aucun fournisseur dropshipping associé aux produits de cette commande." };
+        const montantFournisseur = commande.lignes.reduce((s: number, l: any) => s + ((l.produit?.prixFournisseur ?? 0) * l.quantite), 0);
+        const cf = await (prisma as any).commandeFournisseur.create({ data: { tenantId, commandeId: commande.id, fournisseurId, montantFournisseur, statut: "en_attente" /* rien n'est transmis automatiquement */ } }).catch(() => null);
+        if (!cf) return { succes: false, resultat: "Erreur lors de la préparation de la commande fournisseur." };
+        return { succes: true, resultat: `Commande fournisseur préparée pour la commande ${commande.numero} (montant fournisseur estimé : ${montantFournisseur.toLocaleString()} ${commande.devise}). Elle n'est PAS encore envoyée : à transmettre au fournisseur depuis Sourcing → Commandes fournisseurs.` };
+      }
+
+      case "lister_commandes_fournisseur": {
+        const where: any = { tenantId };
+        if (args.statut) where.statut = args.statut;
+        const cfs = await (prisma as any).commandeFournisseur.findMany({
+          where, take: 10, orderBy: { createdAt: "desc" },
+          include: { commande: { select: { numero: true, clientNom: true } }, fournisseur: { select: { nom: true } } },
+        }).catch(() => []);
+        if (!cfs.length) return { succes: true, resultat: "Aucune commande fournisseur" + (args.statut ? ` en statut "${args.statut}"` : "") + "." };
+        const lines = cfs.map((cf: any) => `• Cmd ${cf.commande.numero} → ${cf.fournisseur.nom} | ${cf.statut} | Tracking: ${cf.trackingNo ?? "—"}`).join("\n");
+        return { succes: true, resultat: `${cfs.length} commande(s) fournisseur:\n${lines}` };
+      }
+
+      case "ajouter_programme_affiliation_entrante": {
+        const p = await (prisma as any).affiliationEntrante.create({
+          data: { tenantId, nom: args.nom, marchand: args.marchand, url: args.url, categorie: args.categorie, commission: (args.commission ?? 10) / 100 },
+        }).catch((e: any) => ({ error: e.message }));
+        if ((p as any).error) return { succes: false, resultat: `Erreur: ${(p as any).error}` };
+        return { succes: true, resultat: `✅ Programme "${args.nom}" (${args.marchand}) ajouté — Commission: ${args.commission ?? 10}%` };
+      }
+
+      case "payer_commission_affilie": {
+        const paiement = await (prisma as any).paiementCommission.create({
+          data: { tenantId, affilieurId: args.affilieurId, montant: args.montant, methode: args.methode ?? "mobile_money", telephone: args.telephone, notes: args.notes },
+        }).catch((e: any) => ({ error: e.message }));
+        if ((paiement as any).error) return { succes: false, resultat: `Erreur: ${(paiement as any).error}` };
+        const devP = (await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } }))?.devise ?? "XAF";
+        return { succes: true, resultat: `✅ Paiement de ${args.montant.toLocaleString()} ${devP} enregistré pour l'affilié ${args.affilieurId} via ${args.methode ?? "mobile money"}` };
+      }
+
+      case "calculer_tva": {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { tauxTVA: true, pays: true, devise: true } });
+        const juridiction = args.juridiction ?? tenant?.pays ?? "CM";
+        const dev = tenant?.devise ?? "XAF";
+        const TVA_RATES: Record<string, { taux: number; nom: string; incluse: boolean }> = {
+          CM: { taux: 0.1925, nom: "TVA Cameroun (19,25%)", incluse: true },
+          CI: { taux: 0.18, nom: "TVA Côte d'Ivoire (18%)", incluse: true },
+          SN: { taux: 0.18, nom: "TVA Sénégal (18%)", incluse: true },
+          FR: { taux: 0.20, nom: "TVA France (20%)", incluse: true },
+          NG: { taux: 0.075, nom: "VAT Nigeria (7,5%)", incluse: false },
+          GH: { taux: 0.15, nom: "VAT Ghana (15%)", incluse: false },
+          MA: { taux: 0.20, nom: "TVA Maroc (20%)", incluse: true },
+          US: { taux: 0, nom: "Pas de TVA fédérale", incluse: false },
+        };
+        const reg = TVA_RATES[juridiction] ?? { taux: tenant?.tauxTVA ?? 0, nom: "Taux personnalisé", incluse: true };
+        const montant = args.montant;
+        const montantHT = reg.incluse ? montant / (1 + reg.taux) : montant;
+        const montantTVA = montant - montantHT;
+        return { succes: true, resultat: `TVA ${juridiction} — ${reg.nom}\nMontant TTC: ${montant.toLocaleString()} ${dev}\nMontant HT: ${Math.round(montantHT).toLocaleString()} ${dev}\nTVA: ${Math.round(montantTVA).toLocaleString()} ${dev} (${Math.round(reg.taux * 100)}%)` };
+      }
+
+      case "sync_fournisseurs": {
+        const result = await synchroniserFournisseurs(tenantId).catch(() => null);
+        if (!result) return { succes: false, resultat: "Erreur lors de la synchronisation." };
+        return { succes: true, resultat: `Sync terminée — ${result.produitsAnalyses} produits analysés\n• Prix recalculés: ${result.majPrix}\n• Alertes stock bas: ${result.alertesStock}\n• Commandes fournisseur en retard: ${result.commandesEnRetard}` };
+      }
+
+      case "verifier_retards_fournisseurs": {
+        const maintenant = new Date();
+        const retards = await (prisma as any).commandeFournisseur.findMany({
+          where: { tenantId, statut: { in: ["envoye", "confirme"] }, createdAt: { lt: new Date(maintenant.getTime() - 1000 * 60 * 60 * 24 * 7) } },
+          include: { fournisseur: { select: { nom: true, delaiLivraison: true } }, commande: { select: { numero: true, clientNom: true, clientEmail: true, clientTelephone: true } } },
+          take: 20,
+        }).catch(() => []);
+        if (!retards.length) return { succes: true, resultat: "Aucune commande fournisseur en retard. Tout est à jour !" };
+        const lines = retards.map((cf: any) => {
+          const jours = Math.floor((maintenant.getTime() - new Date(cf.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+          return `• Cmd ${cf.commande.numero} — ${cf.commande.clientNom} — ${cf.fournisseur.nom} — ${jours}j (délai prévu: ${cf.fournisseur.delaiLivraison != null ? `${cf.fournisseur.delaiLivraison}j` : "non communiqué"}) ⚠️`;
+        }).join("\n");
+        return { succes: true, resultat: `${retards.length} commande(s) fournisseur en retard :\n${lines}\n\n→ Conseillé : contacter les clients pour les prévenir du délai.` };
+      }
+
+      case "deleguer_vers_agent": {
+        const agentDef = getAxiaAgentById(args.agent);
+        if (!agentDef) return { succes: false, resultat: `Agent inconnu : "${args.agent}". Agents disponibles : ${AXIA_AGENTS.map(a => a.id).join(", ")}` };
+
+        const tenantCtx = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, pays: true, devise: true, categorie: true } }).catch(() => null);
+
+        const agentSystemPrompt = [
+          agentDef.systemPrompt, "", `─── CONTEXTE BOUTIQUE ───`,
+          tenantCtx?.nomBoutique ? `Boutique : "${tenantCtx.nomBoutique}"` : "",
+          tenantCtx?.pays ? `Pays : ${tenantCtx.pays}` : "",
+          tenantCtx?.devise ? `Devise : ${tenantCtx.devise}` : "",
+          tenantCtx?.categorie ? `Catégorie : ${tenantCtx.categorie}` : "",
+        ].filter(Boolean).join("\n");
+
+        // Re-filtrer par palier — la délégation ne doit pas donner accès à un
+        // outil palier2 à un tenant palier0/1.
+        const { plan: planDelegation } = await planActif(tenantId);
+        const agentTools = filtrerOutilsParPalier(AXIA_TOOLS.filter(t => agentDef.tools.includes(t.name)), planDelegation);
+        const tacheComplete = args.contexte_supplementaire ? `${args.tache}\n\nContexte supplémentaire : ${args.contexte_supplementaire}` : args.tache;
+
+        try {
+          // Import différé pour éviter la dépendance circulaire (engine importe tools pour le prompt de base uniquement)
+          const { runAxia } = await import("./engine");
+          const result = await runAxia(agentSystemPrompt, [{ role: "user", content: tacheComplete }], agentTools, tenantId, executeAxiaTool, {
+            maxIterations: 4,
+            toolDeadlineMs: 18_000,
+            synthesisDeadlineMs: 10_000,
+          });
+          const reponse = result.reponse || result.actions.join("\n") || "L'agent n'a pas pu compléter la tâche.";
+          return { succes: true, resultat: `[${agentDef.emoji} ${agentDef.nom}]\n${reponse}` };
+        } catch (err: any) {
+          return { succes: false, resultat: `L'agent ${agentDef.nom} a rencontré une erreur : ${err.message?.slice(0, 120)}` };
+        }
+      }
+
+      default: {
+        if (nom.startsWith("pos_")) return executerOutilPos(nom, args, tenantId);
+        if (nom.startsWith("academie_")) return executerOutilAcademie(nom, args, tenantId);
+        const MCP_PREFIXES = ["meta_", "whatsapp_", "gmail_", "sms_", "tiktok_", "google_ads_", "higgsfield_"];
+        if (MCP_PREFIXES.some(p => nom.startsWith(p))) {
+          const res = await executerOutilMcp(nom, args, tenantId);
+          return res;
+        }
+        return { succes: false, resultat: `Outil inconnu: ${nom}` };
+      }
+    }
+  } catch (err: any) {
+    return { succes: false, resultat: `Erreur: ${err.message}` };
+  }
+};
+
+/** Point d'entrée des outils AXIA : les actions sensibles attendent l'accord du marchand. */
+export const executeAxiaTool: ToolExecutor = async (nom, args, tenantId) =>
+  estSensible(nom, args) ? demanderConfirmation(tenantId, nom, args) : executerOutilDirect(nom, args, tenantId);

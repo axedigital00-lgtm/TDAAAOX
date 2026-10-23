@@ -1,0 +1,334 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Trash2, Eye, MousePointer, Megaphone, Zap, Mail, MessageSquare, Phone, Trophy, ShoppingCart, Smile, Package, Clock, Sparkles } from "lucide-react";
+import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { useT } from "@/components/I18nProvider";
+import { toast } from "sonner";
+
+const CAMPAGNES_TUTORIAL_STEPS = [
+  { Icon: Megaphone,   titre: "Créez des popups",              description: "Popup centré, bandeau ou slide-in : affichez une offre au bon moment (délai, exit intent, scroll, 1ère visite)." },
+  { Icon: ShoppingCart, titre: "Automatisez vos relances",       description: "Panier abandonné, bienvenue, après achat, anniversaire, client inactif — un message envoyé automatiquement par email, SMS ou WhatsApp." },
+  { Icon: Trophy,       titre: "Débloquez des badges",           description: "Gagnez des badges au fil de vos performances pour suivre votre progression de marchand." },
+];
+
+const TABS = [
+  { id: "popups", label: "Popups" },
+  { id: "automation", label: "Automation" },
+  { id: "badges", label: "Badges" },
+];
+
+// ─── Onglet Popups ────────────────────────────────────────────────────────────
+const TYPE_LABELS: Record<string, string> = { popup: "Popup centré", bandeau: "Bandeau haut", slide_in: "Slide-in coin" };
+const DECL_LABELS: Record<string, string> = { delai: "Après un délai", exit_intent: "Au départ du visiteur", scroll: "À mi-page", premiere_visite: "Première visite" };
+
+function OngletPopups() {
+  const t = useT();
+  const [popups, setPopups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ nom:"", type:"popup", declencheur:"delai", delaiSec:5, titre:"", message:"", ctaTexte:"", ctaUrl:"", codePromo:"" });
+
+  const charger = () => fetch("/api/popups").then(r=>r.ok?r.json():Promise.reject()).then(d=>setPopups(d.popups??[])).catch(()=>toast.error(t("Erreur chargement"))).finally(()=>setLoading(false));
+  useEffect(()=>{charger();},[]);
+
+  async function creer() {
+    setSaving(true);
+    const res = await fetch("/api/popups",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)}).catch(()=>null);
+    setSaving(false);
+    if (!res?.ok) { toast.error(t("Erreur lors de la sauvegarde")); return; }
+    await charger(); setShowForm(false);
+    setForm({nom:"",type:"popup",declencheur:"delai",delaiSec:5,titre:"",message:"",ctaTexte:"",ctaUrl:"",codePromo:""});
+  }
+
+  async function supprimer(id: string) {
+    const res = await fetch(`/api/popups?id=${id}`,{method:"DELETE"}).catch(()=>null);
+    if (!res?.ok) { toast.error(t("Erreur lors de la suppression")); return; }
+    setPopups(p=>p.filter(x=>x.id!==id));
+  }
+
+  async function toggle(id: string, actif: boolean) {
+    const res = await fetch("/api/popups",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,actif:!actif})}).catch(()=>null);
+    if (!res?.ok) { toast.error(t("Erreur lors de la mise à jour")); return; }
+    setPopups(p=>p.map(x=>x.id===id?{...x,actif:!actif}:x));
+  }
+
+  if (loading) return <div className="py-8 text-center text-sm text-gray-400">{t("Chargement…")}</div>;
+
+  return (
+    <div className="space-y-3">
+      <button onClick={()=>setShowForm(!showForm)}
+        className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#F5A623]/40 text-[12px] text-[#F5A623] font-semibold hover:bg-[#FFF8EC] transition-all">
+        {t("+ Nouveau popup")}
+      </button>
+
+      {showForm && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder={t("Nom interne")} value={form.nom} onChange={e=>setForm(v=>({...v,nom:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none col-span-2"/>
+            <select value={form.type} onChange={e=>setForm(v=>({...v,type:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none">
+              {Object.entries(TYPE_LABELS).map(([k,v])=><option key={k} value={k}>{t(v)}</option>)}
+            </select>
+            <select value={form.declencheur} onChange={e=>setForm(v=>({...v,declencheur:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none">
+              {Object.entries(DECL_LABELS).map(([k,v])=><option key={k} value={k}>{t(v)}</option>)}
+            </select>
+            <input placeholder={t("Titre")} value={form.titre} onChange={e=>setForm(v=>({...v,titre:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none col-span-2"/>
+            <textarea placeholder={t("Message")} value={form.message} onChange={e=>setForm(v=>({...v,message:e.target.value}))}
+              rows={2} className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none resize-none col-span-2"/>
+            {form.declencheur==="delai" && (
+              <label className="col-span-2 flex items-center gap-2 text-[12px] text-gray-500">
+                {t("Afficher après")}
+                <input type="number" min={0} max={300} value={form.delaiSec} onChange={e=>setForm(v=>({...v,delaiSec:Math.max(0,Number(e.target.value)||0)}))}
+                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none"/>
+                {t("secondes")}
+              </label>
+            )}
+            <input placeholder={t("Texte du bouton")} value={form.ctaTexte} onChange={e=>setForm(v=>({...v,ctaTexte:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none"/>
+            {/* Sans lien, le bouton fermait seulement la popup. */}
+            <input placeholder={t("Lien du bouton (produits, https://…)")} value={form.ctaUrl} onChange={e=>setForm(v=>({...v,ctaUrl:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none"/>
+            <input placeholder={t("Code promo")} value={form.codePromo} onChange={e=>setForm(v=>({...v,codePromo:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none col-span-2"/>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={creer} disabled={!form.nom||!form.titre||!form.message||saving}
+              className="flex-1 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-semibold disabled:opacity-50">{saving?"…":t("Créer")}</button>
+            <button onClick={()=>setShowForm(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-[12px] text-gray-500">{t("Annuler")}</button>
+          </div>
+        </div>
+      )}
+
+      {popups.length === 0 && !showForm && <p className="text-center text-sm text-gray-400 py-8">{t("Aucun popup créé")}</p>}
+      {popups.map(p => (
+        <div key={p.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-3">
+          <Megaphone size={14} className="text-[#F5A623] shrink-0"/>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold text-[#111] truncate">{t(p.nom)}</p>
+            <p className="text-[11px] text-gray-400">{t(TYPE_LABELS[p.type])} · {t(DECL_LABELS[p.declencheur])}</p>
+          </div>
+          <span className="text-[10px] text-gray-400 flex items-center gap-1"><Eye size={10}/> {p.affichages}</span>
+          <span className="text-[10px] text-gray-400 flex items-center gap-1"><MousePointer size={10}/> {p.clics}</span>
+          <button onClick={()=>toggle(p.id,p.actif)} aria-label={t("Activer / désactiver")}
+            className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${p.actif?"bg-[#F5A623]":"bg-gray-200"}`}>
+            <span className={`inline-block h-4 w-4 m-0.5 rounded-full bg-white shadow transition-transform ${p.actif?"translate-x-4":""}`}/>
+          </button>
+          <button onClick={()=>supprimer(p.id)} aria-label={t("Supprimer")}><Trash2 size={12} className="text-gray-300 hover:text-red-400"/></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Onglet Automation ────────────────────────────────────────────────────────
+const TYPE_CONFIG: Record<string,{label:string;icon:any}> = {
+  panier_abandonne:{label:"Panier abandonné",icon:ShoppingCart},
+  bienvenue:{label:"Bienvenue",icon:Smile},
+  apres_achat:{label:"Après achat",icon:Package},
+  inactif:{label:"Client inactif",icon:Clock},
+};
+const CANAL_ICONS: Record<string,any> = { email:Mail, sms:Phone, whatsapp:MessageSquare };
+
+function OngletAutomation() {
+  const t = useT();
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ nom:"", type:"panier_abandonne", delaiHeures:1, canal:"email", sujet:"", message:"" });
+
+  const charger = () => fetch("/api/automation").then(r=>r.ok?r.json():Promise.reject()).then(d=>setWorkflows(d.workflows??[])).catch(()=>toast.error(t("Erreur chargement"))).finally(()=>setLoading(false));
+  useEffect(()=>{charger();},[]);
+
+  async function creer() {
+    setSaving(true);
+    const res = await fetch("/api/automation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)}).catch(()=>null);
+    setSaving(false);
+    if (!res?.ok) { toast.error(t("Erreur lors de la sauvegarde")); return; }
+    await charger(); setShowForm(false);
+    setForm({nom:"",type:"panier_abandonne",delaiHeures:1,canal:"email",sujet:"",message:""});
+  }
+
+  async function toggle(id: string, actif: boolean) {
+    const res = await fetch("/api/automation",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,actif:!actif})}).catch(()=>null);
+    if (!res?.ok) { toast.error(t("Erreur lors de la mise à jour")); return; }
+    setWorkflows(w=>w.map(x=>x.id===id?{...x,actif:!actif}:x));
+  }
+
+  async function supprimer(id: string) {
+    const res = await fetch(`/api/automation?id=${id}`,{method:"DELETE"}).catch(()=>null);
+    if (!res?.ok) { toast.error(t("Erreur lors de la suppression")); return; }
+    setWorkflows(w=>w.filter(x=>x.id!==id));
+  }
+
+  if (loading) return <div className="py-8 text-center text-sm text-gray-400">{t("Chargement…")}</div>;
+
+  return (
+    <div className="space-y-3">
+      <button onClick={()=>setShowForm(!showForm)}
+        className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#F5A623]/40 text-[12px] text-[#F5A623] font-semibold hover:bg-[#FFF8EC] transition-all">
+        {t("+ Nouveau workflow")}
+      </button>
+
+      {showForm && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder={t("Nom du workflow")} value={form.nom} onChange={e=>setForm(v=>({...v,nom:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none col-span-2"/>
+            <select value={form.type} onChange={e=>setForm(v=>({...v,type:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none">
+              {Object.entries(TYPE_CONFIG).map(([k,v])=><option key={k} value={k}>{t(v.label)}</option>)}
+            </select>
+            <select value={form.canal} onChange={e=>setForm(v=>({...v,canal:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none">
+              {[["email","Email"],["whatsapp","WhatsApp"]].map(([c,l])=><option key={c} value={c}>{t(l)}</option>)}
+            </select>
+            <input placeholder={t("Délai (heures)")} type="number" value={form.delaiHeures} onChange={e=>setForm(v=>({...v,delaiHeures:+e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none"/>
+            {form.canal==="email" && <input placeholder={t("Sujet email")} value={form.sujet} onChange={e=>setForm(v=>({...v,sujet:e.target.value}))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none"/>}
+            <textarea placeholder={t("Message")} value={form.message} onChange={e=>setForm(v=>({...v,message:e.target.value}))}
+              rows={3} className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none resize-none col-span-2"/>
+            <p className="col-span-2 text-[11px] text-gray-400 leading-relaxed">
+              {t("Variables : {{nom}} (prénom du client), {{boutique}}, {{lien}} (lien de ta boutique). Un lien de désinscription est ajouté à chaque message.")}{" "}
+              {form.type==="panier_abandonne" ? t("Panier abandonné : paiement en ligne commencé mais pas finalisé.") : form.type==="inactif" ? t("Client inactif : aucune commande depuis le délai choisi (ex. 720 h = 30 jours).") : ""}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={creer} disabled={!form.nom||!form.message||saving}
+              className="flex-1 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-semibold disabled:opacity-50">{saving?"…":t("Créer")}</button>
+            <button onClick={()=>setShowForm(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-[12px] text-gray-500">{t("Annuler")}</button>
+          </div>
+        </div>
+      )}
+
+      {workflows.length === 0 && !showForm && <p className="text-center text-sm text-gray-400 py-8">{t("Aucun workflow")}</p>}
+      {workflows.map(w => {
+        const tc = TYPE_CONFIG[w.type]??{label:w.type,icon:Zap};
+        const CanalIcon = CANAL_ICONS[w.canal]??Zap;
+        const TcIcon = tc.icon;
+        return (
+          <div key={w.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-3">
+            <TcIcon size={18} className="text-[#F5A623] shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-[#111] truncate">{t(w.nom)}</p>
+              <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                <CanalIcon size={10}/> {t(tc.label)} · {w.delaiHeures}{t("h ·")}{" "}{w.declenchements}{" "}{t("message(s) envoyé(s)")}
+              </p>
+              {/* Anciens workflows (anniversaire, SMS) : le moteur ne peut pas les envoyer — on le dit. */}
+              {(!TYPE_CONFIG[w.type] || w.canal === "sms") && (
+                <p className="text-[11px] text-red-500 mt-0.5">{w.canal === "sms" ? t("Non envoyé : aucun service SMS n'est branché. Recrée-le en email ou WhatsApp.") : t("Non envoyé : aucune date de naissance n'est enregistrée pour tes clients.")}</p>
+              )}
+            </div>
+            <button onClick={()=>toggle(w.id,w.actif)} aria-label={t("Activer / désactiver")}
+              className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${w.actif?"bg-[#F5A623]":"bg-gray-200"}`}>
+              <span className={`inline-block h-4 w-4 m-0.5 rounded-full bg-white shadow transition-transform ${w.actif?"translate-x-4":""}`}/>
+            </button>
+            <button onClick={()=>supprimer(w.id)} aria-label={t("Supprimer")}><Trash2 size={12} className="text-gray-300 hover:text-red-400"/></button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Onglet Badges ────────────────────────────────────────────────────────────
+function OngletBadges() {
+  const t = useT();
+  const [badges, setBadges] = useState<any[]>([]);
+  const [nouveaux, setNouveaux] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/badges").then(r=>r.ok?r.json():Promise.reject()).then(d=>{setBadges(d.badges??[]);setNouveaux(d.nouveaux??[]);}).catch(()=>toast.error(t("Erreur chargement"))).finally(()=>setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-8 text-center text-sm text-gray-400">{t("Chargement…")}</div>;
+
+  const obtenus = badges.filter(b=>b.obtenu);
+  const restants = badges.filter(b=>!b.obtenu);
+
+  return (
+    <div className="space-y-5">
+      {nouveaux.length > 0 && (
+        <div className="bg-gradient-to-r from-[#F5A623]/10 to-[#111111]/10 border border-[#F5A623]/20 rounded-2xl p-4">
+          <p className="text-[13px] font-bold text-[#111] mb-2 flex items-center gap-1.5"><Sparkles size={14} className="text-[#F5A623]" />{" "}{t("Nouveaux badges !")}</p>
+          <div className="flex gap-2 flex-wrap">
+            {nouveaux.map(b=>(
+              <div key={b.type} className="bg-white rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm">
+                <span className="text-xl">{t(b.emoji)}</span>
+                <div><p className="text-[12px] font-bold text-[#111]">{t(b.titre)}</p></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {obtenus.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("Obtenus (")}{obtenus.length})</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {obtenus.map(b=>(
+              <div key={b.type} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3">
+                <span className="text-2xl">{t(b.emoji)}</span>
+                <div><p className="text-[12px] font-semibold text-[#111]">{t(b.titre)}</p><p className="text-[10px] text-gray-400">{t(b.description)}</p></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {restants.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("À obtenir (")}{restants.length})</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {restants.map(b=>(
+              <div key={b.type} className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-center gap-3 opacity-60">
+                <span className="text-2xl grayscale">{t(b.emoji)}</span>
+                <div><p className="text-[12px] font-semibold text-gray-500">{t(b.titre)}</p><p className="text-[10px] text-gray-400">{t(b.description)}</p></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {badges.length === 0 && <div className="text-center py-10"><Trophy size={32} className="mx-auto text-gray-200 mb-3"/><p className="text-sm text-gray-400">{t("Aucun badge disponible")}</p></div>}
+    </div>
+  );
+}
+
+// ─── Page principale ──────────────────────────────────────────────────────────
+export default function CampagnesPage() {
+  const t = useT();
+  const [onglet, setOnglet] = useState("popups");
+
+  return (
+    <div className="p-5 max-w-4xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+      <ModuleTutorial moduleKey="campagnes" titre={t("Campagnes")} sousTitre={t("Notifications & relances")} steps={CAMPAGNES_TUTORIAL_STEPS} />
+      <div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-[18px] font-bold text-[#111]">{t("Campagnes")}</h1>
+          <BoutonRevoirTutoriel moduleKey="campagnes" />
+        </div>
+        <p className="text-[12px] text-gray-500">{t("Popups, workflows automatisés et badges marchands")}</p>
+      </div>
+
+      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
+        {TABS.map(({id,label})=>(
+          <button key={id} onClick={()=>setOnglet(id)}
+            className={`flex-1 py-2 rounded-xl text-[12px] font-semibold transition-all ${onglet===id?"bg-white shadow-sm text-[#111]":"text-gray-500 hover:text-gray-700"}`}>
+            {t(label)}
+          </button>
+        ))}
+      </div>
+
+      {onglet==="popups" && <OngletPopups/>}
+      {onglet==="automation" && <OngletAutomation/>}
+      {onglet==="badges" && <OngletBadges/>}
+    </div>
+  );
+}

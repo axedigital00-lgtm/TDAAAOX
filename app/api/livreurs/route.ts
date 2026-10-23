@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from "next/server";
+import { annoncerInscription } from "@/lib/push";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { requireNiveau } from "@/lib/permissions-server";
+import { hash } from "bcryptjs";
+import { z } from "zod";
+import { emailDejaPris, normaliserEmail } from "@/lib/unicite-email";
+
+const schemaLivreur = z.object({
+  nom: z.string().min(2),
+  email: z.string().trim().email(),
+  telephone: z.string().min(8),
+  password: z.string().min(6),
+  vehicule: z.enum(["moto", "voiture", "velo", "a_pied"]).default("moto"),
+  zone: z.string().optional(),
+});
+
+export async function GET() {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const tenantId = (session.user as any)?.tenantId;
+  if (!tenantId) return NextResponse.json({ error: "Tenant introuvable" }, { status: 404 });
+  const refus = await requireNiveau(session, "commandes", "lecture"); // livreurs : module Commandes (Sidebar, lib/permissions-api.ts)
+  if (refus) return NextResponse.json({ error: refus.error }, { status: refus.status });
+
+  const livreurs = await prisma.livreur.findMany({
+    where: { tenantId },
+    include: {
+      user: { select: { email: true, name: true } },
+      _count: { select: { commandes: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return NextResponse.json({ livreurs });
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const tenantId = (session.user as any)?.tenantId;
+  if (!tenantId) return NextResponse.json({ error: "Tenant introuvable" }, { status: 404 });
+  const refus = await requireNiveau(session, "commandes", "ecriture");
+  if (refus) return NextResponse.json({ error: refus.error }, { status: refus.status });
+
+  try {
+    const body = await req.json();
+    const data = schemaLivreur.parse(body);
+    data.email = normaliserEmail(data.email);
+
+    const emailPris = await emailDejaPris(data.email, "user");
+    if (emailPris) {
+      return NextResponse.json({ error: emailPris }, { status: 400 });
+    }
+
+    const { livreur } = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name: data.nom,
+          email: data.email,
+          password: await hash(data.password, 10),
+          tenantId,
+          role: "livreur",
+        },
+      });
+
+      const livreur = await tx.livreur.create({
+        data: {
+          userId: user.id,
+          tenantId,
+          nom: data.nom,
+          telephone: data.telephone,
+          vehicule: data.vehicule,
+          zone: data.zone,
+          valideAt: new Date(), // créé par le marchand : pas de validation admin
+        },
+      });
+
+      return { livreur };
+    });
+
+    await annoncerInscription({ name: data.nom, email: data.email, role: "livreur" });
+    return NextResponse.json({ success: true, livreur }, { status: 201 });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: "Données invalides", details: err.issues }, { status: 400 });
+    }
+    console.error("[API/LIVREURS] POST:", err);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}

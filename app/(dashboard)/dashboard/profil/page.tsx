@@ -1,0 +1,290 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { toast } from "sonner";
+import { User, Mail, ShieldCheck, Store, LogOut, Eye, EyeOff, Loader2, Check, Crown, CalendarDays, KeyRound, ArrowLeftRight, Camera, Trash2, ImagePlus } from "lucide-react";
+import { ACCEPT, importerMedia } from "@/components/ui/MediaUpload";
+import { annoncerPhoto } from "@/components/dashboard/AvatarCompte";
+import { basculerBoutique } from "@/components/dashboard/BoutiqueSwitcher";
+import { useT } from "@/components/I18nProvider";
+
+// « Mon profil » : le compte de la personne connectée (nom, photo, mot de
+// passe, boutiques auxquelles elle a accès). Les réglages d'une boutique
+// restent dans Paramètres.
+interface Compte { name: string | null; email: string | null; image: string | null; role: string; createdAt: string; aMotDePasse: boolean }
+interface Boutique { id: string; nomBoutique: string; slug: string; logoUrl: string | null; planType: string; active: boolean; proprietaire: boolean }
+
+const ROLES: Record<string, string> = { owner: "Propriétaire", admin: "Administrateur", superadmin: "Super administrateur", livreur: "Livreur", membre: "Membre d'équipe" };
+const PALIERS: Record<string, string> = { palier0: "Gratuit", palier1: "Palier 1", palier2: "Palier 2" };
+const INPUT = "w-full h-11 px-3.5 rounded-xl border border-[#E8E8E8] bg-white text-[14px] text-[#111111] placeholder:text-[#BBBBBB] outline-none focus:border-[#F5A623] focus:ring-2 focus:ring-[#F5A623]/20 transition";
+
+function initiales(nom: string) {
+  return nom.split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m[0]!.toUpperCase()).join("") || "?";
+}
+
+export default function ProfilPage() {
+  const t = useT();
+  const router = useRouter();
+  const [compte, setCompte] = useState<Compte | null>(null);
+  const [boutiques, setBoutiques] = useState<Boutique[]>([]);
+  const [nom, setNom] = useState("");
+  const [enregistrement, setEnregistrement] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/compte").then((r) => r.json()).then((c) => { setCompte(c); setNom(c.name ?? ""); }).catch(() => toast.error(t("Impossible de charger ton profil")));
+    fetch("/api/boutiques").then((r) => r.json()).then((d) => setBoutiques(d.boutiques ?? [])).catch(() => {});
+  }, []);
+
+  const majCompte = async (patch: { name?: string; image?: string | null }, message: string) => {
+    setEnregistrement(true);
+    try {
+      const res = await fetch("/api/compte", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setCompte((c) => (c ? { ...c, ...data } : c));
+      if ("image" in patch) annoncerPhoto(data.image ?? null); // en-tête, menu mobile, AXIA
+      toast.success(t(message));
+      router.refresh(); // nom du header
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? t(e.message) : t("Enregistrement impossible"));
+    } finally { setEnregistrement(false); }
+  };
+
+  if (!compte) {
+    return <div className="flex items-center justify-center py-24 text-[#AAAAAA]"><Loader2 size={20} className="animate-spin" /></div>;
+  }
+
+  const affiche = compte.name || compte.email || "Mon compte";
+  const nomModifie = nom.trim() && nom.trim() !== (compte.name ?? "");
+
+  return (
+    <div className="space-y-5 max-w-3xl w-full mx-auto pb-10" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+      <div className="pt-1">
+        <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Mon profil")}</h1>
+        <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{t("Ton compte personnel — les réglages de ta boutique sont dans Paramètres.")}</p>
+      </div>
+
+      {/* ── Identité ── */}
+      <section className="ax-card overflow-hidden">
+        <div className="h-20 sm:h-24 bg-gradient-to-r from-[#FFF3DC] via-[#FDE7B8] to-[#F5A623]/60" />
+        <div className="px-5 sm:px-6 pb-5 -mt-10 sm:-mt-12 flex flex-col sm:flex-row sm:items-end gap-4">
+          <CadrePhoto image={compte.image} initiales={initiales(affiche)} occupe={enregistrement}
+            onChoisie={(url) => majCompte({ image: url }, "Photo mise à jour")}
+            onRetirer={() => majCompte({ image: null }, "Photo retirée")} />
+          <div className="min-w-0 flex-1 sm:pb-1">
+            <p className="text-[18px] font-bold text-[#111111] truncate">{t(affiche)}</p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[12.5px] text-[#888888]">
+              <span className="inline-flex items-center gap-1.5 min-w-0"><Mail size={13} className="flex-shrink-0" /><span className="truncate">{compte.email}</span></span>
+              <span className="inline-flex items-center gap-1.5"><CalendarDays size={13} />{t("Membre depuis")}{" "}{new Date(compte.createdAt).toLocaleDateString(t.loc, { month: "long", year: "numeric" })}</span>
+            </div>
+          </div>
+          <span className="self-start sm:self-end inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold bg-[#FFF8EC] text-[#B45309] border border-[#FDE68A]">
+            <Crown size={12} /> {t(ROLES[compte.role]) ?? t(compte.role)}
+          </span>
+        </div>
+      </section>
+
+      {/* ── Informations ── */}
+      <section className="ax-card p-5 sm:p-6 space-y-4">
+        <Titre Icon={User} titre={t("Informations personnelles")} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label className="block">
+            <span className="block text-[13px] font-medium text-[#555555] mb-1.5">{t("Nom complet")}</span>
+            <input value={nom} onChange={(e) => setNom(e.target.value)} className={INPUT} maxLength={80} autoComplete="name" />
+          </label>
+          <label className="block">
+            <span className="block text-[13px] font-medium text-[#555555] mb-1.5">{t("Email de connexion")}</span>
+            <input value={compte.email ?? ""} readOnly className={`${INPUT} bg-[#F7F7F7] text-[#888888] cursor-not-allowed`} />
+            <span className="block text-[11.5px] text-[#AAAAAA] mt-1">{t("Il sert à te connecter : il ne se modifie pas ici.")}</span>
+          </label>
+        </div>
+        <div className="flex justify-end">
+          <button onClick={() => majCompte({ name: nom.trim() }, "Nom mis à jour")} disabled={!nomModifie || enregistrement}
+            className="h-10 px-5 rounded-xl text-[14px] font-semibold bg-[#F5A623] text-[#111111] hover:bg-[#E8990F] disabled:bg-[#EDEDED] disabled:text-[#AAAAAA] transition-colors inline-flex items-center gap-2">
+            {enregistrement ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}{" "}{t("Enregistrer")}
+          </button>
+        </div>
+      </section>
+
+      {/* ── Sécurité ── */}
+      <MotDePasse aMotDePasse={compte.aMotDePasse} />
+
+      {/* ── Boutiques ── */}
+      <section className="ax-card p-5 sm:p-6 space-y-4">
+        <Titre Icon={Store} titre={t("Mes boutiques")} sousTitre={t("{0} boutique{1} accessible{2} avec ce compte", boutiques.length, boutiques.length > 1 ? "s" : "", boutiques.length > 1 ? "s" : "")} />
+        <ul className="divide-y divide-[#F2F2F2]">
+          {boutiques.map((b) => (
+            <li key={b.id} className="flex items-center gap-3 py-3">
+              <span className="w-10 h-10 rounded-xl overflow-hidden bg-[#FFF8EC] border border-[#FDE68A]/60 flex items-center justify-center flex-shrink-0 text-[14px] font-bold text-[#B45309]">
+                {b.logoUrl ? <img src={b.logoUrl} alt="" className="w-full h-full object-cover" /> : b.nomBoutique.slice(0, 1).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-[#111111] truncate">{t(b.nomBoutique)}</p>
+                <p className="text-[12px] text-[#999999] truncate">{b.proprietaire ? t("Propriétaire") : t("Membre de l'équipe")} · {t(PALIERS[b.planType]) ?? t(b.planType)}</p>
+              </div>
+              {b.active
+                ? <span className="flex-shrink-0 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#15803D]">{t("Active")}</span>
+                : <button onClick={() => basculerBoutique(b.id, "/dashboard/profil")}
+                    className="flex-shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium border border-[#E5E5E5] text-[#444444] hover:border-[#F5A623] hover:text-[#111111]">
+                    <ArrowLeftRight size={14} /> <span className="hidden sm:inline">{t("Basculer")}</span>
+                  </button>}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <button onClick={() => signOut({ callbackUrl: "/connexion" })}
+        className="w-full sm:w-auto h-11 px-5 rounded-xl inline-flex items-center justify-center gap-2 text-[14px] font-semibold text-[#DC2626] border border-[#FECACA] bg-white hover:bg-[#FEF2F2] transition-colors">
+        <LogOut size={16} />{" "}{t("Se déconnecter")}
+      </button>
+    </div>
+  );
+}
+
+function Titre({ Icon, titre, sousTitre }: { Icon: typeof User; titre: string; sousTitre?: string }) {
+  const t = useT();
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-9 h-9 rounded-xl bg-[#FFF8EC] border border-[#FDE68A]/60 flex items-center justify-center flex-shrink-0"><Icon size={16} className="text-[#F5A623]" /></span>
+      <div className="min-w-0">
+        <h2 className="text-[15px] font-semibold text-[#111111]">{t(titre)}</h2>
+        {sousTitre && <p className="text-[12px] text-[#AAAAAA]">{t(sousTitre)}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ChampSecret({ label, value, onChange, autoComplete }: { label: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
+  const t = useT();
+  const [visible, setVisible] = useState(false);
+  return (
+    <label className="block">
+      <span className="block text-[13px] font-medium text-[#555555] mb-1.5">{t(label)}</span>
+      <span className="relative block">
+        <input type={visible ? "text" : "password"} value={value} onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} className={`${INPUT} pr-11`} />
+        <button type="button" onClick={() => setVisible((v) => !v)} aria-label={visible ? t("Masquer") : t("Afficher")}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-[#999999] hover:text-[#111111]">
+          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </span>
+    </label>
+  );
+}
+
+function MotDePasse({ aMotDePasse }: { aMotDePasse: boolean }) {
+  const t = useT();
+  const [actuel, setActuel] = useState("");
+  const [nouveau, setNouveau] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const differents = !!confirmation && nouveau !== confirmation;
+  const pret = actuel && nouveau.length >= 8 && nouveau === confirmation;
+
+  const envoyer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pret) return;
+    setEnvoi(true);
+    try {
+      const res = await fetch("/api/compte/mot-de-passe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actuel, nouveau }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(t("Mot de passe modifié"));
+      setActuel(""); setNouveau(""); setConfirmation("");
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? t(err.message) : t("Modification impossible"));
+    } finally { setEnvoi(false); }
+  };
+
+  return (
+    <section className="ax-card p-5 sm:p-6 space-y-4">
+      <Titre Icon={ShieldCheck} titre={t("Sécurité")} sousTitre={t("Change ton mot de passe de connexion")} />
+      {!aMotDePasse ? (
+        <p className="text-[13px] text-[#777777] bg-[#F7F7F8] rounded-xl px-4 py-3">{t("Ce compte se connecte sans mot de passe (connexion externe). Utilise « Mot de passe oublié » sur la page de connexion pour en définir un.")}</p>
+      ) : (
+        <form onSubmit={envoyer} className="space-y-4">
+          <ChampSecret label={t("Mot de passe actuel")} value={actuel} onChange={setActuel} autoComplete="current-password" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ChampSecret label={t("Nouveau mot de passe")} value={nouveau} onChange={setNouveau} autoComplete="new-password" />
+            <ChampSecret label={t("Confirmer le nouveau")} value={confirmation} onChange={setConfirmation} autoComplete="new-password" />
+          </div>
+          <p className={`text-[12px] ${differents ? "text-[#DC2626]" : "text-[#AAAAAA]"}`}>
+            {differents ? t("Les deux mots de passe ne correspondent pas.") : t("8 caractères minimum.")}
+          </p>
+          <div className="flex justify-end">
+            <button type="submit" disabled={!pret || envoi}
+              className="h-10 px-5 rounded-xl text-[14px] font-semibold bg-[#111111] text-white hover:bg-[#333333] disabled:opacity-40 transition-colors inline-flex items-center gap-2">
+              {envoi ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />}{" "}{t("Modifier le mot de passe")}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Photo de profil : tout se fait en cliquant sur le cadre. Sans photo, il ouvre le choix du fichier ;
+ * avec photo, un petit menu propose de la changer ou de la retirer.
+ */
+function CadrePhoto({ image, initiales, occupe, onChoisie, onRetirer }: {
+  image: string | null; initiales: string; occupe: boolean; onChoisie: (url: string) => void; onRetirer: () => void;
+}) {
+  const t = useT();
+  const fichier = useRef<HTMLInputElement>(null);
+  const cadre = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState(false);
+  const [progression, setProgression] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const fermer = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !cadre.current?.contains(e.target as Node)) setMenu(false);
+    };
+    document.addEventListener("mousedown", fermer);
+    document.addEventListener("keydown", fermer);
+    return () => { document.removeEventListener("mousedown", fermer); document.removeEventListener("keydown", fermer); };
+  }, [menu]);
+
+  const envoyer = async (f?: File) => {
+    if (fichier.current) fichier.current.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return void toast.error(t("Choisis une image (JPG, PNG, WebP…)"));
+    if (f.size > 10 * 1024 * 1024) return void toast.error(t("Image trop lourde (10 Mo maximum)"));
+    setProgression(0);
+    const url = await importerMedia("image", f, setProgression);
+    setProgression(null);
+    if (url) onChoisie(url); else toast.error(t("Import impossible : stockage des fichiers indisponible."));
+  };
+  const choisir = () => { setMenu(false); fichier.current?.click(); };
+  const enCours = occupe || progression !== null;
+
+  return (
+    <div ref={cadre} className="relative flex-shrink-0">
+      <input ref={fichier} type="file" accept={ACCEPT.image} className="hidden" onChange={(e) => envoyer(e.target.files?.[0])} />
+      <button type="button" disabled={enCours} onClick={() => (image ? setMenu((m) => !m) : choisir())}
+        aria-label={image ? t("Changer ou retirer la photo de profil") : t("Ajouter une photo de profil")} aria-haspopup={image ? "menu" : undefined} aria-expanded={image ? menu : undefined}
+        className="group relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-4 border-white shadow-md overflow-hidden bg-[#111111] flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F5A623]/40 disabled:cursor-wait">
+        {image
+          ? <img src={image} alt="" className="w-full h-full object-cover" />
+          : <span className="text-[26px] font-bold text-[#F5A623]">{initiales}</span>}
+        <span className={`absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 text-white transition-opacity ${enCours ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`}>
+          {enCours
+            ? <><Loader2 size={20} className="animate-spin" />{progression !== null && <span className="text-[11px] font-semibold">{progression} %</span>}</>
+            : <><Camera size={20} /><span className="text-[11px] font-semibold">{image ? t("Modifier") : t("Ajouter")}</span></>}
+        </span>
+      </button>
+      {menu && (
+        <div role="menu" className="absolute left-full top-1 ml-3 z-20 w-52 p-1.5 rounded-xl bg-white border border-[#ECECEC] shadow-[0_16px_40px_-12px_rgba(0,0,0,.22)]">
+          <button role="menuitem" type="button" onClick={choisir} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#111111] hover:bg-[#F5F5F5]">
+            <ImagePlus size={15} className="text-[#D4911A]" />{" "}{t("Changer la photo")}
+          </button>
+          <button role="menuitem" type="button" onClick={() => { setMenu(false); onRetirer(); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#DC2626] hover:bg-[#FEF2F2]">
+            <Trash2 size={15} />{" "}{t("Retirer la photo")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

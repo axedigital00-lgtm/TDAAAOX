@@ -1,0 +1,109 @@
+import { auth } from "@/lib/auth";
+import { exigerModule } from "@/lib/permissions-server";
+import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import { Wallet, Bike, Package } from "lucide-react";
+import { MarquerRemisButton } from "@/components/dashboard/logistique/MarquerRemisButton";
+import { formatMontant } from "@/lib/utils";
+import { getT } from "@/lib/i18n/serveur";
+import { aRemettre } from "@/lib/gains-livreur";
+
+export default async function EncaissementsPage() {
+  const t = await getT();
+  const session = await auth();
+  if (!session) redirect("/connexion");
+  await exigerModule(session, "finance");
+  const tenantId = (session.user as any)?.tenantId;
+
+  const brutes = await prisma.commande.findMany({
+    where: {
+      tenantId,
+      methodePaiement: { in: ["whatsapp_cod", "direct_cod"] },
+      statut: "livree",
+      codRemis: false,
+    },
+    select: {
+      id: true, numero: true, clientNom: true, montantTotal: true, devise: true, updatedAt: true,
+      livreur: { select: { id: true, nom: true, telephone: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+  // Part gardée par le livreur sur les espèces (lib/gains-livreur.ts) : à remettre = encaissé − part.
+  const gains = new Map((await prisma.gainLivreur.findMany({ where: { commandeId: { in: brutes.map(c => c.id) } }, select: { commandeId: true, montant: true } })).map(g => [g.commandeId, g.montant]));
+  const commandesNonRemises = brutes.map(c => ({ ...c, part: gains.get(c.id) ?? 0, aRemettre: aRemettre(c.montantTotal, gains.get(c.id) ?? 0) }));
+  // Jamais d'addition de devises différentes.
+  const parDevise = (cs: typeof commandesNonRemises) => Object.entries(cs.reduce<Record<string, number>>((acc, c) => ({ ...acc, [c.devise]: (acc[c.devise] ?? 0) + c.aRemettre }), {}));
+
+  const parLivreur = new Map<string, { nom: string; telephone: string; commandes: typeof commandesNonRemises }>();
+  for (const c of commandesNonRemises) {
+    const cle = c.livreur?.id ?? "non_assigne";
+    if (!parLivreur.has(cle)) {
+      parLivreur.set(cle, { nom: c.livreur?.nom ?? "Non assigné", telephone: c.livreur?.telephone ?? "", commandes: [] });
+    }
+    parLivreur.get(cle)!.commandes.push(c);
+  }
+
+  const groupes = [...parLivreur.entries()];
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div>
+        <h1 className="text-xl font-bold text-[#111111] flex items-center gap-2"><Wallet size={20} className="text-[#F5A623]" />{" "}{t("Encaissements COD")}</h1>
+        <p className="text-sm text-gray-400 mt-0.5">{t("Cash collecté par vos livreurs, en attente de remise")}</p>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5">
+        <p className="text-xs text-gray-400">{t("À vous remettre par vos livreurs (encaissé − leur part)")}</p>
+        {(parDevise(commandesNonRemises).length ? parDevise(commandesNonRemises) : [["XAF", 0] as [string, number]]).map(([d, m]) => (
+          <p key={d} className="text-3xl font-bold text-[#F5A623] mt-1">{formatMontant(m, d)}</p>
+        ))}
+      </div>
+
+      {groupes.length === 0 ? (
+        <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
+          <Package size={32} className="mx-auto mb-3 text-gray-200" />
+          <p className="text-sm text-gray-400">{t("Aucun encaissement en attente — tout est réconcilié.")}</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groupes.map(([id, g]) => {
+            return (
+              <div key={id} className="bg-white border border-gray-100 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#FFF3DC] flex items-center justify-center">
+                      <Bike size={16} className="text-[#F5A623]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-[#111111]">{t(g.nom)}</p>
+                      <p className="text-xs text-gray-400">{g.telephone}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {parDevise(g.commandes).map(([d, m]) => <p key={d} className="text-lg font-bold text-[#111111]">{formatMontant(m, d)}</p>)}
+                    <p className="text-xs text-gray-400">{g.commandes.length} commande{g.commandes.length > 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 mb-4">
+                  {g.commandes.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="font-mono text-gray-500">{c.numero}</span>
+                      <span className="text-gray-500 truncate flex-1 mx-3">{t(c.clientNom)}</span>
+                      <span className="text-right">
+                        <span className="font-semibold text-[#111111] block">{formatMontant(c.aRemettre, c.devise)}</span>
+                        {c.part > 0 && <span className="text-[10px] text-gray-400">{formatMontant(c.montantTotal, c.devise)} − {t("part livreur")} {formatMontant(c.part, c.devise)}</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <MarquerRemisButton commandeIds={g.commandes.map((c) => c.id)} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,133 @@
+// Webhook Genuka par boutique — chaque commerçant colle cette URL (avec son
+// tenantId) dans les paramètres Webhooks de son propre compte Genuka. Le
+// tenantId dans l'URL identifie la boutique de façon fiable (contrairement à
+// une route globale, qui ne peut pas savoir de quel compte Genuka vient
+// l'appel). Tout appel sans signature HMAC valide (secret webhook enregistré
+// par le marchand) est refusé : le tenantId de l'URL n'est pas un secret.
+//
+// ⚠️ La forme exacte du payload "message.received" n'est pas garantie par la
+// doc publique (seul un exemple de test minimal est documenté). Le payload
+// brut est toujours journalisé dans MessageRecu.payload pour inspection.
+// Docs : https://docs.genuka.com/merchant-api/12-inbox-messaging.md
+import { NextRequest, NextResponse, after } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { METHODES_EN_LIGNE } from "@/lib/commandes";
+import { lireConnexion } from "@/lib/connect";
+import { verifierSignatureGenukaWebhook } from "@/lib/genuka";
+import { notifierClientWhatsApp } from "@/lib/whatsapp";
+import { quotaCommandesAtteint } from "@/lib/abonnement";
+
+const MOTS_CONFIRMATION = [
+  "oui", "confirmer", "confirme", "ok", "1", "yes",
+  "valider", "valide", "d'accord", "accord", "c'est bon", "cest bon",
+];
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
+  const rawBody = await req.text();
+
+  const cfg = await lireConnexion(tenantId, "whatsapp_genuka");
+  if (!cfg || cfg.statut !== "actif") {
+    return NextResponse.json({ error: "Boutique non connectée à Genuka" }, { status: 404 });
+  }
+
+  const webhookSecret = (cfg.config as any)?.webhookSecret as string | undefined;
+  // Observé en prod : Genuka envoie la signature dans un header "signature",
+  // pas "x-genuka-signature" comme documenté ailleurs.
+  const sig = req.headers.get("signature") ?? req.headers.get("x-genuka-signature");
+  const verifie = verifierSignatureGenukaWebhook(rawBody, sig, webhookSecret);
+
+  // Sans secret vérifié, n'importe qui connaissant le tenantId (visible dans l'URL)
+  // pourrait glisser de faux messages clients dans la boîte du marchand : refusé.
+  if (!verifie) {
+    console.warn(`[webhook/genuka/${tenantId}] Signature absente ou invalide — requête rejetée`);
+    return NextResponse.json({ error: "Signature invalide" }, { status: 401 });
+  }
+
+  let body: any;
+  try { body = JSON.parse(rawBody); }
+  catch { return NextResponse.json({ error: "JSON invalide" }, { status: 400 }); }
+
+  if (body.event !== "message.received") {
+    console.info(`[webhook/genuka/${tenantId}] Événement ignoré: "${body.event}" (attendu: message.received) — payload: ${rawBody.slice(0, 300)}`);
+    return NextResponse.json({ received: true });
+  }
+
+  // Quota Palier 0 atteint : WhatsApp est verrouillé — on répond quand même
+  // 200 (ne jamais casser l'intégration côté Genuka) mais sans rien traiter.
+  if (await quotaCommandesAtteint(tenantId)) {
+    return NextResponse.json({ received: true });
+  }
+
+  // after() : sur Vercel, une promesse abandonnée est coupée dès la réponse envoyée.
+  after(() => traiterMessage(tenantId, body).catch((err) => console.error(`[webhook/genuka/${tenantId}] Erreur traitement:`, err)));
+
+  return NextResponse.json({ received: true });
+}
+
+async function traiterMessage(tenantId: string, body: any) {
+  const data = body.data ?? {};
+  const message = data.message ?? {};
+  const conversation = data.conversation ?? {};
+  const contact = conversation.contact ?? data.contact ?? {};
+
+  const de: string | undefined = contact.phone ?? contact.wa_id ?? data.from;
+  const corps: string = message.content?.body ?? message.text?.body ?? message.body ?? "";
+  const messageId: string | undefined = message.id ?? data.message_id;
+  const nom: string | undefined = contact.name;
+
+  if (!de || !corps) {
+    console.warn(`[webhook/genuka/${tenantId}] Payload message.received sans téléphone/texte reconnu :`, JSON.stringify(body).slice(0, 500));
+    return;
+  }
+
+  if (messageId) {
+    const existant = await prisma.messageRecu.findFirst({ where: { tenantId, waMessageId: messageId } });
+    if (existant) return; // déjà traité (idempotence)
+  }
+
+  const telephoneRecherche = de.replace(/\D/g, "").slice(-8);
+  const commandeLiee = await prisma.commande.findFirst({
+    where: { tenantId, clientTelephone: { contains: telephoneRecherche } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, numero: true, statut: true, trackingToken: true },
+  }).catch(() => null);
+
+  // Toujours journalisé, même sans commande liée — un client peut écrire
+  // avant toute commande, le commerçant doit quand même voir le message.
+  await prisma.messageRecu.create({
+    data: {
+      tenantId, source: "whatsapp", de, nom, corps,
+      waMessageId: messageId ?? null,
+      commandeId: commandeLiee?.id ?? null,
+      payload: body,
+    },
+  }).catch(() => {});
+
+  if (!commandeLiee || commandeLiee.statut !== "en_attente") return;
+  const texte = corps.toLowerCase().trim();
+  const estConfirmation = MOTS_CONFIRMATION.some(
+    (m) => texte === m || texte.startsWith(m + " ") || texte.endsWith(" " + m)
+  );
+  if (!estConfirmation) return;
+
+  // Une commande à payer en ligne n'est confirmée que par le paiement reçu (lib/paiement-commande.ts).
+  const { count } = await prisma.commande.updateMany({ where: { id: commandeLiee.id, statut: "en_attente", methodePaiement: { notIn: METHODES_EN_LIGNE } }, data: { statut: "confirmee" } });
+  if (!count) return;
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { nomBoutique: true, slug: true },
+  });
+  if (tenant) {
+    await notifierClientWhatsApp({
+      telephone: de,
+      statut: "confirmee",
+      numero: commandeLiee.numero,
+      boutique: tenant.nomBoutique,
+      slug: tenant.slug,
+      trackingToken: commandeLiee.trackingToken,
+      tenantId,
+    });
+  }
+}

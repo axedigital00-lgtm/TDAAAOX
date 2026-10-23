@@ -1,0 +1,233 @@
+export const dynamic = "force-dynamic";
+import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
+import { Check, Package, Printer } from "lucide-react";
+import { getT } from "@/lib/i18n/serveur";
+import { qrSvg } from "@/lib/qr";
+import { lienBoutique } from "@/lib/origine-site";
+
+export default async function FacturePage({ params }: { params: Promise<{ slug: string; token: string }> }) {
+  const t = await getT();
+  const { token } = await params;
+
+  const commande = await prisma.commande.findFirst({
+    where: { trackingToken: token },
+    include: {
+      lignes: true,
+      tenant: { select: { nomBoutique: true, logoUrl: true, slug: true, email: true, telephone: true, adresse: true, pays: true, devise: true } },
+    },
+  });
+  if (!commande) notFound();
+
+  const tenant = commande.tenant;
+  const date = new Date(commande.createdAt).toLocaleDateString(t.loc, { year: "numeric", month: "long", day: "numeric" });
+  const total = commande.montantTotal;
+  const devise = commande.devise || "XAF";
+
+  // QR de suivi : seulement tant que la commande est en cours, et jamais à l'impression —
+  // une facture imprimée glissée dans le colis donnerait au livreur la page de suivi
+  // du client, qui affiche le code de remise.
+  const enCours = !["livree", "annulee"].includes(commande.statut) && !!commande.trackingToken;
+  const lienSuivi = enCours ? await lienBoutique(tenant.slug, `/tracking/${commande.trackingToken}`) : null;
+  const qrSuivi = lienSuivi ? await qrSvg(lienSuivi) : null;
+
+  // Valeurs de remplissage (« À préciser », « — », « Digital ») : jamais affichées.
+  const reel = (v: string | null | undefined) => (v && !["À préciser", "—", "Digital", "Local"].includes(v.trim()) ? v : null);
+  const adresse = reel(commande.adresseExacte) || reel(commande.adresseLivraison);
+  const villePays = [reel(commande.ville), reel(commande.pays)].filter(Boolean).join(", ");
+
+  function fmt(n: number) {
+    return n.toLocaleString(t.loc) + " " + devise;
+  }
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #F8F7F4; color: #1A1A1A; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page { max-width: 820px; margin: 40px auto; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 80px rgba(0,0,0,0.10); }
+        .fx-px { padding-left: 48px; padding-right: 48px; }
+        @media (max-width: 640px) {
+          .page { margin: 0; border-radius: 0; box-shadow: none; }
+          .fx-px { padding-left: 16px; padding-right: 16px; }
+          .fx-client { grid-template-columns: 1fr !important; gap: 20px !important; }
+          .fx-client > div:last-child { text-align: left !important; }
+        }
+        @media print {
+          body { background: white; }
+          .page { box-shadow: none; border-radius: 0; margin: 0; max-width: 100%; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
+      {/* Un seul bloc racine : la règle globale de la vitrine (globals.css,
+          « body > .axs-store > div ») donne à chaque bloc de premier niveau une
+          hauteur d'écran — la barre d'impression devenait un calque flouté
+          posé sur toute la facture. */}
+      <div className="facture-racine">
+      <div className="page">
+        {/* Header gradient */}
+        <div className="fx-px" style={{ background: "linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 50%, #111 100%)", paddingTop: 48, paddingBottom: 40, position: "relative", overflow: "hidden" }}>
+          {/* Decorative circles */}
+          <div style={{ position:"absolute", top:-60, right:-60, width:200, height:200, borderRadius:"50%", background:"rgba(245,166,35,0.08)" }}/>
+          <div style={{ position:"absolute", bottom:-40, left:-20, width:140, height:140, borderRadius:"50%", background:"rgba(245,166,35,0.05)" }}/>
+
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:24, position:"relative", zIndex:1 }}>
+            <div>
+              {tenant.logoUrl ? (
+                <img src={tenant.logoUrl} alt={tenant.nomBoutique} style={{ height:56, objectFit:"contain", marginBottom:16, filter:"brightness(0) invert(1)" }} />
+              ) : (
+                <div style={{ fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:"white", marginBottom:16, letterSpacing:"-0.5px" }}>
+                  {t(tenant.nomBoutique)}
+                </div>
+              )}
+              <div style={{ color:"rgba(255,255,255,0.45)", fontSize:12, lineHeight:1.8 }}>
+                {tenant.adresse && <div>{t(tenant.adresse)}</div>}
+                {tenant.pays && <div>{t(tenant.pays)}</div>}
+                {tenant.telephone && <div>{tenant.telephone}</div>}
+                {tenant.email && <div>{tenant.email}</div>}
+              </div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ color:"rgba(245,166,35,0.7)", fontSize:11, fontWeight:600, letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>{t("Facture")}</div>
+              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(24px, 6vw, 36px)", fontWeight:700, color:"white", letterSpacing:"-1px", whiteSpace:"nowrap" }}>#{commande.numero}</div>
+              <div style={{ color:"rgba(255,255,255,0.4)", fontSize:12, marginTop:8 }}>{date}</div>
+              <div style={{ marginTop:16, display:"inline-block", background:"rgba(245,166,35,0.15)", border:"1px solid rgba(245,166,35,0.3)", borderRadius:100, padding:"6px 16px" }}>
+                <span style={{ color:"#F5A623", fontSize:11, fontWeight:600, display:"inline-flex", alignItems:"center", gap:4 }}>
+                  {commande.paiementStatut === "completed" ? <><Check size={10} />{" "}{t("Payée")}</> : commande.paiementStatut === "refunded" ? t("Remboursée") : t("En attente")}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gold divider */}
+        <div style={{ height:3, background:"linear-gradient(90deg, #F5A623, #e09520, #F5A623)" }} />
+
+        {/* Client info */}
+        <div className="fx-px fx-client" style={{ paddingTop:36, paddingBottom:36, display:"grid", gridTemplateColumns:"1fr 1fr", gap:32, background:"#FAFAF8" }}>
+          <div>
+            <div style={{ fontSize:10, fontWeight:700, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12 }}>{t("Facturé à")}</div>
+            <div style={{ fontSize:17, fontWeight:600, color:"#1A1A1A", marginBottom:4 }}>{t(commande.clientNom)}</div>
+            {commande.clientEmail && <div style={{ fontSize:13, color:"#666", marginBottom:2 }}>{t(commande.clientEmail)}</div>}
+            {commande.clientTelephone && <div style={{ fontSize:13, color:"#666", marginBottom:2 }}>{t(commande.clientTelephone)}</div>}
+            {adresse && (
+              <div style={{ fontSize:13, color:"#666", marginTop:4 }}>{t(adresse)}</div>
+            )}
+            {villePays && <div style={{ fontSize:13, color:"#666" }}>{villePays}</div>}
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12 }}>{t("Détails")}</div>
+            <div style={{ fontSize:13, color:"#666", marginBottom:4 }}>{t("Date :")}{" "}<strong style={{ color:"#1A1A1A" }}>{date}</strong></div>
+            <div style={{ fontSize:13, color:"#666", marginBottom:4 }}>{t("Commande :")}{" "}<strong style={{ color:"#1A1A1A" }}>#{commande.numero}</strong></div>
+            <div style={{ fontSize:13, color:"#666" }}>{t("Paiement :")}{" "}<strong style={{ color:"#1A1A1A" }}>{commande.methodePaiement === "notchpay" ? t("En ligne (NotchPay)") : t("À la livraison")}</strong></div>
+          </div>
+        </div>
+
+        {/* Items table */}
+        <div className="fx-px" style={{ paddingBottom:36 }}>
+          <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%", minWidth:480, borderCollapse:"collapse" }}>
+            <thead>
+              <tr style={{ borderBottom:"2px solid #F0EDE8" }}>
+                <th style={{ textAlign:"left", padding:"12px 0", fontSize:10, fontWeight:700, color:"#999", letterSpacing:"0.12em", textTransform:"uppercase", width:"50%" }}>{t("Produit")}</th>
+                <th style={{ textAlign:"center", padding:"12px 0", fontSize:10, fontWeight:700, color:"#999", letterSpacing:"0.12em", textTransform:"uppercase" }}>{t("Qté")}</th>
+                <th style={{ textAlign:"right", padding:"12px 0", fontSize:10, fontWeight:700, color:"#999", letterSpacing:"0.12em", textTransform:"uppercase" }}>{t("P.U.")}</th>
+                <th style={{ textAlign:"right", padding:"12px 0", fontSize:10, fontWeight:700, color:"#999", letterSpacing:"0.12em", textTransform:"uppercase" }}>{t("Total")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commande.lignes.map((l: any) => (
+                <tr key={l.id} style={{ borderBottom:"1px solid #F5F4F1" }}>
+                  <td style={{ padding:"16px 0", verticalAlign:"middle" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      {l.imageUrl ? (
+                        <img src={l.imageUrl} alt={l.nom} style={{ width:44, height:44, borderRadius:10, objectFit:"cover", flexShrink:0 }} />
+                      ) : (
+                        <div style={{ width:44, height:44, borderRadius:10, background:"#F5F4F1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:"#9CA3AF" }}><Package size={20} /></div>
+                      )}
+                      <div>
+                        <div style={{ fontSize:14, fontWeight:500, color:"#1A1A1A" }}>{t(l.nom)}</div>
+                        {l.variante && <div style={{ fontSize:11, color:"#999", marginTop:2 }}>{t(l.variante)}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ textAlign:"center", fontSize:14, color:"#555", padding:"16px 8px" }}>{l.quantite}</td>
+                  <td style={{ textAlign:"right", fontSize:14, color:"#555", padding:"16px 0 16px 8px" }}>{fmt(l.prix)}</td>
+                  <td style={{ textAlign:"right", fontSize:14, fontWeight:600, color:"#1A1A1A", padding:"16px 0 16px 8px" }}>{fmt(l.prix * l.quantite)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+
+          {/* Totals */}
+          <div style={{ marginTop:24, display:"flex", justifyContent:"flex-end" }}>
+            <div style={{ width:"100%", maxWidth:280 }}>
+              {commande.montantLivraison > 0 && (
+                <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", fontSize:13, color:"#666", borderBottom:"1px solid #F0EDE8" }}>
+                  <span>{t("Sous-total")}</span><span>{fmt(commande.montantSousTotal)}</span>
+                </div>
+              )}
+              {commande.montantLivraison > 0 && (
+                <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", fontSize:13, color:"#666", borderBottom:"1px solid #F0EDE8" }}>
+                  <span>{t("Livraison")}</span><span>{fmt(commande.montantLivraison)}</span>
+                </div>
+              )}
+              {commande.montantReduction > 0 && (
+                <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", fontSize:13, color:"#22c55e", borderBottom:"1px solid #F0EDE8" }}>
+                  <span>{t("Réduction")}</span><span>−{fmt(commande.montantReduction)}</span>
+                </div>
+              )}
+              <div style={{ display:"flex", justifyContent:"space-between", padding:"16px 20px", marginTop:8, background:"linear-gradient(135deg, #1A1A1A, #2D2D2D)", borderRadius:14 }}>
+                <span style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.7)" }}>{t("Total à payer")}</span>
+                <span style={{ fontSize:20, fontWeight:700, color:"#F5A623", fontFamily:"'Playfair Display',serif" }}>{fmt(total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {qrSuivi && (
+          <div className="no-print" style={{ margin:"0 clamp(16px, 5vw, 48px) 36px", padding:20, border:"1px solid #EDEAE4", borderRadius:16, display:"flex", alignItems:"center", gap:20, flexWrap:"wrap" }}>
+            <div style={{ width:112, height:112, flexShrink:0 }} dangerouslySetInnerHTML={{ __html: qrSuivi }} />
+            <div style={{ minWidth:200, flex:1 }}>
+              <div style={{ fontSize:15, fontWeight:600, color:"#1A1A1A", marginBottom:4 }}>{t("Suivre ma commande")}</div>
+              <div style={{ fontSize:13, color:"#666", lineHeight:1.6 }}>{t("Scanne ce code avec ton téléphone pour voir où en est ta livraison.")}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="fx-px" style={{ paddingTop:28, paddingBottom:28, background:"#F8F7F4", borderTop:"1px solid #EDEAE4", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:16 }}>
+          <div>
+            <div style={{ fontSize:11, color:"#999", marginBottom:4 }}>{t("Généré par")}</div>
+            <div style={{ fontSize:13, fontWeight:600, color:"#1A1A1A" }}>{t(tenant.nomBoutique)}</div>
+          </div>
+          <div style={{ textAlign:"center" }}>
+            <div style={{ width:32, height:2, background:"#F5A623", margin:"0 auto 8px", borderRadius:4 }} />
+            <div style={{ fontSize:10, color:"#BBB", letterSpacing:"0.1em" }}>{t("MERCI POUR VOTRE CONFIANCE")}</div>
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:11, color:"#999", marginBottom:4 }}>{t("Powered by")}</div>
+            <div style={{ fontSize:13, fontWeight:700, color:"#F5A623" }}>{t("Axso")}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Print button — Server Component : pas de onClick React, on attache
+          l'écouteur en JS pur via ce script (évite l'erreur "Event handlers
+          cannot be passed to Client Component props"). */}
+      <div className="no-print" style={{ textAlign:"center", padding:"24px", position:"sticky", bottom:0, background:"rgba(248,247,244,0.9)", backdropFilter:"blur(8px)" }}>
+        <button id="ax-btn-print"
+          style={{ background:"linear-gradient(135deg,#1A1A1A,#333)", color:"white", border:"none", padding:"14px 36px", borderRadius:100, fontSize:14, fontWeight:600, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:8, boxShadow:"0 4px 20px rgba(0,0,0,0.2)" }}>
+          <Printer size={16} />{" "}{t("Télécharger / Imprimer la facture")}
+        </button>
+      </div>
+      </div>
+      <script dangerouslySetInnerHTML={{ __html: `
+        document.getElementById('ax-btn-print')?.addEventListener('click', () => window.print());
+      `}} />
+    </>
+  );
+}

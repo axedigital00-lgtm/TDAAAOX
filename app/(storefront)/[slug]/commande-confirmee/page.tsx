@@ -1,0 +1,103 @@
+export const dynamic = "force-dynamic";
+
+// Storefront — Confirmation commande physique/dropshipping (paiement à la livraison)
+import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { resolveConfigVitrine } from "@/lib/vitrine-design";
+import { CommandeConfirmeeClient } from "./CommandeConfirmeeClient";
+import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
+import { Lock } from "lucide-react";
+import { getT } from "@/lib/i18n/serveur";
+
+interface Props {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ commandeId?: string }>;
+}
+
+export default async function CommandeConfirmeePage({ params, searchParams }: Props) {
+  const t = await getT();
+  const { slug } = await params;
+  const { commandeId } = await searchParams;
+
+  const tenant = await prisma.tenant.findUnique({ where: { slug } });
+  if (!tenant || tenant.statut !== "active") notFound();
+
+  if (!commandeId) notFound();
+
+  const commande = await prisma.commande.findFirst({
+    where: { id: commandeId, tenantId: tenant.id },
+    include: { lignes: true },
+  });
+  if (!commande) notFound();
+
+  const cfg = await resolveConfigVitrine(
+    tenant.themeId,
+    tenant.id,
+    (tenant.themeConfig as Record<string, any>) || {}
+  );
+  const theme = cfg.colors;
+
+  const contenuConfirmation = (
+    <CommandeConfirmeeClient
+      commande={{
+        id: commande.id,
+        numero: commande.numero,
+        montantTotal: commande.montantTotal,
+        devise: commande.devise,
+        clientNom: commande.clientNom,
+        clientEmail: commande.clientEmail ?? "",
+        lignes: commande.lignes.map((l) => ({
+          id: l.id,
+          nom: l.nom,
+          quantite: l.quantite,
+          prix: l.prix,
+          imageUrl: l.imageUrl,
+          variante: l.variante,
+        })),
+      }}
+      theme={theme}
+      slug={slug}
+      nomBoutique={tenant.nomBoutique}
+      tenantDevise={tenant.devise}
+    />
+  );
+
+  const Habillage = habillageDesign(cfg);
+  if (Habillage) {
+    return <Habillage><div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">{t(contenuConfirmation)}</div></Habillage>;
+  }
+
+  return (
+    <div style={{ backgroundColor: theme.fond, color: theme.texte, minHeight: "100vh" }}>
+      {/* Navbar minimal */}
+      <nav style={{ borderBottomColor: `${theme.accent}20` }} className="border-b">
+        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href={`/${slug}`}>
+            <span className="text-xl font-bold font-playfair" style={{ color: theme.accent }}>
+              {t(tenant.nomBoutique)}
+            </span>
+          </Link>
+          <div className="flex items-center gap-2 text-sm opacity-50">
+            <span className="text-xs">{t("Commande sécurisée")}</span>
+            <Lock size={14} />
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        {t(contenuConfirmation)}
+      </div>
+
+      <footer
+        className="border-t py-8 text-center text-sm opacity-40 mt-8"
+        style={{ borderColor: `${theme.accent}20` }}
+      >
+        <p>
+          {t(tenant.nomBoutique)}{" "}{t("· Propulsé par")}{" "}
+          <span style={{ color: theme.accent }}>{t("Axso")}</span>
+        </p>
+      </footer>
+    </div>
+  );
+}

@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { planActif } from "@/lib/abonnement";
+import { PAYS_DEVISES } from "@/lib/ai-agent";
+import { NOMS_PALIERS } from "@/lib/plans";
+import { etatEssai } from "@/lib/essai";
+import { verifierAbonnementEnAttente } from "@/lib/abonnement-paiement";
+
+// État du plan du tenant courant, pour l'overlay abonnement plein écran
+// (déclenché depuis n'importe quel cadenas du dashboard côté client).
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  const tenantId = (session.user as any)?.tenantId;
+  if (!tenantId) {
+    return NextResponse.json({ error: "Tenant introuvable" }, { status: 404 });
+  }
+
+  // ?verifier=1 (retour NotchPay du tunnel d'inscription) : paiements en attente relus et activés d'abord.
+  if (req.nextUrl.searchParams.get("verifier") === "1") await verifierAbonnementEnAttente(tenantId);
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { nomBoutique: true, pays: true, devise: true },
+  });
+
+  // Plan payé (sans l'essai Illimité) : on peut s'abonner pendant l'essai.
+  const [{ planPaye: planActuel }, essai] = await Promise.all([planActif(tenantId), etatEssai(tenantId)]);
+  const pays = tenant?.pays ?? "CM";
+  const devise = tenant?.devise ?? PAYS_DEVISES[pays] ?? "XAF";
+
+  return NextResponse.json({
+    planActuel,
+    nomPlan: NOMS_PALIERS[planActuel],
+    nomBoutique: tenant?.nomBoutique ?? null,
+    devise,
+    essai: { phase: essai.phase, finLe: essai.finLe?.toISOString() ?? null },
+  });
+}

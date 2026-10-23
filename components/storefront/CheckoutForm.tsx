@@ -1,0 +1,1148 @@
+"use client";
+import { useState, useEffect, useMemo } from "react";
+import { reductionPromo } from "@/lib/pricing";
+import { formatMontant } from "@/lib/utils";
+import { usePrix, useVisiteur } from "@/components/storefront/DeviseVitrine";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import {
+  Loader2, CreditCard, Shield, Lock,
+  CheckCircle2, AlertCircle, MessageCircle, Download,
+  Package, Zap, Phone, MapPin, User, Mail, ArrowLeft,
+  Receipt, Save, ClipboardList, Check
+} from "lucide-react";
+import { NotchPayCheckout } from "./NotchPayCheckout";
+import { trackPixelEvent } from "./MetaPixel";
+import { trackTikTokEvent } from "./TikTokPixel";
+import { trackSnapchatEvent } from "./SnapchatPixel";
+import { useT } from "@/components/I18nProvider";
+import { PAYS_OPTIONS, exempleTelephone, exempleVille, codePays } from "@/lib/devise-convert";
+import { moyensEnLigne, moyensPhysique, type ReglagesPaiement } from "@/lib/paiement-pays";
+
+export interface ParametresCommande {
+  demanderEmail?: boolean;
+  demanderGps?: boolean;
+  champPersonnalise?: { actif: boolean; label: string };
+}
+
+interface Props {
+  theme: { fond: string; accent: string; texte: string; surface: string };
+  slug: string; devise: string; tenantId: string; nomBoutique: string; logoUrl?: string;
+  parametresCommande?: ParametresCommande;
+  paysBoutique?: string; // code ISO2 — pays présélectionné dans le formulaire
+  paiement: ReglagesPaiement; // moyens acceptés par la boutique (Paramètres → Moyens de paiement)
+  enLigneDispo: boolean;      // NotchPay configuré et devise de la boutique encaissable en ligne
+}
+
+/** Pays présélectionné : celui où se trouve le client (détecté, ou choisi dans la pastille pays),
+ *  sinon celui de la boutique, sinon Cameroun. Le client peut toujours le changer. */
+const paysParDefaut = (...codes: (string | null | undefined)[]) =>
+  codes.map((c) => PAYS_OPTIONS.find((p) => p.code === c)?.nom).find(Boolean) ?? PAYS_OPTIONS.find((p) => p.code === "CM")!.nom;
+
+// ─── Guide GPS par navigateur ─────────────────────────────────────────────────
+function GpsStep({ label, steps }: { label: string; steps: string[] }) {
+  const t = useT();
+  return (
+    <div>
+      <p style={{ color: "#F5A623" }} className="font-bold mb-1">{t(label)} :</p>
+      <ol className="list-decimal pl-4 space-y-0.5">
+        {steps.map((s, i) => <li key={i}>{t(s)}</li>)}
+      </ol>
+    </div>
+  );
+}
+
+// ─── Récapitulatif commande ───────────────────────────────────────────────────
+function Recap({ theme, devise, items, total, codePromo, label, fraisLivraison, delaiLivraison }: any) {
+  const t = useT();
+  const { fmt, converti } = usePrix();
+  return (
+    <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
+      <h2 className="font-bold font-playfair text-base flex items-center gap-2"><Receipt size={16} /> {t(label) || t("Récapitulatif")}</h2>
+      <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+        {items.map((item: any) => (
+          <div key={`${item.produitId}-${item.variante}`} className="flex items-center gap-3">
+            {item.imageUrl
+              ? <img src={item.imageUrl} alt={item.nom} className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
+              : <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${theme.accent}15`, color: theme.accent }}>{item.type === "digital" ? <Save size={18} /> : <Package size={18} />}</div>
+            }
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{t(item.nom)}</p>
+              {item.variante && <p className="text-xs opacity-40">{t(item.variante)}</p>}
+              <p className="text-xs opacity-45">{t("×")}{item.quantite}</p>
+            </div>
+            <span className="text-sm font-semibold flex-shrink-0" style={{ color: theme.accent }}>{fmt(item.prix * item.quantite, devise)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="border-t pt-3 text-sm" style={{ borderColor: `${theme.accent}18` }}>
+        {codePromo && <div className="flex justify-between text-green-500 mb-1"><span>{t("Code :")}{" "}{t(codePromo)}</span><Check size={14} /></div>}
+        {fraisLivraison !== null && fraisLivraison !== undefined && (
+          <div className="flex justify-between mb-1 opacity-70">
+            <span>{t("Livraison")}{delaiLivraison ? <span className="opacity-60">{" · "}{t(delaiLivraison)}</span> : null}</span>
+            <span>{fraisLivraison > 0 ? fmt(fraisLivraison, devise) : t("Gratuite")}</span>
+          </div>
+        )}
+        <div className="flex justify-between font-bold text-base">
+          <span>{t("Total")}</span>
+          <span style={{ color: theme.accent }}>{fmt(total + (fraisLivraison || 0), devise)}</span>
+        </div>
+        {converti(devise) && (
+          <p className="mt-2 text-xs leading-relaxed opacity-60">
+            {t("Montant réel de la commande :")}{" "}<strong>{formatMontant(total + (fraisLivraison || 0), devise)}</strong>{" "}{t("— les prix dans votre devise sont une estimation au taux du jour.")}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Zones proposées par la boutique (Ma boutique → Livraison), choisies dans une liste quand le client
+// est livré dans le pays de la boutique : le tarif du quartier s'applique sans faute de frappe.
+function useZones(slug: string) {
+  const [zones, setZones] = useState<string[]>([]);
+  useEffect(() => {
+    fetch(`/api/boutique/${slug}/zones`)
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.zones)) setZones(d.zones); })
+      .catch(() => {});
+  }, [slug]);
+  return zones;
+}
+
+// ─── Input stylisé ────────────────────────────────────────────────────────────
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  const t = useT();
+  return (
+    <label className="block">
+      <span className="text-xs block mb-1.5 font-medium opacity-60">{t(label)}{required && <span className="text-red-400 ml-0.5">*</span>}</span>
+      {children}
+    </label>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHECKOUT PHYSIQUE — Paiement à la livraison → WhatsApp
+// ═══════════════════════════════════════════════════════════════════════════════
+function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePromo, viderPanier, parametresCommande, paysBoutique, paiement, enLigneDispo, onCommandee }: any) {
+  const t = useT();
+  const { fmt } = usePrix();
+  const searchParams = useSearchParams();
+  const cfg: ParametresCommande = parametresCommande || {};
+  const demanderEmail = cfg.demanderEmail ?? true;
+  const demanderGps = cfg.demanderGps ?? true;
+  const champPerso = cfg.champPersonnalise?.actif ? cfg.champPersonnalise.label : null;
+  const [loadingCanal, setLoadingCanal] = useState<"whatsapp" | "direct" | "en_ligne" | null>(null);
+  // Commande payée en ligne : créée, puis réglée sur NotchPay (montant du serveur, commission comprise).
+  const [aPayerEnLigne, setAPayerEnLigne] = useState<{ commandeId: string; montant: number } | null>(null);
+  // ?canal=whatsapp (bouton « Commander via WhatsApp » de la fiche) : formulaire WhatsApp ouvert d'emblée.
+  const [popup, setPopup] = useState<"whatsapp" | "direct" | null>(() => (searchParams?.get("canal") === "whatsapp" && paiement.whatsapp ? "whatsapp" : null));
+  const loading = loadingCanal !== null;
+  const [done, setDone] = useState<{ commandeId: string; numero: string; viaWhatsapp: boolean; whatsappUrl: string | null; trackingToken?: string } | null>(null);
+  const paysClient = useVisiteur()?.pays;
+  const [form, setForm] = useState({ nom: "", telephone: "", adresse: "", ville: "", pays: paysParDefaut(paysClient, paysBoutique), email: "" });
+  const [champPersoValeur, setChampPersoValeur] = useState("");
+  const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsBloque, setGpsBloque] = useState(false);
+  const [adresseExacte, setAdresseExacte] = useState("");
+  const zones = useZones(slug);
+  const [zone, setZone] = useState("");
+  const [fraisLivraison, setFraisLivraison] = useState<number | null>(null);
+  const [delaiLivraison, setDelaiLivraison] = useState("");
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  // Les quartiers du marchand ne concernent que les livraisons dans le pays de la boutique.
+  const zonesActives = codePays(form.pays) === paysBoutique ? zones : [];
+  const zoneChoisie = zonesActives.length ? zone : "";
+
+  // Code d'affiliation depuis l'URL (?ref=CODE) ou localStorage — même
+  // mécanisme que CheckoutDigital, manquait ici (COD/WhatsApp n'attribuait
+  // jamais de vente à un affilié).
+  const codeRef = useMemo(() => {
+    const fromUrl = searchParams?.get("ref") ?? null;
+    if (fromUrl) {
+      try { localStorage.setItem("axso_ref", fromUrl); } catch {}
+      return fromUrl;
+    }
+    try { return localStorage.getItem("axso_ref"); } catch { return null; }
+  }, [searchParams]);
+
+  // Frais de livraison en direct selon le pays (et le quartier) choisis —
+  // estimation affichée seulement : le montant facturé est recalculé côté
+  // serveur dans whatsapp-creer/route.ts (lib/livraison.ts).
+  const attendQuartier = zonesActives.length > 0 && !zoneChoisie;
+  // Sans liste de zones (ou hors du pays de la boutique), la ville saisie sert de zone : une règle de ville s'applique aussi.
+  const zoneEnvoyee = zonesActives.length ? zoneChoisie : form.ville.trim();
+  const lignesPoids = JSON.stringify(items.map((i: any) => ({ produitId: i.produitId, quantite: i.quantite })));
+  useEffect(() => {
+    if (attendQuartier) { setFraisLivraison(null); setDelaiLivraison(""); return; }
+    let annule = false;
+    const minuterie = setTimeout(() => { // la ville se tape lettre par lettre
+      fetch("/api/livraison/calculer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, pays: form.pays, zone: zoneEnvoyee, items: JSON.parse(lignesPoids), montantCommande: total }),
+      })
+        .then(r => r.json())
+        .then(d => { if (!annule && d.options?.[0]) { setFraisLivraison(d.options[0].frais); setDelaiLivraison(d.options[0].delai || ""); } })
+        .catch(() => {});
+    }, 350);
+    return () => { annule = true; clearTimeout(minuterie); };
+  }, [form.pays, zoneEnvoyee, attendQuartier, tenantId, total, lignesPoids]);
+
+  const inp = "w-full px-4 py-3 rounded-xl border text-base sm:text-sm transition-all focus:ring-2 focus:outline-none";
+  const inpStyle = { backgroundColor: theme.surface, borderColor: `${theme.accent}30`, color: theme.texte, ["--tw-ring-color" as any]: `${theme.accent}40` };
+
+  // ── Détection navigateur précise ─────────────────────────────────────────
+  const nav = typeof navigator !== "undefined" ? navigator : null;
+  const ua  = nav?.userAgent ?? "";
+  const isIOS     = /iPad|iPhone|iPod/.test(ua);
+  const isAndroid = /Android/.test(ua);
+  const isMobile  = isIOS || isAndroid;
+
+  // Navigateurs iOS (tous utilisent WebKit, mais l'app réelle diffère)
+  const isChromeiOS   = /CriOS/.test(ua);
+  const isFirefoxiOS  = /FxiOS/.test(ua);
+  const isOperaiOS    = /OPiOS/.test(ua);
+  const isEdgeiOS     = /EdgiOS/.test(ua);
+  const isSafariIOS   = isIOS && !isChromeiOS && !isFirefoxiOS && !isOperaiOS && !isEdgeiOS;
+
+  // Navigateurs Android
+  const isSamsung     = /SamsungBrowser/.test(ua);
+  const isOperaAndroid= /OPR\//.test(ua);
+  const isFirefoxAndroid = /Firefox/.test(ua) && isAndroid;
+  const isEdgeAndroid = /EdgA/.test(ua);
+  const isBrave       = typeof (nav as any)?.brave !== "undefined";
+  const isUC          = /UCBrowser/.test(ua);
+  const isChromeAndroid = isAndroid && /Chrome/.test(ua) && !isSamsung && !isOperaAndroid && !isEdgeAndroid;
+
+  // Navigateurs desktop
+  const isDesktopSafari = !isMobile && /Safari/.test(ua) && !/Chrome/.test(ua);
+  const isDesktopFirefox = !isMobile && /Firefox/.test(ua);
+  const isDesktopEdge   = !isMobile && /Edg\//.test(ua);
+  const isDesktopOpera  = !isMobile && /OPR\//.test(ua);
+  const isDesktopChrome = !isMobile && /Chrome/.test(ua) && !isDesktopEdge && !isDesktopOpera;
+
+  // Vérifie l'état de la permission au chargement
+  useEffect(() => {
+    if (!nav?.permissions) return;
+    nav.permissions.query({ name: "geolocation" as PermissionName })
+      .then(r => {
+        if (r.state === "denied") setGpsBloque(true);
+        r.onchange = () => setGpsBloque(r.state === "denied");
+      })
+      .catch(() => {}); // iOS Safari ne supporte pas navigator.permissions
+  }, []);
+
+  function obtenirPosition() {
+    if (!nav?.geolocation) {
+      toast.error(t("Géolocalisation non supportée sur cet appareil"));
+      return;
+    }
+    setGpsLoading(true);
+
+    const tenterAvec = (highAccuracy: boolean) => {
+      nav.geolocation.getCurrentPosition(
+        pos => {
+          setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setGpsLoading(false);
+          setGpsBloque(false);
+        },
+        err => {
+          if (err.code === 1) {
+            setGpsLoading(false);
+            setGpsBloque(true);
+          } else if (err.code === 2 && highAccuracy) {
+            // Réessayer en basse précision (réseau/WiFi) si puce GPS indisponible
+            tenterAvec(false);
+          } else {
+            setGpsLoading(false);
+            toast.error(t("GPS indisponible — activez la localisation sur votre appareil"), { duration: 5000 });
+          }
+        },
+        { enableHighAccuracy: highAccuracy, timeout: 12000, maximumAge: 0 }
+      );
+    };
+
+    tenterAvec(true);
+  }
+
+  async function partagerPosition() {
+    if (typeof window === "undefined") return;
+    if (nav?.permissions) {
+      try {
+        const p = await nav.permissions.query({ name: "geolocation" as PermissionName });
+        if (p.state === "denied") { setGpsBloque(true); return; }
+      } catch {} // iOS Safari
+    }
+    obtenirPosition();
+  }
+
+  // Selon le pays du client : paiement à la livraison seulement dans le pays de la boutique (sauf réglage contraire).
+  const moyens = moyensPhysique(paiement, { paysClient: codePays(form.pays), paysBoutique, enLigneDispo });
+
+  async function commander(canal: "whatsapp" | "direct" | "en_ligne") {
+    if (!form.nom.trim() || !form.telephone.trim()) { toast.error(t("Nom et téléphone obligatoires")); return; }
+    if (attendQuartier) { toast.error(t("Sélectionnez votre zone de livraison")); return; }
+    // Sans liste de zones, la ville dit où livrer et fixe les frais (revérifié par le serveur).
+    if (!zonesActives.length && !form.ville.trim()) { toast.error(t("Indiquez votre ville de livraison")); return; }
+    // WhatsApp : onglet ouvert PENDANT le clic — ouvert après la requête, il
+    // était bloqué par le navigateur (surtout sur mobile) et le client
+    // n'arrivait jamais sur le WhatsApp du marchand.
+    const onglet = canal === "whatsapp" ? window.open("", "_blank") : null;
+    setLoadingCanal(canal);
+    try {
+      const res = await fetch("/api/commandes/whatsapp-creer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId, slug, canal,
+          client: form,
+          items: items.map((i: any) => ({ produitId: i.produitId, nom: i.nom, prix: i.prix, quantite: i.quantite, variante: i.variante, imageUrl: i.imageUrl })),
+          total, devise, codePromo, zone: zoneEnvoyee || undefined,
+          codeAffiliation: codeRef || undefined,
+          localisation: gps ? { lat: gps.lat, lng: gps.lng, adresseExacte: adresseExacte || form.adresse } : null,
+          champPersonnalise: champPerso && champPersoValeur.trim() ? { label: champPerso, valeur: champPersoValeur.trim() } : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (canal === "en_ligne") { setAPayerEnLigne({ commandeId: data.commandeId, montant: data.montantTotal }); return; } // vente comptée au paiement
+      trackPixelEvent("Purchase", {
+        content_ids: items.map((i: any) => i.produitId),
+        contents: items.map((i: any) => ({ id: i.produitId, quantity: i.quantite })),
+        value: total,
+        currency: devise,
+        num_items: items.length,
+      });
+      trackTikTokEvent("CompletePayment", { value: total, currency: devise, content_type: "product", contents: items.map((i: any) => ({ content_id: i.produitId, quantity: i.quantite })) });
+      trackSnapchatEvent("PURCHASE", { price: total, currency: devise });
+      if (typeof window !== "undefined") (window as any).dataLayer?.push({ event: "purchase", value: total, currency: devise, num_items: items.length });
+      try { localStorage.removeItem("axso_ref"); } catch {}
+      viderPanier();
+      setDone(data);
+      onCommandee?.();
+      if (canal === "whatsapp" && data.whatsappUrl) {
+        if (onglet) { onglet.opener = null; onglet.location.href = data.whatsappUrl; }
+        else window.location.href = data.whatsappUrl; // onglet refusé : on y va directement
+      } else onglet?.close();
+    } catch (e: any) {
+      onglet?.close();
+      toast.error(t(e.message) || t("Erreur"));
+    } finally {
+      setLoadingCanal(null);
+    }
+  }
+
+  if (aPayerEnLigne) {
+    return (
+      <div className="max-w-lg mx-auto py-8 space-y-4">
+        <div className="rounded-2xl border p-5" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
+          <h2 className="font-bold font-playfair text-base mb-1 flex items-center gap-2"><Lock size={16} />{" "}{t("Paiement sécurisé")}</h2>
+          <p className="text-xs opacity-60 mb-4">{t("Votre commande est réservée. Elle est confirmée dès le paiement reçu.")}</p>
+          <NotchPayCheckout commandeId={aPayerEnLigne.commandeId} montant={aPayerEnLigne.montant} devise={devise}
+            clientEmail={form.email} clientNom={form.nom} clientTelephone={form.telephone} paysClient={codePays(form.pays)}
+            onError={(msg) => toast.error(t(msg))} />
+        </div>
+      </div>
+    );
+  }
+
+  // Succès
+  if (done) {
+    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const invoiceUrl = done.trackingToken ? `${appUrl}/${slug}/facture/${done.trackingToken}` : null;
+    const trackingUrl = done.trackingToken ? `${appUrl}/${slug}/tracking/${done.trackingToken}` : null;
+    return (
+      <div className="max-w-lg mx-auto py-12 space-y-6">
+        <div className="text-center space-y-4">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto" style={{ background: `${theme.accent}20`, border: `2px solid ${theme.accent}` }}>
+            <CheckCircle2 size={36} style={{ color: theme.accent }} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold font-playfair mb-2" style={{ color: theme.accent }}>{t("Commande #")}{done.numero}{" "}{t("confirmée !")}</h2>
+            <p className="text-sm opacity-60">
+              {done.viaWhatsapp
+                ? t("Votre commande est enregistrée et un onglet WhatsApp s'est ouvert pour la confirmer auprès du vendeur.")
+                : t("Votre commande est enregistrée. Le vendeur a été notifié et vous contactera pour la livraison.")}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {done.viaWhatsapp && done.whatsappUrl && (
+            <a href={done.whatsappUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base hover:opacity-90 transition-all"
+              style={{ background: "#25D366", color: "#fff", boxShadow: "0 4px 20px rgba(37,211,102,0.35)" }}>
+              <MessageCircle size={18} />{" "}{t("L'onglet ne s'est pas ouvert ? Cliquez ici")}
+            </a>
+          )}
+          {invoiceUrl && (
+            <a href={invoiceUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-semibold text-sm border-2 hover:opacity-80 transition-all"
+              style={{ borderColor: theme.accent, color: theme.accent }}>
+              <Download size={16} />{" "}{t("Voir ma facture")}
+            </a>
+          )}
+          {trackingUrl && (
+            <a href={trackingUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-semibold text-sm hover:opacity-80 transition-all"
+              style={{ background: `${theme.accent}12`, color: theme.accent }}>
+              <MapPin size={16} />{" "}{t("Suivre ma livraison en temps réel")}
+            </a>
+          )}
+          {done.trackingToken && (
+            <a href={`/${slug}/mon-compte?lien=${done.trackingToken}`}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-semibold text-sm hover:opacity-80 transition-all opacity-80"
+              style={{ color: theme.accent }}>
+              <User size={16} />{" "}{t("Mon espace client")}
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-xl mx-auto space-y-5">
+      <div className="space-y-5">
+        {/* Bandeau info */}
+        <div className="flex items-start gap-3 p-4 rounded-2xl" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+          <Package size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-green-600">{t("Paiement à la livraison")}</p>
+            <p className="text-xs text-green-700 opacity-75 mt-0.5 leading-relaxed">
+              {t("Vous ne payez rien maintenant. Le paiement se fait en espèces ou mobile money à la réception de votre colis.")}
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Pop-up « VOS INFORMATIONS » : les coordonnées de livraison, demandées
+          au moment de commander (bouton WhatsApp ou « Commander maintenant »). */}
+      {popup && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ background: "rgba(0,0,0,0.55)" }}
+          onClick={(e) => { if (e.target === e.currentTarget && !loading) setPopup(null); }}
+          onKeyDown={(e) => { if (e.key === "Escape" && !loading) setPopup(null); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="titre-vos-informations"
+            className="w-full sm:max-w-xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl"
+            style={{ backgroundColor: theme.fond, color: theme.texte }}>
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: theme.fond, borderColor: `${theme.accent}20` }}>
+              <h2 id="titre-vos-informations" className="font-extrabold text-base tracking-[0.12em] flex items-center gap-2"><ClipboardList size={17} />{" "}{t("VOS INFORMATIONS")}</h2>
+              <button type="button" onClick={() => setPopup(null)} disabled={loading} aria-label={t("Fermer")} className="w-9 h-9 rounded-full flex items-center justify-center opacity-60 hover:opacity-100">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+        {/* Formulaire */}
+        <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
+          <h2 className="font-bold font-playfair text-base flex items-center gap-2"><ClipboardList size={16} />{" "}{t("Vos informations")}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Field label={t("Nom complet")} required>
+                <div className="relative">
+                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+                  <input value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={t("Ex: Aminata Diallo")} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+                </div>
+              </Field>
+            </div>
+            <Field label={t("Téléphone (WhatsApp de préférence)")} required>
+              <div className="relative">
+                <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+                <input type="tel" value={form.telephone} onChange={e => set("telephone", e.target.value)} placeholder={exempleTelephone(form.pays)} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+              </div>
+            </Field>
+            {demanderEmail && (
+              <Field label={t("Email (optionnel)")}>
+                <div className="relative">
+                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+                  <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@exemple.com" className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+                </div>
+              </Field>
+            )}
+            {champPerso && (
+              <div className={demanderEmail ? "" : "sm:col-span-2"}>
+                <Field label={champPerso}>
+                  <input value={champPersoValeur} onChange={e => setChampPersoValeur(e.target.value)} className={inp} style={inpStyle} />
+                </Field>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Adresse livraison */}
+        <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
+          <h2 className="font-bold font-playfair text-base flex items-center gap-2"><Package size={16} />{" "}{t("Adresse de livraison")}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Field label={t("Adresse exacte")}>
+                <div className="relative">
+                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+                  <input value={adresseExacte || form.adresse}
+                    onChange={e => { setAdresseExacte(e.target.value); set("adresse", e.target.value); }}
+                    placeholder={t("Rue, quartier, numéro, point de repère…")} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+                </div>
+              </Field>
+            </div>
+
+            {/* GPS Picker */}
+            {demanderGps && (
+            <div className="sm:col-span-2 space-y-2">
+              {/* Succès */}
+              {gps && !gpsBloque && (
+                <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                  <CheckCircle2 size={16} color="#16a34a" className="flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: "#15803d" }}>{t("Position GPS partagée")}</p>
+                    <p className="text-xs" style={{ color: "#16a34a", opacity: 0.8 }}>{gps.lat.toFixed(5)}, {gps.lng.toFixed(5)}</p>
+                  </div>
+                  <a href={`https://www.google.com/maps?q=${gps.lat},${gps.lng}`} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-semibold underline flex-shrink-0" style={{ color: "#16a34a" }}>
+                    {t("Voir")}
+                  </a>
+                  <button type="button" onClick={() => setGps(null)} aria-label={t("Retirer la position")} className="text-xs opacity-50 hover:opacity-100 flex-shrink-0" style={{ color: "#16a34a" }}>✕</button>
+                </div>
+              )}
+
+              {/* Guide déblocage par navigateur */}
+              {gpsBloque && (
+                <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.18)" }}>
+                  <div className="flex items-start gap-2">
+                    <AlertCircle size={14} color="#ef4444" className="flex-shrink-0 mt-0.5" />
+                    <p className="text-sm font-bold" style={{ color: "#ef4444" }}>{t("Localisation bloquée — comment l'autoriser :")}</p>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs" style={{ color: "#d1d5db" }}>
+                    {/* ── iOS Safari ── */}
+                    {isSafariIOS && <>
+                      <GpsStep label={t("Safari (iPhone/iPad)")} steps={[
+                        "Réglages iPhone → Confidentialité et sécurité → Services de localisation",
+                        "Faites défiler → Safari → sélectionnez \"Lors de l'utilisation\"",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Chrome iOS ── */}
+                    {isChromeiOS && <>
+                      <GpsStep label={t("Chrome (iPhone/iPad)")} steps={[
+                        "Réglages iPhone → Confidentialité → Services de localisation → Chrome",
+                        "Sélectionnez \"Lors de l'utilisation\"",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Firefox iOS ── */}
+                    {isFirefoxiOS && <>
+                      <GpsStep label={t("Firefox (iPhone/iPad)")} steps={[
+                        "Réglages iPhone → Confidentialité → Services de localisation → Firefox",
+                        "Sélectionnez \"Lors de l'utilisation\"",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Opera iOS ── */}
+                    {isOperaiOS && <>
+                      <GpsStep label={t("Opera (iPhone/iPad)")} steps={[
+                        "Réglages iPhone → Confidentialité → Services de localisation → Opera",
+                        "Sélectionnez \"Lors de l'utilisation\"",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Edge iOS ── */}
+                    {isEdgeiOS && <>
+                      <GpsStep label={t("Edge (iPhone/iPad)")} steps={[
+                        "Réglages iPhone → Confidentialité → Services de localisation → Microsoft Edge",
+                        "Sélectionnez \"Lors de l'utilisation\"",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Chrome Android ── */}
+                    {isChromeAndroid && <>
+                      <GpsStep label={t("Chrome (Android)")} steps={[
+                        "Appuyez sur 🔒 dans la barre d'adresse → Autorisations → Localisation → Autoriser",
+                        "Ou : Paramètres Android → Applications → Chrome → Autorisations → Localisation → Autoriser",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Samsung Internet ── */}
+                    {isSamsung && <>
+                      <GpsStep label={t("Samsung Internet")} steps={[
+                        "Menu (3 traits) → Paramètres → Sites et téléchargements → Autorisations du site",
+                        "Localisation → Autoriser",
+                        "Ou : Paramètres Android → Applications → Internet → Autorisations → Localisation",
+                      ]} />
+                    </>}
+
+                    {/* ── Opera Android ── */}
+                    {isOperaAndroid && <>
+                      <GpsStep label={t("Opera (Android)")} steps={[
+                        "Appuyez sur l'icône O → Paramètres → Confidentialité → Autorisations du site",
+                        "Localisation → Autoriser pour ce site",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Firefox Android ── */}
+                    {isFirefoxAndroid && <>
+                      <GpsStep label={t("Firefox (Android)")} steps={[
+                        "Menu (3 points) → Paramètres → Paramètres du site → Localisation",
+                        "Ou : appuyez sur 🔒 → Informations de connexion → Autorisations → Localisation",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Edge Android ── */}
+                    {isEdgeAndroid && <>
+                      <GpsStep label={t("Edge (Android)")} steps={[
+                        "Menu (3 points) → Paramètres → Confidentialité et sécurité → Autorisations du site",
+                        "Localisation → Autoriser",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── Brave ── */}
+                    {isBrave && <>
+                      <GpsStep label={t("Brave")} steps={[
+                        "Appuyez sur l'icône lion → Autorisations pour ce site → Localisation → Autoriser",
+                        "Ou : Paramètres Brave → Confidentialité → Autorisations du site → Localisation",
+                        "Revenez ici et appuyez sur Réessayer",
+                      ]} />
+                    </>}
+
+                    {/* ── UC Browser ── */}
+                    {isUC && <>
+                      <GpsStep label={t("UC Browser")} steps={[
+                        "Paramètres → Autorisations du site → Localisation → Autoriser",
+                        "Ou : Paramètres Android → Applications → UC Browser → Autorisations → Localisation",
+                      ]} />
+                    </>}
+
+                    {/* ── Desktop Chrome/Chromium ── */}
+                    {isDesktopChrome && <>
+                      <GpsStep label={t("Chrome / Chromium (ordinateur)")} steps={[
+                        "Cliquez sur 🔒 dans la barre d'adresse → Paramètres du site → Localisation → Autoriser",
+                        "Rechargez la page et réessayez",
+                      ]} />
+                    </>}
+
+                    {/* ── Desktop Edge ── */}
+                    {isDesktopEdge && <>
+                      <GpsStep label={t("Microsoft Edge (ordinateur)")} steps={[
+                        "Cliquez sur 🔒 → Autorisations pour ce site → Localisation → Autoriser",
+                        "Rechargez la page et réessayez",
+                      ]} />
+                    </>}
+
+                    {/* ── Desktop Firefox ── */}
+                    {isDesktopFirefox && <>
+                      <GpsStep label={t("Firefox (ordinateur)")} steps={[
+                        "Cliquez sur 🔒 → Informations de connexion → Autorisations → Localisation → Autoriser",
+                        "Ou : barre d'adresse, cliquez sur l'icône géolocalisation → Autoriser → Enregistrer",
+                        "Rechargez la page et réessayez",
+                      ]} />
+                    </>}
+
+                    {/* ── Desktop Opera ── */}
+                    {isDesktopOpera && <>
+                      <GpsStep label={t("Opera (ordinateur)")} steps={[
+                        "Cliquez sur 🔒 → Paramètres du site → Localisation → Autoriser",
+                        "Rechargez la page et réessayez",
+                      ]} />
+                    </>}
+
+                    {/* ── Desktop Safari macOS ── */}
+                    {isDesktopSafari && <>
+                      <GpsStep label={t("Safari (Mac)")} steps={[
+                        "Safari → Réglages → Sites web → Localisation",
+                        "Trouvez ce site et sélectionnez \"Autoriser\"",
+                        "Revenez ici et réessayez",
+                      ]} />
+                    </>}
+
+                    {/* Fallback générique si aucun navigateur détecté */}
+                    {!isSafariIOS && !isChromeiOS && !isFirefoxiOS && !isOperaiOS && !isEdgeiOS &&
+                     !isChromeAndroid && !isSamsung && !isOperaAndroid && !isFirefoxAndroid && !isEdgeAndroid && !isBrave && !isUC &&
+                     !isDesktopChrome && !isDesktopEdge && !isDesktopFirefox && !isDesktopOpera && !isDesktopSafari && (
+                      <GpsStep label={t("Votre navigateur")} steps={[
+                        "Cherchez l'icône 🔒 ou ⚙️ dans la barre d'adresse",
+                        "Ouvrez les paramètres / autorisations du site",
+                        "Activez la Localisation → Autoriser",
+                        "Rechargez la page et réessayez",
+                      ]} />
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <button type="button" onClick={() => { setGpsBloque(false); obtenirPosition(); }}
+                      className="flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                      style={{ background: "rgba(37,211,102,0.1)", color: "#22c55e", border: "1px solid rgba(37,211,102,0.2)" }}>
+                      <MapPin size={11} />{" "}{t("J'ai autorisé — Réessayer")}
+                    </button>
+                    <button type="button" onClick={() => setGpsBloque(false)}
+                      className="px-3 py-2 rounded-lg text-xs transition-all" style={{ color: "#6b7280" }}>
+                      {t("Ignorer")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bouton principal (si pas de GPS et pas bloqué) */}
+              {!gps && !gpsBloque && (
+                <button type="button" onClick={partagerPosition} disabled={gpsLoading}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-dashed border-2 text-sm font-semibold transition-all"
+                  style={{ borderColor: `${theme.accent}35`, color: theme.accent, background: `${theme.accent}06` }}>
+                  {gpsLoading
+                    ? <><Loader2 size={14} className="animate-spin" />{" "}{t("Localisation en cours…")}</>
+                    : <><MapPin size={14} />{" "}{t("Partager ma localisation GPS")}{" "}<span className="opacity-50 font-normal">{t("(optionnel)")}</span></>
+                  }
+                </button>
+              )}
+            </div>
+            )}
+
+            {zonesActives.length > 0 && (
+              <div className="sm:col-span-2">
+                <Field label={t("Zone de livraison")} required>
+                  <select value={zone} onChange={e => setZone(e.target.value)} className={inp} style={inpStyle}>
+                    <option value="" style={{ backgroundColor: theme.surface }}>{t("Sélectionnez votre zone…")}</option>
+                    {zonesActives.map(z => <option key={z} value={z} style={{ backgroundColor: theme.surface }}>{t(z)}</option>)}
+                  </select>
+                </Field>
+              </div>
+            )}
+            <Field label={t("Ville")} required={!zonesActives.length}>
+              <input value={form.ville} onChange={e => set("ville", e.target.value)} placeholder={exempleVille(form.pays)} className={inp} style={inpStyle} />
+            </Field>
+            <Field label={t("Pays")}>
+              <select value={form.pays} onChange={e => set("pays", e.target.value)} className={inp} style={inpStyle}>
+                {PAYS_OPTIONS.map(p => <option key={p.code} value={p.nom} style={{ backgroundColor: theme.surface }}>{t(p.nom)}</option>)}
+              </select>
+            </Field>
+          </div>
+        </div>
+            </div>
+            <div className="sticky bottom-0 px-5 py-4 border-t" style={{ backgroundColor: theme.fond, borderColor: `${theme.accent}20` }}>
+              <button onClick={() => commander(popup)} disabled={loading}
+                className="w-full py-4 rounded-2xl font-bold text-base transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3"
+                style={popup === "whatsapp" ? { background: "#25D366", color: "#fff" } : { background: theme.accent, color: "#fff" }}>
+                {loading ? <Loader2 size={18} className="animate-spin" /> : popup === "whatsapp" ? <MessageCircle size={18} /> : <ClipboardList size={18} />}
+                {loading ? t("Création de la commande…") : popup === "whatsapp" ? t("Confirmer via WhatsApp") : t("Confirmer la commande")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Récap + CTA */}
+      <div>
+        <div className="space-y-4">
+          <Recap theme={theme} devise={devise} items={items} total={total} codePromo={codePromo} label={t("Votre commande")} fraisLivraison={fraisLivraison} delaiLivraison={delaiLivraison} />
+
+          {moyens.whatsapp && (
+            <button onClick={() => setPopup("whatsapp")} disabled={loading}
+              className="w-full py-4 rounded-2xl font-bold text-base transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3 shadow-lg"
+              style={{ background: "#25D366", color: "#fff", boxShadow: "0 4px 20px rgba(37,211,102,0.4)" }}>
+              {loadingCanal === "whatsapp" ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
+              {loadingCanal === "whatsapp" ? t("Création de la commande…") : t("Commander via WhatsApp")}
+            </button>
+          )}
+
+          {moyens.livraison && (
+            <button onClick={() => setPopup("direct")} disabled={loading}
+              className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3 border-2"
+              style={{ borderColor: theme.accent, color: theme.accent, background: `${theme.accent}08` }}>
+              {loadingCanal === "direct" ? <Loader2 size={16} className="animate-spin" /> : <ClipboardList size={16} />}
+              {loadingCanal === "direct" ? t("Création de la commande…") : t("Commander · paiement à la livraison")}
+            </button>
+          )}
+
+          {moyens.enLigne && (
+            <button onClick={() => commander("en_ligne")} disabled={loading || attendQuartier}
+              className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3"
+              style={{ background: theme.accent, color: "#fff" }}>
+              {loadingCanal === "en_ligne" ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+              {loadingCanal === "en_ligne" ? t("Préparation du paiement…") : t("Payer en ligne")}
+            </button>
+          )}
+
+          {!moyens.whatsapp && !moyens.livraison && !moyens.enLigne && (
+            <p className="text-sm text-center rounded-2xl border p-4 leading-relaxed" style={{ borderColor: `${theme.accent}30` }}>
+              {t("Cette boutique ne propose pas encore de moyen de paiement pour une livraison dans votre pays. Contactez-la pour commander.")}
+            </p>
+          )}
+
+          <div className="flex items-center gap-2 text-xs opacity-40 justify-center text-center">
+            <Lock size={10} className="flex-shrink-0" />{" "}
+            {moyens.enLigne
+              ? t("En ligne : {0} · frais de service inclus", t(moyensEnLigne(codePays(form.pays))))
+              : t("Commande sécurisée · Paiement à la livraison")}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHECKOUT DIGITAL — Paiement NotchPay · Wallet Axso · Livraison instantanée
+// ═══════════════════════════════════════════════════════════════════════════════
+function CheckoutDigital({ theme, slug, devise, tenantId, items, total, codePromo, paysBoutique, enLigneDispo }: any) {
+  const t = useT();
+  const { aPayer } = usePrix();
+  const searchParams = useSearchParams();
+
+  const [phase, setPhase] = useState<"form" | "paiement">("form");
+  const [loading, setLoading] = useState(false);
+  const [commandeId, setCommandeId] = useState<string | null>(null);
+  const paysClient = useVisiteur()?.pays;
+  const [form, setForm] = useState({ nom: "", email: "", telephone: "", adresse: "", ville: "", pays: paysParDefaut(paysClient, paysBoutique) });
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  // Dropshipping : payé en ligne mais expédié (adresse requise, suivi au lieu d'un téléchargement).
+  const expedier = items[0]?.type === "dropshipping";
+  const zones = useZones(slug);
+  const [zone, setZone] = useState("");
+  const zonesActives = expedier && codePays(form.pays) === paysBoutique ? zones : [];
+  // Montant réel calculé par le serveur (frais de livraison inclus), affiché à l'étape de paiement.
+  const [aRegler, setARegler] = useState<{ total: number; livraison: number } | null>(null);
+
+  // Code d'affiliation depuis l'URL (?ref=CODE) ou localStorage
+  const codeRef = useMemo(() => {
+    const fromUrl = searchParams?.get("ref") ?? null;
+    if (fromUrl) {
+      try { localStorage.setItem("axso_ref", fromUrl); } catch {}
+      return fromUrl;
+    }
+    try { return localStorage.getItem("axso_ref"); } catch { return null; }
+  }, [searchParams]);
+
+  const inp = "w-full px-4 py-3 rounded-xl border text-base sm:text-sm transition-all focus:ring-2 focus:outline-none";
+  const inpStyle = { backgroundColor: theme.surface, borderColor: `${theme.accent}30`, color: theme.texte, ["--tw-ring-color" as any]: `${theme.accent}40` };
+
+  async function creerCommande() {
+    if (!form.nom.trim() || !form.email.trim() || !form.telephone.trim()) {
+      toast.error(t("Nom, email et téléphone obligatoires"));
+      return;
+    }
+    if (expedier && (!form.adresse.trim() || !form.ville.trim())) {
+      toast.error(t("Adresse et ville de livraison obligatoires"));
+      return;
+    }
+    if (zonesActives.length && !zone) { toast.error(t("Sélectionnez votre zone de livraison")); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/commandes/digital-creer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId,
+          client: { ...form },
+          items: items.map((i: any) => ({ produitId: i.produitId, nom: i.nom, prix: i.prix, quantite: i.quantite, variante: i.variante, imageUrl: i.imageUrl })),
+          total, devise, codePromo,
+          codeAffiliation: codeRef || null,
+          zone: expedier ? (zonesActives.length ? zone : form.ville) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setARegler({ total: data.total, livraison: data.montantLivraison ?? 0 });
+      setCommandeId(data.commandeId);
+      setPhase("paiement");
+    } catch (e: any) {
+      toast.error(t(e.message) || t("Erreur lors de la création de la commande"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Phase 2 : paiement NotchPay ──────────────────────────────────────────────
+  if (phase === "paiement" && commandeId) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+        <div className="lg:col-span-3 space-y-5">
+          <button onClick={() => setPhase("form")}
+            className="flex items-center gap-1.5 text-sm opacity-50 hover:opacity-80 transition-opacity">
+            <ArrowLeft size={14} />{" "}{t("Modifier mes informations")}
+          </button>
+
+          {/* Bandeau digital */}
+          <div className="flex items-start gap-3 p-4 rounded-2xl" style={{ background: `${theme.accent}10`, border: `1px solid ${theme.accent}30` }}>
+            <Zap size={18} style={{ color: theme.accent }} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold" style={{ color: theme.accent }}>{expedier ? t("Expédition directe") : t("Livraison instantanée")}</p>
+              <p className="text-xs opacity-70 mt-0.5 leading-relaxed">
+                {expedier ? t("Votre commande part chez le fournisseur dès le paiement. Vous recevrez un lien de suivi.") : t("Vos fichiers seront disponibles immédiatement après le paiement.")}
+              </p>
+            </div>
+          </div>
+
+          {/* NotchPay checkout */}
+          <div className="rounded-2xl border p-5" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
+            <h2 className="font-bold font-playfair text-base mb-4 flex items-center gap-2"><CreditCard size={16} />{" "}{t("Paiement sécurisé")}</h2>
+            <NotchPayCheckout
+              commandeId={commandeId}
+              montant={aRegler?.total ?? total}
+              devise={devise}
+              clientEmail={form.email}
+              clientNom={form.nom}
+              clientTelephone={form.telephone}
+              paysClient={codePays(form.pays)}
+              onError={(msg) => toast.error(t(msg))}
+            />
+          </div>
+        </div>
+
+        <div className="lg:col-span-2">
+          <div className="lg:sticky lg:top-24 space-y-4">
+            <Recap theme={theme} devise={devise} items={items} total={aRegler ? aRegler.total - aRegler.livraison : total} codePromo={codePromo} label={expedier ? t("Votre commande") : t("Produits digitaux")} fraisLivraison={expedier ? aRegler?.livraison ?? null : null} />
+            {codeRef && (
+              <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl" style={{ background: `${theme.accent}10`, color: theme.accent }}>
+                <CheckCircle2 size={12} />{" "}{t("Code affiliation")}{" "}<span className="font-mono font-bold">{codeRef}</span>{" "}{t("appliqué")}
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-xs opacity-40 justify-center">
+              <Download size={10} />{" "}{expedier ? t("Lien de suivi envoyé après paiement") : t("Téléchargement disponible immédiatement après paiement")}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Paiement en ligne impossible (NotchPay non configuré, ou devise de la boutique non couverte) :
+  // dit avant le formulaire, plutôt qu'un refus au moment de payer.
+  if (!enLigneDispo) {
+    return (
+      <div className="max-w-lg mx-auto py-12 text-center space-y-3">
+        <CreditCard size={28} className="mx-auto opacity-40" />
+        <p className="font-semibold">{t("Le paiement en ligne n'est pas encore disponible pour cette boutique.")}</p>
+        <p className="text-sm opacity-60">{t("Contactez la boutique pour acheter ce produit.")}</p>
+      </div>
+    );
+  }
+
+  // ── Phase 1 : formulaire ───────────────────────────────────────────────────
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+      <div className="lg:col-span-3 space-y-5">
+        {/* Bandeau digital */}
+        <div className="flex items-start gap-3 p-4 rounded-2xl" style={{ background: `${theme.accent}10`, border: `1px solid ${theme.accent}30` }}>
+          <Zap size={18} style={{ color: theme.accent }} className="flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold" style={{ color: theme.accent }}>{expedier ? t("Expédition directe") : t("Livraison instantanée")}</p>
+            <p className="text-xs opacity-70 mt-0.5 leading-relaxed">
+              {expedier
+                ? t("Payez en ligne : votre commande part chez le fournisseur et vous recevez un lien de suivi. Les frais de livraison de votre ville s'ajoutent à l'étape suivante.")
+                : t("Votre fichier sera disponible immédiatement après la confirmation du paiement. Un lien de téléchargement vous sera envoyé par email.")}
+            </p>
+          </div>
+        </div>
+
+        {/* Infos client */}
+        <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
+          <h2 className="font-bold font-playfair text-base flex items-center gap-2"><User size={16} />{" "}{t("Vos informations")}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Field label={t("Nom complet")} required>
+                <div className="relative">
+                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+                  <input value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={t("Ex: Aminata Diallo")} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+                </div>
+              </Field>
+            </div>
+            <Field label={expedier ? t("Email") : t("Email (recevez votre fichier ici)")} required>
+              <div className="relative">
+                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+                <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@exemple.com" className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+              </div>
+            </Field>
+            <Field label={t("Téléphone")} required>
+              <div className="relative">
+                <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
+                <input type="tel" value={form.telephone} onChange={e => set("telephone", e.target.value)} placeholder={exempleTelephone(form.pays)} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+              </div>
+            </Field>
+            <Field label={t("Pays")}>
+              <select value={form.pays} onChange={e => set("pays", e.target.value)} className={inp} style={inpStyle}>
+                {PAYS_OPTIONS.map(p => <option key={p.code} value={p.nom} style={{ backgroundColor: theme.surface }}>{t(p.nom)}</option>)}
+              </select>
+            </Field>
+            {expedier && (
+              <>
+                <div className="sm:col-span-2">
+                  <Field label={t("Adresse de livraison")} required>
+                    <input value={form.adresse} onChange={e => set("adresse", e.target.value)} placeholder={t("Rue, quartier, numéro, point de repère…")} className={inp} style={inpStyle} />
+                  </Field>
+                </div>
+                {zonesActives.length > 0 && (
+                  <Field label={t("Zone de livraison")} required>
+                    <select value={zone} onChange={e => setZone(e.target.value)} className={inp} style={inpStyle}>
+                      <option value="" style={{ backgroundColor: theme.surface }}>{t("Sélectionnez votre zone…")}</option>
+                      {zonesActives.map(z => <option key={z} value={z} style={{ backgroundColor: theme.surface }}>{t(z)}</option>)}
+                    </select>
+                  </Field>
+                )}
+                <Field label={t("Ville")} required>
+                  <input value={form.ville} onChange={e => set("ville", e.target.value)} placeholder={exempleVille(form.pays)} className={inp} style={inpStyle} />
+                </Field>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Info paiement */}
+        <div className="flex items-center gap-3 p-4 rounded-2xl border" style={{ borderColor: `${theme.accent}15`, background: `${theme.accent}05` }}>
+          <CreditCard size={16} style={{ color: theme.accent }} className="flex-shrink-0" />
+          <p className="text-xs opacity-60 leading-relaxed">
+            {t("Paiement sécurisé par")}{" "}<span className="font-bold" style={{ color: "#111111" }}>NotchPay</span>{" · "}{t(moyensEnLigne(codePays(form.pays)))}{" · "}{t("Chiffrement SSL 256-bit")}
+          </p>
+        </div>
+      </div>
+
+      {/* Récap + CTA */}
+      <div className="lg:col-span-2">
+        <div className="lg:sticky lg:top-24 space-y-4">
+          <Recap theme={theme} devise={devise} items={items} total={total} codePromo={codePromo} label={expedier ? t("Votre commande") : t("Produits digitaux")} />
+
+          {codeRef && (
+            <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl" style={{ background: `${theme.accent}10`, color: theme.accent }}>
+              <CheckCircle2 size={12} />{" "}{t("Code affiliation")}{" "}<span className="font-mono font-bold">{codeRef}</span>{" "}{t("appliqué")}
+            </div>
+          )}
+
+          <button onClick={creerCommande} disabled={loading}
+            className="w-full py-4 rounded-2xl font-bold text-base transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3 shadow-lg"
+            style={{ backgroundColor: "#635BFF", color: "#fff", boxShadow: "0 4px 20px rgba(99,91,255,0.4)" }}>
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Shield size={16} />}
+            {loading ? t("Préparation du paiement…") : expedier ? t("Continuer vers le paiement") : t("Payer {0}", aPayer(total, devise))}
+          </button>
+
+          <div className="flex items-center gap-2 text-xs opacity-40 justify-center">
+            <Download size={10} />{" "}{expedier ? t("Lien de suivi envoyé après paiement") : t("Téléchargement disponible immédiatement après paiement")}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPOSANT PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════════════════
+export interface ArticleCommande {
+  produitId: string; nom: string; prix: number; quantite: number;
+  imageUrl?: string; type: string; variante?: string;
+}
+
+// Pas de panier : on commande UN produit, choisi sur sa fiche (Commander →
+// /checkout?produit=…). L'article et son prix viennent du serveur (page
+// checkout), jamais du navigateur ; le serveur les recalcule de toute façon.
+export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoUrl, parametresCommande, paysBoutique, paiement, enLigneDispo, article }: Props & { article: ArticleCommande | null }) {
+  const t = useT();
+  const items = useMemo(() => (article ? [article] : []), [article]);
+  const sousTotal = article ? article.prix * article.quantite : 0;
+  const [promo, setPromo] = useState<{ code: string; reduction: number } | null>(null);
+  const total = sousTotal - (promo?.reduction ?? 0);
+  const codePromo = promo?.code ?? null;
+  const viderPanier = () => {};
+  const [commandee, setCommandee] = useState(false); // écran de confirmation : plus de badge ni de code promo
+
+  // digital + dropshipping → paiement en ligne ; physique → WhatsApp / paiement à la livraison
+  const typePanier = !article ? "vide" : article.type === "physique" ? "physique" : "digital";
+
+  useEffect(() => {
+    if (!article) return;
+    trackPixelEvent("InitiateCheckout", {
+      content_ids: [article.produitId],
+      contents: [{ id: article.produitId, quantity: article.quantite }],
+      value: total,
+      currency: devise,
+      num_items: 1,
+    });
+    trackTikTokEvent("InitiateCheckout", { value: total, currency: devise });
+    trackSnapchatEvent("START_CHECKOUT", { price: total, currency: devise });
+    if (typeof window !== "undefined") (window as any).dataLayer?.push({ event: "initiate_checkout", value: total, currency: devise, num_items: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!article) {
+    return (
+      <div className="text-center py-20">
+        <p className="opacity-60">{t("Aucun produit sélectionné")}</p>
+        <a href={`/${slug}/produits`} className="text-sm mt-3 inline-block" style={{ color: theme.accent }}>{t("← Voir les produits")}</a>
+      </div>
+    );
+  }
+
+  const commonProps = { theme, slug, devise, tenantId, nomBoutique, logoUrl, items, total, codePromo, viderPanier, parametresCommande, paysBoutique, paiement, enLigneDispo };
+
+  return (
+    <>
+      {/* Badge type en haut */}
+      {!commandee && <div className="max-w-xl mx-auto mb-5">
+        {typePanier === "physique" && (
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "rgba(16,185,129,0.1)", color: "#10B981", border: "1px solid rgba(16,185,129,0.2)" }}>
+            <Package size={14} />{" "}{paiement.enLigne && enLigneDispo ? t("Commande physique · À la livraison ou en ligne") : t("Commande physique · Paiement à la livraison")}
+          </div>
+        )}
+        {typePanier === "digital" && (
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: `${theme.accent}15`, color: theme.accent, border: `1px solid ${theme.accent}30` }}>
+            <Zap size={14} /> {article.type === "dropshipping" ? t("Expédition directe · Paiement en ligne sécurisé") : t("Livraison instantanée · Paiement en ligne sécurisé")}
+          </div>
+        )}
+      </div>}
+
+      {!commandee && <CodePromo theme={theme} slug={slug} devise={devise} sousTotal={sousTotal} items={items} promo={promo} onChange={setPromo} />}
+
+      {typePanier === "physique" && <CheckoutPhysique {...commonProps} onCommandee={() => setCommandee(true)} />}
+      {typePanier === "digital"  && <CheckoutDigital {...commonProps} />}
+    </>
+  );
+}
+
+// Code promo (vérifié ici pour l'affichage ; le serveur le revérifie à la commande).
+function CodePromo({ theme, slug, devise, sousTotal, items, promo, onChange }: {
+  theme: Props["theme"]; slug: string; devise: string; sousTotal: number; items: ArticleCommande[];
+  promo: { code: string; reduction: number } | null; onChange: (p: { code: string; reduction: number } | null) => void;
+}) {
+  const t = useT();
+  const { fmt } = usePrix();
+  const [code, setCode] = useState("");
+  const [verif, setVerif] = useState(false);
+  const appliquer = async () => {
+    if (!code.trim()) return;
+    setVerif(true);
+    try {
+      const res = await fetch(`/api/codes-promo/verifier?code=${encodeURIComponent(code.trim())}&slug=${slug}`);
+      const p = await res.json();
+      if (!res.ok) throw new Error(p.error || "Code promo invalide ou expiré");
+      if (p.produitIds?.length && !items.some((i) => p.produitIds.includes(i.produitId))) throw new Error("Ce code ne s'applique pas à ce produit");
+      if (p.minCommande && sousTotal < p.minCommande) throw new Error(t("Ce code s'applique dès {0} d'achat", fmt(p.minCommande, devise)));
+      const reduction = reductionPromo(p, sousTotal, items);
+      if (reduction <= 0) throw new Error("Code promo invalide ou expiré");
+      onChange({ code: code.trim().toUpperCase(), reduction });
+      toast.success(t("Code appliqué : -{0}", fmt(reduction, devise)));
+    } catch (e) {
+      toast.error(e instanceof Error ? t(e.message) : t("Code promo invalide ou expiré"));
+    } finally { setVerif(false); }
+  };
+  if (promo) {
+    return (
+      <div className="max-w-xl mx-auto mb-5 flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
+        <span className="flex items-center gap-2 min-w-0 text-green-600 font-semibold"><Check size={15} className="flex-shrink-0" />{" "}{t("Code {0} : -{1}", promo.code, fmt(promo.reduction, devise))}</span>
+        <button type="button" onClick={() => onChange(null)} className="text-xs opacity-60 hover:opacity-100">{t("Retirer")}</button>
+      </div>
+    );
+  }
+  return (
+    <div className="max-w-xl mx-auto mb-5 flex gap-2">
+      <input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && appliquer()} placeholder={t("Code promo")} aria-label={t("Code promo")}
+        className="flex-1 min-w-0 h-11 px-4 rounded-xl border bg-transparent text-base sm:text-sm outline-none" style={{ borderColor: `${theme.accent}30` }} />
+      <button type="button" onClick={appliquer} disabled={verif || !code.trim()} className="h-11 px-5 rounded-xl text-sm font-semibold disabled:opacity-50"
+        style={{ background: `${theme.accent}15`, color: theme.accent }}>
+        {verif ? <Loader2 size={15} className="animate-spin" /> : t("Appliquer")}
+      </button>
+    </div>
+  );
+}

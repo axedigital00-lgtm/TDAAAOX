@@ -1,0 +1,110 @@
+// NotchPay Webhook — point d'entrée unique pour paiements storefront, abonnements et retraits.
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { verifierSignatureWebhook } from "@/lib/notchpay";
+import { confirmerPaiementCommande } from "@/lib/paiement-commande";
+import { appliquerStatutTransfert } from "@/lib/wallet";
+import { confirmerPaiementAbonnement, lireRefAbonnement, oublierPaiementsEnAttente } from "@/lib/abonnement-paiement";
+import { rembourserPaiementCommissionEchoue } from "@/lib/affiliation";
+
+export const maxDuration = 60;
+
+export async function POST(req: NextRequest) {
+  const rawBody = await req.text();
+  const signature = req.headers.get("x-notch-signature");
+
+  if (!verifierSignatureWebhook(rawBody, signature)) {
+    return NextResponse.json({ error: "Signature invalide" }, { status: 400 });
+  }
+
+  let event: any;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Payload invalide" }, { status: 400 });
+  }
+
+  const type: string = event?.type ?? "";
+  const data = event?.data ?? {};
+  // NotchPay attribue sa PROPRE référence ("trx.xxx") au champ `reference` —
+  // la référence qu'on lui envoie à l'initialisation est renvoyée séparément
+  // dans `merchant_reference` (alias `trxref`). Le dispatch par préfixe
+  // (ORD-/SUB-/AXSO-) doit donc lire ce champ, pas `data.reference`.
+  const merchantRef: string = data?.merchant_reference ?? data?.trxref ?? "";
+  const notchpayRef: string = data?.reference ?? "";
+
+  console.log("[notchpay/webhook]", type, merchantRef, notchpayRef);
+
+  try {
+    if (type.startsWith("transfer.")) {
+      await traiterEvenementTransfert(type, data, merchantRef);
+    } else if (merchantRef.startsWith("ORD-")) {
+      await traiterEvenementCommande(type, merchantRef, notchpayRef, data);
+    } else if (merchantRef.startsWith("SUB-")) {
+      await traiterEvenementAbonnement(type, merchantRef, notchpayRef, data);
+    }
+  } catch (err) {
+    // 500 : NotchPay renverra l'événement. Sans danger, tout le traitement est idempotent
+    // (prise atomique de la commande, crédit unique par commande, activation unique par référence).
+    console.error("[notchpay/webhook] erreur traitement:", err);
+    return NextResponse.json({ error: "Erreur de traitement" }, { status: 500 });
+  }
+
+  return NextResponse.json({ received: true });
+}
+
+// ─── Paiement d'une commande storefront ───────────────────────────────────────
+async function traiterEvenementCommande(type: string, merchantRef: string, notchpayRef: string, data: any) {
+  const commandeId = merchantRef.slice(4);
+
+  if (type === "payment.failed" || type === "payment.canceled" || type === "payment.expired") {
+    // Seule une commande encore en attente passe en échec : un événement en retard
+    // ne doit jamais écraser un paiement déjà reçu ou remboursé.
+    await prisma.commande.updateMany({ where: { id: commandeId, paiementStatut: "pending" }, data: { paiementStatut: "failed" } }).catch(() => {});
+    return;
+  }
+
+  if (type !== "payment.complete") return;
+
+  // Rien n'est cru sur parole : la transaction est relue chez NotchPay (montant, devise, référence).
+  await confirmerPaiementCommande(commandeId, notchpayRef || merchantRef);
+}
+
+// ─── Achat/renouvellement d'abonnement ────────────────────────────────────────
+async function traiterEvenementAbonnement(type: string, merchantRef: string, notchpayRef: string, data: any) {
+  const cible = lireRefAbonnement(merchantRef);
+  if (!cible) return;
+
+  if (type === "payment.failed" || type === "payment.canceled" || type === "payment.expired") {
+    await oublierPaiementsEnAttente(cible.tenantId, [notchpayRef, merchantRef].filter(Boolean));
+    return;
+  }
+  if (type !== "payment.complete") return;
+  // Le plan n'est activé que si le prix du palier a réellement été payé (relu chez NotchPay).
+  await confirmerPaiementAbonnement(notchpayRef || merchantRef, data);
+}
+
+// ─── Transfert sortant (retrait wallet ou commission d'affilié) ───────────────
+// L'événement d'un transfert ne renvoie pas toujours notre référence marchande :
+// on retrouve la ligne par l'identifiant passé en metadata, par le préfixe AXSO-,
+// ou par la référence NotchPay ("po.xxx") enregistrée à l'initiation.
+async function traiterEvenementTransfert(type: string, data: any, merchantRef: string) {
+  const status: string = type.slice("transfer.".length);
+  const refs = [data?.reference, data?.id, merchantRef].filter(Boolean).map(String);
+  const idMarchand = merchantRef.startsWith("AXSO-") ? merchantRef.slice(5) : undefined;
+
+  const retrait = await prisma.retrait.findFirst({
+    where: { OR: [{ id: data?.metadata?.retraitId ?? idMarchand ?? "" }, { reference: { in: refs } }] },
+  });
+  if (retrait) {
+    await appliquerStatutTransfert(retrait.id, status);
+    return;
+  }
+
+  const commission = await prisma.paiementCommission.findFirst({
+    where: { OR: [{ id: idMarchand?.replace(/^AFF-/, "") ?? "" }, { reference: { in: refs } }] },
+  });
+  if (!commission) return;
+  if (status === "failed") await rembourserPaiementCommissionEchoue(commission.id);
+  else if (status === "complete") await prisma.paiementCommission.updateMany({ where: { id: commission.id, statut: "en_attente" }, data: { statut: "traite" } });
+}

@@ -1,0 +1,143 @@
+// Proxy multi-tenant Axso — Next.js 16 (remplace middleware.ts)
+// Routage par sous-domaine ou domaine custom
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { domainePrincipal, slugPourDomaine, sousDomainePret } from "@/lib/domaines";
+import { auth } from "@/lib/auth";
+import { requireNiveau, refusPalier } from "@/lib/permissions-server";
+import { moduleApi, palierApi } from "@/lib/permissions-api";
+import { SLUGS_RESERVES, SOUS_DOMAINES_ACTIFS } from "@/lib/utils";
+import { COOKIE_XP, OPTIONS_COOKIE_XP, cookieVisiteurXp } from "@/lib/builder/experiences";
+
+// Test A/B du Builder (lib/builder/experiences.ts) : un nouveau visiteur de vitrine reçoit sa
+// répartition stable. Posée aussi sur la requête pour qu'il voie sa variante dès ce premier rendu.
+async function repartitionXp(request: NextRequest, slug: string): Promise<string | null> {
+  if (request.method !== "GET") return null;
+  const xp = await cookieVisiteurXp(slug, request.cookies.get(COOKIE_XP)?.value).catch(() => null);
+  if (xp) request.cookies.set(COOKIE_XP, xp);
+  return xp;
+}
+
+const DOMAINE_APP = process.env.NEXT_PUBLIC_AXSO_DOMAIN || "localhost:3000";
+
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const hostname = request.headers.get("host") || "";
+
+  // API : jamais préfixées du slug (appelées en /api/... depuis une vitrine sur
+  // sous-domaine ou domaine custom). Un membre d'équipe connecté n'atteint que
+  // les modules que sa grille lui ouvre (lib/permissions-api.ts).
+  if (pathname.startsWith("/api/")) {
+    const module = moduleApi(pathname);
+    const palier = palierApi(pathname, request.method);
+    if (module || palier) {
+      const session = await auth();
+      const tenantId = (session?.user as any)?.tenantId as string | undefined;
+      if (tenantId) {
+        const refus = (module && await requireNiveau(session, module, request.method === "GET" || request.method === "HEAD" ? "lecture" : "ecriture"))
+          || (palier && await refusPalier(tenantId, palier));
+        if (refus) return NextResponse.json({ error: refus.error, message: refus.error }, { status: refus.status });
+      }
+    }
+    return NextResponse.next();
+  }
+
+  // Ignorer les fichiers statiques
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.includes(".")
+  ) {
+    return NextResponse.next();
+  }
+
+  // Détecter si c'est un sous-domaine de boutique
+  const estSousDomaine =
+    hostname !== DOMAINE_APP &&
+    hostname.endsWith(`.${DOMAINE_APP}`) &&
+    !hostname.startsWith("www.");
+
+  // *.vercel.app (preview ET alias de production tant qu'aucun domaine
+  // personnalisé n'est branché) ne doit JAMAIS être traité comme le domaine
+  // custom d'un tenant — ce serait le cas pour absolument tout hostname
+  // différent de NEXT_PUBLIC_AXSO_DOMAIN, y compris l'infrastructure de
+  // déploiement de l'app elle-même. Cause vérifiée du 404 sur toute l'app en
+  // prod Vercel (ex: https://tdaaaaox.vercel.app/) : la réponse portait
+  // `x-matched-path: /[slug]` — le proxy réécrivait "/" en "/tdaaaaox.vercel.app"
+  // (hostname pris comme slug de boutique), qui n'existe pas en base → 404.
+  // Se reproduit pour N'IMPORTE QUEL hostname Vercel tant que
+  // NEXT_PUBLIC_AXSO_DOMAIN ne correspond pas EXACTEMENT au hostname visité
+  // (donc systématiquement en preview, chaque déploiement ayant un
+  // sous-domaine *.vercel.app unique et imprévisible à l'avance).
+  const estDomaineVercel = hostname.endsWith(".vercel.app");
+
+  const estDomainePropre =
+    hostname !== DOMAINE_APP &&
+    !hostname.endsWith(`.${DOMAINE_APP}`) &&
+    !hostname.startsWith("localhost") &&
+    !estDomaineVercel;
+
+  if (estSousDomaine || estDomainePropre) {
+    // Domaine propre : le nom de domaine n'est PAS le slug — recherche en base
+    // (boutique publiée dont customDomain = ce domaine, cache 60 s, voir lib/domaines.ts).
+    const slug = estSousDomaine ? hostname.replace(`.${DOMAINE_APP}`, "") : await slugPourDomaine(hostname);
+    if (!slug) return new NextResponse("Aucune boutique n'est reliée à ce domaine.", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+
+    // Sous-domaine AXSO d'une boutique dont le domaine personnalisé est actif : même redirection.
+    if (estSousDomaine && (request.method === "GET" || request.method === "HEAD") && request.cookies.get("axso_apercu")?.value !== "1") {
+      const domaine = await domainePrincipal(slug);
+      const reste = pathname === `/${slug}` || pathname.startsWith(`/${slug}/`) ? pathname.slice(slug.length + 1) : pathname;
+      if (domaine) return NextResponse.redirect(`https://${domaine}${reste || "/"}${request.nextUrl.search}`, 308);
+      // Adresse propre : nom.axsoafrica.com/produit et non nom.axsoafrica.com/nom/produit
+      // (les liens internes de la vitrine restent en /nom/… : on les nettoie ici, routeur client compris).
+      if (pathname === `/${slug}` || pathname.startsWith(`/${slug}/`)) {
+        const propre = request.nextUrl.clone();
+        propre.pathname = pathname.slice(slug.length + 1) || "/";
+        return NextResponse.redirect(propre, 308);
+      }
+    }
+
+    const xp = await repartitionXp(request, slug);
+    // Les liens internes de la vitrine sont en /{slug}/… : déjà préfixés, on les sert tels quels.
+    const url = request.nextUrl.clone();
+    if (!(pathname === `/${slug}` || pathname.startsWith(`/${slug}/`))) url.pathname = `/${slug}${pathname === "/" ? "" : pathname}`;
+    const res = url.pathname === pathname ? NextResponse.next({ request: { headers: request.headers } }) : NextResponse.rewrite(url, { request: { headers: request.headers } });
+    if (xp) res.cookies.set(COOKIE_XP, xp, OPTIONS_COOKIE_XP);
+    return res;
+  }
+
+  // Adresse AXSO (/slug/…) d'une boutique dont le domaine personnalisé est actif :
+  // redirection permanente vers ce domaine (modèle Shopify) — anciens liens et QR
+  // continuent de marcher. Jamais pendant l'aperçu du Constructeur (cadre même origine).
+  const premier = pathname.split("/")[1];
+  if (premier && !SLUGS_RESERVES.has(premier) && (request.method === "GET" || request.method === "HEAD") && request.cookies.get("axso_apercu")?.value !== "1") {
+    const domaine = await domainePrincipal(premier);
+    if (domaine) return NextResponse.redirect(`https://${domaine}${pathname.slice(premier.length + 1) || "/"}${request.nextUrl.search}`, 308);
+    // Sous-domaines actifs : axsoafrica.com/nom/… → nom.axsoafrica.com/… (anciens liens et QR codes compris).
+    if (SOUS_DOMAINES_ACTIFS && hostname === DOMAINE_APP && await sousDomainePret(premier)) {
+      const proto = DOMAINE_APP.startsWith("localhost") ? "http" : "https";
+      return NextResponse.redirect(`${proto}://${premier}.${DOMAINE_APP}${pathname.slice(premier.length + 1) || "/"}${request.nextUrl.search}`, 308);
+    }
+  }
+
+  const xp = premier && !SLUGS_RESERVES.has(premier) ? await repartitionXp(request, premier) : null;
+
+  // Expose pathname to server components via REQUEST header
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  // Aperçu du Constructeur (cookie posé par /dashboard/builder) : la vitrine
+  // s'affiche dans le cadre d'aperçu de l'éditeur, même origine uniquement.
+  response.headers.set("X-Frame-Options", request.cookies.get("axso_apercu")?.value === "1" ? "SAMEORIGIN" : "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (xp) response.cookies.set(COOKIE_XP, xp, OPTIONS_COOKIE_XP);
+  return response;
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};

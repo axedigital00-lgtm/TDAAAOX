@@ -1,0 +1,377 @@
+"use client";
+
+import { useEffect, useMemo, useRef } from "react";
+import { Plus } from "lucide-react";
+import type { BlockNode, ThemeConfig } from "@/lib/theme-config";
+import { BLOCK_REGISTRY } from "@/components/storefront/blocks/registry";
+import { blockStyleToCss, TYPES_A_CIBLE, couleursSection, cssSection, fondSection, POSITION_CONTENU } from "@/components/storefront/blocks/styleUtils";
+import { ResponsiveStyleTag } from "@/components/storefront/blocks/ResponsiveStyleTag";
+import { cssSectionsDesign, cssPageImportee, scoperCss } from "@/lib/scope-css";
+import { findNode, zoneDe, type Zone } from "@/lib/block-tree";
+import { ProductsCanvasPreview } from "../canvas/CanvasNode";
+import { StorefrontTypography } from "@/components/storefront/StorefrontTypography";
+import { StyleCss } from "@/components/storefront/StyleCss";
+import { NavigationDesign } from "@/components/storefront/NavigationDesign";
+import { AnimationsDesign } from "@/components/storefront/AnimationsDesign";
+import { nomNoeud } from "./libelles";
+import { ATTR_EL, cibleSelectionnable, genElId, nomElement } from "./elements-dom";
+import { useSurvol, cssSelection } from "../SurvolApercu";
+import { cleElement, elementDeRang, principalDe } from "../elements-arbre";
+import { pageDepuisChemin, type PageEditee } from "../pages/pages";
+import { useT } from "@/components/I18nProvider";
+
+type Device = "desktop" | "tablet" | "mobile";
+const LARGEUR: Record<Device, string> = { desktop: "100%", tablet: "768px", mobile: "390px" };
+const SECTION_PY: Record<string, string> = { sm: "py-8 @min-[640px]:py-10", md: "py-12 @min-[640px]:py-16", lg: "py-16 @min-[640px]:py-20", xl: "py-20 @min-[640px]:py-28" };
+const EDITABLE_INLINE = new Set(["heading", "text", "button"]);
+
+interface Props {
+  config: ThemeConfig;
+  tree: BlockNode[]; // déjà ordonné par zone
+  slug: string;
+  collections: { slug: string; nom: string; imageUrl: string | null }[]; // mega menu
+  device: Device;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onChangeConfig: (id: string, patch: Record<string, any>) => void;
+  onAjouterSection: (zone: Zone, index: number) => void;
+  selectedEl: string | null; // élément d'une section de design (data-axs-el)
+  onSelectElement: (noeudId: string, elId: string) => void;
+  onNaviguer?: (page: PageEditee) => void; // lien cliqué → page correspondante dans l'éditeur
+  survolId?: string | null; // section survolée dans le panneau de gauche → encadrée ici
+  onSurvol?: (id: string | null) => void; // section survolée ici → ligne surlignée à gauche
+  cssPage?: string; // page importée seule : son propre CSS (PagePerso.css)
+  pageVide?: string; // message quand la page n'a aucune section
+}
+
+// Aperçu en direct façon Shopify : la page telle qu'elle s'affichera, avec la
+// section survolée/sélectionnée encadrée, son nom en étiquette et des « + »
+// sur ses bords pour insérer une section juste avant/après. Pas de
+// glisser-déposer ici (comme Shopify) : l'ordre se change dans le panneau de
+// gauche, qui reste la seule source de vérité de la structure.
+export function Apercu({ config, tree, slug, collections, device, selectedId, onSelect, onChangeConfig, onAjouterSection, selectedEl, onSelectElement, onNaviguer, survolId, onSurvol, cssPage, pageVide }: Props) {
+  const tr = useT();
+  const racine = useRef<HTMLDivElement>(null);
+  const defileur = useRef<HTMLDivElement>(null);
+  // Même comportement que sur la boutique (navigation, animations), sans rien écrire dans le HTML du design.
+  const reglages = (config as any).reglagesDesign ?? {};
+  const nav = config.builderCss && reglages.navigation ? config.navigationStyle ?? {} : null;
+  const apercuNav = useMemo(() => ({ racine: () => defileur.current }), []);
+  const layout = config.layout ?? {};
+  const ctx = useMemo(() => ({
+    slug,
+    colors: config.colors,
+    container: layout.largeurContainer === "100%" ? "max-w-full" : `max-w-[${layout.largeurContainer || "1280px"}]`,
+    sectionPy: SECTION_PY[layout.paddingSection || "lg"],
+  }), [slug, config.colors, layout.largeurContainer, layout.paddingSection]);
+  // builderTree (réglages par élément du panneau de droite) et fonts en dépendances :
+  // sans eux l'aperçu gardait l'ancien CSS et aucun réglage ne s'y voyait.
+  const cssPerso = useMemo(() => (config.customCss ? scoperCss(config.customCss, "[data-apercu-page]") : ""), [config.customCss]);
+  const cssDesign = useMemo(() => cssSectionsDesign(config as any) + cssPageImportee(cssPage), [cssPage, config.builderCss, config.colors, config.axsoDesignCssVarMapping, config.builderTree, config.fonts, config.axsoDesignPolices, config.boutons, config.navigationStyle, config.animations, (config as any).reglagesDesign]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sélection venue d'ailleurs (panneau de gauche, panneau de droite) : l'élément
+  // est centré à l'écran avec un bref halo. Pas pour un clic dans l'aperçu : il y est déjà.
+  // (horodaté : un clic peut changer selectedId et selectedEl dans le même rendu)
+  const clicIci = useRef(0);
+  const selectionner = (id: string) => { clicIci.current = Date.now(); onSelect(id); };
+  const selectionnerElement = (noeudId: string, elId: string) => { clicIci.current = Date.now(); onSelectElement(noeudId, elId); };
+  const vientDuClic = () => Date.now() - clicIci.current < 500;
+  useEffect(() => {
+    if (vientDuClic() || !selectedId) return;
+    const el = racine.current?.querySelector(`[data-apercu-id="${selectedId}"]`);
+    if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); halo(el, "outline"); }
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (vientDuClic() || !selectedEl) return;
+    const el = racine.current?.querySelector(`[${ATTR_EL}="${selectedEl.replace(/"/g, "")}"]`);
+    if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); halo(el, "boxShadow"); } // outline déjà pris (!important) par cssSelection
+  }, [selectedEl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibles = tree.filter((n) => n.actif !== false);
+
+  // Survol : cadre pointillé sur l'élément du design (ou le bloc) sous la souris.
+  const libelleEl = (el: HTMLElement) => ({ el, label: nomElement(el.tagName, String(el.getAttribute("class") || "")) });
+  const blocSous = (id: string | null | undefined) => {
+    const n = id && !tree.some((s) => s.id === id) ? findNode(tree, id) : null; // les sections ont leur propre cadre
+    const el = n && racine.current?.querySelector<HTMLElement>(`[data-axs-id="${n.id}"]`);
+    return el ? { el, label: nomNoeud(n) } : null;
+  };
+  const { survol, onMouseMove, onMouseLeave, montrer } = useSurvol(racine, (t) => {
+    const embed = t instanceof Element ? (t.closest("[data-embed-noeud]") as HTMLElement | null) : null;
+    const el = embed && cibleSelectionnable(t, embed);
+    return el ? libelleEl(el) : t instanceof Element ? blocSous(t.closest("[data-axs-id]")?.getAttribute("data-axs-id")) : null;
+  });
+  // Ligne correspondante dans la barre latérale : élément listé (« bloc#rang »), sinon bloc ou section.
+  const cleSous = (t: EventTarget | null): string | null => {
+    if (!(t instanceof Element)) return null;
+    const embed = t.closest("[data-embed-noeud]");
+    const p = embed && principalDe(embed, t);
+    return p ? cleElement(embed.getAttribute("data-embed-noeud")!, p.index) : t.closest("[data-axs-id]")?.getAttribute("data-axs-id") ?? null;
+  };
+  const sourisIci = useRef(false);
+  const dernierSurvol = useRef<string | null>(null);
+  const signalerSurvol = (cle: string | null) => { if (cle !== dernierSurvol.current) { dernierSurvol.current = cle; onSurvol?.(cle); } };
+  // Ligne survolée dans la barre latérale → son élément ou son bloc encadré ici.
+  useEffect(() => {
+    if (sourisIci.current) return; // la souris est ici : le cadre la suit déjà
+    const [id, rang] = (survolId ?? "").split("#");
+    if (rang === undefined) return montrer(blocSous(id));
+    const embed = racine.current?.querySelector(`[data-embed-noeud="${id.replace(/"/g, "")}"]`);
+    const el = embed && elementDeRang(embed, Number(rang));
+    montrer(el ? libelleEl(el) : null);
+  }, [survolId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    // isolate : les z-index du design (en-tête collant à z-index 60…) restent
+    // confinés à l'aperçu — sinon il passait par-dessus le menu des pages du Constructeur.
+    <div ref={defileur} className="isolate flex-1 min-w-0 overflow-y-auto bg-[#F1F2F4] p-4 lg:p-5" onClick={() => onSelect(null)}>
+      {nav && (
+        <NavigationDesign slug={slug} type={nav.type} favoris={!!nav.showWishlist} collections={collections} apercu={apercuNav}
+          fondEntete={nav.style === "dark" ? "#111111" : nav.style === "light" ? "#FFFFFF" : config.colors.fond} accent={config.colors.accent} texte={nav.style === "dark" ? "#FFFFFF" : config.colors.texte} />
+      )}
+      {config.builderCss && reglages.animations && config.animations && <AnimationsDesign animations={config.animations} racine={() => defileur.current} />}
+      <div
+        ref={racine}
+        onMouseMove={(e) => { sourisIci.current = true; onMouseMove(e); signalerSurvol(cleSous(e.target)); }}
+        onMouseLeave={() => { sourisIci.current = false; onMouseLeave(); signalerSurvol(null); }}
+        className="relative mx-auto bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] min-h-full transition-[width] duration-300"
+        style={{ width: LARGEUR[device], maxWidth: "100%", backgroundColor: config.colors.fond, color: config.colors.texte }}
+        // Liens du design : jamais suivis tels quels dans l'éditeur — un lien vers
+        // une autre page de la boutique (produit, panier…) ouvre cette page ici.
+        // Formulaires du design (newsletter, contact…) : jamais envoyés depuis l'éditeur.
+        onSubmitCapture={(e) => e.preventDefault()}
+        onAuxClickCapture={(e) => { if ((e.target as HTMLElement).closest("a")) e.preventDefault(); }} // clic molette : pas de nouvel onglet
+        onClickCapture={(e) => {
+          const lien = (e.target as HTMLElement).closest("a");
+          if (!lien) return;
+          e.preventDefault();
+          const href = lien.getAttribute("href");
+          if (!href || !onNaviguer) return;
+          const page = pageDepuisChemin(slug, new URL(href, window.location.origin).pathname);
+          // Seulement produit / commande : les autres liens — dont le bouton
+          // « Panier » de l'en-tête — sont des éléments du design, qu'un clic
+          // sélectionne pour les modifier (bordure, police, fond…).
+          if (page === "produit" || page === "commande") { e.stopPropagation(); onNaviguer(page); }
+        }}
+      >
+        {cssDesign && <StyleCss css={cssDesign} />}
+        {selectedEl && <StyleCss css={cssSelection(selectedEl)} />}
+        {/* Vidéo, carte… intégrées : l'iframe avalait le clic, rien n'était sélectionnable dessus. */}
+        <StyleCss css="[data-embed-noeud] iframe{pointer-events:none}" />
+        {tr(survol)}
+        {/* Mêmes polices que la vitrine (StorefrontTypography, portée .axs-store). */}
+        <StorefrontTypography fonts={config.fonts} />
+        {cssPerso && <StyleCss css={cssPerso} />}
+        <div data-apercu-page className="axs-store" style={{ containerType: "inline-size" }}>
+          {visibles.length === 0 && (
+            <div className="py-24 flex flex-col items-center gap-3 text-center px-6">
+              <p className="text-[15px] font-semibold text-[#111111]">{tr(pageVide ?? "Ta page d'accueil est vide")}</p>
+              <p className="text-[14px] text-[#777777]">{tr("Ajoute ta première section pour commencer.")}</p>
+              <button onClick={(e) => { e.stopPropagation(); onAjouterSection("template", 0); }}
+                className="mt-1 h-10 px-4 rounded-lg text-[14px] font-semibold bg-[#F5A623] text-[#111111] hover:bg-[#E8990F] transition-colors">
+                {tr("Ajouter une section")}
+              </button>
+            </div>
+          )}
+          {visibles.map((section) => {
+            const zone = zoneDe(section);
+            const indexDansZone = tree.filter((n) => zoneDe(n) === zone).indexOf(section);
+            return (
+              <SectionApercu
+                key={section.id}
+                section={section}
+                ctx={ctx}
+                selectedId={selectedId}
+                survolee={survolId === section.id}
+                onSelect={selectionner}
+                onChangeConfig={onChangeConfig}
+                onSelectElement={selectionnerElement}
+                onAjouterAvant={() => onAjouterSection(zone, indexDansZone)}
+                onAjouterApres={() => onAjouterSection(zone, indexDansZone + 1)}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type Ctx = { slug: string; colors: ThemeConfig["colors"]; container: string; sectionPy: string };
+
+function SectionApercu({ section, ctx, selectedId, survolee, onSelect, onChangeConfig, onSelectElement, onAjouterAvant, onAjouterApres }: {
+  section: BlockNode; ctx: Ctx; selectedId: string | null; survolee: boolean;
+  onSelect: (id: string) => void; onChangeConfig: (id: string, patch: Record<string, any>) => void;
+  onSelectElement: (noeudId: string, elId: string) => void;
+  onAjouterAvant: () => void; onAjouterApres: () => void;
+}) {
+  const selectionnee = selectedId === section.id;
+  const blocSelectionne = !selectionnee && !!selectedId && contient(section, selectedId);
+  const actif = selectionnee || blocSelectionne;
+  const visible = actif || survolee; // survolée ici ou depuis le panneau de gauche
+
+  return (
+    <div
+      data-apercu-id={section.id}
+      onClick={(e) => { e.stopPropagation(); onSelect(section.id); }}
+      className={`group/section relative cursor-pointer ${actif ? "z-10" : "hover:z-10"}`}
+    >
+      <Noeud node={section} ctx={ctx} selectedId={selectedId} sectionActive={actif} onSelect={onSelect} onChangeConfig={onChangeConfig} onSelectElement={onSelectElement} />
+
+      {/* Cadre + étiquette + insertion : au-dessus du contenu, sans le décaler. */}
+      <div className={`pointer-events-none absolute inset-0 transition-opacity ${visible ? "opacity-100" : "opacity-0 group-hover/section:opacity-100"}`}
+        style={{ boxShadow: `inset 0 0 0 2px ${actif ? "#F5A623" : "rgba(245,166,35,0.55)"}` }}>
+        <span className="absolute left-0 top-0 flex items-center gap-1.5 h-8 px-3 rounded-br-md text-[14px] font-semibold bg-[#F5A623] text-[#111111] shadow-sm"
+          style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+          {nomNoeud(section)}
+        </span>
+      </div>
+      <BoutonInsertion position="top" visible={visible} onClick={onAjouterAvant} />
+      <BoutonInsertion position="bottom" visible={visible} onClick={onAjouterApres} />
+    </div>
+  );
+}
+
+function BoutonInsertion({ position, visible, onClick }: { position: "top" | "bottom"; visible: boolean; onClick: () => void }) {
+  const tr = useT();
+  return (
+    <button
+      type="button"
+      title={tr("Ajouter une section ici")}
+      aria-label={tr("Ajouter une section ici")}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className={`absolute left-1/2 -translate-x-1/2 z-20 w-9 h-9 rounded-full flex items-center justify-center bg-[#F5A623] text-[#111111] shadow-md ring-2 ring-white transition-all hover:scale-110 ${
+        position === "top" ? "-top-[18px]" : "-bottom-[18px]"
+      } ${visible ? "opacity-100" : "opacity-0 group-hover/section:opacity-100"}`}
+    >
+      <Plus size={18} strokeWidth={2.5} />
+    </button>
+  );
+}
+
+// Halo orange pulsé (~1,2 s) pour repérer l'élément ciblé depuis un panneau.
+function halo(el: Element, prop: "outline" | "boxShadow") {
+  const k = (a: number) => prop === "outline"
+    ? { outline: `4px solid rgba(245,166,35,${a})`, outlineOffset: "-4px" }
+    : { boxShadow: `0 0 0 6px rgba(245,166,35,${a})` };
+  el.animate([k(0), k(0.9), k(0.25), k(0.9), k(0)], { duration: 1200, easing: "ease-in-out" });
+}
+
+function contient(node: BlockNode, id: string): boolean {
+  return (node.children ?? []).some((c) => c.id === id || contient(c, id));
+}
+
+function Noeud({ node, ctx, selectedId, sectionActive, onSelect, onChangeConfig, onSelectElement }: {
+  node: BlockNode; ctx: Ctx; selectedId: string | null; sectionActive: boolean;
+  onSelect: (id: string) => void; onChangeConfig: (id: string, patch: Record<string, any>) => void;
+  onSelectElement: (noeudId: string, elId: string) => void;
+}) {
+  if (node.actif === false) return null;
+  const style = blockStyleToCss(node.style);
+  const classe = node.style?.customClass || "";
+
+  if (node.type === "section" || node.type === "row" || node.type === "column") {
+    const Tag = node.type === "section" ? "section" : "div";
+    const flex = node.type === "row" ? "flex flex-col @min-[640px]:flex-row gap-6" : node.type === "column" ? `flex-1 flex flex-col gap-4 min-w-0 ${POSITION_CONTENU[node.config?.position ?? ""] ?? ""}` : "";
+    const section = node.type === "section";
+    const ctxEnfants = section ? { ...ctx, colors: couleursSection(node, ctx.colors) } : ctx;
+    return (
+      <Tag data-axs-id={node.id} style={section ? { ...fondSection(node), ...style } : style} className={`${flex} ${classe}`}>
+        <ResponsiveStyleTag nodeId={node.id} style={node.style} />
+        {section && cssSection(node) && <StyleCss css={cssSection(node)} />}
+        {(node.children ?? []).map((c) => (
+          <Noeud key={c.id} node={c} ctx={ctxEnfants} selectedId={selectedId} sectionActive={sectionActive} onSelect={onSelect} onChangeConfig={onChangeConfig} onSelectElement={onSelectElement} />
+        ))}
+      </Tag>
+    );
+  }
+
+  const selectionne = selectedId === node.id;
+  const cadreBloc = selectionne ? "outline outline-2 outline-offset-[-2px] outline-[#F5A623]" : sectionActive ? "hover:outline hover:outline-1 hover:outline-dashed hover:outline-offset-[-2px] hover:outline-[#F5A623]" : "";
+  const selectionner = (e: React.MouseEvent) => { e.stopPropagation(); onSelect(node.id); };
+
+  if (node.type === "embed-html") {
+    return <EmbedEditable node={node} actif={sectionActive} onChangeConfig={onChangeConfig} onSelectElement={onSelectElement} />;
+  }
+
+  if (node.type === "products") {
+    return (
+      <div data-apercu-id={node.id} data-axs-id={node.id} onClick={selectionner} style={style} className={`${classe} ${cadreBloc}`}>
+        <ResponsiveStyleTag nodeId={node.id} style={node.style} />
+        <ProductsCanvasPreview config={node.config ?? {}} />
+      </div>
+    );
+  }
+
+  const Widget = BLOCK_REGISTRY[node.type];
+  if (!Widget) return null;
+  const inline = EDITABLE_INLINE.has(node.type);
+  const cible = TYPES_A_CIBLE.has(node.type);
+  return (
+    <div data-apercu-id={node.id} data-axs-id={node.id} onClick={selectionner} style={cible ? blockStyleToCss(node.style, true) : style} className={`${classe} ${cadreBloc}`}>
+      <ResponsiveStyleTag nodeId={node.id} style={node.style} cible={cible} />
+      <div className={inline ? "" : "pointer-events-none"}>
+        <Widget id={node.id} config={node.config ?? {}} colors={ctx.colors} slug={ctx.slug} container={ctx.container} sectionPy={ctx.sectionPy}
+          editable={inline} onEditText={inline ? (patch) => onChangeConfig(node.id, patch) : undefined} />
+      </div>
+    </div>
+  );
+}
+
+// Section issue d'un design importé. Clic sur un élément (titre, bouton,
+// image…) → il est sélectionné et s'édite dans le panneau de droite ; il reçoit
+// au premier clic un identifiant data-axs-el enregistré dans le HTML. Section
+// active → ses textes s'éditent aussi directement (enregistrés à la sortie).
+function EmbedEditable({ node, actif, onChangeConfig, onSelectElement }: {
+  node: BlockNode; actif: boolean;
+  onChangeConfig: (id: string, patch: Record<string, any>) => void;
+  onSelectElement: (noeudId: string, elId: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const html = node.config?.html || "";
+  // Même objet tant que le HTML ne change pas : sinon React 19 réécrit tout le
+  // contenu à chaque rendu (clics perdus entre mousedown et mouseup, survol qui clignote).
+  const contenu = useMemo(() => ({ __html: html }), [html]);
+  const selectionner = (e: React.MouseEvent) => {
+    const racine = ref.current;
+    const el = racine && cibleSelectionnable(e.target, racine);
+    if (!racine || !el) return; // fond de la section : c'est la section qui est sélectionnée
+    e.stopPropagation();
+    let id = el.getAttribute(ATTR_EL);
+    if (!id) {
+      id = genElId();
+      el.setAttribute(ATTR_EL, id);
+      onChangeConfig(node.id, { html: racine.innerHTML });
+    }
+    onSelectElement(node.id, id);
+  };
+  return (
+    <div data-axs-embed-html="1" data-axs-css-page={node.config?.cssPage ? "" : undefined}>
+      <div
+        ref={ref}
+        data-embed-noeud={node.id}
+        contentEditable={actif}
+        suppressContentEditableWarning
+        spellCheck={false}
+        className={actif ? "outline-none cursor-text" : ""}
+        dangerouslySetInnerHTML={contenu}
+        onClick={selectionner}
+        onKeyDown={(e) => {
+          // Ctrl+A : le texte en cours seulement. Par défaut le navigateur prend toute la
+          // section éditable, et la frappe suivante effaçait titre, paragraphe et bouton d'un coup.
+          if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "a") return;
+          const sel = window.getSelection();
+          const noeud = sel?.anchorNode;
+          const el = noeud && ref.current && cibleSelectionnable(noeud instanceof Element ? noeud : noeud.parentElement, ref.current);
+          if (!sel || !el) return;
+          e.preventDefault();
+          const plage = document.createRange();
+          plage.selectNodeContents(el);
+          sel.removeAllRanges();
+          sel.addRange(plage);
+        }}
+        onBlur={() => { const nouveau = ref.current?.innerHTML; if (nouveau != null && nouveau !== html) onChangeConfig(node.id, { html: nouveau }); }}
+      />
+    </div>
+  );
+}

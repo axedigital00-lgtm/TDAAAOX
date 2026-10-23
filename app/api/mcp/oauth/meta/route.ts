@@ -1,0 +1,45 @@
+// Initie le flux OAuth Meta — redirige vers la fenêtre d'autorisation Facebook
+import { NextResponse } from "next/server";
+import { integrationActive, BIENTOT_DISPONIBLE } from "@/lib/integrations";
+import { auth } from "@/lib/auth";
+import { creerEtatOAuth } from "@/lib/mcp/oauth-etat";
+
+const SCOPES = [
+  "pages_manage_posts",
+  "pages_read_engagement",
+  "pages_show_list",
+  "instagram_basic",
+  "instagram_content_publish",
+  "ads_management",
+  "business_management",
+  "whatsapp_business_management",
+  "whatsapp_business_messaging",
+].join(",");
+
+export async function GET() {
+  const session = await auth();
+  const tenantId = (session?.user as any)?.tenantId;
+  if (!tenantId) {
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/connexion`);
+  }
+
+  const appId = process.env.META_APP_ID;
+  if (!appId || !integrationActive("meta")) {
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/connecteurs?error=${encodeURIComponent(BIENTOT_DISPONIBLE)}`
+    );
+  }
+
+  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/mcp/oauth/meta/callback`;
+  const params = new URLSearchParams({
+    client_id: appId,
+    redirect_uri: callbackUrl,
+    scope: SCOPES,
+    response_type: "code",
+    state: await creerEtatOAuth(),
+  });
+
+  return NextResponse.redirect(
+    `https://www.facebook.com/v19.0/dialog/oauth?${params}`
+  );
+}

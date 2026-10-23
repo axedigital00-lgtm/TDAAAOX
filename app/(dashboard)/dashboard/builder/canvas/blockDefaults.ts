@@ -1,0 +1,157 @@
+import {
+  LayoutGrid, Rows3, Columns3, Zap, BarChart3, Timer, Building2, Video,
+  Image as ImageIcon, Star, Target, FileText, ArrowUpDown, LayoutTemplate, LucideIcon,
+  Heading, Type, MousePointerClick, ShoppingBag, Layers, Rows2,
+} from "lucide-react";
+import type { BlockNode, BlockNodeType } from "@/lib/theme-config";
+import { genBlockId } from "@/lib/block-tree";
+import { createDefaultNode } from "@/lib/block-catalog";
+
+export { createDefaultNode };
+
+// Bibliothèque du canevas libre — structurels (section/row/column) + les 12
+// types de blocs réutilisés de CustomSection. Indépendant de la liste dans
+// builder/page.tsx (constructeur classique) pour ne rien coupler entre les
+// deux modes.
+export const BLOCK_LIBRARY_ITEMS: Array<{ type: BlockNodeType; label: string; Icon: LucideIcon; desc: string; categorie: "structure" | "widget" }> = [
+  { type: "section", label: "Section", Icon: LayoutGrid, desc: "Bloc racine, pleine largeur", categorie: "structure" },
+  { type: "row", label: "Ligne", Icon: Rows3, desc: "Conteneur horizontal", categorie: "structure" },
+  { type: "column", label: "Colonne", Icon: Columns3, desc: "Conteneur vertical dans une ligne", categorie: "structure" },
+  { type: "features", label: "Avantages", Icon: Zap, desc: "Grille de caractéristiques", categorie: "widget" },
+  { type: "stats", label: "Statistiques", Icon: BarChart3, desc: "Chiffres clés animés", categorie: "widget" },
+  { type: "countdown", label: "Compte à rebours", Icon: Timer, desc: "Timer vente flash", categorie: "widget" },
+  { type: "brands", label: "Logos partenaires", Icon: Building2, desc: "Défilement de logos", categorie: "widget" },
+  { type: "video", label: "Vidéo", Icon: Video, desc: "Vidéo showcase", categorie: "widget" },
+  { type: "gallery", label: "Galerie photos", Icon: ImageIcon, desc: "Mosaïque de photos", categorie: "widget" },
+  { type: "social-proof", label: "Preuve sociale", Icon: Star, desc: "Notes, certifications", categorie: "widget" },
+  { type: "cta-band", label: "Bande CTA", Icon: Target, desc: "Bandeau appel à l'action", categorie: "widget" },
+  { type: "richtext", label: "Texte riche", Icon: FileText, desc: "Titre + texte + bouton", categorie: "widget" },
+  { type: "spacer", label: "Espacement", Icon: ArrowUpDown, desc: "Espace vertical", categorie: "widget" },
+  { type: "tabs", label: "Onglets", Icon: LayoutTemplate, desc: "Contenu en onglets", categorie: "widget" },
+  { type: "columns", label: "Colonnes de contenu", Icon: Columns3, desc: "Photos/témoignage/promo/texte", categorie: "widget" },
+  { type: "heading", label: "Titre", Icon: Heading, desc: "Titre éditable directement sur le canevas", categorie: "widget" },
+  { type: "text", label: "Texte", Icon: Type, desc: "Paragraphe éditable directement sur le canevas", categorie: "widget" },
+  { type: "image", label: "Image", Icon: ImageIcon, desc: "Image unique, avec lien optionnel", categorie: "widget" },
+  { type: "button", label: "Bouton", Icon: MousePointerClick, desc: "Bouton d'appel à l'action", categorie: "widget" },
+  { type: "products", label: "Produits", Icon: ShoppingBag, desc: "Grille de produits de la boutique", categorie: "widget" },
+];
+
+function colonne(children: BlockNode[], style?: BlockNode["style"], config?: BlockNode["config"]): BlockNode {
+  return { id: genBlockId("col"), type: "column", children, style, config };
+}
+function ligne(children: BlockNode[]): BlockNode {
+  return { id: genBlockId("row"), type: "row", children };
+}
+function section(children: BlockNode[], style?: BlockNode["style"], config?: BlockNode["config"]): BlockNode {
+  return { id: genBlockId("section"), type: "section", children, style, config };
+}
+function widget(type: BlockNodeType, config: Record<string, any>): BlockNode {
+  return { id: genBlockId(type), type, config };
+}
+
+// Petite bibliothèque de modèles de départ (vague 3) — des sections déjà
+// composées avec un contenu réaliste, à insérer d'un clic (pas de
+// glisser-déposer : ce sont des sous-arbres entiers, pas un seul bloc). Le
+// marchand personnalise ensuite le texte/style comme n'importe quel bloc.
+export const STARTER_TEMPLATES: Array<{ id: string; label: string; Icon: LucideIcon; desc: string; build: () => BlockNode }> = [
+  {
+    id: "hero-centre",
+    label: "Hero centré",
+    Icon: Layers,
+    desc: "Grand titre, texte et bouton, centrés",
+    build: () => section([
+      ligne([colonne([
+        widget("heading", { texte: "Une boutique pensée pour vous", niveau: "h1", align: "center" }),
+        widget("text", { texte: "Décrivez ici ce qui rend votre boutique unique, en une ou deux phrases.", align: "center" }),
+        widget("button", { texte: "Découvrir la boutique", lien: "produits", style: "primary", taille: "lg", align: "center" }),
+      ])]),
+    ]),
+  },
+  {
+    id: "texte-image",
+    label: "Texte + Image",
+    Icon: ImageIcon,
+    desc: "Deux colonnes : présentation à gauche, image à droite",
+    build: () => section([
+      ligne([
+        colonne([
+          widget("heading", { texte: "Notre histoire", niveau: "h2", align: "left" }),
+          widget("text", { texte: "Racontez votre histoire, vos valeurs, ce qui vous distingue.", style: "corps", align: "left" }),
+          widget("button", { texte: "En savoir plus", lien: "a-propos", style: "outline", taille: "md", align: "left" }),
+        ], { width: "calc(50% - 12px)" }, { position: "milieu" }),
+        colonne([widget("image", { url: "", alt: "", ratio: "auto" })], { width: "calc(50% - 12px)" }),
+      ]),
+    ], { spacing: { pt: "36px", pb: "36px", pl: "24px", pr: "24px" } }, { hauteurImage: "adapter", alignMobile: "left" }), // valeurs par défaut de Shopify
+  },
+  {
+    // « Multirow » de Shopify (Dawn) : rangées image + texte, l'image passe
+    // à droite une rangée sur deux. Une rangée = une ligne du Constructeur :
+    // la dupliquer/supprimer/glisser dans le panneau en ajoute/retire/déplace.
+    id: "multi-lignes",
+    label: "Multi-lignes",
+    Icon: Rows2,
+    desc: "Rangées image et texte, en alternance",
+    build: () => section([
+      ["Des produits choisis avec soin", "Chaque article est sélectionné pour sa qualité et sa durabilité, puis vérifié avant l'envoi."],
+      ["Une livraison qui vous suit", "Suivez votre commande jusqu'à votre porte et soyez prévenu à chaque étape."],
+      ["Un service à votre écoute", "Une question avant ou après l'achat ? Notre équipe vous répond rapidement."],
+    ].map(([titre, texte], i) => {
+      const image = colonne([widget("image", { url: "", alt: "", ratio: "auto" })], { width: "calc(50% - 12px)" });
+      const contenu = colonne([
+        widget("heading", { texte: titre, niveau: "h2", align: "left" }),
+        widget("text", { texte, style: "corps", align: "left" }),
+        widget("button", { texte: "En savoir plus", lien: "produits", style: "outline", taille: "md", align: "left" }),
+      ], { width: "calc(50% - 12px)" }, { position: "milieu" });
+      return { ...ligne(i % 2 ? [contenu, image] : [image, contenu]), style: { spacing: { mb: "48px" } } };
+    }), { spacing: { pt: "36px", pb: "36px", pl: "24px", pr: "24px" } }, { nom: "Multi-lignes", hauteurImage: "moyenne", alignMobile: "left" }),
+  },
+  {
+    // « Multicolumn » de Shopify : titre + colonnes (image, titre, texte,
+    // lien). Colonnes égales (2 à 4 sur ordinateur), empilées sur mobile.
+    id: "multi-colonnes",
+    label: "Multi-colonnes",
+    Icon: Columns3,
+    desc: "Titre et colonnes avec image, texte et lien",
+    build: () => section([
+      { ...ligne([colonne([widget("heading", { texte: "Ce qui nous distingue", niveau: "h2", align: "center" })])]), style: { spacing: { mb: "16px" } } },
+      ligne([
+        ["Qualité garantie", "Des produits contrôlés, décrits honnêtement, avec des photos fidèles."],
+        ["Paiement simple", "Payez en ligne en toute sécurité ou à la livraison, selon votre choix."],
+        ["Retours faciles", "Un souci avec votre commande ? Contactez-nous, nous trouvons une solution."],
+      ].map(([titre, texte]) => colonne([
+        // Retrait égal à celui des titres/textes (px-4 / px-6 / px-8) pour aligner l'image sur eux.
+        { ...widget("image", { url: "", alt: "", ratio: "auto" }), style: { spacing: { pl: "32px", pr: "32px" }, responsive: { tablet: { spacing: { pl: "24px", pr: "24px" } }, mobile: { spacing: { pl: "16px", pr: "16px" } } } } },
+        widget("heading", { texte: titre, niveau: "h4", align: "left" }),
+        widget("text", { texte, style: "corps", align: "left" }),
+        widget("button", { texte: "En savoir plus", lien: "a-propos", style: "ghost", taille: "sm", align: "left" }),
+      ]))),
+    ], { spacing: { pt: "36px", pb: "36px", pl: "24px", pr: "24px" } }, { nom: "Multi-colonnes" }),
+  },
+  {
+    id: "grille-avantages",
+    label: "Grille 3 avantages",
+    Icon: Zap,
+    desc: "Trois points forts avec icône et texte",
+    build: () => section([ligne([colonne([widget("features", { titre: "Pourquoi nous choisir", items: [
+      { icone: "🚚", titre: "Livraison rapide", texte: "Expédition sous 48h" },
+      { icone: "🔒", titre: "Paiement sécurisé", texte: "Transactions protégées" },
+      { icone: "💬", titre: "Support réactif", texte: "Une question ? On répond vite" },
+    ], colonnes: 3 })])])]),
+  },
+  {
+    id: "bandeau-cta",
+    label: "Bandeau CTA",
+    Icon: Target,
+    desc: "Bandeau pleine largeur avec appel à l'action",
+    build: () => section([ligne([colonne([widget("cta-band", {
+      titre: "Prêt à commander ?", texte: "Rejoignez nos clients satisfaits dès aujourd'hui", ctaTexte: "Voir les produits", ctaLien: "produits", style: "gradient",
+    })])])]),
+  },
+  {
+    id: "galerie-produits",
+    label: "Galerie de produits",
+    Icon: ShoppingBag,
+    desc: "Grille de vos produits, prête à afficher",
+    build: () => section([ligne([colonne([widget("products", { titre: "Nos produits", nombre: 8, colonnes: 4, tri: "recent" })])])]),
+  },
+];

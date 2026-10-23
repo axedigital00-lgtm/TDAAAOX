@@ -1,0 +1,575 @@
+"use client";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2,
+  XCircle, TrendingUp, ShieldCheck, Loader2, RefreshCw,
+  Smartphone, Building2, AlertCircle, Info,
+} from "lucide-react";
+import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { basculerBoutique } from "@/components/dashboard/BoutiqueSwitcher";
+import { useT } from "@/components/I18nProvider";
+import { exempleTelephone, normaliserTelephone } from "@/lib/devise-convert";
+
+const WALLET_TUTORIAL_STEPS = [
+  { Icon: ShieldCheck,     titre: "Séquestre 48h",   description: "Chaque vente payée en ligne reste 48h en séquestre (protection acheteur) avant de passer sur ton solde disponible." },
+  { Icon: ArrowUpFromLine, titre: "Retirer tes fonds", description: "Clique \"Retirer les fonds\" dès que ton solde disponible le permet (minimum l'équivalent de 1 000 FCFA) — par Mobile Money ou virement bancaire." },
+  { Icon: TrendingUp,      titre: "Suivi complet",     description: "Total reçu, total retiré, commissions Axso et montant en séquestre — tout est visible en un coup d'œil." },
+  { Icon: Clock,           titre: "Historique détaillé", description: "Bascule entre l'onglet Transactions et Retraits pour suivre chaque mouvement et son statut (en attente, en cours, complété)." },
+];
+
+interface Transaction {
+  id: string; type: string; montant: number; devise: string;
+  description: string; reference?: string; statut: string; createdAt: string;
+}
+interface RetraitItem {
+  id: string; montant: number; devise: string; methode: string;
+  destinataire: string; operateur?: string; statut: string;
+  reference?: string; createdAt: string;
+}
+interface WalletData {
+  solde: number; totalRecu: number; totalRetire: number;
+  totalCommission: number;
+  retraitsEnAttente: number; devise: string;
+  // Séquestre 48 h (lib/wallet.ts) : seul `disponible` est retirable.
+  disponible?: number; enAttente?: number; liberations?: { montant: number; le: string }[]; minimumRetrait?: number;
+  transactions: Transaction[]; retraits: RetraitItem[];
+}
+interface SoldeBoutique { id: string; nomBoutique: string; active: boolean; solde: number; devise: string; }
+
+const OPERATEURS = [
+  { id: "MTN",    label: "MTN Mobile Money"  },
+  { id: "Orange", label: "Orange Money"      },
+  { id: "Wave",   label: "Wave"              },
+  { id: "Moov",   label: "Moov Money"        },
+  { id: "Mpesa",  label: "M-Pesa"            },
+  { id: "Airtel", label: "Airtel Money"      },
+  { id: "Free",   label: "Free Money"        },
+];
+
+function fmt(n: number, devise = "XAF") {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency", currency: devise,
+    minimumFractionDigits: 0, maximumFractionDigits: devise === "XAF" || devise === "XOF" ? 0 : 2,
+  }).format(n);
+}
+
+function StatutBadge({ statut }: { statut: string }) {
+  const tr = useT();
+  const map: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
+    completed:  { label: "Complété",   color: "#15803D", bg: "#F0FDF4", border: "#BBF7D0", icon: CheckCircle2 },
+    complete:   { label: "Complété",   color: "#15803D", bg: "#F0FDF4", border: "#BBF7D0", icon: CheckCircle2 },
+    en_attente: { label: "En attente", color: "#B45309", bg: "#FFFBEB", border: "#FDE68A", icon: Clock       },
+    traitement: { label: "En cours",   color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", icon: Loader2     },
+    en_cours:   { label: "En cours",   color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", icon: Loader2     },
+    echoue:     { label: "Échoué",     color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: XCircle     },
+  };
+  const s = map[statut] ?? map["en_attente"];
+  const Icon = s.icon;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold"
+      style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}` }}>
+      <Icon size={9} /> {tr(s.label)}
+    </span>
+  );
+}
+
+function TxIcon({ type }: { type: string }) {
+  const map: Record<string, { bg: string; color: string; Icon: any }> = {
+    CREDIT:        { bg: "#F0FDF4", color: "#16A34A", Icon: ArrowDownToLine  },
+    COMMISSION:    { bg: "#FAF5FF", color: "#7C3AED", Icon: ShieldCheck      },
+    RETRAIT:       { bg: "#EFF6FF", color: "#3B82F6", Icon: ArrowUpFromLine  },
+    REMBOURSEMENT: { bg: "#FFF7ED", color: "#D97706", Icon: RefreshCw        },
+    LIVREUR:       { bg: "#FFF3DC", color: "#F5A623", Icon: ArrowUpFromLine  }, // part du livreur (lib/gains-livreur.ts)
+  };
+  const s = map[type] ?? map["CREDIT"];
+  const Icon = s.Icon;
+  return (
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+      style={{ background: s.bg }}>
+      <Icon size={15} style={{ color: s.color }} />
+    </div>
+  );
+}
+
+export default function WalletPage() {
+  const tr = useT();
+  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [pays, setPays] = useState<string | null>(null);
+  const [boutiques, setBoutiques] = useState<SoldeBoutique[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showRetrait, setShowRetrait] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [tab, setTab] = useState<"transactions" | "retraits">("transactions");
+
+  const [form, setForm] = useState({
+    montant: "",
+    methode: "mobile_money" as "mobile_money" | "virement_bancaire",
+    destinataire: "",
+    operateur: "MTN",
+    notes: "",
+  });
+
+  async function charger() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/wallet");
+      const data = await res.json();
+      setWallet(data.wallet);
+      setBoutiques(data.boutiques ?? []);
+      setPays(data.pays ?? null);
+    } catch { toast.error(tr("Erreur chargement wallet")); }
+    finally { setLoading(false); }
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function soumettrRetrait(e: React.FormEvent) {
+    e.preventDefault();
+    if (erreurMontant || erreurDestinataire || !form.montant || !form.destinataire.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/wallet/retrait", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, montant: Number(form.montant) }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(tr(data.error) ?? tr("Erreur retrait")); return; }
+      toast.success(tr("Retrait demandé ! Axso l'envoie sous 24–48h ouvrées et vous prévient dès que c'est fait."));
+      setShowRetrait(false);
+      setForm({ montant: "", methode: "mobile_money", destinataire: "", operateur: "MTN", notes: "" });
+      charger();
+    } finally { setSubmitting(false); }
+  }
+
+  const devise = wallet?.devise ?? "XAF";
+  // Retirable : le solde hors ventes encore en séquestre 48 h.
+  const solde = wallet?.disponible ?? wallet?.solde ?? 0;
+  const MINIMUM_RETRAIT = wallet?.minimumRetrait ?? 1000; // calculé par le serveur dans la devise du wallet
+  const montant = Number(form.montant);
+  // Mêmes règles que le serveur (lib/wallet.ts), dites avant l'envoi plutôt qu'après.
+  const erreurMontant = !form.montant ? null
+    : !(montant >= MINIMUM_RETRAIT) ? tr("Le minimum de retrait est de {0}.", fmt(MINIMUM_RETRAIT, devise))
+    : montant > solde ? tr("Ce montant dépasse votre solde disponible ({0}).", fmt(solde, devise))
+      + ((wallet?.enAttente ?? 0) > 0 && wallet?.liberations?.[0]
+        ? " " + tr("{0} sont encore en séquestre 48 h, libérés à partir du {1}.", fmt(wallet.enAttente!, devise),
+            new Date(wallet.liberations[0].le).toLocaleString(tr.loc, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))
+        : "")
+    : null;
+  // Même normalisation que le serveur : indicatif du pays de la boutique.
+  const telInternational = form.methode === "mobile_money" ? normaliserTelephone(form.destinataire, pays) : null;
+  const erreurDestinataire = !form.destinataire.trim() ? null
+    : form.methode === "mobile_money" && !telInternational ? tr("Numéro invalide : vérifie-le, avec l'indicatif de ton pays s'il est à l'étranger.")
+    : form.methode === "virement_bancaire" && form.destinataire.trim().length < 10 ? tr("Ce numéro de compte est trop court.")
+    : null;
+
+  /** Ouvre le formulaire en reprenant le destinataire du dernier retrait : il change rarement. */
+  function ouvrirRetrait() {
+    const dernier = wallet?.retraits?.[0];
+    if (dernier && !form.destinataire) {
+      setForm(f => ({ ...f, methode: dernier.methode === "virement_bancaire" ? "virement_bancaire" : "mobile_money", destinataire: dernier.destinataire, operateur: dernier.operateur ?? f.operateur }));
+    }
+    setShowRetrait(true);
+  }
+
+  return (
+    <div className="space-y-5 max-w-5xl"
+      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+      <ModuleTutorial moduleKey="wallet" titre={tr("Wallet")} sousTitre={tr("Ton solde et tes mouvements")} steps={WALLET_TUTORIAL_STEPS} />
+
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-4 pt-1">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{tr("Wallet Axso")}</h1>
+            <BoutonRevoirTutoriel moduleKey="wallet" />
+          </div>
+          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{tr("Votre compte de paiement sécurisé")}</p>
+        </div>
+        <button onClick={charger}
+          className="flex items-center gap-1.5 text-[12px] font-medium text-[#888888] border border-[#E8E8E8] rounded-2xl px-3.5 py-2 hover:text-[#111111] hover:border-[#CCCCCC] transition-all">
+          <RefreshCw size={13} />{" "}{tr("Actualiser")}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="ax-card flex items-center justify-center h-64">
+          <Loader2 size={28} className="animate-spin text-[#F5A623]" />
+        </div>
+      ) : (
+        <>
+          {/* ── Wallet card ── */}
+          <div className="relative rounded-[24px] overflow-hidden p-8 text-white"
+            style={{
+              background: "linear-gradient(135deg, #1a0e02 0%, #c17f14 45%, #F5A623 75%, #e09010 100%)",
+              boxShadow: "0 20px 60px rgba(245,166,35,0.30), 0 4px 16px rgba(0,0,0,0.12)",
+            }}>
+            <div className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-[0.07]"
+              style={{ background: "radial-gradient(circle, white, transparent 70%)", transform: "translate(30%,-30%)" }} />
+            <div className="absolute bottom-0 left-20 w-48 h-48 rounded-full opacity-[0.06]"
+              style={{ background: "radial-gradient(circle, white, transparent 70%)", transform: "translateY(40%)" }} />
+
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2 mb-5 opacity-60">
+                  <ShieldCheck size={13} />
+                  <span className="text-[11px] font-semibold tracking-[0.15em] uppercase">{tr("Wallet Axso · Sécurisé")}</span>
+                </div>
+                <p className="text-[13px] opacity-60 mb-1.5">{tr("Solde disponible")}</p>
+                <p className="text-[32px] md:text-[48px] font-black tracking-tight leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {fmt(solde, devise)}
+                </p>
+                {(wallet?.enAttente ?? 0) > 0 && (
+                  <p className="text-[12.5px] opacity-80 mt-2 flex items-center gap-1.5">
+                    <Clock size={12} />
+                    {tr("En attente (séquestre 48h) : {0}", fmt(wallet!.enAttente!, devise))}
+                    {wallet?.liberations?.[0] && <> · {tr("libéré le {0}", new Date(wallet.liberations[0].le).toLocaleString(tr.loc, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}{wallet.liberations.length > 1 && ` (+${wallet.liberations.length - 1})`}</>}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col sm:items-end gap-2.5">
+                <button
+                  onClick={ouvrirRetrait}
+                  disabled={solde <= 0}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-[#D97706] font-bold rounded-2xl text-[13px] hover:bg-amber-50 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed">
+                  <ArrowUpFromLine size={15} />{" "}{tr("Retirer les fonds")}
+                </button>
+                <p className="text-[11px] opacity-40 sm:text-right">{tr("Minimum {0}", fmt(MINIMUM_RETRAIT, devise))}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Toutes mes boutiques : total par devise + solde de chacune ── */}
+          {boutiques.length > 1 && (
+            <div className="ax-card p-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                <p className="text-[13px] font-bold text-[#111111]">{tr("Toutes mes boutiques")}</p>
+                <p className="text-[12.5px] text-[#888888]">
+                  {tr("Total :")}{" "}
+                  {Object.entries(boutiques.reduce<Record<string, number>>((acc, b) => ({ ...acc, [b.devise]: (acc[b.devise] ?? 0) + b.solde }), {}))
+                    .map(([dev, total]) => fmt(total, dev)).join(" + ")}
+                </p>
+              </div>
+              <div className="divide-y divide-[#F2F2F2]">
+                {boutiques.map(b => (
+                  <div key={b.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="text-[13px] text-[#333333] truncate">{tr(b.nomBoutique)}</span>
+                    <span className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-[13px] font-semibold text-[#111111]" style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(b.solde, b.devise)}</span>
+                      {b.active
+                        ? <span className="text-[11px] text-[#AAAAAA] w-14 text-right">{tr("affichée")}</span>
+                        : <button onClick={() => basculerBoutique(b.id, "/dashboard/wallet")} className="text-[11.5px] font-semibold text-[#D97706] hover:underline w-14 text-right">{tr("Ouvrir")}</button>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Stat cards ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { Icon: TrendingUp,      label: "Total reçu",       val: wallet?.totalRecu ?? 0,       iconBg: "#F0FDF4", iconColor: "#16A34A" },
+              { Icon: ArrowUpFromLine, label: "Total retiré",      val: wallet?.totalRetire ?? 0,     iconBg: "#FFF8EC", iconColor: "#F5A623", accent: true },
+              { Icon: ShieldCheck,     label: "Commissions Axso",  val: wallet?.totalCommission ?? 0, iconBg: "#FAF5FF", iconColor: "#7C3AED" },
+              { Icon: Clock,           label: "Retraits en attente", val: wallet?.retraitsEnAttente ?? 0, iconBg: "#FFF7ED", iconColor: "#D97706" },
+            ].map((s, i) => {
+              const Icon = s.Icon;
+              return (
+                <div key={i} className={`ax-card p-5 relative overflow-hidden group cursor-default ${s.accent ? "border-[#F5A623]/20" : ""}`}>
+                  {s.accent && (
+                    <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-[20px]"
+                      style={{ background: "linear-gradient(90deg, #F5A623, #FFD280, #F5A623)" }} />
+                  )}
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <span className="ax-label">{tr(s.label)}</span>
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                      style={{ background: s.iconBg, border: `1px solid ${s.iconColor}20` }}>
+                      <Icon size={14} style={{ color: s.iconColor }} strokeWidth={1.8} />
+                    </div>
+                  </div>
+                  <p className="text-[20px] font-bold text-[#111111] leading-none tabular-nums tracking-tight">
+                    {fmt(s.val, devise)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Info banner ── */}
+          <div className="ax-card-flat p-4 flex items-start gap-3 border-[#FDE68A]/60"
+            style={{ background: "#FFFBEB" }}>
+            <Info size={15} className="text-[#F5A623] mt-0.5 flex-shrink-0" />
+            <p className="text-[12.5px] text-[#92400E] leading-relaxed">
+              <strong>{tr("Comment fonctionne le Wallet Axso ?")}</strong><br />
+              {tr("Chaque vente payée en ligne reste")}{" "}<strong>{tr("48h en séquestre")}</strong>{" "}{tr("(protection acheteur) : elle apparaît tout de suite en attente, puis passe sur votre solde disponible, retirable. Un remboursement pendant ce délai reprend d'abord l'argent en attente. Vous recevez l'intégralité de votre prix : la commission Axso et les frais NotchPay (10 %, ou 13 % pour un produit numérique) sont ajoutés au prix payé par le client.")}
+            </p>
+          </div>
+
+          {/* ── Onglets + historique ── */}
+          <div className="ax-card overflow-hidden">
+            {/* Tab bar */}
+            <div className="flex border-b border-[#F3F3F3]">
+              {([
+                { key: "transactions", label: `Transactions (${wallet?.transactions?.length ?? 0})` },
+                { key: "retraits",     label: `Retraits (${wallet?.retraits?.length ?? 0})` },
+              ] as const).map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  className="flex-1 py-3.5 text-[12.5px] font-semibold transition-colors border-b-2"
+                  style={tab === t.key
+                    ? { color: "#F5A623", borderColor: "#F5A623" }
+                    : { color: "#AAAAAA", borderColor: "transparent" }}>
+                  {tr(t.label)}
+                </button>
+              ))}
+            </div>
+
+            {/* Transactions */}
+            {tab === "transactions" && (
+              <div className="divide-y divide-[#F9F9F9]">
+                {(wallet?.transactions ?? []).length === 0 ? (
+                  <div className="py-16 text-center">
+                    <Wallet size={28} className="mx-auto mb-3 text-[#DDDDDD]" />
+                    <p className="text-[13px] text-[#AAAAAA] font-medium">{tr("Aucune transaction pour le moment")}</p>
+                    <p className="text-[11.5px] text-[#CCCCCC] mt-1">{tr("Les mouvements apparaîtront ici après vos premières ventes")}</p>
+                  </div>
+                ) : (wallet?.transactions ?? []).map(tx => (
+                  <div key={tx.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-[#FAFAFA] transition-colors">
+                    <TxIcon type={tx.type} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-semibold text-[#222] truncate">{tr(tx.description)}</p>
+                      {tx.reference && <p className="text-[11px] text-[#CCCCCC] font-mono">{tx.reference}</p>}
+                      <p className="text-[11px] text-[#AAAAAA]">
+                        {new Date(tx.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-[14px] font-bold tabular-nums`}
+                        style={{ color: tx.montant >= 0 ? "#16A34A" : "#DC2626" }}>
+                        {tx.montant >= 0 ? "+" : ""}{fmt(tx.montant, tx.devise)}
+                      </p>
+                      <div className="mt-0.5"><StatutBadge statut={tx.statut} /></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Retraits */}
+            {tab === "retraits" && (
+              <div className="divide-y divide-[#F9F9F9]">
+                {(wallet?.retraits ?? []).length === 0 ? (
+                  <div className="py-16 text-center">
+                    <ArrowUpFromLine size={28} className="mx-auto mb-3 text-[#DDDDDD]" />
+                    <p className="text-[13px] text-[#AAAAAA] font-medium">{tr("Aucun retrait effectué")}</p>
+                  </div>
+                ) : (wallet?.retraits ?? []).map(r => (
+                  <div key={r.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-[#FAFAFA] transition-colors">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: r.methode === "mobile_money" ? "#FFF7ED" : "#EFF6FF" }}>
+                      {r.methode === "mobile_money"
+                        ? <Smartphone size={15} className="text-[#D97706]" />
+                        : <Building2 size={15} className="text-[#3B82F6]" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-semibold text-[#222]">
+                        {r.methode === "mobile_money" ? tr("Mobile Money · {0}", r.operateur ?? "") : tr("Virement bancaire")}
+                      </p>
+                      <p className="text-[11px] text-[#AAAAAA] truncate">{tr(r.destinataire)}</p>
+                      <p className="text-[11px] text-[#AAAAAA]">
+                        {new Date(r.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[14px] font-bold text-[#111] tabular-nums">-{fmt(r.montant, r.devise)}</p>
+                      <div className="mt-0.5"><StatutBadge statut={r.statut} /></div>
+                      {r.reference && <p className="text-[10px] text-[#CCCCCC] font-mono mt-0.5">{r.reference}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Modal Retrait ── */}
+      {showRetrait && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+          onClick={e => { if (e.target === e.currentTarget) setShowRetrait(false); }}>
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden"
+            style={{ maxHeight: "92vh", overflowY: "auto" }}>
+
+            <div className="px-6 py-5 border-b border-[#F3F3F3] flex items-center justify-between">
+              <div>
+                <h2 className="text-[16px] font-bold text-[#111111]">{tr("Retirer des fonds")}</h2>
+                <p className="text-[12px] text-[#AAAAAA] mt-0.5">
+                  {tr("Disponible :")}{" "}<strong className="text-[#F5A623]">{fmt(solde, devise)}</strong>
+                </p>
+              </div>
+              <button onClick={() => setShowRetrait(false)}
+                className="w-8 h-8 flex items-center justify-center text-[#888] hover:text-[#111] rounded-xl hover:bg-[#F5F5F7] transition-all text-[16px]">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={soumettrRetrait} className="p-5 space-y-4">
+              {/* Montant */}
+              <div>
+                <label className="ax-label block mb-2">{tr("Montant")}</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    autoFocus
+                    value={form.montant}
+                    onChange={e => setForm(f => ({ ...f, montant: e.target.value }))}
+                    placeholder={tr("Ex: 50 000")}
+                    min={MINIMUM_RETRAIT}
+                    max={solde}
+                    aria-invalid={!!erreurMontant}
+                    aria-describedby="retrait-montant-aide"
+                    className={`w-full border rounded-2xl px-4 py-3 text-[#111111] text-[18px] font-bold outline-none pr-14 transition-colors ${erreurMontant ? "border-[#DC2626]" : "border-[#E8E8E8] focus:border-[#F5A623]/50"}`}
+                    style={{ fontVariantNumeric: "tabular-nums" }}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-semibold text-[#AAAAAA]">{tr(devise)}</span>
+                </div>
+                <p id="retrait-montant-aide" role={erreurMontant ? "alert" : undefined} className={`text-[11.5px] mt-1.5 ${erreurMontant ? "text-[#DC2626] font-semibold" : "text-[#AAAAAA]"}`}>
+                  {erreurMontant ?? tr("Minimum {0}.", fmt(MINIMUM_RETRAIT, devise))}
+                </p>
+                <div className="flex gap-2 mt-2">
+                  {[25, 50, 75, 100].map(pct => (
+                    <button key={pct} type="button"
+                      onClick={() => setForm(f => ({ ...f, montant: String(Math.floor(solde * pct / 100)) }))}
+                      className="flex-1 py-1.5 text-[11px] font-bold border border-[#E8E8E8] rounded-xl text-[#888] hover:border-[#F5A623]/60 hover:text-[#F5A623] transition-all">
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Méthode */}
+              <div>
+                <label className="ax-label block mb-2">{tr("Méthode")}</label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { id: "mobile_money",     label: "Mobile Money",  Icon: Smartphone, desc: "MTN, Orange, Wave…" },
+                    { id: "virement_bancaire", label: "Virement",      Icon: Building2,  desc: "IBAN / Compte" },
+                  ].map(m => {
+                    const Icon = m.Icon;
+                    const active = form.methode === m.id;
+                    return (
+                      <button key={m.id} type="button"
+                        onClick={() => setForm(f => ({ ...f, methode: m.id as any }))}
+                        className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all"
+                        style={active
+                          ? { borderColor: "#F5A623", background: "#FFFBEB" }
+                          : { borderColor: "#EBEBEB", background: "#FAFAFA" }}>
+                        <Icon size={20} style={{ color: active ? "#F5A623" : "#AAAAAA" }} />
+                        <span className="text-[12px] font-bold" style={{ color: active ? "#D97706" : "#666666" }}>{tr(m.label)}</span>
+                        <span className="text-[11px] text-[#AAAAAA]">{tr(m.desc)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Opérateur (Mobile Money) */}
+              {form.methode === "mobile_money" && (
+                <div>
+                  <label className="ax-label block mb-2">{tr("Opérateur")}</label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {OPERATEURS.map(op => (
+                      <button key={op.id} type="button" aria-pressed={form.operateur === op.id}
+                        onClick={() => setForm(f => ({ ...f, operateur: op.id }))}
+                        className="py-2 px-2 text-[11px] font-bold rounded-xl border transition-all flex flex-col items-center gap-0.5"
+                        style={form.operateur === op.id
+                          ? { borderColor: "#F5A623", background: "#FFFBEB", color: "#D97706" }
+                          : { borderColor: "#EBEBEB", background: "#FAFAFA", color: "#888888" }}>
+                        {tr(op.label)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Numéro / IBAN */}
+              <div>
+                <label className="ax-label block mb-2">
+                  {form.methode === "mobile_money" ? tr("Numéro Mobile Money") : tr("IBAN ou numéro de compte")}
+                </label>
+                <input
+                  type={form.methode === "mobile_money" ? "tel" : "text"}
+                  inputMode={form.methode === "mobile_money" ? "tel" : "text"}
+                  autoComplete={form.methode === "mobile_money" ? "tel" : "off"}
+                  value={form.destinataire}
+                  onChange={e => setForm(f => ({ ...f, destinataire: e.target.value }))}
+                  placeholder={form.methode === "mobile_money" ? exempleTelephone(pays) : tr("FR76 XXXX XXXX XXXX")}
+                  aria-invalid={!!erreurDestinataire}
+                  className={`w-full border rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none transition-colors ${erreurDestinataire ? "border-[#DC2626]" : "border-[#E8E8E8] focus:border-[#F5A623]/50"}`}
+                />
+                {erreurDestinataire
+                  ? <p role="alert" className="text-[11.5px] mt-1.5 text-[#DC2626] font-semibold">{erreurDestinataire}</p>
+                  : telInternational && <p className="text-[11.5px] mt-1.5 text-[#15803D]">{tr("Envoi vers le {0}", telInternational)}</p>}
+              </div>
+
+              {/* Notes */}
+              <details>
+                <summary className="text-[12px] font-semibold text-[#888] cursor-pointer select-none">{tr("Ajouter une note (optionnel)")}</summary>
+                <input
+                  type="text"
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder={tr("Ex: Virement mensuel…")}
+                  aria-label={tr("Note")}
+                  className="w-full mt-2 border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 transition-colors"
+                />
+              </details>
+
+              {/* Récap */}
+              {form.montant && montant > 0 && !erreurMontant && (
+                <div className="bg-[#F9F9F9] border border-[#F0F0F0] rounded-2xl p-4 space-y-2">
+                  {[
+                    { label: "Montant demandé", value: fmt(Number(form.montant), devise), bold: false },
+                    { label: "Frais de virement", value: "Inclus", bold: false },
+                    { label: "Solde après retrait", value: fmt(solde - montant, devise), bold: false },
+                  ].map(row => (
+                    <div key={row.label} className="flex justify-between text-[12.5px]">
+                      <span className="text-[#AAAAAA]">{tr(row.label)}</span>
+                      <span className="font-semibold text-[#888]">{tr(row.value)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-[#EBEBEB] pt-2 flex justify-between text-[13px] font-bold">
+                    <span className="text-[#111111]">{tr("Vous recevrez")}</span>
+                    <span className="text-[#F5A623]" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {fmt(Number(form.montant), devise)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Warning */}
+              <div className="flex items-start gap-2 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-3">
+                <AlertCircle size={13} className="text-[#D97706] mt-0.5 flex-shrink-0" />
+                <p className="text-[11.5px] text-[#92400E]">
+                  {tr("Traitement sous 24–48h ouvrées. Les fonds sont débités immédiatement de votre wallet.")}
+                </p>
+              </div>
+
+              <button type="submit"
+                disabled={submitting || !form.montant || !form.destinataire.trim() || !!erreurMontant || !!erreurDestinataire}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-[13px] transition-all disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]"
+                style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)", boxShadow: "0 4px 20px rgba(245,166,35,0.30)" }}>
+                {submitting
+                  ? <><Loader2 size={15} className="animate-spin" />{" "}{tr("Traitement…")}</>
+                  : <><ArrowUpFromLine size={15} />{" "}{tr("Confirmer le retrait")}</>}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

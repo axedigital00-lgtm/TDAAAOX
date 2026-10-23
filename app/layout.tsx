@@ -1,0 +1,73 @@
+import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
+import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
+import { I18nProvider } from "@/components/I18nProvider";
+import { getLangue, dico } from "@/lib/i18n/serveur";
+import "./globals.css";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-poppins-loaded",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://axsoafrica.com"),
+  title: {
+    default: "Axso — Ta boutique en ligne en 3 minutes",
+    template: "%s | Axso",
+  },
+  description:
+    "Crée ta boutique en ligne en 3 minutes. Gratuit pour commencer. Tu touches ton prix en entier : quand ton client paie en ligne, 10 % s'ajoutent à son prix (13 % pour un produit numérique) ; rien sur le paiement à la livraison. Paiements Orange Money, MTN Mobile Money ou à la livraison.",
+  keywords: ["e-commerce", "boutique en ligne", "mobile money", "vendre en ligne", "axso"],
+  openGraph: {
+    title: "Axso — Ta boutique en ligne en 3 minutes",
+    description: "Crée ta boutique en ligne, vends partout, encaisse facilement.",
+    type: "website",
+    siteName: "Axso",
+  },
+  twitter: { card: "summary_large_image" },
+  // Comme AxeTask : une PNG légère déclarée en premier — c'est elle que Vercel (avatar du projet),
+  // Google (résultats de recherche) et les navigateurs prennent. favicon.ico reste servi à son
+  // adresse pour les anciens navigateurs, sans balise.
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "64x64" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.png",
+    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+  },
+};
+
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const langue = await getLangue();
+  return (
+    // data-scroll-behavior : globals.css met scroll-behavior:smooth sur <html> ; Next le désactive
+    // pendant les changements de page (sinon avertissement à chaque chargement).
+    <html lang={langue} className={poppins.variable} data-scroll-behavior="smooth">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&family=Playfair+Display:wght@400;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-full antialiased">
+        <I18nProvider langue={langue} dico={await dico("commun")}>
+          {children}
+          <Toaster position="top-right" richColors />
+          <LangueSelecteur flottant />
+        </I18nProvider>
+      </body>
+    </html>
+  );
+}

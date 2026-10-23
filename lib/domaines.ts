@@ -1,0 +1,162 @@
+// Domaines personnalisés des boutiques (server-only).
+// 1. Le marchand saisit son domaine → validé, unique, ajouté au projet Vercel
+//    par l'API (le domaine doit être attaché au projet pour que Vercel route
+//    le trafic et émette le certificat HTTPS).
+// 2. Il crée chez son registraire les enregistrements DNS renvoyés par Vercel.
+// 3. proxy.ts → slugPourDomaine() sert la boutique sur ce domaine.
+// Variables : VERCEL_API_TOKEN, VERCEL_PROJECT_ID, VERCEL_TEAM_ID (si projet d'équipe).
+import { prisma } from "./prisma";
+// Adresse publique d'une boutique (fonction pure, utilisable aussi côté client depuis lib/utils).
+export { urlBoutique } from "./utils";
+
+const API = "https://api.vercel.com";
+const DOMAINE_APP = (process.env.NEXT_PUBLIC_AXSO_DOMAIN || "").split(":")[0];
+
+export const vercelConfigure = () => !!(process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID);
+
+/** "https://Boutique.MonSite.com/page" → "boutique.monsite.com" ; null si invalide ou réservé. */
+export function normaliserDomaine(saisie: string): string | null {
+  const d = saisie.trim().toLowerCase().replace(/^https?:\/\//, "").split(/[/?#]/)[0].replace(/:\d+$/, "").replace(/\.$/, "");
+  if (!/^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(d)) return null;
+  if (d.endsWith(".vercel.app") || (DOMAINE_APP && (d === DOMAINE_APP || d.endsWith(`.${DOMAINE_APP}`)))) return null;
+  return d;
+}
+
+async function vercel(chemin: string, init: RequestInit = {}) {
+  const equipe = process.env.VERCEL_TEAM_ID ? `${chemin.includes("?") ? "&" : "?"}teamId=${process.env.VERCEL_TEAM_ID}` : "";
+  const r = await fetch(`${API}${chemin}${equipe}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`, "Content-Type": "application/json", ...init.headers },
+    signal: AbortSignal.timeout(10000),
+  });
+  const corps = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, corps: corps as any };
+}
+
+const projet = () => `/v10/projects/${process.env.VERCEL_PROJECT_ID}/domains`;
+
+export async function ajouterDomaineVercel(domaine: string): Promise<{ ok: boolean; erreur?: string }> {
+  const r = await vercel(projet(), { method: "POST", body: JSON.stringify({ name: domaine }) });
+  const dejaSurCeProjet = r.corps?.error?.code === "domain_already_in_use_by_project" || (r.status === 409 && /this project/i.test(r.corps?.error?.message ?? ""));
+  if (r.ok || dejaSurCeProjet) return { ok: true };
+  return { ok: false, erreur: r.corps?.error?.message ?? `Vercel a refusé le domaine (${r.status})` };
+}
+
+// ── Sous-domaines nom.axsoafrica.com ───────────────────────────────────────────
+// Le DNS reste chez Cloudflare (CNAME * → cname.vercel-dns.com, non proxifié) : Vercel n'accepte
+// un domaine générique que s'il gère le DNS lui-même, donc chaque boutique publiée est déclarée
+// au projet une par une (Vercel émet alors son certificat HTTPS).
+const sousDomainesPossibles = () => vercelConfigure() && !!DOMAINE_APP && !DOMAINE_APP.startsWith("localhost") && !DOMAINE_APP.endsWith(".vercel.app");
+
+// Garde-fou : une boutique n'utilise son sous-domaine (redirection, liens, QR) qu'une fois Vercel
+// l'ayant accepté (Tenant.sousDomaineAt). Refus (limite de domaines du plan, jeton expiré, panne) :
+// elle reste sur axsoafrica.com/nom, qui marche toujours, et bascule seule au passage suivant du cron.
+
+/** À la publication d'une boutique. Ne lève jamais : un échec est rattrapé par synchroniserSousDomaines(). */
+export async function declarerSousDomaine(slug: string) {
+  if (!sousDomainesPossibles()) return;
+  const r = await ajouterDomaineVercel(`${slug}.${DOMAINE_APP}`).catch((e) => ({ ok: false, erreur: String(e?.message ?? e) }));
+  if (!r.ok) return console.error(`[domaines] ${slug}.${DOMAINE_APP} non déclaré à Vercel : ${r.erreur}`);
+  await prisma.tenant.updateMany({ where: { slug, sousDomaineAt: null }, data: { sousDomaineAt: new Date() } }).catch(() => {});
+}
+
+/** Cron : déclare les sous-domaines des boutiques publiées absents du projet (boutiques existantes, échecs). */
+export async function synchroniserSousDomaines(max = 50) {
+  if (!sousDomainesPossibles()) return { ignore: "VERCEL_API_TOKEN, VERCEL_PROJECT_ID ou NEXT_PUBLIC_AXSO_DOMAIN manquant" };
+  const presents = new Set<string>();
+  let suite: number | null = null;
+  do {
+    const r = await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains?limit=100${suite ? `&until=${suite}` : ""}`);
+    if (!r.ok) throw new Error(r.corps?.error?.message ?? `Vercel ${r.status}`);
+    for (const d of r.corps.domains ?? []) presents.add(d.name);
+    suite = r.corps.pagination?.next ?? null;
+  } while (suite);
+  const boutiques = await prisma.tenant.findMany({ where: { statut: "active" }, select: { slug: true } });
+  const manquants = boutiques.map((b) => `${b.slug}.${DOMAINE_APP}`).filter((d) => !presents.has(d));
+  const erreurs: string[] = [];
+  for (const d of manquants.slice(0, max)) {
+    const r = await ajouterDomaineVercel(d).catch((e) => ({ ok: false, erreur: String(e?.message ?? e) }));
+    if (r.ok) presents.add(d); else erreurs.push(`${d} : ${r.erreur}`);
+  }
+  // Marque prêtes celles que Vercel connaît (déjà présentes ou ajoutées à l'instant).
+  const prets = boutiques.map((b) => b.slug).filter((s) => presents.has(`${s}.${DOMAINE_APP}`));
+  await prisma.tenant.updateMany({ where: { slug: { in: prets }, sousDomaineAt: null }, data: { sousDomaineAt: new Date() } });
+  return { declares: Math.min(max, manquants.length) - erreurs.length, restants: Math.max(0, manquants.length - max), erreurs };
+}
+
+export async function retirerDomaineVercel(domaine: string) {
+  await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domaine}`, { method: "DELETE" }).catch(() => {});
+}
+
+export type EnregistrementDns = { type: "A" | "CNAME" | "TXT"; nom: string; valeur: string; raison: string };
+export type EtatDomaine = { domaine: string; actif: boolean; verifie: boolean; dnsOk: boolean; enregistrements: EnregistrementDns[]; message?: string };
+
+/** État réel chez Vercel + enregistrements DNS à créer. `verifier` relance la vérification de propriété. */
+export async function etatDomaine(domaine: string, verifier = false): Promise<EtatDomaine> {
+  if (verifier) await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domaine}/verify`, { method: "POST" });
+  const [info, config] = await Promise.all([
+    vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domaine}`),
+    vercel(`/v6/domains/${domaine}/config`),
+  ]);
+  if (!info.ok) return { domaine, actif: false, verifie: false, dnsOk: false, enregistrements: [], message: info.corps?.error?.message ?? "Domaine introuvable sur le projet Vercel" };
+  const apex = info.corps.apexName === domaine;
+  const nomLocal = apex ? "@" : domaine.slice(0, -(info.corps.apexName.length + 1));
+  const enregistrements: EnregistrementDns[] = [
+    apex
+      ? { type: "A", nom: "@", valeur: "76.76.21.21", raison: "Dirige le domaine vers AXSO" }
+      : { type: "CNAME", nom: nomLocal, valeur: "cname.vercel-dns.com", raison: "Dirige le sous-domaine vers AXSO" },
+    ...((info.corps.verification ?? []) as any[]).map((v) => ({
+      type: "TXT" as const, nom: v.domain.endsWith(`.${info.corps.apexName}`) ? v.domain.slice(0, -(info.corps.apexName.length + 1)) : v.domain,
+      valeur: v.value, raison: "Prouve que le domaine vous appartient",
+    })),
+  ];
+  const verifie = info.corps.verified === true;
+  const dnsOk = config.ok && config.corps.misconfigured === false;
+  return { domaine, actif: verifie && dnsOk, verifie, dnsOk, enregistrements };
+}
+
+// ── Routage (proxy.ts) : domaine → slug, avec cache mémoire court ──────────────
+const cache = new Map<string, { slug: string | null; expire: number }>();
+
+export async function slugPourDomaine(hote: string): Promise<string | null> {
+  const domaine = hote.split(":")[0].toLowerCase();
+  const c = cache.get(domaine);
+  if (c && c.expire > Date.now()) return c.slug;
+  const t = await prisma.tenant.findFirst({ where: { customDomain: domaine, statut: "active" }, select: { slug: true } }).catch(() => null);
+  cache.set(domaine, { slug: t?.slug ?? null, expire: Date.now() + 60_000 }); // ponytail: 60 s de cache par instance ; invalidation active si besoin
+  return t?.slug ?? null;
+}
+
+// ── Adresse principale (modèle Shopify) : slug → domaine personnalisé actif ────
+// Un domaine ne devient principal qu'une fois confirmé actif par Vercel
+// (Tenant.domaineActifAt, mis à jour par /api/domaine). Sert aux liens générés
+// (QR, emails, WhatsApp, factures) et à la redirection de l'adresse AXSO (proxy.ts).
+const cacheSlug = new Map<string, { domaine: string | null; expire: number }>();
+
+export async function domainePrincipal(slug: string): Promise<string | null> {
+  const c = cacheSlug.get(slug);
+  if (c && c.expire > Date.now()) return c.domaine;
+  const t = await prisma.tenant.findFirst({
+    where: { slug, statut: "active", customDomain: { not: null }, domaineActifAt: { not: null } },
+    select: { customDomain: true },
+  }).catch(() => null);
+  cacheSlug.set(slug, { domaine: t?.customDomain ?? null, expire: Date.now() + 60_000 });
+  return t?.customDomain ?? null;
+}
+
+// ── Boutique publiée ET sous-domaine accepté par Vercel ? (redirection axsoafrica.com/nom → nom.axsoafrica.com, liens) ──
+const cacheExiste = new Map<string, { existe: boolean; expire: number }>();
+
+export async function sousDomainePret(slug: string): Promise<boolean> {
+  const c = cacheExiste.get(slug);
+  if (c && c.expire > Date.now()) return c.existe;
+  const existe = !!(await prisma.tenant.findFirst({ where: { slug, statut: "active", sousDomaineAt: { not: null } }, select: { id: true } }).catch(() => null));
+  cacheExiste.set(slug, { existe, expire: Date.now() + 60_000 });
+  return existe;
+}
+
+/** À appeler après tout changement de domaine (sur cette instance ; les autres expirent en 60 s). */
+export function oublierDomaine(slug: string, domaine?: string | null) {
+  cacheSlug.delete(slug);
+  if (domaine) cache.delete(domaine);
+}

@@ -1,0 +1,249 @@
+export const dynamic = "force-dynamic";
+
+import { ficheDuProduit } from "@/lib/fiche-produit";
+import { prisma } from "@/lib/prisma";
+import { boutiqueVisible } from "@/lib/tenant";
+import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { pourcentageRemise } from "@/lib/utils";
+import { prixClient } from "@/lib/pricing";
+import { resolveConfigVitrine } from "@/lib/vitrine-design";
+import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
+import { ViewContentTracker } from "@/components/storefront/ViewContentTracker";
+import { StorefrontNavbar } from "@/components/storefront/StorefrontNavbar";
+import { ProductPageClient } from "@/components/storefront/ProductPageClient";
+import { lireReglagesPaiement } from "@/lib/paiement-pays";
+import { lienBoutique } from "@/lib/origine-site";
+
+interface Props {
+  params: Promise<{ slug: string; id: string }>;
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { id } = await params;
+  const produit = await prisma.produit.findUnique({ where: { id } });
+  if (!produit) return { title: "Produit introuvable" };
+  const ogImageUrl = (produit as any).ogImage || produit.images[0] || null;
+  return {
+    title: produit.metaTitle || produit.nom,
+    description: produit.metaDesc || produit.description || "",
+    openGraph: {
+      title: produit.metaTitle || produit.nom,
+      description: produit.metaDesc || produit.description || "",
+      images: ogImageUrl ? [{ url: ogImageUrl, width: 1200, height: 630 }] : [],
+    },
+  };
+}
+
+export default async function ProduitPage({ params }: Props) {
+  const { slug, id } = await params;
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { slug },
+    include: { collections: { where: { actif: true }, take: 5 } },
+  });
+  if (!tenant || !(await boutiqueVisible(tenant))) notFound();
+
+  const produitInclude = {
+    variantes: { where: { actif: true }, orderBy: { nom: "asc" as const } },
+    avis: {
+      where: { approuve: true },
+      include: { client: { select: { nom: true } } },
+      take: 20,
+      orderBy: { createdAt: "desc" as const },
+    },
+    collections: { select: { nom: true, slug: true } },
+  };
+
+  // Résout par id (URL classique) puis, si absent, par slug — les liens
+  // d'affiliation générés côté tracker (/api/track/[code]) pointent vers le
+  // slug du produit, pas son id.
+  let produit = await prisma.produit.findUnique({ where: { id }, include: produitInclude });
+  if (!produit) {
+    produit = await prisma.produit.findFirst({ where: { tenantId: tenant.id, slug: id }, include: produitInclude });
+  }
+
+  if (!produit || produit.tenantId !== tenant.id || !produit.actif) notFound();
+  // Événement live / bootcamp : page d'inscription dédiée (date, places, billetterie).
+  if (produit.type === "evenement" || produit.type === "bootcamp") redirect(`/${slug}/evenements/${produit.id}`);
+
+  // Un marchand AXSO connecté (autre que le propriétaire de cette boutique)
+  // peut devenir affilié de ce produit précis s'il l'autorise — bouton
+  // "Obtenir mon lien d'affiliation" affiché uniquement dans ce cas.
+  const session = await auth();
+  const visiteurTenantId = (session?.user as any)?.tenantId as string | undefined;
+  const peutDevenirAffilie = !!visiteurTenantId && visiteurTenantId !== tenant.id && produit.affiliationActive;
+
+  const cfg = await resolveConfigVitrine(tenant.themeId, tenant.id, tenant.themeConfig as Record<string, any>);
+  const { colors: c, radius } = cfg;
+
+  const taux = tenant.commissionRate ?? 0.1;
+  const prixAffiche = prixClient(produit.prix, taux, produit.type);
+  const prixCompareAffiche = produit.prixCompare ? prixClient(produit.prixCompare, taux, produit.type) : null;
+  const remise = prixCompareAffiche && prixCompareAffiche > prixAffiche
+    ? pourcentageRemise(prixAffiche, prixCompareAffiche)
+    : 0;
+  const noteMoyenne = produit.avis.length > 0
+    ? produit.avis.reduce((s, a) => s + a.note, 0) / produit.avis.length
+    : 0;
+
+  // Le nombre de produits similaires est réglable dans le builder (section
+  // "similar" de la fiche produit) — il faut le lire avant la requête Prisma,
+  // sinon `take` reste figé à 4 quel que soit le réglage du marchand.
+  const fiche = ficheDuProduit(cfg, produit.id);
+  const similarSection = fiche?.sections?.find(s => s.type === "similar");
+  const similarCount = similarSection?.actif !== false ? Number(similarSection?.config?.count) || 4 : 0;
+
+  const produitsSimilairesRaw = similarCount > 0
+    ? await prisma.produit.findMany({
+        where: {
+          tenantId: tenant.id,
+          actif: true,
+          id: { not: produit.id },
+          OR: produit.categorie ? [{ categorie: produit.categorie }] : undefined,
+        },
+        take: similarCount,
+        orderBy: { ventes: "desc" },
+      })
+    : [];
+
+  const produitsSimilaires = produitsSimilairesRaw.map(p => ({
+    id: p.id,
+    nom: p.nom,
+    images: p.images,
+    prixAffiche: prixClient(p.prix, taux, p.type),
+  }));
+
+  // Socle de repli — voir le commentaire équivalent dans page.tsx (accueil).
+  // Programme de la formation — affiché avant achat (aperçu gratuit pour les
+  // leçons marquées "gratuite", verrouillé pour le reste) pour donner
+  // confiance à l'acheteur sur le contenu réel qu'il va recevoir.
+  const formationCurriculum = produit.type === "formation"
+    ? await prisma.formation.findUnique({
+        where: { produitId: produit.id },
+        include: {
+          chapitres: {
+            where: { actif: true },
+            orderBy: { ordre: "asc" },
+            include: { lecons: { where: { actif: true }, orderBy: { ordre: "asc" }, select: { id: true, titre: true, type: true, contenu: true, videoType: true, videoUrl: true, audioUrl: true, duree: true, gratuite: true } } },
+          },
+        },
+      })
+    : null;
+
+  const produitProps = {
+    id: produit.id,
+    nom: produit.nom,
+    description: produit.description,
+    descriptionIA: produit.descriptionIA,
+    images: produit.images,
+    videos: produit.videos,
+    prixAffiche,
+    prixCompareAffiche,
+    remise,
+    stock: produit.stock,
+    type: produit.type,
+    fichierNom: produit.fichierNom,
+    categorie: produit.categorie,
+    marque: (produit as any).marque ?? null,
+    masquerVentes: (produit as any).masquerVentes ?? false,
+    texteBoutonAchat: (produit as any).texteBoutonAchat ?? null,
+    // Lien à partager : sous-domaine de la boutique (https://<slug>.axsoafrica.com/produits/<id>), domaine perso s'il est actif.
+    lienPartage: await lienBoutique(slug, `/produits/${produit.id}`),
+    faq: Array.isArray((produit as any).faq) ? (produit as any).faq as { question: string; reponse: string }[] : [],
+    // Verrouille le contenu réel des leçons non gratuites — seule la structure
+    // (titre/durée) doit atteindre le client avant achat, jamais le contenu payant.
+    formationCurriculum: formationCurriculum ? {
+      chapitres: formationCurriculum.chapitres.map(ch => ({
+        id: ch.id,
+        titre: ch.titre,
+        lecons: ch.lecons.map(l => ({
+          id: l.id, titre: l.titre, type: l.type, duree: l.duree, gratuite: l.gratuite,
+          contenu: l.gratuite ? l.contenu : null,
+          videoType: l.gratuite ? l.videoType : null,
+          videoUrl: l.gratuite ? l.videoUrl : null,
+          audioUrl: l.gratuite ? l.audioUrl : null,
+        })),
+      })),
+    } : null,
+    variantes: produit.variantes.map(v => ({
+      id: v.id,
+      nom: v.nom,
+      valeur: v.valeur,
+      prix: v.prix ? prixClient(v.prix, taux, produit.type) : null,
+      stock: v.stock,
+    })),
+    avis: produit.avis.map(a => ({
+      id: a.id,
+      note: a.note,
+      titre: a.titre,
+      commentaire: a.commentaire,
+      verifie: a.verifie,
+      client: a.client,
+      createdAt: a.createdAt.toISOString(),
+    })),
+    collections: produit.collections,
+    noteMoyenne,
+  };
+
+  const tenantProps = {
+    id: tenant.id,
+    slug,
+    nomBoutique: tenant.nomBoutique,
+    devise: tenant.devise,
+    certifie: tenant.certifie,
+    accent: c.accent,
+    fond: c.fond,
+    texte: c.texte,
+    surface: c.surface,
+    radius,
+    whatsapp: tenant.whatsapp ?? null,
+    whatsappNumero: tenant.whatsappNumero ?? null,
+    // Paramètres → Moyens de paiement : commande WhatsApp acceptée ? (le bouton de la fiche reste une option du Constructeur)
+    commandeWhatsApp: lireReglagesPaiement(tenant.parametresPaiement).whatsapp,
+    creeLe: tenant.createdAt.toISOString(),
+    productPage: fiche ?? null,
+    layout: cfg.layout ?? null,
+    boutons: cfg.boutons ?? null,
+    peutDevenirAffilie,
+    boutiqueDigitale: cfg.modeBoutique === "digital",
+  };
+
+  // Boutique à design : en-tête / pied de page du design (tels que modifiés
+  // dans le Constructeur) autour de la fiche pilotée par les sections du
+  // panneau « Fiche produit » — variantes, quantité, badges, avis réels.
+  const Habillage = habillageDesign(cfg);
+  if (Habillage) {
+    return (
+      <Habillage>
+        <ViewContentTracker produitId={produit.id} nom={produit.nom} prix={prixAffiche} devise={tenant.devise} />
+        <ProductPageClient produit={produitProps} tenant={tenantProps} produitsSimilaires={produitsSimilaires} sansPied />
+      </Habillage>
+    );
+  }
+
+  return (
+    <>
+      <ViewContentTracker produitId={produit.id} nom={produit.nom} prix={prixAffiche} devise={tenant.devise} />
+      <StorefrontNavbar
+        slug={slug}
+        nomBoutique={tenant.nomBoutique}
+        logoUrl={tenant.logoUrl}
+        accent={c.accent}
+        fond={c.fond}
+        texte={c.texte}
+        radius={radius}
+        collections={tenant.collections}
+        certifie={tenant.certifie}
+        navStyle={cfg.navigationStyle}
+        showAbout={cfg.aboutPage?.actif}
+        showContact={cfg.contactPage?.actif}
+      />
+      <ProductPageClient
+        produit={produitProps}
+        tenant={tenantProps}
+        produitsSimilaires={produitsSimilaires}
+      />
+    </>
+  );
+}

@@ -1,0 +1,436 @@
+"use client";
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Search, Package, Truck, CheckCircle, Clock, MapPin, Phone,
+  ArrowLeft, AlertCircle, ShoppingBag, RefreshCw,
+  Bike, Check, X,
+} from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { MapTracking } from "@/components/storefront/MapTracking";
+import { useT } from "@/components/I18nProvider";
+
+const ETAPES = [
+  { statut: "en_attente",     label: "Reçue",       Icon: Clock       },
+  { statut: "confirmee",      label: "Confirmée",   Icon: Check       },
+  { statut: "en_preparation", label: "Préparation", Icon: Package     },
+  { statut: "expediee",       label: "En route",    Icon: Truck       },
+  { statut: "livree",         label: "Livrée",      Icon: CheckCircle },
+];
+
+const ORDRE = ["en_attente", "confirmee", "en_preparation", "expediee", "livree"];
+
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString("fr", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function formatMontant(val: number, devise = "FCFA") {
+  return `${val.toLocaleString("fr")} ${devise}`;
+}
+
+export default function SuiviPage() {
+  const t = useT();
+  const [numero, setNumero]           = useState("");
+  const [telephone, setTelephone]     = useState("");
+  const [commande, setCommande]       = useState<any>(null);
+  const [erreur, setErreur]           = useState("");
+  const [recherche, setRecherche]     = useState(false);
+  const [refresh, setRefresh]         = useState(false);
+  const [lastUpdate, setLastUpdate]   = useState<Date | null>(null);
+  const intervalSuivi                 = useRef<NodeJS.Timeout | null>(null);
+  const numeroRef                     = useRef("");
+  const telRef                        = useRef("");
+
+  // Numéro + téléphone : le numéro seul se devine (10 000 par jour) et exposait les adresses.
+  const charger = useCallback(async (num: string, tel: string, silent = false) => {
+    if (!num || !tel) return;
+    if (!silent) setRecherche(true);
+    else setRefresh(true);
+    setErreur("");
+    try {
+      const res  = await fetch(`/api/suivi?numero=${encodeURIComponent(num.trim())}&telephone=${encodeURIComponent(tel)}`);
+      const data = await res.json();
+      if (!res.ok || !data.commande) {
+        if (!silent) setErreur("Commande introuvable. Vérifiez le numéro (format : AX-YYYYMMDD-XXXX) et le téléphone utilisé pour commander.");
+      } else {
+        setCommande(data.commande);
+        setLastUpdate(new Date());
+      }
+    } catch {
+      if (!silent) setErreur("Erreur de connexion. Réessayez dans quelques instants.");
+    } finally {
+      setRecherche(false);
+      setRefresh(false);
+    }
+  }, []);
+
+  // Statut et position du livreur rafraîchis toutes les 10 s
+  useEffect(() => {
+    if (!commande) return;
+    numeroRef.current = commande.numero;
+    intervalSuivi.current = setInterval(() => charger(numeroRef.current, telRef.current, true), 10000);
+    return () => { if (intervalSuivi.current) clearInterval(intervalSuivi.current); };
+  }, [commande?.numero, charger]);
+
+  function chercher(e: React.FormEvent) {
+    e.preventDefault();
+    if (intervalSuivi.current) clearInterval(intervalSuivi.current);
+    setCommande(null);
+    telRef.current = telephone;
+    charger(numero, telephone);
+  }
+
+  // Tentative manquée : la commande reste à l'étape « En route » (le livreur repassera), avec un message.
+  const echec         = commande?.statut === "tentative_echouee";
+  const etapeActuelle = commande ? ORDRE.indexOf(echec ? "expediee" : commande.statut) : -1;
+  const annulee       = commande?.statut === "annulee";
+  const livree        = commande?.statut === "livree";
+
+  const livePos       = commande?.livreurPosition as any;
+  const livreurLat    = livePos?.lat ?? null;
+  const livreurLng    = livePos?.lng ?? null;
+  const clientLat     = commande?.latitudeClient ?? null;
+  const clientLng     = commande?.longitudeClient ?? null;
+  const showMap       = !annulee && (livreurLat || clientLat);
+
+  return (
+    <div className="min-h-screen bg-[#080808] text-white flex flex-col"
+      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+
+      {/* Ambient glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] max-w-full h-[350px] pointer-events-none"
+        style={{ background: "radial-gradient(ellipse, rgba(245,166,35,0.06) 0%, transparent 70%)" }} />
+
+      {/* Header */}
+      <header className="relative z-10 border-b border-white/5 px-5 py-4">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-white/30 hover:text-white/60 transition-colors text-[13px]">
+            <ArrowLeft size={14} />
+            {t("Accueil")}
+          </Link>
+          <div className="flex items-center justify-center">
+            <Image src="/logo-dark.png" alt={t("Axso")} width={85} height={30} style={{ objectFit: "contain" }} />
+          </div>
+          <div className="w-20" />
+        </div>
+      </header>
+
+      <main className="relative z-10 flex-1 max-w-2xl mx-auto w-full px-5 py-10 space-y-5">
+
+        {/* Hero */}
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+            style={{ background: "rgba(245,166,35,0.08)", border: "1px solid rgba(245,166,35,0.18)" }}>
+            <Package size={22} style={{ color: "#F5A623" }} />
+          </div>
+          <h1 className="text-[26px] font-bold mb-2 tracking-tight">{t("Suivre ma commande")}</h1>
+          <p className="text-white/30 text-[13px]">{t("Entrez votre numéro pour voir l'état en temps réel")}</p>
+        </div>
+
+        {/* Search form */}
+        <form onSubmit={chercher}
+          className="rounded-2xl p-5 space-y-3"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block">
+            {t("Numéro de commande")}
+          </label>
+          <div className="flex gap-2">
+            <input
+              value={numero}
+              onChange={e => setNumero(e.target.value.toUpperCase())}
+              placeholder={t("AX-20240101-XXXX")}
+              className="flex-1 min-w-0 rounded-xl px-4 py-3 text-white font-mono text-base sm:text-[13px] outline-none transition-all"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+              onFocus={e => (e.target.style.borderColor = "rgba(245,166,35,0.4)")}
+              onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.07)")}
+            />
+            <button
+              type="submit"
+              disabled={recherche || !numero.trim() || telephone.replace(/\D/g, "").length < 9}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-[13px] transition-all disabled:opacity-40"
+              style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", color: "#080808" }}>
+              {recherche
+                ? <div className="w-4 h-4 border-2 border-black/20 border-t-black/70 rounded-full animate-spin" />
+                : <Search size={14} />}
+              {recherche ? "…" : t("Suivre")}
+            </button>
+          </div>
+          <input
+            value={telephone}
+            onChange={e => setTelephone(e.target.value)}
+            type="tel" inputMode="tel" autoComplete="tel"
+            placeholder={t("Téléphone utilisé pour commander")}
+            className="w-full rounded-xl px-4 py-3 text-white text-base sm:text-[13px] outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+          />
+          <p className="text-white/20 text-[11px]">{t("Le numéro figure sur votre confirmation de commande.")}</p>
+        </form>
+
+        {/* Error */}
+        {erreur && (
+          <div className="flex items-start gap-3 rounded-2xl p-4"
+            style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)" }}>
+            <AlertCircle size={15} className="text-red-400 shrink-0 mt-0.5" />
+            <p className="text-red-300 text-[13px]">{t(erreur)}</p>
+          </div>
+        )}
+
+        {/* Result */}
+        {commande && (
+          <div className="space-y-4">
+
+            {/* Status header card */}
+            <div className="rounded-2xl p-5"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+
+              {/* Top row */}
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-1">{t("Commande")}</p>
+                  <p className="font-mono font-bold text-[20px] text-white">{commande.numero}</p>
+                  {commande.tenant?.nomBoutique && (
+                    <p className="text-[11px] text-white/30 mt-0.5">{t(commande.tenant.nomBoutique)}</p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  {annulee ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"
+                      style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.18)" }}>
+                      <X size={10} />{" "}{t("Annulée")}
+                    </span>
+                  ) : livree ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"
+                      style={{ background: "rgba(16,185,129,0.08)", color: "#34d399", border: "1px solid rgba(16,185,129,0.2)" }}>
+                      <Check size={10} />{" "}{t("Livrée")}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"
+                      style={{ background: "rgba(245,166,35,0.09)", color: "#F5A623", border: "1px solid rgba(245,166,35,0.22)" }}>
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#F5A623] animate-pulse" />
+                      {echec ? t("Livraison à reprogrammer") : t(ETAPES.find(e => e.statut === commande.statut)?.label) ?? t(commande.statut)}
+                    </span>
+                  )}
+                  {/* Refresh */}
+                  <button onClick={() => charger(commande.numero, telRef.current, true)}
+                    className="flex items-center gap-1 text-[10px] text-white/25 hover:text-white/50 transition-colors">
+                    <RefreshCw size={10} className={refresh ? "animate-spin" : ""} />
+                    {lastUpdate ? `${lastUpdate.toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" })}` : ""}
+                  </button>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              {!annulee && (
+                <div className="flex items-start">
+                  {ETAPES.map((etape, i) => {
+                    const fait    = i < etapeActuelle;
+                    const courant = i === etapeActuelle;
+                    const { Icon } = etape;
+                    return (
+                      <div key={etape.statut} className="flex items-center flex-1">
+                        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                            style={
+                              fait    ? { background: "rgba(245,166,35,0.12)", border: "1.5px solid rgba(245,166,35,0.35)" } :
+                              courant ? { background: "#F5A623", border: "1.5px solid #F5A623" } :
+                                        { background: "rgba(255,255,255,0.03)", border: "1.5px solid rgba(255,255,255,0.07)" }
+                            }>
+                            <Icon size={12}
+                              style={{ color: fait ? "#F5A623" : courant ? "#080808" : "rgba(255,255,255,0.15)" }} />
+                          </div>
+                          <p className="text-[9px] text-center leading-tight max-w-[52px]"
+                            style={{
+                              color: fait ? "rgba(245,166,35,0.65)" : courant ? "#F5A623" : "rgba(255,255,255,0.15)",
+                              fontWeight: courant ? 700 : 400,
+                            }}>
+                            {t(etape.label)}
+                          </p>
+                        </div>
+                        {i < ETAPES.length - 1 && (
+                          <div className="flex-1 h-px mx-1 mb-5 transition-all"
+                            style={{ background: fait ? "rgba(245,166,35,0.35)" : "rgba(255,255,255,0.05)" }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {echec && (
+                <div className="flex items-center gap-3 rounded-xl p-4 mt-4"
+                  style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.13)" }}>
+                  <X size={16} className="text-red-400 shrink-0" />
+                  <p className="text-red-300 text-[13px]">{t("Le livreur n'a pas pu vous livrer")}{commande.echecRaison ? ` (${t(commande.echecRaison)})` : ""}. {t("Il repassera : la boutique vous recontactera pour convenir d'un nouveau passage.")}</p>
+                </div>
+              )}
+
+              {/* Annulée message */}
+              {annulee && (
+                <div className="flex items-center gap-3 rounded-xl p-4 mt-2"
+                  style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.13)" }}>
+                  <X size={16} className="text-red-400 shrink-0" />
+                  <p className="text-red-300 text-[13px]">{t("Cette commande a été annulée. Contactez la boutique pour plus d'informations.")}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Live map */}
+            {showMap && (
+              <div className="rounded-2xl overflow-hidden"
+                style={{ border: "1px solid rgba(255,255,255,0.07)", position: "relative" }}>
+                <MapTracking
+                  livreurLat={livreurLat}
+                  livreurLng={livreurLng}
+                  clientLat={clientLat}
+                  clientLng={clientLng}
+                  livreurNom={commande?.livreurNom ?? null}
+                />
+                {livreurLat && (
+                  <div style={{ position:"absolute", bottom:10, left:10, right:10, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(8px)", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, pointerEvents:"none" }}>
+                    <div style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e", animation:"pulse 1.2s ease-in-out infinite", flexShrink:0 }} />
+                    <span style={{ fontSize:12, color:"white" }}>
+                      {commande?.livreurNom ? `${commande.livreurNom} — ` : t("Livreur — ")}
+                      {t("mis à jour")}{" "}{livePos?.updatedAt ? new Date(livePos.updatedAt).toLocaleTimeString("fr", { hour:"2-digit", minute:"2-digit" }) : t("récemment")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Delivery info */}
+            <div className="rounded-2xl p-5 space-y-4"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest">{t("Livraison")}</p>
+              <div className="space-y-3">
+                {commande.adresseLivraison && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(245,166,35,0.07)", border: "1px solid rgba(245,166,35,0.14)" }}>
+                      <MapPin size={11} style={{ color: "#F5A623" }} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-white/25 mb-0.5">{t("Adresse")}</p>
+                      <p className="text-[13px] text-white">{t(commande.adresseLivraison)}{commande.ville ? `, ${commande.ville}` : ""}</p>
+                    </div>
+                  </div>
+                )}
+                {commande.livreur && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(245,166,35,0.07)", border: "1px solid rgba(245,166,35,0.14)" }}>
+                      <Bike size={11} style={{ color: "#F5A623" }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] text-white/25 mb-0.5">{t("Livreur")}</p>
+                      <p className="text-[13px] text-white">{t(commande.livreur.nom)}</p>
+                      {commande.livreur.telephone && (
+                        <a href={`tel:${commande.livreur.telephone}`}
+                          className="flex items-center gap-1 text-[11px] mt-0.5 hover:underline"
+                          style={{ color: "#F5A623" }}>
+                          <Phone size={10} /> {commande.livreur.telephone}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {commande.numeroSuivi && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(245,166,35,0.07)", border: "1px solid rgba(245,166,35,0.14)" }}>
+                      <Package size={11} style={{ color: "#F5A623" }} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-white/25 mb-0.5">{t("Numéro de suivi transporteur")}</p>
+                      <p className="text-[13px] text-white font-mono">{t(commande.numeroSuivi)}</p>
+                      {commande.transporteur && (
+                        <p className="text-[11px] text-white/30 mt-0.5">{t(commande.transporteur)}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {commande.createdAt && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(245,166,35,0.07)", border: "1px solid rgba(245,166,35,0.14)" }}>
+                      <Clock size={11} style={{ color: "#F5A623" }} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-white/25 mb-0.5">{t("Commandé le")}</p>
+                      <p className="text-[13px] text-white">{formatDate(commande.createdAt)}</p>
+                    </div>
+                  </div>
+                )}
+                {commande.montantTotal != null && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(245,166,35,0.07)", border: "1px solid rgba(245,166,35,0.14)" }}>
+                      <ShoppingBag size={11} style={{ color: "#F5A623" }} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-white/25 mb-0.5">{t("Montant total")}</p>
+                      <p className="text-[13px] font-bold text-white">{formatMontant(commande.montantTotal, commande.devise)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Articles */}
+            {commande.lignes?.length > 0 && (
+              <div className="rounded-2xl p-5"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-4">{t("Articles (")}{commande.lignes.length})</p>
+                <div className="space-y-3">
+                  {commande.lignes.map((ligne: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0"
+                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        {ligne.imageUrl
+                          ? <img src={ligne.imageUrl} alt={ligne.nom} className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center">
+                              <ShoppingBag size={13} className="text-white/15" />
+                            </div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] text-white truncate">{t(ligne.nom)}</p>
+                        {ligne.variante && <p className="text-[11px] text-white/30">{t(ligne.variante)}</p>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[12px] font-semibold text-white/60">{t("×")}{ligne.quantite}</p>
+                        {ligne.prix != null && (
+                          <p className="text-[11px] text-white/30">{formatMontant(ligne.prix * ligne.quantite, commande.devise)}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Contact boutique */}
+            {commande.tenant?.whatsapp && (
+              <div className="rounded-2xl p-5 flex items-center justify-between"
+                style={{ background: "rgba(37,211,102,0.04)", border: "1px solid rgba(37,211,102,0.13)" }}>
+                <div>
+                  <p className="text-[13px] font-semibold text-white">{t("Besoin d'aide ?")}</p>
+                  <p className="text-[11px] text-white/30 mt-0.5">{t("Contacter")}{" "}{t(commande.tenant.nomBoutique)}</p>
+                </div>
+                <a href={`https://wa.me/${commande.tenant.whatsapp.replace(/\D/g, "")}?text=Bonjour, j'ai une question sur ma commande ${commande.numero}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-80"
+                  style={{ background: "rgba(37,211,102,0.12)", color: "#25D366", border: "1px solid rgba(37,211,102,0.22)" }}>
+                  <Phone size={12} /> WhatsApp
+                </a>
+              </div>
+            )}
+
+            {/* Auto-refresh notice */}
+            <p className="text-center text-[10px] text-white/15 pb-4">
+              {t("Actualisation automatique toutes les 20 secondes")}
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

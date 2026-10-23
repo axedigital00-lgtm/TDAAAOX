@@ -1,0 +1,154 @@
+export const dynamic = "force-dynamic";
+
+import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
+import { resolveConfigVitrine } from "@/lib/vitrine-design";
+import { hasNotchPay } from "@/lib/notchpay";
+import { confirmerPaiementCommande } from "@/lib/paiement-commande";
+import { TYPES_LIVRAISON_DIGITALE } from "@/lib/affiliation";
+import { ConfirmationDigitaleContent } from "@/components/storefront/ConfirmationDigitaleContent";
+import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
+import { getT } from "@/lib/i18n/serveur";
+import { cleAccesValide, livrerCommandeDigitale } from "@/lib/livraison-numerique";
+
+interface Props {
+  params: Promise<{ slug: string; orderId: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}
+
+// Filet de sécurité : si le webhook NotchPay n'est pas encore arrivé au moment
+// où le client revient de la page de paiement hébergée, on relit la transaction
+// chez NotchPay CÔTÉ SERVEUR (référence enregistrée à l'initialisation, jamais un
+// paramètre de l'URL) ; confirmerPaiementCommande contrôle montant, devise et
+// référence avant de créer le moindre droit. Idempotent.
+async function verifierEtConfirmerNotchPay(commandeId: string, paiementReference: string | null) {
+  if (!hasNotchPay() || !paiementReference) return;
+  // paiementReference = référence NotchPay ("trx.xxx") stockée à l'initialisation.
+  await confirmerPaiementCommande(commandeId, paiementReference).catch(() => {
+    // NotchPay injoignable : le webhook et la réconciliation prendront le relais.
+  });
+}
+
+export default async function ConfirmationPage({ params, searchParams }: Props) {
+  const t = await getT();
+  const { slug, orderId } = await params;
+  const { k } = await searchParams;
+  // Les accès (liens, clés) ne s'affichent qu'avec la clé signée de l'URL de retour / de l'e-mail.
+  const autorise = cleAccesValide(orderId, k);
+
+  const tenant = await prisma.tenant.findUnique({ where: { slug } });
+  if (!tenant || tenant.statut !== "active") notFound();
+
+  const commandeAvant = await prisma.commande.findUnique({ where: { id: orderId }, select: { paiementStatut: true, methodePaiement: true, paiementReference: true } });
+  if (commandeAvant?.paiementStatut === "pending" && commandeAvant.methodePaiement === "notchpay") {
+    await verifierEtConfirmerNotchPay(orderId, commandeAvant.paiementReference);
+  }
+
+  const commande = await prisma.commande.findUnique({
+    where: { id: orderId },
+    include: {
+      lignes: {
+        include: {
+          produit: { select: { id: true, type: true, fichierNom: true } },
+        },
+      },
+    },
+  });
+  if (!commande || commande.tenantId !== tenant.id) notFound();
+
+  const themeConfig = await resolveConfigVitrine(tenant.themeId, tenant.id, (tenant.themeConfig as Record<string, any>) || {});
+  const theme = themeConfig.colors;
+
+  const paye = commande.paiementStatut === "completed";
+  const echoue = commande.paiementStatut === "failed";
+  const isCOD = commande.methodePaiement === "whatsapp_cod" || commande.methodePaiement === "direct_cod";
+  const isDigital = commande.lignes.some(l => l.produit?.type && TYPES_LIVRAISON_DIGITALE.has(l.produit.type));
+
+  const ligneProduitIds = commande.lignes.map(l => l.produit?.id).filter((id): id is string => !!id);
+  const bundlesAchetes = ligneProduitIds.length
+    ? await prisma.bundleProduit.findMany({
+        where: { produitId: { in: ligneProduitIds } },
+        include: { elements: { include: { produitInclus: { select: { id: true, nom: true } } } } },
+      })
+    : [];
+  const produitsInclusBundle = bundlesAchetes.flatMap(b => b.elements.map(e => e.produitInclus));
+  const tousProduitIds = [...new Set([...ligneProduitIds, ...produitsInclusBundle.map(p => p.id)])];
+  const nomProduit = new Map<string, string>([
+    ...commande.lignes.filter(l => l.produit).map(l => [l.produit!.id, l.nom] as const),
+    ...produitsInclusBundle.map(p => [p.id, p.nom] as const),
+  ]);
+
+  // Droits affichés seulement pour une commande payée et une clé valide ; jetons révoqués exclus.
+  const montrerAcces = paye && autorise && tousProduitIds.length > 0;
+  // Reprise : une livraison restée incomplète (erreur passagère) est retentée à l'ouverture de la page.
+  if (montrerAcces && isDigital && commande.methodePaiement === "notchpay") {
+    const etat = await prisma.livraisonDigitale.findUnique({ where: { commandeId: orderId }, select: { statut: true } });
+    if (etat?.statut !== "livree" && etat?.statut !== "revoquee") await livrerCommandeDigitale(orderId).catch(() => {});
+  }
+  const [telechargementsBruts, accesFormations, clesLicence, journal] = await Promise.all([
+    montrerAcces
+      ? prisma.telechargement.findMany({
+          where: { commandeId: orderId, produitId: { in: tousProduitIds }, revoqueAt: null },
+          select: {
+            id: true, token: true, produitId: true, expireAt: true,
+            produit: { select: { nom: true, fichierNom: true, produitFichier: { select: { motDePasse: true, fichiers: { orderBy: { ordre: "asc" }, select: { id: true, nom: true } } } } } },
+          },
+        })
+      : [],
+    montrerAcces ? prisma.accesFormation.findMany({ where: { commandeId: orderId, produitId: { in: tousProduitIds } } }) : [],
+    montrerAcces
+      ? prisma.cleLicence.findMany({
+          where: { commandeId: orderId, statut: "vendue", licenceProduit: { produitId: { in: tousProduitIds } } },
+          include: { licenceProduit: { select: { produitId: true } } },
+        })
+      : [],
+    prisma.livraisonDigitale.findUnique({ where: { commandeId: orderId }, select: { emailStatut: true } }),
+  ]);
+  const accesLive = montrerAcces
+    ? (await prisma.inscriptionLive.findMany({ where: { commandeId: orderId, statut: "inscrite" }, select: { id: true, token: true, evenement: { select: { titre: true } }, bootcamp: { select: { produit: { select: { nom: true } } } } } }))
+        .map((i) => ({ id: i.id, token: i.token, titre: i.evenement?.titre ?? i.bootcamp?.produit.nom ?? "" }))
+    : [];
+  // Le hash du mot de passe ne quitte jamais le serveur : seul « protégé ou non » est transmis.
+  const telechargements = telechargementsBruts.map(({ produit: { produitFichier, ...produit }, ...dl }) => ({
+    ...dl,
+    produit: { ...produit, protege: !!produitFichier?.motDePasse, fichiers: produitFichier?.fichiers ?? [] },
+  }));
+
+  // commande.montantTotal est déjà majoré de la commission côté client (prix vendeur
+  // × (1 + taux)) — le marchand reçoit son prix intégral, extrait par division.
+
+  const contenuConfirmation = (
+    <ConfirmationDigitaleContent
+      theme={theme}
+      slug={slug}
+      devise={tenant.devise}
+      commande={commande}
+      paye={paye}
+      echoue={echoue}
+      isCOD={isCOD}
+      isDigital={isDigital}
+      accesVerrouille={paye && isDigital && !autorise}
+      emailEnvoye={journal?.emailStatut === "envoye"}
+      telechargements={telechargements}
+      accesFormations={accesFormations}
+      accesLive={accesLive}
+      clesLicence={clesLicence}
+      nomProduit={nomProduit}
+    />
+  );
+
+  const Habillage = habillageDesign(themeConfig);
+  if (Habillage) {
+    return <Habillage><div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">{t(contenuConfirmation)}</div></Habillage>;
+  }
+
+  return (
+    <div style={{ backgroundColor: theme.fond, color: theme.texte, minHeight: "100vh" }}>
+      {t(contenuConfirmation)}
+
+      <footer className="border-t py-8 text-center text-sm opacity-40 mt-8" style={{ borderColor: `${theme.accent}20` }}>
+        <p>{t(tenant.nomBoutique)}{" "}{t("· Propulsé par")}{" "}<span style={{ color: theme.accent }}>{t("Axso")}</span></p>
+      </footer>
+    </div>
+  );
+}
