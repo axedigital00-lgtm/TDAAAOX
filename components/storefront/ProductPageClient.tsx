@@ -14,6 +14,7 @@ import {
   ChevronDown, Share2, PlayCircle, Headphones, FileText,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { CoordonneesPied } from "@/components/storefront/CoordonneesPied";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Variante = { id: string; nom: string; valeur: string; prix: number | null; stock: number };
@@ -71,6 +72,7 @@ export interface ProductPageClientProps {
     id: string; slug: string; nomBoutique: string; devise: string; certifie: boolean;
     accent: string; fond: string; texte: string; surface: string; radius: string;
     whatsapp: string | null; whatsappNumero: string | null; commandeWhatsApp?: boolean; creeLe?: string | null;
+    adresse?: string | null; telephone?: string | null;
     productPage?: { layout?: string; sections?: ProdSection[] } | null;
     layout?: { largeurContainer?: string } | null;
     boutons?: { style?: string; taille?: string; hover?: string } | null;
@@ -1648,6 +1650,7 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
 
       {!sansPied && (
         <footer className="border-t py-8 text-center text-xs" style={{ borderColor: `${accent}10`, opacity: 0.35 }}>
+          <CoordonneesPied adresse={tenant.adresse} telephone={tenant.telephone} />
           <p>{tx(nomBoutique)}{" "}{tx("· Propulsé par")}{" "}<span style={{ color: accent, opacity: 1 }}>{tx("Axso")}</span></p>
         </footer>
       )}

@@ -342,6 +342,24 @@ export default function BoutiquePage() {
         </div>
       </div>
 
+      {/* Rappel : téléphone et adresse affichés aux clients (pied de page, page Contact). */}
+      {savedForm && (!savedForm.telephone.trim() || !savedForm.adresse.trim()) && (
+        <div className="ax-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 border border-amber-200 bg-amber-50">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0"><MapPin size={18} className="text-amber-700" /></div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-bold text-[#111111]">{tr("Complète tes coordonnées")}</p>
+            <p className="text-[13px] text-[#555555]">
+              {tr("Ajoute ton {0} : il s'affiche en bas de ta boutique et sur ta page Contact. Les clients font plus confiance à une boutique qu'ils peuvent appeler ou trouver.",
+                [!savedForm.telephone.trim() && tr("numéro de téléphone"), !savedForm.adresse.trim() && tr("adresse physique")].filter(Boolean).join(tr(" et ")))}
+            </p>
+          </div>
+          <button onClick={() => { const champ = "champ-" + (!savedForm.telephone.trim() ? "telephone" : "adresse"); setSection("infos"); setTimeout(() => { const el = document.getElementById(champ); el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus({ preventScroll: true }); }, 50); }}
+            className="self-start sm:self-center flex-shrink-0 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-[#111111] hover:opacity-90">
+            {tr("Compléter")}
+          </button>
+        </div>
+      )}
+
       <BannierePub />
 
       {/* ── Corps : nav + contenu + preview ── */}
@@ -385,7 +403,7 @@ export default function BoutiquePage() {
                 {CHAMPS_INFOS.map(f => (
                   <div key={f.key}>
                     <label className={labelCls}><f.Icon size={11} /> {tr(f.label)}</label>
-                    <input type={f.type || "text"} value={(form as any)[f.key]} placeholder={f.key === "whatsapp" || f.key === "telephone" ? exempleTelephone(form.pays) : f.placeholder}
+                    <input id={`champ-${f.key}`} type={f.type || "text"} value={(form as any)[f.key]} placeholder={f.key === "whatsapp" || f.key === "telephone" ? exempleTelephone(form.pays) : f.placeholder}
                       onChange={e => set(f.key, e.target.value)} className={inputCls} />
                   </div>
                 ))}

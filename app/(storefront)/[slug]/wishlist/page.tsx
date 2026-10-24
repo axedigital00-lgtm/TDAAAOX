@@ -8,6 +8,7 @@ import { StorefrontNavbar } from "@/components/storefront/StorefrontNavbar";
 import { WishlistGrid } from "@/components/storefront/WishlistGrid";
 import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
 import { getT } from "@/lib/i18n/serveur";
+import { CoordonneesPied } from "@/components/storefront/CoordonneesPied";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -114,6 +115,7 @@ export default async function WishlistPage({ params }: Props) {
       {t(grille)}
 
       <footer className="border-t mt-16 py-8 text-center text-xs" style={{ borderColor: `${c.accent}10`, opacity: 0.4 }}>
+        <CoordonneesPied adresse={tenant.adresse} telephone={tenant.telephone} />
         <p>{t(tenant.nomBoutique)}{" "}{t("· Propulsé par")}{" "}<span style={{ color: c.accent, opacity: 1 }}>{t("Axso")}</span></p>
       </footer>
     </div>

@@ -10,6 +10,7 @@ import { ConfirmationDigitaleContent } from "@/components/storefront/Confirmatio
 import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
 import { getT } from "@/lib/i18n/serveur";
 import { cleAccesValide, livrerCommandeDigitale } from "@/lib/livraison-numerique";
+import { CoordonneesPied } from "@/components/storefront/CoordonneesPied";
 
 interface Props {
   params: Promise<{ slug: string; orderId: string }>;
@@ -147,6 +148,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
       {t(contenuConfirmation)}
 
       <footer className="border-t py-8 text-center text-sm opacity-40 mt-8" style={{ borderColor: `${theme.accent}20` }}>
+        <CoordonneesPied adresse={tenant.adresse} telephone={tenant.telephone} />
         <p>{t(tenant.nomBoutique)}{" "}{t("· Propulsé par")}{" "}<span style={{ color: theme.accent }}>{t("Axso")}</span></p>
       </footer>
     </div>

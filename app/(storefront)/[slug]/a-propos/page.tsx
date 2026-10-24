@@ -160,6 +160,7 @@ export default async function AProposPage({ params }: Props) {
               <div className="space-y-3">
                 {tenant.email && <a href={`mailto:${tenant.email}`} className="block text-sm transition-opacity hover:opacity-100" style={{ opacity: 0.55 }}>{tenant.email}</a>}
                 {tenant.adresse && <p className="text-sm" style={{ opacity: 0.55 }}>{t(tenant.adresse)}</p>}
+                {tenant.telephone && <a href={`tel:${tenant.telephone.replace(/\s/g, "")}`} className="block text-sm transition-opacity hover:opacity-100" style={{ opacity: 0.55 }}>{tenant.telephone}</a>}
               </div>
             </div>
           </div>

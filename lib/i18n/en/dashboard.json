@@ -3206,5 +3206,11 @@
  "Capture d'écran invalide": "Invalid screenshot",
  "Ce montant dépasse votre solde disponible ({0}).": "This amount exceeds your available balance ({0}).",
  "{0} sont encore en séquestre 48 h, libérés à partir du {1}.": "{0} is still in 48h escrow, released from {1}.",
- "Désactivé par défaut pour les nouvelles boutiques. Activé : bouton « Commander via WhatsApp » sous « Commander » sur les produits physiques (vraie commande si vous acceptez la commande WhatsApp dans Paramètres → Moyens de paiement, sinon « Contacter via WhatsApp »). Jamais sur un produit numérique, payé en ligne.": "Off by default for new shops. When on: an “Order via WhatsApp” button under “Order” on physical products (a real order if you accept WhatsApp orders in Settings → Payment methods, otherwise “Contact via WhatsApp”). Never on a digital product, which is paid online."
+ "Désactivé par défaut pour les nouvelles boutiques. Activé : bouton « Commander via WhatsApp » sous « Commander » sur les produits physiques (vraie commande si vous acceptez la commande WhatsApp dans Paramètres → Moyens de paiement, sinon « Contacter via WhatsApp »). Jamais sur un produit numérique, payé en ligne.": "Off by default for new shops. When on: an “Order via WhatsApp” button under “Order” on physical products (a real order if you accept WhatsApp orders in Settings → Payment methods, otherwise “Contact via WhatsApp”). Never on a digital product, which is paid online.",
+ "Complète tes coordonnées": "Complete your contact details",
+ "Ajoute ton {0} : il s'affiche en bas de ta boutique et sur ta page Contact. Les clients font plus confiance à une boutique qu'ils peuvent appeler ou trouver.": "Add your {0}: it appears at the bottom of your store and on your Contact page. Customers trust a store they can call or find.",
+ "numéro de téléphone": "phone number",
+ "adresse physique": "physical address",
+ " et ": " and ",
+ "Compléter": "Complete"
 }

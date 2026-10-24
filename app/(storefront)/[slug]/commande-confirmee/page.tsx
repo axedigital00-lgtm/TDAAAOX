@@ -9,6 +9,7 @@ import { CommandeConfirmeeClient } from "./CommandeConfirmeeClient";
 import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
 import { Lock } from "lucide-react";
 import { getT } from "@/lib/i18n/serveur";
+import { CoordonneesPied } from "@/components/storefront/CoordonneesPied";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -93,6 +94,7 @@ export default async function CommandeConfirmeePage({ params, searchParams }: Pr
         className="border-t py-8 text-center text-sm opacity-40 mt-8"
         style={{ borderColor: `${theme.accent}20` }}
       >
+        <CoordonneesPied adresse={tenant.adresse} telephone={tenant.telephone} />
         <p>
           {t(tenant.nomBoutique)}{" "}{t("· Propulsé par")}{" "}
           <span style={{ color: theme.accent }}>{t("Axso")}</span>

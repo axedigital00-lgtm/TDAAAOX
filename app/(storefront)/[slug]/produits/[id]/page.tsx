@@ -199,6 +199,8 @@ export default async function ProduitPage({ params }: Props) {
     radius,
     whatsapp: tenant.whatsapp ?? null,
     whatsappNumero: tenant.whatsappNumero ?? null,
+    adresse: tenant.adresse,
+    telephone: tenant.telephone,
     // Paramètres → Moyens de paiement : commande WhatsApp acceptée ? (le bouton de la fiche reste une option du Constructeur)
     commandeWhatsApp: lireReglagesPaiement(tenant.parametresPaiement).whatsapp,
     creeLe: tenant.createdAt.toISOString(),
