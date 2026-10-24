@@ -93,7 +93,10 @@ export function BannierePub() {
   return (
     <section aria-label={t("Publicités")} aria-roledescription="carousel" onMouseEnter={() => setPause(true)} onMouseLeave={() => setPause(false)}
       className="relative overflow-hidden rounded-3xl p-5 sm:p-6 text-white transition-[background] duration-500" style={{ background: a.fond }}>
-      <ContenuAnnonce key={a.id} a={a} onClic={() => compter(a.id, "clic")} />
+      {/* Chaque annonce entre par la droite (défilement de droite à gauche). */}
+      <div key={a.id} className="ax-pub-entre">
+        <ContenuAnnonce a={a} onClic={() => compter(a.id, "clic")} />
+      </div>
       {annonces.length > 1 && (
         <div className="mt-4 flex gap-1.5">
           {annonces.map((x, k) => (

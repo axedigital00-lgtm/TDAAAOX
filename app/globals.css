@@ -306,6 +306,13 @@ main > section, main > div > section {
   0%, 100% { opacity: 0.55; transform: scale(1); }
   50%      { opacity: 1;    transform: scale(1.12); }
 }
+/* Bannière pub de « Ma boutique » : l'annonce suivante arrive par la droite. */
+@keyframes axPubEntre {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.ax-pub-entre { animation: axPubEntre 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) { .ax-pub-entre { animation: none; } }
 @keyframes axReflet {
   from { transform: translateX(-100%); }
   to   { transform: translateX(100%); }
