@@ -7,6 +7,12 @@ import { livrerCommandeDigitale } from "./livraison-numerique";
 import { notifierMarchand } from "./notifications-marchand";
 import { envoyerAlerteRetrait, envoyerEmailTexte } from "./email";
 
+/** Crée le programme d'affiliation de la boutique s'il n'existe pas (réglages par défaut).
+ *  Appelé dès qu'un produit est ouvert aux affiliés : le marchand n'a pas d'écran à part à trouver. */
+export async function assurerProgrammeAffiliation(tenantId: string) {
+  await prisma.programmeAffiliation.upsert({ where: { tenantId }, create: { tenantId, nom: "Programme d'affiliation" }, update: {} });
+}
+
 // ─── Codes ──────────────────────────────────────────────────────────────────
 
 // Code d'un lien B2B (boutique → boutique), utilisé par AffiliationLien
@@ -90,24 +96,22 @@ export function calculerCommissionLigne(params: {
 }): number {
   const { montantLigne, produitId, produit, programme, conversionsActuelles } = params;
 
-  const eligible = programme.tousLesProduits || programme.produitIds.includes(produitId);
+  // Seuls les produits que le marchand a ouverts aux affiliés rapportent une commission
+  // (mêmes règles que ce que voient les affiliés : place de marché, espace affilié).
+  const eligible = !!produit?.affiliationActive && (programme.tousLesProduits || programme.produitIds.includes(produitId));
   if (!eligible) return 0;
 
   const estDigital = !!produit?.type && TYPES_PRODUIT_DIGITAL.has(produit.type);
 
   if (programme.typeCommission === "fixe") {
-    const montant = produit?.affiliationActive && produit.tauxCommissionAff
-      ? produit.tauxCommissionAff
-      : programme.valeurCommission;
+    const montant = produit!.tauxCommissionAff || programme.valeurCommission;
     return Math.round(montant * 100) / 100;
   }
 
   // Pourcentage : taux spécifique produit (déjà une fraction, ex 0.20) sinon,
   // pour un produit digital, 50% garanti ; sinon taux du programme selon le
   // palier atteint (stocké en points, ex 10 = 10%).
-  const tauxFraction = produit?.affiliationActive
-    ? (produit.tauxCommissionAff ?? (estDigital ? TAUX_DEFAUT_DIGITAL : tauxPourPalier(programme, conversionsActuelles) / 100))
-    : tauxPourPalier(programme, conversionsActuelles) / 100;
+  const tauxFraction = produit!.tauxCommissionAff ?? (estDigital ? TAUX_DEFAUT_DIGITAL : tauxPourPalier(programme, conversionsActuelles) / 100);
 
   return Math.round(montantLigne * tauxFraction * 100) / 100;
 }

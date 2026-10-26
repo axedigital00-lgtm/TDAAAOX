@@ -219,6 +219,8 @@ export default function EditProduitPage() {
   const margeCout = form.cout && form.prix
     ? Math.round((1 - parseFloat(form.cout) / parseFloat(form.prix)) * 100) : null;
   const estDigital = ["digital", "fichier", "licence", "formation", "bundle"].includes(form.type);
+  // Mêmes types que lib/affiliation.ts (TYPES_PRODUIT_DIGITAL) : 50 % par défaut pour l'affilié.
+  const affDigital = ["digital", "fichier", "formation", "licence"].includes(form.type);
   const prixNum = parseFloat(form.prix), prixCompareNum = parseFloat(form.prixCompare);
   const promoInvalide = !!form.prixCompare && prixCompareNum > 0 && prixNum > 0 && prixCompareNum <= prixNum;
   const remisePct = prixCompareNum > prixNum && prixNum > 0 ? Math.round((1 - prixNum / prixCompareNum) * 100) : null;
@@ -588,7 +590,7 @@ export default function EditProduitPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap size={15} className="text-[#F5A623]" />
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Programme d'affiliation")}</h2>
+                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Ouvrir aux affiliés")}</h2>
               </div>
               <button type="button" onClick={() => set("affiliationActive", !form.affiliationActive)}
                 className="w-9 h-5 rounded-full relative transition-all flex-shrink-0"
@@ -597,13 +599,15 @@ export default function EditProduitPage() {
               </button>
             </div>
             <p className="text-[11.5px] text-gray-400">
-              {tr("Activer une commission spécifique pour ce produit — remplace le taux par défaut du programme d'affiliation pour vos affiliés.")}
+              {tr("Des affiliés font la promotion de ce produit avec leur lien. Tu ne paies une commission que sur les ventes qu'ils t'apportent.")}
             </p>
             {form.affiliationActive && (
               <div>
                 <label className="ax-label block mb-1.5">{tr("Taux de commission affilié (%)")}</label>
-                <input type="number" value={form.tauxCommissionAff} onChange={e => set("tauxCommissionAff", e.target.value)} min="0" max="100" placeholder="20" className={inputClass} />
-                <p className="text-[10.5px] text-gray-400 mt-1.5">{tr("Ex : 20 = 20% du montant de la ligne reversés à l'affilié sur chaque vente de ce produit.")}</p>
+                <input type="number" value={form.tauxCommissionAff} onChange={e => set("tauxCommissionAff", e.target.value)} min="0" max="100" placeholder={affDigital ? "50" : "10"} className={inputClass} />
+                <p className="text-[10.5px] text-gray-400 mt-1.5">{affDigital
+                  ? tr("Laisse vide pour 50 % (taux habituel des produits numériques). Ex : 30 = 30 % du prix reversés à l'affilié sur chaque vente.")
+                  : tr("Laisse vide pour le taux de ton programme d'affiliation (10 % par défaut). Ex : 15 = 15 % du prix reversés à l'affilié sur chaque vente.")}</p>
               </div>
             )}
           </div>

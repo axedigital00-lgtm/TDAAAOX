@@ -3212,5 +3212,20 @@
  "numéro de téléphone": "phone number",
  "adresse physique": "physical address",
  " et ": " and ",
- "Compléter": "Complete"
+ "Compléter": "Complete",
+ "Ouvrir aux affiliés": "Open to affiliates",
+ "Des affiliés font la promotion de ce produit avec leur lien. Tu ne paies une commission que sur les ventes qu'ils t'apportent.": "Affiliates promote this product with their link. You only pay a commission on the sales they bring you.",
+ "Laisse vide pour 50 % (taux habituel des produits numériques). Ex : 30 = 30 % du prix reversés à l'affilié sur chaque vente.": "Leave empty for 50% (usual rate for digital products). E.g. 30 = 30% of the price paid to the affiliate on each sale.",
+ "Laisse vide pour le taux de ton programme d'affiliation (10 % par défaut). Ex : 15 = 15 % du prix reversés à l'affilié sur chaque vente.": "Leave empty for your affiliate program rate (10% by default). E.g. 15 = 15% of the price paid to the affiliate on each sale.",
+ "Erreur, réessaie": "Error, try again",
+ "Tes produits sont proposés aux affiliés": "Your products are now offered to affiliates",
+ "Produits retirés de l'affiliation": "Products removed from affiliation",
+ "Proposer tes produits aux affiliés ?": "Offer your products to affiliates?",
+ "{0} de tes produits sont cochés « ouverts aux affiliés », mais aucun affilié ne les voit encore. Si tu acceptes, des affiliés pourront les promouvoir : tu ne paies une commission que sur les ventes qu'ils t'apportent.": "{0} of your products are marked \"open to affiliates\", but no affiliate can see them yet. If you accept, affiliates can promote them: you only pay a commission on the sales they bring you.",
+ "Non, les retirer": "No, remove them",
+ "Oui, les proposer": "Yes, offer them",
+ "Laisse des affiliés vendre pour toi": "Let affiliates sell for you",
+ "Ouvre un produit aux affiliés depuis sa fiche (« Ouvrir aux affiliés ») : ils le font connaître, et tu ne paies que sur les ventes réalisées.": "Open a product to affiliates from its page (\"Open to affiliates\"): they promote it, and you only pay on completed sales.",
+ "Plus tard": "Later",
+ "Choisir mes produits": "Choose my products"
 }

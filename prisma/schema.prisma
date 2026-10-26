@@ -137,7 +137,7 @@ model Produit {
   // Chariow (paiement digital via API Chariow)
   chariowProduitId  String?  // ID du produit correspondant sur chariow.com (ex: prd_abc123)
   // Affiliation
-  affiliationActive   Boolean @default(true)
+  affiliationActive   Boolean @default(false) // ouvert aux affiliés (choix du marchand, modèle Selar/Gumroad)
   tauxCommissionAff   Float?  // ex: 0.20 = 20% pour l'affilieur (sur le prix HT commission Axso)
   // Dropshipping
   prixFournisseur Float?   // Prix d'achat fournisseur

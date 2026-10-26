@@ -22,6 +22,7 @@ import { aAcces, NOMS_PALIERS, type Palier } from "@/lib/plans";
 import { useT } from "@/components/I18nProvider";
 import { lireReglagesLivraison, normaliserZone, type ZoneLivraison } from "@/lib/livraison-reglages";
 import { BannierePub } from "@/components/dashboard/BannierePub";
+import { CarteAffilies } from "@/components/dashboard/CarteAffilies";
 
 const BOUTIQUE_TUTORIAL_STEPS = [
   { Icon: Store,   titre: "Complétez votre profil",        description: "Nom, description, contacts, pays... Chaque champ rempli fait grimper votre score de complétion vers 100%." },
@@ -359,6 +360,8 @@ export default function BoutiquePage() {
           </button>
         </div>
       )}
+
+      <CarteAffilies />
 
       <BannierePub />
 

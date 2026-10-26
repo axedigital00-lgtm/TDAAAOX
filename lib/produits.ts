@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { assurerProgrammeAffiliation } from "./affiliation";
 
 export const schemaProduitMaj = z.object({
   nom: z.string().min(2).optional(),
@@ -75,7 +76,9 @@ export async function modifierProduit(tenantId: string, id: string, body: Record
     if (!slugExiste) updateData.slug = newSlug;
   }
 
-  return prisma.produit.update({ where: { id }, data: updateData });
+  const maj = await prisma.produit.update({ where: { id }, data: updateData });
+  if (data.affiliationActive) await assurerProgrammeAffiliation(tenantId);
+  return maj;
 }
 
 /**
