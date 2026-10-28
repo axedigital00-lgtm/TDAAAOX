@@ -1,4 +1,5 @@
 // Catalogue de l'affilié : tous les produits ouverts à l'affiliation, avec sa commission et son lien en un clic.
+import Link from "next/link";
 import { compteAffilie } from "@/app/affilie/session";
 import { catalogueAffiliation } from "@/lib/affiliation";
 import { estNumerique } from "@/lib/affiliation-regles";
@@ -7,6 +8,7 @@ import { getT } from "@/lib/i18n/serveur";
 import { Initiale } from "@/components/affilie/EspaceAffilieShell";
 import { ObtenirLien } from "@/components/affilie/Actions";
 import { BadgeCheck, Package, Search } from "lucide-react";
+import { MascotteAxso } from "@/components/affilie/MascotteAxso";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +45,20 @@ export default async function CatalogueAffilie({ searchParams }: { searchParams:
       </form>
 
       {produits.length === 0 ? (
-        <div className="bg-white border border-gray-100 rounded-2xl py-16 text-center">
-          <Package size={32} className="mx-auto mb-3 text-[#DDD]" />
-          <p className="text-[13px] text-[#999]">{t("Aucun produit ne correspond.")}</p>
+        <div className="bg-white border border-gray-100 rounded-2xl py-14 px-6 text-center">
+          <MascotteAxso />
+          {q || cat ? (
+            <>
+              <p className="text-[15px] font-bold mb-1">{t("Rien trouvé pour cette recherche")}</p>
+              <p className="text-[13px] text-[#888] mb-5">{t("Essayez un autre mot, ou parcourez toutes les catégories.")}</p>
+              <Link href="/affilie/catalogue" className="inline-flex px-4 py-2.5 rounded-xl bg-[#111] text-white text-[13px] font-semibold">{t("Voir tout le catalogue")}</Link>
+            </>
+          ) : (
+            <>
+              <p className="text-[15px] font-bold mb-1">{t("Le catalogue se remplit bientôt")}</p>
+              <p className="text-[13px] text-[#888] max-w-sm mx-auto">{t("Les marchands Axso n'ont pas encore ouvert de produits à l'affiliation. Dès qu'un produit est ouvert, il apparaît ici avec votre commission.")}</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

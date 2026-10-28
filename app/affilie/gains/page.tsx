@@ -7,7 +7,8 @@ import { tauxDuJour } from "@/lib/taux-change";
 import { formatMontant } from "@/lib/utils";
 import { getT } from "@/lib/i18n/serveur";
 import { Retirer } from "@/components/affilie/Actions";
-import { Wallet, ShoppingBag } from "lucide-react";
+import { Wallet } from "lucide-react";
+import { MascotteAxso } from "@/components/affilie/MascotteAxso";
 
 export const dynamic = "force-dynamic";
 const carte = "bg-white border border-gray-100 rounded-2xl p-4 md:p-5";
@@ -83,7 +84,7 @@ export default async function GainsAffilie() {
         <h2 className="text-[13px] font-bold mb-3">{t("Commissions")}</h2>
         {commissions.length === 0 ? (
           <div className="text-center py-8">
-            <ShoppingBag size={28} className="mx-auto mb-2 text-[#DDD]" />
+            <MascotteAxso hauteur={64} />
             <p className="text-[13px] text-[#999]">{t("Pas encore de vente. Partagez vos liens pour gagner votre première commission.")}</p>
           </div>
         ) : (

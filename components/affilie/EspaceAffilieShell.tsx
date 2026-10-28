@@ -36,7 +36,7 @@ export function EspaceAffilieShell({ nom, children }: { nom: string; children: R
     <div className="min-h-dvh bg-[#F5F5F5] text-[#111] md:flex" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
       <aside className="hidden md:flex flex-col w-[252px] h-screen sticky top-0 bg-white border-r border-gray-100 flex-shrink-0">
         <div className="h-[60px] flex items-center gap-2.5 px-5 border-b border-gray-100">
-          <Link href="/" className="text-[19px] font-black tracking-tight">Axso</Link>
+          <Link href="/" aria-label="Axso"><img src="/logo.png" alt="Axso" className="h-8 w-auto" /></Link>
           <span className="text-[10px] font-bold uppercase tracking-[0.12em] px-2 py-1 rounded-full bg-[#111] text-[#F5A623]">{t("Affilié")}</span>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
@@ -56,7 +56,7 @@ export function EspaceAffilieShell({ nom, children }: { nom: string; children: R
       <div className="flex-1 min-w-0">
         <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-gray-100">
           <div className="h-14 px-4 flex items-center gap-3">
-            <span className="text-[17px] font-black tracking-tight">Axso</span>
+            <Link href="/" aria-label="Axso" className="flex-shrink-0"><img src="/logo.png" alt="Axso" className="h-7 w-auto" /></Link>
             <p className="flex-1 min-w-0 truncate text-[14px] font-bold">{t(titre)}</p>
             <LangueSelecteur ouvrirVers="bas" aligner="droite" />
           </div>

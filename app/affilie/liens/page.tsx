@@ -7,7 +7,8 @@ import { formatMontant } from "@/lib/utils";
 import { getT } from "@/lib/i18n/serveur";
 import { Initiale } from "@/components/affilie/EspaceAffilieShell";
 import { Partager } from "@/components/affilie/Actions";
-import { Link2, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { MascotteAxso } from "@/components/affilie/MascotteAxso";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function MesLiens() {
 
       {partenariats.length === 0 ? (
         <div className="bg-white border border-gray-100 rounded-2xl py-14 px-6 text-center">
-          <Link2 size={28} className="mx-auto mb-3 text-[#DDD]" />
+          <MascotteAxso hauteur={64} />
           <p className="text-[13px] text-[#999] mb-4">{t("Vous n'avez pas encore de lien.")}</p>
           <Link href="/affilie/catalogue" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#F5A623] text-[#111] text-[13px] font-bold">
             {t("Parcourir le catalogue")}<ArrowRight size={14} />

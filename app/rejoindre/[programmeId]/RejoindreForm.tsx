@@ -38,6 +38,7 @@ export function RejoindreForm(p: Props) {
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'Poppins',system-ui,sans-serif" }}>
       <div style={{ background: "linear-gradient(135deg,#111111,#1a1a1a)", padding: "40px 20px 80px", color: "white", textAlign: "center" }}>
+        <a href="/" aria-label="Axso"><img src="/logo-dark.png" alt="Axso" style={{ height: 30, width: "auto", margin: "0 auto 24px" }} /></a>
         {p.logoUrl && <img src={p.logoUrl} alt="" style={{ height: 48, margin: "0 auto 16px", borderRadius: 10 }} />}
         <p style={{ fontSize: 12, fontWeight: 600, opacity: 0.7, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
           {t("Programme d'affiliation")}
@@ -79,8 +80,8 @@ export function RejoindreForm(p: Props) {
             </>
           )}
         </div>
-        <p style={{ textAlign: "center", fontSize: 11, color: "#BBB", marginTop: 24 }}>
-          {t("Propulsé par")} <span style={{ color: "#F5A623", fontWeight: 700 }}>Axso</span>
+        <p style={{ textAlign: "center", fontSize: 11, color: "#BBB", marginTop: 24, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          {t("Propulsé par")} <img src="/logo.png" alt="Axso" style={{ height: 18, width: "auto" }} />
         </p>
       </div>
     </div>

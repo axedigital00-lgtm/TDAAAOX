@@ -6,7 +6,8 @@ import { commissionsDuCompte, soldesParDevise } from "@/lib/affiliation";
 import { formatMontant } from "@/lib/utils";
 import { getT } from "@/lib/i18n/serveur";
 import { ClicsConversionsChart, CommissionsChart } from "@/components/affilie/AffiliationCharts";
-import { MousePointerClick, ShoppingBag, Percent, Search, ArrowRight, Wallet, Clock } from "lucide-react";
+import { MousePointerClick, ShoppingBag, Percent, ArrowRight, Wallet, Clock } from "lucide-react";
+import { MascotteAxso } from "@/components/affilie/MascotteAxso";
 
 export const dynamic = "force-dynamic";
 const JOURS = 30;
@@ -49,7 +50,7 @@ export default async function AccueilAffilie() {
   if (partenariats.length === 0) {
     return (
       <div className={`${carte} p-8 md:p-12 text-center`}>
-        <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-[#FFF6E6]"><Search size={24} className="text-[#F5A623]" /></div>
+        <MascotteAxso />
         <h1 className="text-[20px] font-bold mb-2">{t("Bienvenue dans votre espace affilié")}</h1>
         <p className="text-[13.5px] text-[#777] max-w-md mx-auto mb-6">
           {t("Choisissez un produit dans le catalogue, copiez votre lien et partagez-le. Chaque vente payée en ligne vous rapporte une commission, versée par Axso sur votre Mobile Money.")}
