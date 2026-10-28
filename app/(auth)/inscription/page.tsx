@@ -423,6 +423,38 @@ function PaysSelector({ onSelect }: { onSelect:(code:string,nom:string,devise:st
   );
 }
 
+// ─── Aperçu d'un thème : miniature tout de suite, aperçu personnalisé ensuite ──
+// La miniature (public/themes-apercu/cartes, ~12 Ko) s'affiche immédiatement. L'aperçu réel, avec le
+// nom et les produits de la boutique, la remplace seulement s'il s'est vraiment chargé : réseau
+// lent ou coupé → on garde la miniature, jamais de page d'erreur dans la carte.
+function ApercuTheme({ id, url, nom }: { id: string; url: string; nom: string }) {
+  const [pret, setPret] = useState(false);
+  useEffect(() => { setPret(false); }, [url]);
+  const verifier = (ev: React.SyntheticEvent<HTMLIFrameElement>) => {
+    try { setPret(!!ev.currentTarget.contentDocument?.getElementById("view-home")); }
+    catch { setPret(false); } // page d'erreur du navigateur : inaccessible
+  };
+  return (
+    <>
+      <img src={`/themes-apercu/cartes/${id.replace(/\.html$/, "")}.jpg`} alt="" decoding="async"
+        style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"top" }} />
+      <iframe
+        src={url} title={nom} onLoad={verifier}
+        sandbox="allow-same-origin allow-scripts"
+        scrolling="no"
+        style={{
+          width:960, height:750, border:"none",
+          pointerEvents:"none",
+          transformOrigin:"top left",
+          transform:"scale(0.25)",
+          position:"absolute", top:0, left:0,
+          opacity: pret ? 1 : 0, transition:"opacity .3s",
+        }}
+      />
+    </>
+  );
+}
+
 // ─── 4 Propositions de design Axia (iframes live avec données boutique) ───────
 function PropositionsDesign({
   themeIds, selectedId, onSelect,
@@ -500,18 +532,7 @@ function PropositionsDesign({
               )}
               {/* Iframe live avec les infos de la boutique */}
               <div style={{ height:170, overflow:"hidden", position:"relative" }}>
-                <iframe
-                  src={url} title={e.nom}
-                  sandbox="allow-same-origin allow-scripts"
-                  scrolling="no"
-                  style={{
-                    width:960, height:750, border:"none",
-                    pointerEvents:"none",
-                    transformOrigin:"top left",
-                    transform:"scale(0.25)",
-                    position:"absolute", top:0, left:0,
-                  }}
-                />
+                <ApercuTheme id={id} url={url} nom={e.nom} />
                 <div style={{ position:"absolute", inset:0, zIndex:2 }}/>
                 {/* Gradient bas */}
                 <div style={{
