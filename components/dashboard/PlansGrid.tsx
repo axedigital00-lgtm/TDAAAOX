@@ -17,9 +17,11 @@ interface PlansGridProps {
   devise: string;
   compact?: boolean;
   essai?: EssaiGrille;
+  /** Promo de lancement en cours (lib/promo.ts) : tout est offert, les packs payants sont fermés. */
+  promo?: boolean;
 }
 
-export function PlansGrid({ planActuel, nomPlan, devise, compact, essai }: PlansGridProps) {
+export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }: PlansGridProps) {
   const t = useT();
   const afficherXAF = devise === "XAF" || devise === "XOF";
 
@@ -47,18 +49,20 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai }: Plans
         <PlanBadge plan={planActuel} />
       </div>
 
-      {essai && essai.phase !== "termine" && planActuel === "palier0" && <CarteEssai essai={essai} />}
+      {!promo && essai && essai.phase !== "termine" && planActuel === "palier0" && <CarteEssai essai={essai} />}
 
       {/* ── Cards plans ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         {PLANS_CATALOGUE.map((plan) => {
           const estActuel = plan.id === planActuel;
+          const ferme = !!promo && plan.prixXAF > 0;
           const Icone = plan.icone;
           const prixLocal = convertirDepuisXAF(plan.prixXAF, devise);
 
           return (
             <div key={plan.id}
-              className="relative flex flex-col rounded-3xl bg-white border transition-all"
+              className={`relative flex flex-col rounded-3xl bg-white border transition-all ${ferme ? "grayscale opacity-55" : ""}`}
+              aria-disabled={ferme || undefined}
               style={{
                 borderColor: plan.recommande ? plan.border : estActuel ? plan.border : "#e5e7eb",
                 boxShadow: plan.recommande
@@ -67,7 +71,7 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai }: Plans
                 transform: plan.recommande ? "scale(1.02)" : "none",
               }}>
 
-              {plan.recommande && (
+              {plan.recommande && !ferme && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap"
                   style={{ background: `linear-gradient(135deg, ${plan.couleur}, #c97a10)` }}>
                   {t("⚡ Recommandé")}
@@ -143,7 +147,11 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai }: Plans
                   ))}
                 </ul>
 
-                <AbonnementActions planId={plan.id} planActuel={planActuel} couleur={plan.couleur} />
+                {ferme ? (
+                  <p className="w-full text-center text-[12px] font-semibold text-gray-500 bg-gray-100 rounded-xl py-3">{t("Fermé pendant la promo : déjà inclus")}</p>
+                ) : (
+                  <AbonnementActions planId={plan.id} planActuel={planActuel} couleur={plan.couleur} />
+                )}
               </div>
             </div>
           );

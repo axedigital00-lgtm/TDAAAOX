@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, X, Zap, Star, Lock } from "lucide-react";
 import Link from "next/link";
 import { useT } from "@/components/I18nProvider";
 import { SECTION, SURTITRE, TITRE, INTRO, BOUTON_NOIR, BOUTON_AMBRE } from "./charte";
+import { CompteurPromoLanding } from "@/components/promo/CompteurPromo";
 
 // id = identifiant réel de lib/plans-catalogue.ts, transmis à /inscription?plan=…
 const PLANS = [
@@ -78,8 +79,11 @@ const PLANS = [
   },
 ];
 
-export function TarifsSection() {
+/** `promoFinLe` : promo de lancement en cours (lib/promo.ts) → compteur et packs payants grisés. */
+export function TarifsSection({ promoFinLe = null, maintenant = 0 }: { promoFinLe?: string | null; maintenant?: number }) {
   const t = useT();
+  const [promo, setPromo] = useState(!!promoFinLe);
+  const finPromo = useCallback(() => setPromo(false), []);
   const sectionRef = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -128,6 +132,8 @@ export function TarifsSection() {
           </p>
         </div>
 
+        {promo && promoFinLe && <CompteurPromoLanding finLe={promoFinLe} maintenant={maintenant} onFin={finPromo} />}
+
         {/* Plans grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {PLANS.map((plan, idx) => (
@@ -136,6 +142,7 @@ export function TarifsSection() {
               plan={plan}
               visible={visible}
               delay={idx * 120}
+              promo={promo}
             />
           ))}
         </div>
@@ -194,13 +201,16 @@ export function TarifsSection() {
 }
 
 function PlanCard({
-  plan, visible, delay,
+  plan, visible, delay, promo,
 }: {
   plan: typeof PLANS[0];
   visible: boolean;
   delay: number;
+  promo: boolean;
 }) {
   const t = useT();
+  // Promo de lancement : les packs payants sont grisés, le gratuit donne déjà tout.
+  const ferme = promo && plan.prix > 0;
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
 
@@ -231,7 +241,7 @@ function PlanCard({
       }}
     >
       {/* Recommandé badge */}
-      {plan.recommande && (
+      {plan.recommande && !ferme && (
         <div
           className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 px-5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-xl whitespace-nowrap"
           style={{
@@ -248,7 +258,8 @@ function PlanCard({
 
       {/* Card */}
       <div
-        className="relative rounded-3xl border overflow-hidden h-full flex flex-col"
+        className={`relative rounded-3xl border overflow-hidden h-full flex flex-col ${ferme ? "grayscale opacity-50 pointer-events-none select-none" : ""}`}
+        aria-disabled={ferme || undefined}
         style={{
           background: plan.recommande ? "white" : plan.bg,
           borderColor: plan.borderColor,
@@ -359,12 +370,16 @@ function PlanCard({
           </div>
 
           {/* CTA */}
-          <Link
-            href={`/inscription?plan=${plan.id}`}
-            className={`${plan.recommande ? BOUTON_AMBRE : BOUTON_NOIR} w-full text-sm text-center`}
-          >
-            {t(plan.cta)}
-          </Link>
+          {ferme ? (
+            <span className={`${BOUTON_NOIR} w-full text-sm text-center`}>{t("Fermé pendant la promo : déjà inclus gratuitement")}</span>
+          ) : (
+            <Link
+              href={`/inscription?plan=${promo ? "palier0" : plan.id}`}
+              className={`${plan.recommande || promo ? BOUTON_AMBRE : BOUTON_NOIR} w-full text-sm text-center`}
+            >
+              {promo ? t("S'inscrire gratuitement — tout l'Illimité offert") : t(plan.cta)}
+            </Link>
+          )}
         </div>
       </div>
     </div>

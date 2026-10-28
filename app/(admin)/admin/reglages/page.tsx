@@ -4,8 +4,9 @@ import { METRIQUES } from "@/lib/command-center/moteur";
 import { lien } from "@/lib/command-center/contexte";
 import { peutReglerCC, NOM_ROLE } from "@/lib/command-center/rbac";
 import { EnTetePage, Carte, Note, Tableau, Badge } from "@/components/command-center/ui";
-import { EditeurSeuils, EditeurObjectifs, EditeurPoids, EditeurActivation, type MetriqueOption } from "./Editeurs";
+import { EditeurSeuils, EditeurObjectifs, EditeurPoids, EditeurActivation, EditeurPromo, type MetriqueOption } from "./Editeurs";
 import { getT } from "@/lib/i18n/serveur";
+import { finLePromo } from "@/lib/promo";
 
 const UNITE = { xaf: "FCFA", nombre: "Nombre", pct: "Pourcentage", heures: "Heures", ratio: "Ratio" };
 
@@ -23,6 +24,10 @@ export default async function Reglages({ searchParams }: { searchParams: Promise
       {lecture
         ? <Note>{t("Lecture seule : votre rôle ({0}) peut consulter les réglages mais seuls le Super admin et le CEO peuvent les modifier.", t(NOM_ROLE[session.role]))}</Note>
         : <Note>{avantLien}<Link href="/admin/audit?action=reglage" className="underline">{t("Journal d'audit")}</Link>{apresLien}</Note>}
+
+      <Carte id="promo" titre={t("Promo de lancement")} sousTitre={t("Compteur affiché sur la landing et dans le dashboard. Tant qu'il tourne, tout le monde a l'Illimité gratuitement et les packs payants sont fermés ; à la fin, tout redevient payant. Prise en compte en une minute au plus.")}>
+        <EditeurPromo initial={{ finLe: await finLePromo() }} lecture={lecture} />
+      </Carte>
 
       <Carte id="seuils" titre={t("Seuils d'alerte")} sousTitre={t("Évalués sur la période des filtres ; un seuil franchi devient une alerte dans Risques & alertes.")}>
         <EditeurSeuils initial={r.seuils} metriques={metriques} lecture={lecture} />

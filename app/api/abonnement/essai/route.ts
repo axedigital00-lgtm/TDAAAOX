@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { boutiquesDuCompte } from "@/lib/tenant";
 import { demarrerEssai, repondreEssai } from "@/lib/essai";
+import { finPromo } from "@/lib/promo";
 
 // Essai Illimité de 7 jours (lib/essai.ts) : démarrer, refuser, ou fenêtre de fin vue.
 // Décision du propriétaire seul, comme tout changement d'abonnement.
@@ -14,6 +15,8 @@ export async function POST(req: NextRequest) {
 
   const { action } = await req.json().catch(() => ({}));
   if (action === "demarrer") {
+    // Pendant la promo, l'Illimité est déjà offert : l'essai reste disponible pour après.
+    if (await finPromo()) return NextResponse.json({ error: "Promo en cours : tout l'Illimité est déjà offert" }, { status: 409 });
     const finLe = await demarrerEssai(tenantId);
     return finLe
       ? NextResponse.json({ succes: true, finLe })

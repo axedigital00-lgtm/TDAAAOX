@@ -15,9 +15,13 @@ import { FooterMarketing } from "@/components/marketing/FooterMarketing";
 import { PauseHorsEcran } from "@/components/marketing/PauseHorsEcran";
 import { Preloader } from "@/components/marketing/Preloader";
 import { avisPublies } from "@/lib/avis-plateforme";
+import { finPromo } from "@/lib/promo";
+
+// Régénérée chaque minute : une date de fin de promo changée par l'admin s'affiche vite, la page reste rapide.
+export const revalidate = 60;
 
 export default async function HomePage() {
-  const avis = await avisPublies(8);
+  const [avis, promo] = await Promise.all([avisPublies(8), finPromo()]);
   return (
     <main className="overflow-x-clip bg-white text-gray-900">
       {/* Logo de la marque pour Google (panneau de connaissances, résultats) : https://developers.google.com/search/docs/appearance/structured-data/logo */}
@@ -43,7 +47,7 @@ export default async function HomePage() {
       <ThemesSection/>
       <AxiaSection/>
       <VideoSection/>
-      <TarifsSection/>
+      <TarifsSection promoFinLe={promo?.toISOString() ?? null} maintenant={Date.now()}/>
       <AffiliationSection/>
       <TemoignagesSection reels={avis}/>
       <FaqSection/>

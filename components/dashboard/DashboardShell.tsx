@@ -15,6 +15,7 @@ import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import type { Palier } from "@/lib/plans";
 import type { ModuleKey, Niveau } from "@/lib/permissions";
 import { useT } from "@/components/I18nProvider";
+import { CompteurPromoDashboard } from "@/components/promo/CompteurPromo";
 
 const FULLBLEED_PREFIXES: string[] = ["/dashboard/builder", "/dashboard/themes"];
 
@@ -38,9 +39,11 @@ const BIENVENUE_STEPS = [
 // tout premier chargement. usePathname() côté client, lui, se met à jour de
 // façon fiable à chaque navigation.
 export function DashboardShell({
-  children, session, boutique, quotaAtteint, palier, permissions, modeCaisse, modePos,
+  children, session, boutique, quotaAtteint, palier, permissions, modeCaisse, modePos, promo,
 }: {
   children: React.ReactNode;
+  /** Promo de lancement en cours (lib/promo.ts) : compteur en haut de chaque page. */
+  promo?: { finLe: string; maintenant: number } | null;
   session: any;
   boutique: { slug: string; nomBoutique: string; url?: string } | null;
   quotaAtteint: boolean;
@@ -116,10 +119,12 @@ export function DashboardShell({
               <Header session={session} boutiqueSlug={boutique?.slug} boutiqueUrl={boutique?.url} boutiqueNom={boutique?.nomBoutique} permissions={permissions}/>
             </div>
           )}
+          {promo && estAccueilAxia && <CompteurPromoDashboard finLe={promo.finLe} maintenant={promo.maintenant} compact />}
           <main className={fullBleed || estAccueilAxia ? "flex-1 overflow-hidden flex flex-col" : "flex-1 overflow-y-auto pb-32 md:pb-0"}>
             {fullBleed || estAccueilAxia ? children : (
               <div key={pathname} className="ax-page-enter px-3 pt-3 md:px-6 md:pt-0 md:pb-8 max-w-lg md:max-w-7xl mx-auto w-full space-y-4 md:space-y-0">
-                {quotaAtteint && <QuotaBanner />}
+                {promo && <CompteurPromoDashboard finLe={promo.finLe} maintenant={promo.maintenant} />}
+                {quotaAtteint && !promo && <QuotaBanner />}
                 {children}
               </div>
             )}

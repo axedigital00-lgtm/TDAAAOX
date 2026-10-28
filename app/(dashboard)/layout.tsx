@@ -15,6 +15,7 @@ import { getLangue, dico } from "@/lib/i18n/serveur";
 import { DeviseProvider } from "@/components/dashboard/DeviseProvider";
 import { EssaiIllimite } from "@/components/dashboard/EssaiIllimite";
 import { etatEssai } from "@/lib/essai";
+import { finPromo } from "@/lib/promo";
 import { boutiquesDuCompte } from "@/lib/tenant";
 import { urlBoutique } from "@/lib/utils";
 
@@ -24,6 +25,8 @@ export const metadata = { manifest: "/manifest-dashboard.webmanifest" };
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect("/connexion");
+  // Compte affilié sans boutique : son espace est /affilie.
+  if ((session.user as any)?.role === "affilie") redirect("/affilie");
 
   const tenantId = (session.user as any)?.tenantId;
   let boutique: { slug: string; nomBoutique: string; devise: string; url: string } | null = null;
@@ -36,9 +39,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   const quotaAtteint = tenantId ? await quotaCommandesAtteint(tenantId) : false;
-  const { plan: palier } = tenantId ? await planActif(tenantId) : { plan: "palier0" as const };
+  const { plan: palier, promoFinLe } = tenantId ? await planActif(tenantId) : { plan: "palier0" as const, promoFinLe: await finPromo() };
+  const promo = promoFinLe ? { finLe: promoFinLe.toISOString(), maintenant: Date.now() } : null;
   // Essai Illimité (lib/essai.ts) : proposé, décompté et clos pour le propriétaire seulement.
-  const essai = tenantId && (await boutiquesDuCompte((session.user as any).id)).proprietaire.includes(tenantId)
+  // Pendant la promo de lancement, tout le monde a déjà l'Illimité : l'essai attend la fin.
+  const essai = tenantId && !promo && (await boutiquesDuCompte((session.user as any).id)).proprietaire.includes(tenantId)
     ? await etatEssai(tenantId) : null;
   const permissions = await permissionsSession(session);
   const modeCaisse = await estCaissierPur(session);
@@ -51,7 +56,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <I18nProvider langue={await getLangue()} dico={await dico("dashboard", "boutique")}>
     <AbonnementOverlayProvider palier={palier}>
-      <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos}>
+      <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo}>
         <DeviseProvider devise={boutique?.devise || "XAF"}>{children}</DeviseProvider>
       </DashboardShell>
       {/* Son audio sur chaque notification toast */}

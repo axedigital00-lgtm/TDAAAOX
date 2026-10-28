@@ -776,6 +776,10 @@ export default function InscriptionPage() {
   useEffect(()=>{
     const p = lireParametresInscription(new URLSearchParams(window.location.search));
     setEmailInitial(p.email); setAbonnement(p.plan);
+    // Promo de lancement : les packs payants sont fermés, on s'inscrit en gratuit (qui a déjà tout).
+    if(!p.retourPaiement && planPayant(p.plan)){
+      fetch("/api/promo").then(r=>r.json()).then(d=>{ if(d?.finLe) setAbonnement(null); }).catch(()=>{});
+    }
     if(p.retourPaiement){
       if(planPayant(p.plan)){ setRetourPaiement(true); setPhase("paiement"); }
       else window.location.href = "/dashboard/builder?bienvenue=1";

@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import type { Prisma } from "@prisma/client";
 import { LIMITES, palierAuMoins, type Palier } from "./plans";
 import { finEssai } from "./essai-regles";
+import { finPromo } from "./promo";
 
 const PALIERS_VALIDES = new Set<string>(["palier0", "palier1", "palier2"]);
 
@@ -22,8 +23,11 @@ export function boutiquesDuMemeCompte<S extends Prisma.TenantSelect>(tenantId: s
 
 // `plan` : ce dont la boutique profite (essai Illimité compris, voir lib/essai.ts) ;
 // `planPaye` : le palier réellement payé, sans l'essai.
-export async function planActif(tenantId: string): Promise<{ plan: Palier; planPaye: Palier; actif: boolean; essaiFinLe: Date | null }> {
-  const tenants = await boutiquesDuMemeCompte(tenantId, { planType: true, planExpiresAt: true, essaiFinLe: true });
+export async function planActif(tenantId: string): Promise<{ plan: Palier; planPaye: Palier; actif: boolean; essaiFinLe: Date | null; promoFinLe: Date | null }> {
+  const [tenants, promoFinLe] = await Promise.all([
+    boutiquesDuMemeCompte(tenantId, { planType: true, planExpiresAt: true, essaiFinLe: true }),
+    finPromo(),
+  ]);
 
   const now = new Date();
   let planPaye: Palier = "palier0";
@@ -35,7 +39,9 @@ export async function planActif(tenantId: string): Promise<{ plan: Palier; planP
     if (palierAuMoins(t.planType as Palier, planPaye)) planPaye = t.planType as Palier;
   }
   const essaiFinLe = finEssai(tenants);
-  return { plan: essaiFinLe && essaiFinLe > now ? "palier2" : planPaye, planPaye, actif: true, essaiFinLe };
+  // Promo de lancement (lib/promo.ts) ou essai en cours : Illimité.
+  const illimite = !!promoFinLe || (!!essaiFinLe && essaiFinLe > now);
+  return { plan: illimite ? "palier2" : planPaye, planPaye, actif: true, essaiFinLe, promoFinLe };
 }
 
 // Nombre de commandes créées depuis le début du mois calendaire courant —

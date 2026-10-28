@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { initierPaiementNotchPay, hasNotchPay } from "@/lib/notchpay";
 import { PALIER_PRIX, deviseAbonnement, noterPaiementEnAttente } from "@/lib/abonnement-paiement";
 import { boutiquesDuCompte } from "@/lib/tenant";
+import { finPromo } from "@/lib/promo";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -15,6 +16,9 @@ export async function POST(req: NextRequest) {
   // Comme changer/essai : l'abonnement est une décision du propriétaire seul.
   const { proprietaire } = await boutiquesDuCompte((session.user as any).id);
   if (!proprietaire.includes(tenantId)) return NextResponse.json({ error: "Seul le propriétaire peut changer d'abonnement" }, { status: 403 });
+
+  // Promo de lancement : tout est déjà offert, les packs payants rouvrent à la fin du compteur.
+  if (await finPromo()) return NextResponse.json({ error: "Les packs payants sont fermés pendant la promo : tout est déjà inclus gratuitement." }, { status: 409 });
 
   if (!hasNotchPay()) {
     return NextResponse.json({ error: "Paiement en ligne indisponible" }, { status: 503 });

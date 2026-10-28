@@ -6,8 +6,9 @@ import { peutReglerCC } from "@/lib/command-center/rbac";
 import { ecrireReglage } from "@/lib/command-center/serveur";
 import { SCHEMAS, type CleReglage } from "@/lib/command-center/reglages";
 import { ZodError } from "zod";
+import { oublierPromo } from "@/lib/promo";
 
-const MODIFIABLES: CleReglage[] = ["seuils", "objectifs", "poids_sante", "activation", "rapports"];
+const MODIFIABLES: CleReglage[] = ["seuils", "objectifs", "poids_sante", "activation", "rapports", "promo"];
 
 export async function PUT(req: NextRequest) {
   const session = await getAdminSessionPour("reglages");
@@ -16,7 +17,9 @@ export async function PUT(req: NextRequest) {
   const cle = corps?.cle as CleReglage;
   if (!MODIFIABLES.includes(cle) || !(cle in SCHEMAS)) return NextResponse.json({ erreur: "Réglage inconnu" }, { status: 400 });
   try {
-    return NextResponse.json({ valeur: await ecrireReglage(session, cle, corps!.valeur), message: "Réglage enregistré" });
+    const valeur = await ecrireReglage(session, cle, corps!.valeur);
+    if (cle === "promo") oublierPromo();
+    return NextResponse.json({ valeur, message: "Réglage enregistré" });
   } catch (e) {
     if (e instanceof ZodError) return NextResponse.json({ erreur: "Valeurs invalides : " + e.issues.map((i) => i.path.join(".") + " " + i.message).slice(0, 3).join(" ; ") }, { status: 400 });
     throw e;

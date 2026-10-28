@@ -1,7 +1,7 @@
 "use client";
 // Éditeurs des réglages du Command Center. Enregistrement : PUT /api/admin/command-center/reglages
 // (validé par schéma côté serveur, journalisé). En lecture seule, tout est désactivé.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -164,6 +164,47 @@ export function EditeurActivation({ initial, lecture }: { initial: Reglages["act
         ))}
       </fieldset>
       {!lecture && <BoutonEnregistrer charge={charge} desactive={etape === initial} onClick={() => enregistrer(etape)} />}
+    </div>
+  );
+}
+
+// Promo de lancement (lib/promo.ts) : date de fin du compteur affiché sur la landing et dans le dashboard.
+// La date est saisie à l'heure de l'appareil de l'admin et enregistrée en UTC.
+const versChamp = (iso: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+
+export function EditeurPromo({ initial, lecture }: { initial: Reglages["promo"]; lecture: boolean }) {
+  const t = useT();
+  // Fuseau de l'appareil : calculé après le chargement (le rendu serveur est en UTC).
+  const [champ, setChamp] = useState<string | null>(null);
+  useEffect(() => { setChamp(versChamp(initial.finLe)); }, [initial.finLe]);
+  const { charge, enregistrer } = useEnregistrer("promo");
+  if (champ === null) return <p className="text-[13px] cc-faint">{t("Chargement…")}</p>;
+  const finLe = champ ? new Date(champ).toISOString() : null;
+  const enCours = !!finLe && new Date(finLe) > new Date();
+  // +N jours à partir de la fin actuelle (ou de maintenant si la promo est finie).
+  const prolonger = (jours: number) => {
+    const depart = enCours ? new Date(finLe!).getTime() : Date.now();
+    setChamp(versChamp(new Date(depart + jours * 86_400_000).toISOString()));
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-[13px]">
+        {enCours
+          ? t("En cours jusqu'au {0} : packs payants fermés, tout compte profite de l'Illimité.", new Date(finLe!).toLocaleString(t.loc, { dateStyle: "full", timeStyle: "short" }))
+          : t("Aucune promo en cours : les packs payants sont ouverts.")}
+      </p>
+      <fieldset className="flex flex-wrap items-center gap-2" disabled={lecture}>
+        <legend className="sr-only">{t("Fin de la promo")}</legend>
+        <input type="datetime-local" value={champ} onChange={(e) => setChamp(e.target.value)} className="cc-input" aria-label={t("Fin de la promo")} />
+        <button type="button" className="cc-btn cc-btn-sm" onClick={() => prolonger(1)}>{t("+1 jour")}</button>
+        <button type="button" className="cc-btn cc-btn-sm" onClick={() => prolonger(7)}>{t("+7 jours")}</button>
+        <button type="button" className="cc-btn cc-btn-sm" onClick={() => setChamp("")}>{t("Arrêter la promo")}</button>
+      </fieldset>
+      {!lecture && <BoutonEnregistrer charge={charge} desactive={finLe === initial.finLe} onClick={() => enregistrer({ finLe })} />}
     </div>
   );
 }

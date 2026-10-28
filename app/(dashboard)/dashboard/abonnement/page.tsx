@@ -30,9 +30,9 @@ export default async function AbonnementPage({ searchParams }: { searchParams: P
   // palier0 — évite d'afficher aucune carte comme "actuelle" pour les
   // boutiques créées avant l'introduction des paliers.
   // Plan payé (sans l'essai Illimité, affiché à part) : on peut s'abonner pendant l'essai.
-  const [{ planPaye: planActuel }, essai] = await Promise.all([planActif(tenantId), etatEssai(tenantId)]);
+  const [{ planPaye: planActuel, promoFinLe }, essai] = await Promise.all([planActif(tenantId), etatEssai(tenantId)]);
   const pays   = tenant?.pays ?? "CM";
   const devise = tenant?.devise ?? PAYS_DEVISES[pays] ?? "XAF";
 
-  return <PlansGrid planActuel={planActuel} nomPlan={NOMS_PALIERS[planActuel]} devise={devise} essai={{ phase: essai.phase, finLe: essai.finLe?.toISOString() ?? null }} />;
+  return <PlansGrid planActuel={planActuel} nomPlan={NOMS_PALIERS[planActuel]} devise={devise} essai={{ phase: essai.phase, finLe: essai.finLe?.toISOString() ?? null }} promo={!!promoFinLe} />;
 }

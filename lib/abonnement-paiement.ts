@@ -10,6 +10,7 @@ import { boutiquesDuMemeCompte } from "./abonnement";
 import { NOMS_PALIERS, palierAuMoins, type Palier } from "./plans";
 import { envoyerRappelEssai } from "./email";
 import { pousserMarchands } from "./push";
+import { finPromo } from "./promo";
 
 export const PALIER_PRIX: Record<string, number> = { palier1: 6000, palier2: 20000 };
 const JOUR = 24 * 3600 * 1000;
@@ -87,6 +88,8 @@ export async function verifierAbonnementEnAttente(tenantId: string): Promise<boo
 /** Tâche quotidienne : rappel 3 jours avant l'échéance du palier payé, puis le jour même (e-mail +
  *  notification), une fois chacun (Tenant.planRappel, remis à null à chaque paiement). */
 export async function passeRappelsAbonnement(maintenant = new Date()): Promise<{ envoyes: number }> {
+  // Promo de lancement : le renouvellement est fermé (tout est offert), on ne demande pas de payer.
+  if (await finPromo(maintenant)) return { envoyes: 0 };
   const boutiques = await prisma.tenant.findMany({
     where: {
       planType: { in: ["palier1", "palier2"] },

@@ -52,6 +52,8 @@ export const SCHEMAS = {
   rapports: z.array(schemaRapport).max(20),
   taches: z.array(schemaTache).max(200),
   ignores: z.array(z.string().max(120)).max(500),
+  // Promo de lancement (lib/promo.ts) : jusqu'à `finLe`, tout compte profite de l'Illimité et les packs payants sont fermés.
+  promo: z.object({ finLe: z.string().datetime({ offset: true }).nullable() }),
 };
 export type CleReglage = keyof typeof SCHEMAS;
 export type Reglages = { [K in CleReglage]: z.infer<(typeof SCHEMAS)[K]> };
@@ -78,6 +80,8 @@ export const REGLAGES_DEFAUT: Reglages = {
   rapports: [],
   taches: [],
   ignores: [],
+  // Valeur réelle en base : créée à 7 jours à la première lecture (lib/promo.ts), réglable dans Admin › Réglages.
+  promo: { finLe: null },
 };
 
 export const NOM_ETAPE: Record<Reglages["activation"], string> = {
