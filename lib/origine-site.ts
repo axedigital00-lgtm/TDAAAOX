@@ -3,7 +3,7 @@
 // NEXT_PUBLIC_APP_URL. Serveur uniquement.
 import { headers } from "next/headers";
 import { domainePrincipal, sousDomainePret } from "./domaines";
-import { urlBoutique } from "./utils";
+import { SITE_AXSO, urlBoutique } from "./utils";
 
 export async function origineSite(): Promise<string> {
   const h = await headers();
@@ -18,8 +18,9 @@ export async function origineSite(): Promise<string> {
  */
 export async function origineAxso(): Promise<string> {
   const env = process.env.NEXT_PUBLIC_APP_URL;
-  if (env && !env.includes("xxxx")) return env.replace(/\/$/, "");
-  try { return await origineSite(); } catch { return "https://axsoafrica.com"; }
+  // axsoafrica.com sans www redirige vers www : on va directement à la bonne adresse (une redirection de moins).
+  if (env && !env.includes("xxxx")) return env.replace(/\/$/, "").replace(/^https?:\/\/axsoafrica\.com$/, SITE_AXSO);
+  try { return await origineSite(); } catch { return SITE_AXSO; }
 }
 
 /**
