@@ -1,15 +1,15 @@
 // RETRAITS ET COMMISSIONS VALIDÉS PAR AXSO — tests d'intégration sur la base LOCALE (`npm run test:integration`).
 // Prouvé ici : un retrait débite le wallet et reste « en attente » sans transfert automatique ;
 // le numéro prend l'indicatif du pays de la boutique (invalide → refusé, rien débité) ; le canal
-// NotchPay est bien déduit ; « payé » clôt et prévient ; « refusé » recrédite. Idem pour les
-// commissions d'affiliés (refusé → commissions de nouveau payables).
+// NotchPay est bien déduit ; « payé » clôt et prévient ; « refusé » recrédite. Retraits d'affiliés :
+// seules les commissions disponibles partent, refusé → de nouveau disponibles.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { canalNotchPay, cloturerRetraitManuel, initierRetrait } from "@/lib/wallet";
-import { cloturerCommissionManuelle, payerCommissionsAffilie } from "@/lib/affiliation";
+import { cloturerRetraitAffilie, demanderRetraitAffilie } from "@/lib/affiliation";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!/@localhost[/:]|host=\/var\/run/.test(url)) throw new Error("Tests d'intégration : DATABASE_URL doit pointer sur la base locale.");
@@ -71,26 +71,39 @@ test("Numéro invalide pour le pays de la boutique : refusé avant tout débit",
   assert.equal(await solde(), avant);
 });
 
-test("Commission d'affilié : en attente, payée (prévenu) ou refusée (recrédité, de nouveau payable)", async () => {
-  const affilie = await prisma.affilie.create({ data: { tenantId, nom: `Aff ${X}`, email: `aff-${X}@exemple.test`, telephone: "699 12 34 56", codeParrainage: `C${X}` } });
-  const commission = () => prisma.commissionAffilie.create({ data: { tenantId, affilieId: affilie.id, montantCommission: 1500, statut: "approuvee" } });
-  await commission();
-  const avant = await solde();
+test("Retrait d'affilié : disponible seulement, payé ou refusé (commissions de nouveau disponibles)", async () => {
+  const user = await prisma.user.create({ data: { email: `aff-${X}@exemple.test`, name: `Aff ${X}`, role: "affilie" } });
+  try {
+    const affilie = await prisma.affilie.create({ data: { tenantId, userId: user.id, nom: `Aff ${X}`, email: user.email!, codeParrainage: `C${X}`, statut: "actif" } });
+    let n = 0;
+    const vente = async (livreeIlYa: number | null) => {
+      const c = await prisma.commande.create({ data: { tenantId, numero: `${X}-${++n}`, clientNom: "Client", clientTelephone: "+237611111111", adresseLivraison: "", ville: "", pays: "CM", montantSousTotal: 15000, methodePaiement: "notchpay", montantTotal: 15000, devise: "XAF", paiementStatut: "completed", statut: livreeIlYa == null ? "confirmee" : "livree", livreeAt: livreeIlYa == null ? null : new Date(Date.now() - livreeIlYa * 3600_000) } as any });
+      return prisma.commissionAffilie.create({ data: { tenantId, affilieId: affilie.id, commandeId: c.id, montantCommission: 1500, devise: "XAF" } });
+    };
+    const dispo = await vente(72);   // livrée il y a 3 jours : disponible
+    const recente = await vente(10); // livrée il y a 10 h : séquestre en cours
+    await vente(null);               // pas encore livrée
 
-  const p1 = await payerCommissionsAffilie({ tenantId, affilieId: affilie.id });
-  const paiement1 = await prisma.paiementCommission.findUniqueOrThrow({ where: { id: p1.paiementId } });
-  assert.equal(paiement1.statut, "en_attente");
-  assert.equal(paiement1.reference, null);
-  assert.equal(paiement1.telephone, "+237699123456");
-  assert.equal(await solde(), avant - 1500);
-  await cloturerCommissionManuelle(p1.paiementId, true);
-  assert.equal((await prisma.paiementCommission.findUniqueOrThrow({ where: { id: p1.paiementId } })).statut, "traite");
-  assert.ok(await prisma.notificationMarchand.findFirst({ where: { tenantId, type: "commission_payee" } }));
+    await assert.rejects(demanderRetraitAffilie({ userId: user.id, devise: "XAF", telephone: "12 34" }), /invalide/);
+    const r1 = await demanderRetraitAffilie({ userId: user.id, devise: "XAF", telephone: "699 12 34 56" });
+    assert.equal(r1.montant, 1500);
+    assert.equal(r1.statut, "en_attente");
+    assert.equal(r1.destinataire, "+237699123456");
+    assert.equal((await prisma.commissionAffilie.findUniqueOrThrow({ where: { id: recente.id } })).retraitId, null, "séquestre non retiré");
+    await assert.rejects(demanderRetraitAffilie({ userId: user.id, devise: "XAF", telephone: "699123456" }), /Minimum/);
 
-  const c2 = await commission();
-  const p2 = await payerCommissionsAffilie({ tenantId, affilieId: affilie.id });
-  await cloturerCommissionManuelle(p2.paiementId, false);
-  assert.equal(await solde(), avant - 1500, "recrédité");
-  assert.equal((await prisma.commissionAffilie.findUniqueOrThrow({ where: { id: c2.id } })).statut, "approuvee");
-  await assert.rejects(cloturerCommissionManuelle(p2.paiementId, true), /déjà traité/);
+    await cloturerRetraitAffilie(r1.id, false);
+    assert.equal((await prisma.commissionAffilie.findUniqueOrThrow({ where: { id: dispo.id } })).retraitId, null, "de nouveau disponible");
+    await assert.rejects(cloturerRetraitAffilie(r1.id, true), /déjà traité/);
+
+    const r2 = await demanderRetraitAffilie({ userId: user.id, devise: "XAF", telephone: "699123456" });
+    await cloturerRetraitAffilie(r2.id, true);
+    assert.equal((await prisma.retraitAffilie.findUniqueOrThrow({ where: { id: r2.id } })).statut, "complete");
+    assert.equal((await prisma.commissionAffilie.findUniqueOrThrow({ where: { id: dispo.id } })).statut, "payee");
+  } finally {
+    await prisma.retraitAffilie.deleteMany({ where: { userId: user.id } });
+    await prisma.commissionAffilie.deleteMany({ where: { tenantId } });
+    await prisma.affilie.deleteMany({ where: { userId: user.id } });
+    await prisma.user.delete({ where: { id: user.id } });
+  }
 });

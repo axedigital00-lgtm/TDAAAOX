@@ -9,7 +9,6 @@ import { envoyerConfirmationCommande, envoyerAlerteNouvelleCommande, emailReel }
 import { fraisLivraisonServeur, poidsPanier, verifierZone } from "@/lib/livraison";
 import { villeCommande } from "@/lib/livraison-reglages";
 import { codePays } from "@/lib/devise-convert";
-import { enregistrerConversionAffiliation } from "@/lib/affiliation";
 import { randomBytes } from "crypto";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { prixClient, reductionPromo, filtreUsagePromo } from "@/lib/pricing";
@@ -159,23 +158,6 @@ export async function POST(req: NextRequest) {
     // à la confirmation du paiement (lib/paiement-commande.ts). Non payée, elle est libérée par cron/paiements.
     if (enLigne) {
       return NextResponse.json({ commandeId: commande.id, numero: commande.numero, enLigne: true, montantLivraison, montantTotal: montantTotalAvecLivraison, trackingToken });
-    }
-
-    // Programme d'affiliation B2C — enregistrée "pending", capturée (payable)
-    // seulement à la livraison confirmée (voir statut/route.ts), puisque le
-    // COD n'est acquis qu'à ce moment-là.
-    if (codeAffiliation) {
-      await enregistrerConversionAffiliation({
-        commande: {
-          id: commande.id,
-          tenantId,
-          clientEmail: commande.clientEmail,
-          clientTelephone: commande.clientTelephone,
-          montantTotal: montantTotalAvecLivraison,
-          codeAffiliation,
-        },
-        lignes: items.map((i) => ({ produitId: i.produitId, prix: i.prix, quantite: i.quantite })),
-      }).catch(() => {});
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://axsoafrica.com";

@@ -17,7 +17,6 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/livraison/calculer", null],
   ["/api/formations/progression", null],
   ["/api/codes-promo/verifier", null],
-  ["/api/affiliation/generer", null],
   ["/api/licences/activer", null],
   ["/api/livreurs/inscription", null],
   ["/api/equipe/accepter", null],
@@ -28,7 +27,6 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/live/acces", null],
   ["/api/live/communaute", null],
   // finance
-  ["/api/affiliation/paiements", "finance"],
   ["/api/pos/comptabilite", "finance"],
   ["/api/pos/charges", "finance"],
   ["/api/pos/rapprochement", "finance"], // rapprochement des paiements de caisse

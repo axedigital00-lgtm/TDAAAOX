@@ -354,7 +354,7 @@ export async function envoyerAlerteRetrait(p: {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>${quoi} à faire dans NotchPay</h2>
         <p>${p.affilie
-          ? `${e(p.boutique)} paie ses commissions à son affilié <strong>${e(p.affilie.nom)}</strong>${p.affilie.email ? ` (${e(p.affilie.email)})` : ""}. Le wallet du marchand est déjà débité : l'affilié attend le transfert.`
+          ? `L'affilié <strong>${e(p.affilie.nom)}</strong>${p.affilie.email ? ` (${e(p.affilie.email)})` : ""} retire ses commissions (déjà prélevées sur les ventes, gardées par Axso) : il attend le transfert.`
           : `${e(p.boutique)} demande un retrait. Son wallet est déjà débité : le marchand attend le transfert.`}</p>
         ${p.premierRetraitVersCeNumero ? `<p style="background:#FFFBEB;border:1px solid #FDE68A;padding:10px;border-radius:8px">⚠️ <strong>Premier retrait payé vers ce numéro/compte</strong> pour cette boutique : vérifie qu'il appartient bien au marchand avant d'envoyer.</p>` : ""}
         <h3>À saisir dans NotchPay (Transferts)</h3>

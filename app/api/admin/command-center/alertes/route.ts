@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
     if (nl && dernierL) liste.unshift({ id: `retraits-livreurs-${dernierL.id}`, categorie: "critique", titre: `🛵 ${nl} retrait(s) de livreur à valider dans NotchPay`, detail: "Les livreurs attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/finances" });
   }
   if (peutVoir(c.session.role, "affilies")) {
-    const where = { statut: "en_attente", reference: null };
-    const [n, dernier] = await Promise.all([prisma.paiementCommission.count({ where }), prisma.paiementCommission.findFirst({ where, orderBy: { createdAt: "desc" }, select: { id: true } })]);
-    if (n && dernier) liste.unshift({ id: `commissions-${dernier.id}`, categorie: "critique", titre: `🤝 ${n} commission(s) d'affilié à verser dans NotchPay`, detail: "Les affiliés attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/affilies" });
+    const where = { statut: "en_attente" };
+    const [n, dernier] = await Promise.all([prisma.retraitAffilie.count({ where }), prisma.retraitAffilie.findFirst({ where, orderBy: { createdAt: "desc" }, select: { id: true } })]);
+    if (n && dernier) liste.unshift({ id: `commissions-${dernier.id}`, categorie: "critique", titre: `🤝 ${n} retrait(s) d'affilié à verser dans NotchPay`, detail: "Les affiliés attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/affilies" });
   }
   // Problèmes signalés par les marchands, pas encore pris en charge (même principe d'id que les retraits).
   if (peutVoir(c.session.role, "support")) {

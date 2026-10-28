@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { memoriserRef } from "@/lib/ref-affiliation";
 
 // Capture le code d'affiliation (?ref=CODE) dès la première page visitée sur
 // la boutique — page produit, collection, accueil… — pas seulement au
@@ -13,7 +14,7 @@ export function AffiliationRefCapture() {
   useEffect(() => {
     const ref = searchParams?.get("ref");
     if (ref) {
-      try { localStorage.setItem("axso_ref", ref); } catch {}
+      memoriserRef(ref);
       fetch("/api/affilie/track-clic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

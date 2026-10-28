@@ -41,7 +41,7 @@ export function LangueSelecteur({ flottant = false, ouvrirVers = "haut", aligner
     return () => { document.removeEventListener("pointerdown", dehors); document.removeEventListener("keydown", echap); };
   }, [ouvert]);
 
-  if (flottant && (pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin") || pathname?.startsWith("/affilie/") || pathname === "/mon-espace-affilie")) return null;
+  if (flottant && (pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin") || pathname?.startsWith("/affilie"))) return null;
   const actuelle = LANGUES.find((l) => l.id === langue) ?? LANGUES[0];
 
   return (

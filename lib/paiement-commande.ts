@@ -3,7 +3,7 @@
 // Idempotent : ne fait rien si la commande est déjà marquée payée.
 import { prisma } from "./prisma";
 import { crediterWallet } from "./wallet";
-import { traiterPaiementDigital, enregistrerConversionAffiliation, capturerCommissionAffiliation, TYPES_LIVRAISON_DIGITALE } from "./affiliation";
+import { traiterPaiementDigital, enregistrerConversionAffiliation, TYPES_LIVRAISON_DIGITALE } from "./affiliation";
 import { notifierMarchand } from "./notifications-marchand";
 import { formatMontant } from "./utils";
 import { verifierPaiementNotchPay, paiementCouvre } from "./notchpay";
@@ -181,6 +181,20 @@ export async function finaliserPaiementCommande(commandeId: string, transactionV
   const frais = fraisNotchPay(transaction);
   const hasDigital = commande.lignes.some((l) => l.produit?.type && TYPES_LIVRAISON_DIGITALE.has(l.produit.type));
 
+  // Affiliation (paiement en ligne uniquement) : commission enregistrée AVANT le crédit, qui en est
+  // diminué — Axso la garde et la verse à l'affilié. Idempotent : un rejeu relit le même montant.
+  // Une erreur ici ne bloque jamais le crédit du marchand (il est alors crédité en entier).
+  // Marchand déjà crédité (rejeu) : plus aucune commission créée, elle n'aurait pas été prélevée.
+  const dejaCredite = !!(await prisma.walletTransaction.findFirst({ where: { commandeId, type: "CREDIT" }, select: { id: true } }));
+  const commissionAffilie = dejaCredite ? 0 : await enregistrerConversionAffiliation({
+    commande: {
+      id: commande.id, tenantId: commande.tenantId, clientEmail: commande.clientEmail, clientTelephone: commande.clientTelephone,
+      montantTotal: commande.montantTotal, montantLivraison: commande.montantLivraison, devise: commande.devise, codeAffiliation: commande.codeAffiliation,
+    },
+    lignes: commande.lignes.map((l) => ({ produitId: l.produitId, prix: l.prix, quantite: l.quantite })),
+    tauxCommission,
+  }).catch((e) => { console.error("[paiement-commande] affiliation", commandeId, e?.message); return 0; });
+
   if (hasDigital) {
     await traiterPaiementDigital({
       commande: {
@@ -195,6 +209,7 @@ export async function finaliserPaiementCommande(commandeId: string, transactionV
       reference,
       tauxCommission,
       fraisPasserelle: frais,
+      commissionAffilie,
     });
   } else {
     // Dropshipping payé : confirmé, puis expédié par le fournisseur (cycle de livraison normal).
@@ -212,6 +227,7 @@ export async function finaliserPaiementCommande(commandeId: string, transactionV
       commandeId: commande.id,
       reference,
       fraisPasserelle: frais,
+      commissionAffilie,
     });
   }
 
@@ -254,23 +270,6 @@ export async function finaliserPaiementCommande(commandeId: string, transactionV
       }).catch(() => {});
     }
   }
-
-  // Programme d'affiliation B2C : s'applique à TOUTE commande payée en ligne (digitale ou
-  // physique) — la vente est acquise ici, donc enregistrement + capture directe. Idempotent.
-  // Commission calculée sur le prix du vendeur, hors majoration Axso (tauxCommission).
-  await enregistrerConversionAffiliation({
-    commande: {
-      id: commande.id,
-      tenantId: commande.tenantId,
-      clientEmail: commande.clientEmail,
-      clientTelephone: commande.clientTelephone,
-      montantTotal: commande.montantTotal,
-      codeAffiliation: commande.codeAffiliation,
-    },
-    lignes: commande.lignes.map((l) => ({ produitId: l.produitId, prix: l.prix, quantite: l.quantite })),
-    tauxCommission,
-  }).catch(() => {});
-  await capturerCommissionAffiliation(commande.id).catch(() => {});
 }
 
 // Deuxième paiement « complete » sur une commande déjà payée (le client a payé deux fois) :

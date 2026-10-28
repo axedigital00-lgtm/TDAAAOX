@@ -152,6 +152,13 @@ export function hrefBoutique(slug: string, lien?: string | null): string | undef
 // branché (Cloudflare + domaine générique dans Vercel). Sans lui, nom.axsoafrica.com ne
 // répond pas : les liens et QR codes partaient dans le vide. Par défaut : domaine/nom.
 const DOMAINE_AXSO = process.env.NEXT_PUBLIC_AXSO_DOMAIN || "";
+
+/** Adresse publique du site (axsoafrica.com redirige vers www) ; l'adresse locale en développement. */
+export const SITE_AXSO = "https://www.axsoafrica.com";
+export const adresseSite = () => {
+  const env = process.env.NEXT_PUBLIC_APP_URL;
+  return env?.includes("localhost") ? env.replace(/\/$/, "") : SITE_AXSO;
+};
 export const SOUS_DOMAINES_ACTIFS = process.env.NEXT_PUBLIC_SOUS_DOMAINES === "1" && !!DOMAINE_AXSO && !DOMAINE_AXSO.endsWith(".vercel.app");
 
 /** "https://nom.axsoafrica.com" ; null quand les sous-domaines ne sont pas actifs. */

@@ -49,6 +49,7 @@ function ConnexionForm() {
     const sessionRes = await fetch("/api/auth/session");
     const session    = await sessionRes.json();
     if (session?.user?.role === "livreur") router.push("/livreur");
+    else if (session?.user?.role === "affilie") router.push(cb?.startsWith("/") && !cb.startsWith("//") ? cb : "/affilie");
     else if (estRoleAdmin(session?.user?.role)) router.push("/admin");
     else router.push(callbackUrl);
     router.refresh();

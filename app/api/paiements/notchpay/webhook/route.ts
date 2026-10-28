@@ -5,7 +5,6 @@ import { verifierSignatureWebhook } from "@/lib/notchpay";
 import { confirmerPaiementCommande } from "@/lib/paiement-commande";
 import { appliquerStatutTransfert } from "@/lib/wallet";
 import { confirmerPaiementAbonnement, lireRefAbonnement, oublierPaiementsEnAttente } from "@/lib/abonnement-paiement";
-import { rembourserPaiementCommissionEchoue } from "@/lib/affiliation";
 
 export const maxDuration = 60;
 
@@ -96,15 +95,5 @@ async function traiterEvenementTransfert(type: string, data: any, merchantRef: s
   const retrait = await prisma.retrait.findFirst({
     where: { OR: [{ id: data?.metadata?.retraitId ?? idMarchand ?? "" }, { reference: { in: refs } }] },
   });
-  if (retrait) {
-    await appliquerStatutTransfert(retrait.id, status);
-    return;
-  }
-
-  const commission = await prisma.paiementCommission.findFirst({
-    where: { OR: [{ id: idMarchand?.replace(/^AFF-/, "") ?? "" }, { reference: { in: refs } }] },
-  });
-  if (!commission) return;
-  if (status === "failed") await rembourserPaiementCommissionEchoue(commission.id);
-  else if (status === "complete") await prisma.paiementCommission.updateMany({ where: { id: commission.id, statut: "en_attente" }, data: { statut: "traite" } });
+  if (retrait) await appliquerStatutTransfert(retrait.id, status);
 }

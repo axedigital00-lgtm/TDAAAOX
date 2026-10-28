@@ -39,6 +39,8 @@ export interface CreditWalletParams {
   montantHorsCommission?: number;
   // Lignes de la commande (prix client unitaires) : part du vendeur exacte au franc près (lib/pricing.ts).
   lignes?: { prix: number; quantite: number }[];
+  // Commission d'affilié (lib/affiliation.ts) : retirée de la part du vendeur, gardée par Axso qui la verse à l'affilié.
+  commissionAffilie?: number;
 }
 
 export interface RetraitParams {
@@ -204,7 +206,10 @@ export async function crediterWallet(
   // (prix vendeur × (1 + tauxCommission)) + livraison non majorée. On extrait le net du vendeur
   // par division sur la seule part majorée : le vendeur reçoit exactement son prix et sa livraison.
   // FCFA et autres monnaies sans centimes : arrondi à l'unité.
-  const { montantNet, montantCommission } = partVendeur(montantBrut, params.montantHorsCommission ?? 0, tauxCommission, devise, params.lignes);
+  const part = partVendeur(montantBrut, params.montantHorsCommission ?? 0, tauxCommission, devise, params.lignes);
+  const { montantCommission } = part;
+  const affilie = Math.min(Math.max(0, params.commissionAffilie ?? 0), part.montantNet);
+  const montantNet = Math.round((part.montantNet - affilie) * 100) / 100;
 
   const taux = await tauxDuJour(); // hors transaction : aucun appel réseau pendant qu'elle est ouverte
   const credite = await prisma.$transaction(async (tx) => {
@@ -236,7 +241,7 @@ export async function crediterWallet(
         type: "CREDIT",
         montant: montantNet,
         devise,
-        description,
+        description: affilie > 0 ? `${description} (commission affilié −${affilie.toLocaleString("fr-FR")} ${devise})` : description,
         reference,
         commandeId,
         statut: "completed",

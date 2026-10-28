@@ -1,41 +1,32 @@
-// Commissions d'affiliation reçues ou générées par le tenant connecté
-import { NextRequest, NextResponse } from "next/server";
+// Ventes apportées par les affiliés de la boutique connectée (200 dernières commissions).
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { etatCommission } from "@/lib/affiliation-regles";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  const tenantId = (session.user as any)?.tenantId;
+  const tenantId = (session.user as any)?.tenantId as string | undefined;
+  if (!tenantId) return NextResponse.json({ error: "Pas de boutique" }, { status: 400 });
 
-  const { searchParams } = new URL(req.url);
-  const role = searchParams.get("role") ?? "affilieur"; // affilieur | vendeur
-
-  const where = role === "vendeur" ? { tenantId } : { affilieurId: tenantId };
-
-  const commissions = await prisma.affiliationCommission.findMany({
-    where,
-    include: {
-      lien: {
-        include: {
-          produit: { select: { nom: true, images: true } },
-          tenant: { select: { nomBoutique: true } },
-        },
-      },
-      commande: { select: { numero: true, montantTotal: true, devise: true, createdAt: true } },
-    },
+  const comms = await prisma.commissionAffilie.findMany({
+    where: { tenantId },
+    include: { affilie: { select: { nom: true, codeParrainage: true } } },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 200,
   });
-
-  const totaux = commissions.reduce(
-    (acc, c) => ({
-      total: acc.total + c.montantGagne,
-      pending: acc.pending + (c.statut === "pending" ? c.montantGagne : 0),
-      captured: acc.captured + (c.statut === "capturee" ? c.montantGagne : 0),
-    }),
-    { total: 0, pending: 0, captured: 0 }
+  const ids = comms.map((c) => c.commandeId).filter((x): x is string => !!x);
+  const commandes = new Map(
+    (await prisma.commande.findMany({ where: { id: { in: ids }, tenantId }, select: { id: true, numero: true, statut: true, livreeAt: true } })).map((c) => [c.id, c]),
   );
-
-  return NextResponse.json({ commissions, totaux });
+  const maintenant = new Date();
+  const commissions = comms.map((c) => {
+    const cmd = c.commandeId ? commandes.get(c.commandeId) : null;
+    return {
+      id: c.id, createdAt: c.createdAt, numero: cmd?.numero ?? null, affilie: c.affilie.nom, code: c.affilie.codeParrainage,
+      valeurCommande: c.valeurCommande, montant: c.montantCommission, devise: c.devise, etat: etatCommission(c, cmd, maintenant),
+    };
+  });
+  return NextResponse.json({ commissions });
 }

@@ -6,8 +6,8 @@ import { getAdminSessionPour, estAdminComplet } from "@/lib/admin-auth";
 import { AdminRetraitsManuels } from "@/components/admin/AdminRetraitsManuels";
 import { getT } from "@/lib/i18n/serveur";
 
-// Affiliés de toutes les boutiques : versements de commissions à faire dans NotchPay (validation
-// par Axso, lib/affiliation.ts), vue d'ensemble des affiliés et derniers versements.
+// Affiliés de toutes les boutiques : retraits d'affiliés à faire dans NotchPay (validation par Axso,
+// lib/affiliation.ts), vue d'ensemble des partenariats et derniers retraits traités.
 export default async function AdminAffiliesPage() {
   const tx = await getT();
   const session = await getAdminSessionPour("affilies");
@@ -17,19 +17,13 @@ export default async function AdminAffiliesPage() {
     prisma.affilie.count(),
     prisma.affilie.count({ where: { statut: "actif" } }),
     prisma.affilie.groupBy({ by: ["tenantId"] }).then((g) => g.length),
-    prisma.paiementCommission.count({ where: { statut: "en_attente", reference: null } }),
+    prisma.retraitAffilie.count({ where: { statut: "en_attente" } }),
     prisma.affilie.findMany({
       orderBy: [{ commissionTotal: "desc" }, { createdAt: "desc" }], take: 100,
       select: { id: true, nom: true, email: true, telephone: true, statut: true, clics: true, conversions: true, commissionTotal: true, commissionPending: true, tenant: { select: { nomBoutique: true, devise: true } } },
     }),
-    prisma.paiementCommission.findMany({ where: { statut: { in: ["traite", "echec"] } }, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.retraitAffilie.findMany({ where: { statut: { in: ["complete", "echoue"] } }, orderBy: { updatedAt: "desc" }, take: 20, include: { user: { select: { name: true, email: true } } } }),
   ]);
-  const lies = await Promise.all([
-    prisma.tenant.findMany({ where: { id: { in: historique.map((p) => p.tenantId) } }, select: { id: true, nomBoutique: true, devise: true } }),
-    prisma.affilie.findMany({ where: { id: { in: historique.map((p) => p.affilieurId) } }, select: { id: true, nom: true } }),
-  ]);
-  const boutique = new Map(lies[0].map((t) => [t.id, t]));
-  const affilie = new Map(lies[1].map((a) => [a.id, a.nom]));
 
   const carte = { background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" };
   const STATUTS: Record<string, string> = { actif: "#16A34A", en_attente: "#D97706", suspendu: "#DC2626" };
@@ -38,7 +32,7 @@ export default async function AdminAffiliesPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--cc-text)" }}>{tx("Affiliés")}</h1>
-        <p className="text-sm mt-1" style={{ color: "#AAAAAA" }}>{tx("Versements de commissions à valider et affiliés de toutes les boutiques")}</p>
+        <p className="text-sm mt-1" style={{ color: "#AAAAAA" }}>{tx("Retraits d'affiliés à valider et partenariats de toutes les boutiques")}</p>
       </div>
 
       <AdminRetraitsManuels peutTraiter={estAdminComplet(session)} commissions />
@@ -48,7 +42,7 @@ export default async function AdminAffiliesPage() {
           { label: "Affiliés", value: nbAffilies, icon: Users, color: "#F5A623" },
           { label: "Actifs", value: nbActifs, icon: CheckCircle, color: "#16A34A" },
           { label: "Boutiques avec affiliés", value: nbBoutiques, icon: Handshake, color: "#3B82F6" },
-          { label: "Versements à faire", value: enAttente, icon: Clock, color: enAttente ? "#DC2626" : "#AAAAAA" },
+          { label: "Retraits à faire", value: enAttente, icon: Clock, color: enAttente ? "#DC2626" : "#AAAAAA" },
         ].map((k) => (
           <div key={k.label} className="rounded-2xl p-5 border" style={carte}>
             <div className="flex items-center gap-2 mb-2"><k.icon size={15} style={{ color: k.color }} /><span className="text-xs" style={{ color: "#AAAAAA" }}>{tx(k.label)}</span></div>
@@ -62,7 +56,7 @@ export default async function AdminAffiliesPage() {
         {affilies.length === 0 ? <p className="text-sm" style={{ color: "#AAAAAA" }}>{tx("Aucun affilié pour l'instant.")}</p> : (
           <table className="w-full text-sm min-w-[720px]">
             <thead><tr className="text-left text-xs" style={{ color: "#888888" }}>
-              {["Affilié", "Boutique", "Statut", "Clics", "Ventes", "Gagné", "À payer"].map((h) => <th key={h} className="pb-2 pr-3 font-medium">{tx(h)}</th>)}
+              {["Affilié", "Boutique", "Statut", "Clics", "Ventes", "Gagné", "En attente"].map((h) => <th key={h} className="pb-2 pr-3 font-medium">{tx(h)}</th>)}
             </tr></thead>
             <tbody>
               {affilies.map((a) => (
@@ -82,13 +76,13 @@ export default async function AdminAffiliesPage() {
       </div>
 
       <div className="rounded-2xl p-6 border" style={carte}>
-        <h2 className="font-semibold mb-4" style={{ color: "#ffffff" }}>{tx("Derniers versements traités")}</h2>
-        {historique.length === 0 ? <p className="text-sm" style={{ color: "#AAAAAA" }}>{tx("Aucun versement traité pour l'instant.")}</p> : (
+        <h2 className="font-semibold mb-4" style={{ color: "#ffffff" }}>{tx("Derniers retraits traités")}</h2>
+        {historique.length === 0 ? <p className="text-sm" style={{ color: "#AAAAAA" }}>{tx("Aucun retrait traité pour l'instant.")}</p> : (
           <div className="space-y-2">
             {historique.map((p) => (
               <div key={p.id} className="flex items-center justify-between flex-wrap gap-2 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,255,255,0.02)", color: "#DDDDDD" }}>
-                <span>{formatMontant(p.montant, boutique.get(p.tenantId)?.devise ?? "XAF")} · {boutique.get(p.tenantId)?.nomBoutique ?? "?"} → {affilie.get(p.affilieurId) ?? "?"} ({p.telephone})</span>
-                <span className="text-xs" style={{ color: p.statut === "traite" ? "#16A34A" : "#DC2626" }}>{tx(p.statut === "traite" ? "Payé" : "Refusé / échoué")} · {formatDate(p.createdAt)}</span>
+                <span>{formatMontant(p.montant, p.devise)} → {p.user.name ?? p.user.email ?? "?"} ({p.destinataire})</span>
+                <span className="text-xs" style={{ color: p.statut === "complete" ? "#16A34A" : "#DC2626" }}>{tx(p.statut === "complete" ? "Payé" : "Refusé / échoué")} · {formatDate(p.updatedAt)}</span>
               </div>
             ))}
           </div>

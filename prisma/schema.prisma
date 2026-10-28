@@ -688,6 +688,8 @@ model User {
   boutiques ProprietaireBoutique[]
   membresEquipe MembreEquipe[]
   abonnementsPush AbonnementPush[]
+  affiliations    Affilie[]
+  retraitsAffilie RetraitAffilie[]
 }
 
 // Appareil abonné aux notifications push (Web Push) : la notification s'affiche comme une
@@ -1659,6 +1661,7 @@ model Affilie {
   email             String
   telephone         String?
   programmeId       String?
+  userId            String?  // compte Axso de l'affilié (un compte, un partenariat par boutique)
   codeParrainage    String   @unique
   portalToken       String   @unique @default(cuid()) // accès portail self-service sans compte/login
   notes             String?
@@ -1672,11 +1675,13 @@ model Affilie {
 
   tenant     Tenant                @relation(fields: [tenantId], references: [id])
   programme  ProgrammeAffiliation? @relation(fields: [programmeId], references: [id])
+  user       User?                 @relation(fields: [userId], references: [id])
   commissions CommissionAffilie[]
   clicsLog    AffilieClic[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
+  @@index([userId])
 }
 
 // Historique des clics sur le lien de parrainage — le compteur Affilie.clics
@@ -1693,16 +1698,38 @@ model AffilieClic {
 }
 
 // =====================
+// RETRAIT D'UN AFFILIÉ — Axso lui verse ses commissions disponibles (validé à la main, Admin › Affiliés)
+// =====================
+model RetraitAffilie {
+  id           String   @id @default(cuid())
+  userId       String
+  montant      Float
+  devise       String
+  destinataire String
+  operateur    String?
+  statut       String   @default("en_attente") // en_attente | complete | echoue
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([statut])
+}
+
+// =====================
 // COMMISSION AFFILIÉ B2C
 // =====================
 model CommissionAffilie {
   id                String   @id @default(cuid())
   tenantId          String
   affilieId         String
-  commandeId        String?
+  commandeId        String?  @unique
   montantCommission Float
   valeurCommande    Float    @default(0)
-  statut            String   @default("pending") // pending | approuvee | payee | rejetee
+  devise            String?  // devise de la boutique à la vente (null = ancienne commission : devise de la boutique)
+  retraitId         String?  // RetraitAffilie qui l'a versée
+  statut            String   @default("pending") // pending (en attente / disponible, lib/affiliation-regles.ts) | payee | rejetee
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

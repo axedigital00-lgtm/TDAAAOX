@@ -8,6 +8,7 @@ import { Loader2, Lock, Video, Download, CheckCircle2, Clock, AlertTriangle } fr
 import { useT } from "@/components/I18nProvider";
 import { usePrix } from "@/components/storefront/DeviseVitrine";
 import { Communaute } from "@/components/live/Communaute";
+import { lireRef } from "@/lib/ref-affiliation";
 
 const champ = "w-full h-11 px-3 rounded-xl border bg-white text-base sm:text-[15px] text-[#111] outline-none";
 const date = (d: string | Date, fuseau?: string) => {
@@ -39,7 +40,7 @@ export function InscriptionLive({ slug, tenantId, produitId, prix, devise, accen
       } else {
         const cmd = await fetch("/api/commandes/digital-creer", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenantId, client: { nom: v.nom.trim(), telephone: v.telephone.trim(), email: v.email.trim().toLowerCase() }, items: [{ produitId, quantite: 1 }], codePromo: v.codePromo.trim() || undefined, codeAffiliation: (() => { try { return localStorage.getItem("axso_ref") || undefined; } catch { return undefined; } })() }),
+          body: JSON.stringify({ tenantId, client: { nom: v.nom.trim(), telephone: v.telephone.trim(), email: v.email.trim().toLowerCase() }, items: [{ produitId, quantite: 1 }], codePromo: v.codePromo.trim() || undefined, codeAffiliation: lireRef() || undefined }),
         });
         const c = await cmd.json().catch(() => ({}));
         if (!cmd.ok) throw new Error(c.error || "Commande impossible");

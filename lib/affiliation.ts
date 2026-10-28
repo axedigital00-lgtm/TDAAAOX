@@ -1,438 +1,255 @@
+// Affiliation Axso — modèle place de marché (Selar, Chariow, Gumroad).
+// • Un affilié = un compte Axso (User). Un partenariat par boutique (Affilie), avec son code de lien.
+// • Seules les ventes PAYÉES EN LIGNE rapportent : la commission est prélevée sur la part du marchand
+//   au moment du crédit de son wallet (lib/wallet.ts), Axso la garde puis la verse à l'affilié.
+// • Disponible 48 h après la livraison (lib/affiliation-regles.ts), retirée par l'affilié, transfert
+//   fait à la main par Axso dans NotchPay puis clos dans Admin › Affiliés (comme les retraits marchands).
 import { prisma } from "./prisma";
-import { canalNotchPay, crediterWallet, debiterDisponibleTx, EMAIL_RETRAITS, operateurCameroun } from "./wallet";
+import { Prisma } from "@prisma/client";
+import { canalNotchPay, crediterWallet, EMAIL_RETRAITS, operateurCameroun } from "./wallet";
 import { pousserAdmins } from "./push";
 import { normaliserTelephone } from "./devise-convert";
 import { TYPES_NUMERIQUES } from "./pricing";
 import { livrerCommandeDigitale } from "./livraison-numerique";
-import { notifierMarchand } from "./notifications-marchand";
 import { envoyerAlerteRetrait, envoyerEmailTexte } from "./email";
+import { minimumRetrait, arrondiDevise } from "./wallet-regles";
+import { tauxDuJour } from "./taux-change";
+import { adresseSite, SITE_AXSO } from "./utils";
+import { commissionCommande, estAutoReferencement, etatCommission, tauxProduit, type EtatCommission } from "./affiliation-regles";
 
-/** Crée le programme d'affiliation de la boutique s'il n'existe pas (réglages par défaut).
- *  Appelé dès qu'un produit est ouvert aux affiliés : le marchand n'a pas d'écran à part à trouver. */
+/** Crée le programme d'affiliation de la boutique s'il n'existe pas (réglages par défaut). */
 export async function assurerProgrammeAffiliation(tenantId: string) {
   await prisma.programmeAffiliation.upsert({ where: { tenantId }, create: { tenantId, nom: "Programme d'affiliation" }, update: {} });
 }
 
+// Types livrés numériquement (jetons, accès, clés) après paiement.
+export const TYPES_LIVRAISON_DIGITALE = TYPES_NUMERIQUES;
+
 // ─── Codes ──────────────────────────────────────────────────────────────────
 
-// Code d'un lien B2B (boutique → boutique), utilisé par AffiliationLien
-export function genererCodeAffiliation(nomBoutique: string): string {
-  const base = nomBoutique
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 5) || "AFF";
-  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `${base}-${suffix}`;
-}
-
-// Code de parrainage d'un affilié individuel (programme B2C)
 export function genererCodeParrainage(nom: string): string {
-  const base = nom
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6) || "AFF";
+  const base = nom.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6) || "AFF";
   const year = new Date().getFullYear().toString().slice(-2);
   const suffix = Math.random().toString(36).slice(2, 5).toUpperCase();
   return `${base}${year}${suffix}`;
 }
 
 export async function genererCodeParrainageUnique(nom: string): Promise<string> {
-  let code = genererCodeParrainage(nom);
   for (let i = 0; i < 5; i++) {
-    const existe = await prisma.affilie.findUnique({ where: { codeParrainage: code } });
-    if (!existe) return code;
-    code = genererCodeParrainage(nom);
+    const code = genererCodeParrainage(nom);
+    if (!(await prisma.affilie.findUnique({ where: { codeParrainage: code } }))) return code;
   }
-  return `${code}${Date.now().toString(36).toUpperCase().slice(-3)}`;
+  return `${genererCodeParrainage(nom)}${Date.now().toString(36).toUpperCase().slice(-3)}`;
 }
 
-// ─── Moteur de commission B2C (programme d'affiliation individuel) ──────────
-// C'est le moteur "standard international" (type PartnerStack/Rewardful) :
-// un marchand recrute des affiliés individuels via ProgrammeAffiliation, ils
-// partagent un code de parrainage, chaque vente attribuée crée une
-// CommissionAffilie. Fonctionne pour TOUS les canaux de commande (digital,
-// WhatsApp/COD, paiement en ligne physique) — pas seulement le digital.
-
-type ProgrammePourCalcul = {
-  typeCommission: string;
-  valeurCommission: number;
-  tiersActifs: boolean;
-  tier1Max: number;
-  tier1Commission: number;
-  tier2Max: number;
-  tier2Commission: number;
-  tier3Commission: number;
-  tousLesProduits: boolean;
-  produitIds: string[];
-};
-
-// Sous-types de produit considérés "digitaux" pour la règle de commission
-// d'affiliation par défaut (50%) — exclut "bundle", qui peut mélanger des
-// produits physiques et digitaux et ne doit pas hériter du taux digital.
-export const TYPES_PRODUIT_DIGITAL = new Set(["digital", "fichier", "formation", "licence"]);
-
-// Tous les types nécessitant une livraison digitale (token/clé/accès) après
-// paiement — contrairement à TYPES_PRODUIT_DIGITAL ci-dessus, inclut "bundle"
-// (qui doit toujours être résolu/livré via livrerBundle, même s'il ne compte
-// pas comme "digital" pour le calcul de commission).
-export const TYPES_LIVRAISON_DIGITALE = TYPES_NUMERIQUES; // evenement/bootcamp : place live (lib/live/service.ts)
-
-// Commission par défaut d'un produit digital sans taux personnalisé —
-// nettement supérieure au taux physique par défaut car sans coût de
-// livraison/stock pour le marchand.
-const TAUX_DEFAUT_DIGITAL = 0.5;
-
-function tauxPourPalier(programme: ProgrammePourCalcul, conversionsActuelles: number): number {
-  if (!programme.tiersActifs) return programme.valeurCommission;
-  if (conversionsActuelles >= programme.tier2Max) return programme.tier3Commission;
-  if (conversionsActuelles >= programme.tier1Max) return programme.tier2Commission;
-  return programme.tier1Commission;
+/** Lien de partage d'un partenariat : vers la boutique, ou une fiche produit précise. */
+export function lienAffiliation(code: string, produitId?: string | null) {
+  return `${adresseSite()}/api/track/${code}${produitId ? `?p=${produitId}` : ""}`;
 }
 
-export function calculerCommissionLigne(params: {
-  montantLigne: number;
-  produitId: string;
-  produit: { affiliationActive: boolean; tauxCommissionAff: number | null; type?: string } | null;
-  programme: ProgrammePourCalcul;
-  conversionsActuelles: number;
-}): number {
-  const { montantLigne, produitId, produit, programme, conversionsActuelles } = params;
+// ─── Compte et partenariats ─────────────────────────────────────────────────
 
-  // Seuls les produits que le marchand a ouverts aux affiliés rapportent une commission
-  // (mêmes règles que ce que voient les affiliés : place de marché, espace affilié).
-  const eligible = !!produit?.affiliationActive && (programme.tousLesProduits || programme.produitIds.includes(produitId));
-  if (!eligible) return 0;
-
-  const estDigital = !!produit?.type && TYPES_PRODUIT_DIGITAL.has(produit.type);
-
-  if (programme.typeCommission === "fixe") {
-    const montant = produit!.tauxCommissionAff || programme.valeurCommission;
-    return Math.round(montant * 100) / 100;
-  }
-
-  // Pourcentage : taux spécifique produit (déjà une fraction, ex 0.20) sinon,
-  // pour un produit digital, 50% garanti ; sinon taux du programme selon le
-  // palier atteint (stocké en points, ex 10 = 10%).
-  const tauxFraction = produit!.tauxCommissionAff ?? (estDigital ? TAUX_DEFAUT_DIGITAL : tauxPourPalier(programme, conversionsActuelles) / 100);
-
-  return Math.round(montantLigne * tauxFraction * 100) / 100;
+/** Rattache au compte les partenariats créés avant les comptes affiliés (même e-mail). */
+export async function lierAffiliationsAuCompte(userId: string, email: string) {
+  await prisma.affilie.updateMany({ where: { userId: null, email: { equals: email.trim(), mode: "insensitive" } }, data: { userId } });
 }
 
-function estAutoReferencement(
-  affilie: { email: string; telephone: string | null },
-  commande: { clientEmail: string | null; clientTelephone: string }
-): boolean {
-  if (affilie.email && commande.clientEmail && affilie.email.toLowerCase() === commande.clientEmail.toLowerCase()) {
-    return true;
-  }
-  if (affilie.telephone && commande.clientTelephone) {
-    const a = affilie.telephone.replace(/\D/g, "");
-    const c = commande.clientTelephone.replace(/\D/g, "");
-    if (a && c && a === c) return true;
-  }
-  return false;
-}
-
-// Appelé UNE FOIS à la création de toute commande contenant un codeAffiliation
-// (quel que soit le canal). Crée les CommissionAffilie en statut "pending".
-// Idempotent : ne recrédite jamais deux fois la même commande.
-export async function enregistrerConversionAffiliation(params: {
-  commande: {
-    id: string;
-    tenantId: string;
-    clientEmail: string | null;
-    clientTelephone: string;
-    montantTotal: number;
-    codeAffiliation?: string | null;
-  };
-  lignes: Array<{ produitId: string; prix: number; quantite: number }>;
-  /** Commande payée en ligne : majoration Axso incluse dans `prix`, retirée avant de calculer la commission. */
-  tauxCommission?: number | null;
-}): Promise<void> {
-  const { commande, lignes, tauxCommission } = params;
-  if (!commande.codeAffiliation) return;
-
-  const dejaEnregistre = await prisma.commissionAffilie.findFirst({ where: { commandeId: commande.id } });
-  if (dejaEnregistre) return;
-
-  const affilie = await prisma.affilie.findFirst({
-    where: { tenantId: commande.tenantId, codeParrainage: commande.codeAffiliation, statut: "actif" },
-    include: { programme: true },
-  });
-  if (!affilie || !affilie.programme || !affilie.programme.actif) return;
-  if (estAutoReferencement(affilie, commande)) return;
-
-  const produits = await prisma.produit.findMany({
-    where: { id: { in: lignes.map((l) => l.produitId) } },
-    select: { id: true, affiliationActive: true, tauxCommissionAff: true, type: true },
-  });
-  const produitsMap = new Map(produits.map((p) => [p.id, p]));
-
-  let montantCommission = 0;
-  for (const ligne of lignes) {
-    montantCommission += calculerCommissionLigne({
-      // Sur le prix du vendeur : l'affilié n'est jamais payé sur la commission Axso.
-      montantLigne: (tauxCommission ? Math.round(ligne.prix / (1 + tauxCommission)) : ligne.prix) * ligne.quantite,
-      produitId: ligne.produitId,
-      produit: produitsMap.get(ligne.produitId) ?? null,
-      programme: affilie.programme,
-      conversionsActuelles: affilie.conversions,
-    });
-  }
-  montantCommission = Math.round(montantCommission * 100) / 100;
-  if (montantCommission <= 0) return;
-
-  await prisma.$transaction([
-    prisma.commissionAffilie.create({
-      data: {
-        tenantId: commande.tenantId,
-        affilieId: affilie.id,
-        commandeId: commande.id,
-        montantCommission,
-        valeurCommande: commande.montantTotal,
-        statut: "pending",
-      },
-    }),
-    prisma.affilie.update({
-      where: { id: affilie.id },
-      data: {
-        conversions: { increment: 1 },
-        commissionTotal: { increment: montantCommission },
-        commissionPending: { increment: montantCommission },
-      },
-    }),
-  ]);
-}
-
-// Fait passer les commissions "pending" d'une commande à "approuvee" (donc
-// payables) — appelé au moment où la vente est définitivement acquise :
-// livraison confirmée pour le COD, immédiatement pour le digital/paiement en
-// ligne (même logique que la capture de Commission existante).
-export async function capturerCommissionAffiliation(commandeId: string): Promise<void> {
-  await prisma.commissionAffilie.updateMany({
-    where: { commandeId, statut: "pending" },
-    data: { statut: "approuvee" },
-  });
-}
-
-// ─── Paiement des commissions (validé par Axso) ──────────────────────────────
-// Symétrique à initierRetrait() dans lib/wallet.ts : le paiement d'une commission affiliée
-// sort du wallet du marchand (il a déjà reçu la vente en entier), débit atomique conditionnel.
-// Depuis le 20/10/2026, plus de transfert automatique (NotchPay refuse les IP non déclarées) :
-// le paiement reste « en_attente », Axso est prévenu, fait le transfert dans NotchPay puis le
-// clôture dans Admin › Affiliés (cloturerCommissionManuelle). Refusé → marchand recrédité.
-
-export async function payerCommissionsAffilie(params: {
-  tenantId: string;
-  affilieId: string;
-}): Promise<{ montant: number; paiementId: string }> {
-  const { tenantId, affilieId } = params;
-
-  const affilie = await prisma.affilie.findFirst({ where: { id: affilieId, tenantId } });
-  if (!affilie) throw new Error("Affilié introuvable");
-  if (!affilie.telephone) throw new Error("Numéro de téléphone du bénéficiaire requis pour le paiement");
-  // Numéro au format international, indicatif du pays de la boutique (vérifié AVANT le débit du wallet).
-  const { pays } = (await prisma.tenant.findUnique({ where: { id: tenantId }, select: { pays: true } })) ?? {};
-  const tel = normaliserTelephone(affilie.telephone, pays);
-  if (!tel) throw new Error(`Numéro de ${affilie.nom} invalide : corrige-le (avec l'indicatif de son pays s'il est à l'étranger) avant de payer.`);
-
-  const commissions = await prisma.commissionAffilie.findMany({
-    where: { tenantId, affilieId, statut: "approuvee" },
-  });
-  const montant = Math.round(commissions.reduce((s, c) => s + c.montantCommission, 0) * 100) / 100;
-  if (montant <= 0) throw new Error("Aucune commission approuvée à payer pour cet affilié");
-  const commissionIds = commissions.map((c) => c.id);
-
-  const paiement = await prisma.$transaction(async (tx) => {
-    // Comme un retrait : seul le solde disponible (hors ventes en séquestre 48 h) peut sortir.
-    const wallet = await debiterDisponibleTx(tx, tenantId, montant, true);
-
-    // Conditionnel : deux paiements simultanés ne paient pas deux fois les mêmes commissions
-    // (le second échoue ici et la transaction annule son débit du wallet).
-    const prises = await tx.commissionAffilie.updateMany({
-      where: { id: { in: commissionIds }, statut: "approuvee" },
-      data: { statut: "payee" },
-    });
-    if (prises.count !== commissionIds.length) throw new Error("Commissions déjà en cours de paiement — rechargez la page");
-
-    await tx.affilie.update({
-      where: { id: affilieId },
-      data: { commissionPending: { decrement: montant } },
-    });
-
-    const p = await tx.paiementCommission.create({
-      data: { tenantId, affilieurId: affilieId, montant, methode: "mobile_money", telephone: tel, statut: "en_attente", commissionIds },
-    });
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id, type: "RETRAIT", montant: -montant, devise: wallet.devise,
-        description: `Commission affilié — ${affilie.nom}`, reference: refCommission(p.id), statut: "en_cours",
-      },
-    });
-    return p;
-  });
-
-  // Jamais bloquant : le paiement reste visible dans Admin › Affiliés même si l'alerte échoue.
-  await signalerCommissionAValider(paiement.id).catch((e) => console.error("[affiliation] alerte admin", paiement.id, e?.message));
-
-  return { montant, paiementId: paiement.id };
-}
-
-/** Lie la ligne RETRAIT du wallet marchand au paiement de commission (et sert de description NotchPay). */
-export const refCommission = (paiementId: string) => `AXSO-AFF-${paiementId}`;
-
-/** Prévient Axso qu'une commission attend son transfert (push du Command Center + e-mail détaillé). */
-export async function signalerCommissionAValider(paiementId: string) {
-  const p = await prisma.paiementCommission.findUniqueOrThrow({ where: { id: paiementId } });
-  const [affilie, tenant] = await Promise.all([
-    prisma.affilie.findUnique({ where: { id: p.affilieurId }, select: { nom: true, email: true } }),
-    prisma.tenant.findUnique({
-      where: { id: p.tenantId },
-      select: { nomBoutique: true, slug: true, email: true, whatsapp: true, devise: true, wallet: { select: { solde: true, devise: true } }, proprietaires: { where: { role: "owner" }, take: 1, select: { user: { select: { name: true, email: true } } } } },
-    }),
-  ]);
-  const dejaPayes = await prisma.paiementCommission.count({ where: { tenantId: p.tenantId, telephone: p.telephone, statut: "traite" } });
-  const devise = tenant?.wallet?.devise ?? tenant?.devise ?? "XAF";
-  const operateur = operateurCameroun(p.telephone);
-  const boutique = tenant?.nomBoutique ?? p.tenantId;
-  const montant = `${p.montant.toLocaleString("fr-FR")} ${devise}`;
-  const res = await Promise.allSettled([
-    pousserAdmins({ titre: "🤝 Commission d'affilié à valider", message: `${boutique} · ${montant} → ${affilie?.nom ?? "affilié"}`, lien: "/admin/affilies", type: "retrait_a_valider" }),
-    envoyerAlerteRetrait({
-      a: EMAIL_RETRAITS, lienAdmin: "https://axsoafrica.com/admin/affilies",
-      retraitId: p.id, reference: refCommission(p.id), creeLe: p.createdAt,
-      montant: p.montant, devise, methode: "mobile_money", operateur: operateur?.toUpperCase() ?? null, destinataire: p.telephone ?? "",
-      canal: canalNotchPay({ methode: "mobile_money", operateur, devise, destinataire: p.telephone ?? "" }), notes: null,
-      boutique, slug: tenant?.slug ?? "", proprietaire: tenant?.proprietaires[0]?.user ?? null,
-      emailBoutique: tenant?.email ?? null, whatsappBoutique: tenant?.whatsapp ?? null,
-      soldeApres: tenant?.wallet?.solde ?? null, premierRetraitVersCeNumero: dejaPayes === 0,
-      affilie: affilie ? { nom: affilie.nom, email: affilie.email } : { nom: "affilié", email: "" },
-    }).then((ok) => { if (!ok) throw new Error("e-mail non envoyé"); }),
-  ]);
-  res.forEach((x) => x.status === "rejected" && console.error("[affiliation] alerte", paiementId, x.reason?.message));
-}
+const estProprietaire = async (userId: string, tenantId: string) =>
+  !!(await prisma.proprietaireBoutique.findFirst({ where: { userId, tenantId }, select: { id: true } }))
+  || !!(await prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true } }));
 
 /**
- * Clôture par Axso d'un paiement de commission (transfert fait à la main dans NotchPay, ou impossible).
- * Payé : marchand et affilié prévenus. Refusé : marchand recrédité, commissions de nouveau payables.
+ * Partenariat du compte avec une boutique, créé à la première demande de lien.
+ * Actif tout de suite si la boutique valide automatiquement, sinon « en_attente ».
  */
-export async function cloturerCommissionManuelle(paiementId: string, paye: boolean) {
-  const p = await prisma.paiementCommission.findUnique({ where: { id: paiementId } });
-  if (!p) throw new Error("Paiement introuvable");
-  if (p.reference) throw new Error("Ce paiement est suivi automatiquement par NotchPay");
-  if (p.statut !== "en_attente") throw new Error("Ce paiement est déjà traité");
-  const [affilie, tenant] = await Promise.all([
-    prisma.affilie.findUnique({ where: { id: p.affilieurId }, select: { nom: true, email: true } }),
-    prisma.tenant.findUnique({ where: { id: p.tenantId }, select: { nomBoutique: true, email: true, devise: true } }),
+export async function assurerPartenariat(userId: string, tenantId: string) {
+  const existant = await prisma.affilie.findFirst({ where: { userId, tenantId } });
+  if (existant) return existant;
+  const [user, programme] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+    prisma.programmeAffiliation.findUnique({ where: { tenantId } }),
   ]);
-  const montant = `${p.montant.toLocaleString("fr-FR")} ${tenant?.devise ?? ""}`.trim();
-  if (paye) {
-    const { count } = await prisma.paiementCommission.updateMany({ where: { id: paiementId, statut: "en_attente" }, data: { statut: "traite" } });
-    if (!count) throw new Error("Ce paiement est déjà traité");
-    await prisma.walletTransaction.updateMany({ where: { type: "RETRAIT", reference: refCommission(paiementId), statut: "en_cours" }, data: { statut: "completed" } });
-    if (affilie?.email && tenant) {
-      await envoyerEmailTexte({
-        a: affilie.email, repondreA: tenant.email, boutique: tenant.nomBoutique,
-        sujet: `Votre commission de ${montant} a été envoyée`,
-        texte: `Bonjour ${affilie.nom},\n\n${tenant.nomBoutique} vous a versé ${montant} de commissions d'affiliation sur le ${p.telephone}.\n\nMerci pour votre recommandation !`,
-      }).catch(() => false);
+  if (!user?.email) throw new Error("Compte introuvable");
+  if (!programme?.actif) throw new Error("Cette boutique n'accepte plus d'affiliés");
+  if (await estProprietaire(userId, tenantId)) throw new Error("Vous ne pouvez pas être affilié de votre propre boutique");
+  // Ancienne candidature avec le même e-mail : rattachée plutôt que dupliquée.
+  const ancien = await prisma.affilie.findFirst({ where: { tenantId, email: { equals: user.email, mode: "insensitive" } } });
+  if (ancien) return prisma.affilie.update({ where: { id: ancien.id }, data: { userId } });
+  const nom = user.name || user.email.split("@")[0];
+  return prisma.affilie.create({
+    data: {
+      tenantId, userId, nom, email: user.email, programmeId: programme.id,
+      codeParrainage: await genererCodeParrainageUnique(nom),
+      statut: programme.autoApprobation ? "actif" : "en_attente",
+    },
+  });
+}
+
+// ─── Vente attribuée ────────────────────────────────────────────────────────
+
+/**
+ * Commission d'une commande PAYÉE EN LIGNE portant un code d'affiliation. Appelée par
+ * finaliserPaiementCommande AVANT le crédit du marchand, qui reçoit sa part moins ce montant.
+ * Idempotente (une commission par commande, index unique) : renvoie le montant déjà enregistré.
+ */
+export async function enregistrerConversionAffiliation(p: {
+  commande: { id: string; tenantId: string; clientEmail: string | null; clientTelephone: string; montantTotal: number; montantLivraison: number; devise: string; codeAffiliation: string | null };
+  lignes: { produitId: string; prix: number; quantite: number }[];
+  tauxCommission: number;
+}): Promise<number> {
+  const { commande } = p;
+  if (!commande.codeAffiliation) return 0;
+  const deja = await prisma.commissionAffilie.findUnique({ where: { commandeId: commande.id } });
+  if (deja) return deja.statut === "rejetee" ? 0 : deja.montantCommission;
+
+  const affilie = await prisma.affilie.findFirst({ where: { tenantId: commande.tenantId, codeParrainage: commande.codeAffiliation, statut: "actif" } });
+  if (!affilie) return 0;
+  const programme = await prisma.programmeAffiliation.findUnique({ where: { tenantId: commande.tenantId } });
+  if (!programme?.actif || estAutoReferencement(affilie, commande)) return 0;
+  if (affilie.userId && (await estProprietaire(affilie.userId, commande.tenantId))) return 0;
+
+  const produits = await prisma.produit.findMany({ where: { id: { in: p.lignes.map((l) => l.produitId) } }, select: { id: true, affiliationActive: true, tauxCommissionAff: true, type: true } });
+  const parId = new Map(produits.map((x) => [x.id, x]));
+  const montant = commissionCommande({
+    lignes: p.lignes.map((l) => ({ prix: l.prix, quantite: l.quantite, produit: parId.get(l.produitId) ?? null })),
+    montantTotal: commande.montantTotal, montantLivraison: commande.montantLivraison,
+    tauxCommission: p.tauxCommission, tauxBoutiquePoints: programme.valeurCommission, devise: commande.devise,
+  });
+  if (montant <= 0) return 0;
+
+  try {
+    await prisma.$transaction([
+      prisma.commissionAffilie.create({
+        data: { tenantId: commande.tenantId, affilieId: affilie.id, commandeId: commande.id, montantCommission: montant, valeurCommande: commande.montantTotal, devise: commande.devise, statut: "pending" },
+      }),
+      prisma.affilie.update({ where: { id: affilie.id }, data: { conversions: { increment: 1 }, commissionTotal: { increment: montant }, commissionPending: { increment: montant } } }),
+    ]);
+  } catch (e) {
+    // Finalisation rejouée en même temps : l'autre appel a enregistré la commission.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const autre = await prisma.commissionAffilie.findUnique({ where: { commandeId: commande.id } });
+      return autre?.montantCommission ?? 0;
     }
-  } else {
-    // Pris d'abord, conditionnellement : de deux clôtures simultanées, seule la gagnante rembourse et prévient.
-    const { count } = await prisma.paiementCommission.updateMany({ where: { id: paiementId, statut: "en_attente" }, data: { statut: "refus_en_cours" } });
-    if (!count) throw new Error("Ce paiement est déjà traité");
-    await rembourserPaiementCommissionEchoue(paiementId).catch(async (e) => {
-      await prisma.paiementCommission.updateMany({ where: { id: paiementId, statut: "refus_en_cours" }, data: { statut: "en_attente" } });
-      throw e;
-    });
+    throw e;
   }
-  await notifierMarchand({
-    tenantId: p.tenantId, type: paye ? "commission_payee" : "commission_refusee", lien: "/dashboard/affiliation",
-    titre: paye ? `Commission de ${montant} versée à ${affilie?.nom ?? "l'affilié"}` : `Commission de ${montant} non versée`,
-    message: paye
-      ? `Axso a envoyé ${montant} à ${affilie?.nom ?? "l'affilié"} (${p.telephone}).`
-      : `Le versement à ${affilie?.nom ?? "l'affilié"} (${p.telephone}) n'a pas pu être fait : ${montant} ont été remis sur votre solde et les commissions sont de nouveau à payer.`,
+  return montant;
+}
+
+// ─── Gains de l'affilié ─────────────────────────────────────────────────────
+
+export interface CommissionDuCompte {
+  id: string; montant: number; devise: string; etat: EtatCommission; createdAt: Date;
+  boutique: string; tenantId: string; pays: string | null; numero: string | null;
+}
+
+/** Toutes les commissions d'un compte affilié, avec leur état (en attente, disponible, versée, annulée). */
+export async function commissionsDuCompte(userId: string): Promise<CommissionDuCompte[]> {
+  const affs = await prisma.affilie.findMany({ where: { userId }, select: { id: true, tenantId: true, tenant: { select: { nomBoutique: true, devise: true, pays: true } } } });
+  if (!affs.length) return [];
+  const parAffilie = new Map(affs.map((a) => [a.id, a]));
+  const comms = await prisma.commissionAffilie.findMany({ where: { affilieId: { in: affs.map((a) => a.id) } }, orderBy: { createdAt: "desc" } });
+  const ids = comms.map((c) => c.commandeId).filter((x): x is string => !!x);
+  const commandes = new Map((await prisma.commande.findMany({ where: { id: { in: ids } }, select: { id: true, numero: true, statut: true, livreeAt: true } })).map((c) => [c.id, c]));
+  const maintenant = new Date();
+  return comms.map((c) => {
+    const a = parAffilie.get(c.affilieId)!;
+    const cmd = c.commandeId ? commandes.get(c.commandeId) : null;
+    return {
+      id: c.id, montant: c.montantCommission, devise: c.devise ?? a.tenant.devise, etat: etatCommission(c, cmd, maintenant),
+      createdAt: c.createdAt, boutique: a.tenant.nomBoutique, tenantId: a.tenantId, pays: a.tenant.pays, numero: cmd?.numero ?? null,
+    };
   });
 }
 
-// Idempotent : ne rembourse jamais deux fois le même paiement.
-export async function rembourserPaiementCommissionEchoue(paiementId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    // Passage à « echec » d'abord, conditionnel : deux appels simultanés ne remboursent pas deux fois.
-    const pris = await tx.paiementCommission.updateMany({ where: { id: paiementId, statut: { notIn: ["echec", "traite"] } }, data: { statut: "echec" } });
-    if (!pris.count) return;
-    const paiement = await tx.paiementCommission.findUniqueOrThrow({ where: { id: paiementId } });
+export type Soldes = Record<string, { enAttente: number; disponible: number; verse: number }>;
 
-    const wallet = await tx.wallet.findUnique({ where: { tenantId: paiement.tenantId } });
-    if (!wallet) throw new Error("Wallet marchand introuvable"); // annule le passage à « echec »
-
-    await tx.wallet.update({
-      where: { id: wallet.id },
-      data: { solde: { increment: paiement.montant }, totalRetire: { decrement: paiement.montant } },
-    });
-
-    await tx.walletTransaction.updateMany({ where: { type: "RETRAIT", reference: refCommission(paiementId), statut: "en_cours" }, data: { statut: "echoue" } });
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        type: "REMBOURSEMENT",
-        montant: paiement.montant,
-        devise: wallet.devise,
-        description: `Remboursement — commission affilié échouée (${paiement.telephone ?? ""})`,
-        statut: "completed",
-      },
-    });
-
-    if (paiement.commissionIds.length > 0) {
-      // Repasse payable, pas perdue — sauf la commission d'une commande remboursée ou annulée
-      // entre-temps (libererCommande ne touche pas une commission « payee ») : rejetée.
-      const commissions = await tx.commissionAffilie.findMany({ where: { id: { in: paiement.commissionIds } }, select: { id: true, commandeId: true, montantCommission: true } });
-      const defaites = new Set((await tx.commande.findMany({
-        where: { id: { in: commissions.map((c) => c.commandeId).filter((x): x is string => !!x) }, OR: [{ statut: "annulee" }, { paiementStatut: { in: ["refunded", "refunding"] } }] },
-        select: { id: true },
-      })).map((c) => c.id));
-      const rejetees = commissions.filter((c) => c.commandeId && defaites.has(c.commandeId));
-      const montantRejete = rejetees.reduce((s, c) => s + c.montantCommission, 0);
-      await tx.commissionAffilie.updateMany({ where: { id: { in: rejetees.map((c) => c.id) } }, data: { statut: "rejetee" } });
-      await tx.commissionAffilie.updateMany({ where: { id: { in: paiement.commissionIds }, statut: "payee" }, data: { statut: "approuvee" } });
-      await tx.affilie.update({
-        where: { id: paiement.affilieurId },
-        data: {
-          commissionPending: { increment: Math.round((paiement.montant - montantRejete) * 100) / 100 },
-          ...(rejetees.length ? { conversions: { decrement: rejetees.length }, commissionTotal: { decrement: montantRejete } } : {}),
-        },
-      });
-    }
-  });
+export function soldesParDevise(commissions: CommissionDuCompte[]): Soldes {
+  const s: Soldes = {};
+  for (const c of commissions) {
+    if (c.etat === "annulee") continue;
+    const d = (s[c.devise] ??= { enAttente: 0, disponible: 0, verse: 0 });
+    const cle = c.etat === "en_attente" ? "enAttente" : c.etat === "disponible" ? "disponible" : "verse";
+    d[cle] = Math.round((d[cle] + c.montant) * 100) / 100;
+  }
+  return s;
 }
 
-// ─── Legacy B2B (AffiliationLien/AffiliationCommission) ─────────────────────
-// Traite toute la chaîne de paiement digital après confirmation :
-// 1. Crédite le wallet tenant (net de la commission Axso)
-// 2. Crée les tokens de téléchargement (1 par produit digital)
-// Le calcul/crédit de commission d'affiliation (B2C comme B2B) est géré
-// séparément par enregistrerConversionAffiliation, appelé depuis
-// lib/paiement-commande.ts pour tous les types de commande.
+// ─── Retrait de l'affilié ───────────────────────────────────────────────────
+
+/** Retire tout le disponible d'une devise vers un numéro Mobile Money. Transfert fait à la main par Axso. */
+export async function demanderRetraitAffilie(p: { userId: string; devise: string; telephone: string }) {
+  const dispo = (await commissionsDuCompte(p.userId)).filter((c) => c.devise === p.devise && c.etat === "disponible");
+  const montant = arrondiDevise(dispo.reduce((s, c) => s + c.montant, 0), p.devise);
+  const minimum = minimumRetrait(p.devise, await tauxDuJour());
+  if (montant < minimum) throw new Error(`Minimum de retrait : ${minimum.toLocaleString("fr-FR")} ${p.devise} disponibles`);
+  const tel = normaliserTelephone(p.telephone, dispo[0]?.pays);
+  if (!tel) throw new Error("Numéro Mobile Money invalide : vérifie-le, avec l'indicatif de ton pays.");
+  const ids = dispo.map((c) => c.id);
+
+  const retrait = await prisma.$transaction(async (tx) => {
+    const r = await tx.retraitAffilie.create({ data: { userId: p.userId, montant, devise: p.devise, destinataire: tel, operateur: operateurCameroun(tel) } });
+    // Conditionnel : deux demandes simultanées ne retirent pas deux fois les mêmes commissions.
+    const pris = await tx.commissionAffilie.updateMany({ where: { id: { in: ids }, statut: "pending", retraitId: null }, data: { retraitId: r.id, statut: "payee" } });
+    if (pris.count !== ids.length) throw new Error("Un retrait est déjà en cours — recharge la page");
+    return r;
+  });
+  await signalerRetraitAffilie(retrait.id).catch((e) => console.error("[affiliation] alerte retrait", retrait.id, e?.message));
+  return retrait;
+}
+
+/** Prévient Axso qu'un retrait d'affilié attend son transfert (push du Command Center + e-mail). */
+async function signalerRetraitAffilie(retraitId: string) {
+  const r = await prisma.retraitAffilie.findUniqueOrThrow({ where: { id: retraitId }, include: { user: { select: { name: true, email: true } } } });
+  const dejaPayes = await prisma.retraitAffilie.count({ where: { userId: r.userId, destinataire: r.destinataire, statut: "complete" } });
+  const montant = `${r.montant.toLocaleString("fr-FR")} ${r.devise}`;
+  const nom = r.user.name ?? r.user.email ?? "affilié";
+  await Promise.allSettled([
+    pousserAdmins({ titre: "🤝 Retrait d'affilié à valider", message: `${montant} → ${nom}`, lien: "/admin/affilies", type: "retrait_a_valider" }),
+    envoyerAlerteRetrait({
+      a: EMAIL_RETRAITS, lienAdmin: `${SITE_AXSO}/admin/affilies`,
+      retraitId: r.id, reference: `AXSO-AFF-${r.id}`, creeLe: r.createdAt,
+      montant: r.montant, devise: r.devise, methode: "mobile_money", operateur: r.operateur?.toUpperCase() ?? null, destinataire: r.destinataire,
+      canal: canalNotchPay({ methode: "mobile_money", operateur: r.operateur, devise: r.devise, destinataire: r.destinataire }), notes: null,
+      boutique: "Affiliation Axso", slug: "", proprietaire: null, emailBoutique: null, whatsappBoutique: null,
+      soldeApres: null, premierRetraitVersCeNumero: dejaPayes === 0,
+      affilie: { nom, email: r.user.email ?? "" },
+    }),
+  ]);
+}
+
+/** Clôture par Axso : payé (affilié prévenu) ou refusé (commissions de nouveau disponibles). */
+export async function cloturerRetraitAffilie(retraitId: string, paye: boolean) {
+  const { count } = await prisma.retraitAffilie.updateMany({ where: { id: retraitId, statut: "en_attente" }, data: { statut: paye ? "complete" : "echoue" } });
+  if (!count) throw new Error("Ce retrait est déjà traité");
+  const r = await prisma.retraitAffilie.findUniqueOrThrow({ where: { id: retraitId }, include: { user: { select: { name: true, email: true } } } });
+  if (!paye) {
+    await prisma.commissionAffilie.updateMany({ where: { retraitId }, data: { retraitId: null, statut: "pending" } });
+  }
+  if (r.user.email) {
+    const montant = `${r.montant.toLocaleString("fr-FR")} ${r.devise}`;
+    await envoyerEmailTexte({
+      a: r.user.email, repondreA: EMAIL_RETRAITS, boutique: "Axso",
+      sujet: paye ? `Vos commissions de ${montant} ont été envoyées` : `Votre retrait de ${montant} n'a pas pu être fait`,
+      texte: paye
+        ? `Bonjour ${r.user.name ?? ""},\n\nAxso vous a versé ${montant} de commissions d'affiliation sur le ${r.destinataire}.\n\nMerci pour vos recommandations !`
+        : `Bonjour ${r.user.name ?? ""},\n\nLe versement de ${montant} sur le ${r.destinataire} n'a pas pu être fait. Vos commissions sont de nouveau disponibles : vérifiez votre numéro dans votre espace affilié et refaites la demande.`,
+    }).catch(() => false);
+  }
+}
+
+// ─── Paiement d'une commande numérique ──────────────────────────────────────
+// Livraison (jetons, accès, clés, e-mail — idempotente et journalisée) AVANT le crédit : le client a
+// payé, ses accès ne dépendent jamais du portefeuille du marchand. Puis crédit du marchand.
 export async function traiterPaiementDigital(params: {
-  commande: {
-    id: string;
-    tenantId: string;
-    clientEmail: string;
-    clientNom: string;
-    montantTotal: number;
-    devise: string;
-  };
+  commande: { id: string; tenantId: string; clientEmail: string; clientNom: string; montantTotal: number; devise: string };
   lignes: Array<{ produitId: string; produit?: { fichierUrl?: string | null; type?: string } | null; prix?: number; quantite?: number }>;
   reference: string;
   tauxCommission: number;
   fraisPasserelle?: number;
+  commissionAffilie?: number;
 }) {
   const { commande, reference, tauxCommission, fraisPasserelle } = params;
-
-  // Livraison (jetons, accès, clés, e-mail) — lib/livraison-numerique.ts, idempotente et journalisée.
-  // Faite AVANT le crédit : le client a payé, ses accès ne dépendent jamais du portefeuille du marchand.
-  // Elle passe la commande à « livrée » quand tout est livré ; sinon le journal le signale au
-  // marchand et la réconciliation la reprend.
   await livrerCommandeDigitale(commande.id);
-
   await crediterWallet({
     tenantId: commande.tenantId,
     montantBrut: commande.montantTotal,
@@ -443,5 +260,55 @@ export async function traiterPaiementDigital(params: {
     commandeId: commande.id,
     reference,
     fraisPasserelle,
+    commissionAffilie: params.commissionAffilie,
   });
+}
+
+// ─── Catalogue (page publique /affiliation et espace affilié) ──────────────
+
+export interface ProduitCatalogue {
+  produitId: string; nom: string; image: string | null; prix: number; devise: string; type: string;
+  categorie: string | null; ventes: number; taux: number; gain: number;
+  tenantId: string; boutique: string; slug: string; logoUrl: string | null; certifie: boolean;
+  validationManuelle: boolean; partenariat: "actif" | "en_attente" | "suspendu" | null;
+}
+
+/** Produits ouverts aux affiliés des boutiques actives dont l'affiliation est activée. */
+export async function catalogueAffiliation(f: { q?: string; cat?: string; tri?: string; userId?: string | null; take?: number } = {}) {
+  const programmes = await prisma.programmeAffiliation.findMany({
+    where: { actif: true, tenant: { statut: "active" } },
+    select: { tenantId: true, valeurCommission: true, autoApprobation: true, tenant: { select: { nomBoutique: true, slug: true, logoUrl: true, certifie: true, devise: true } } },
+  });
+  const parTenant = new Map(programmes.map((p) => [p.tenantId, p]));
+  const q = f.q?.trim();
+  const [produits, partenariats] = await Promise.all([
+    prisma.produit.findMany({
+      where: {
+        tenantId: { in: [...parTenant.keys()] }, actif: true, affiliationActive: true,
+        ...(q ? { OR: [{ nom: { contains: q, mode: "insensitive" as const } }, { tenant: { nomBoutique: { contains: q, mode: "insensitive" as const } } }] } : {}),
+        ...(f.cat ? { categorie: f.cat } : {}),
+      },
+      select: { id: true, nom: true, images: true, prix: true, type: true, categorie: true, ventes: true, tauxCommissionAff: true, tenantId: true },
+      orderBy: { ventes: "desc" },
+      take: 400,
+    }),
+    f.userId ? prisma.affilie.findMany({ where: { userId: f.userId }, select: { tenantId: true, statut: true } }) : Promise.resolve([]),
+  ]);
+  const statutPart = new Map(partenariats.map((p) => [p.tenantId, p.statut as ProduitCatalogue["partenariat"]]));
+  let liste: ProduitCatalogue[] = produits.map((p) => {
+    const prog = parTenant.get(p.tenantId)!;
+    const taux = tauxProduit(p, prog.valeurCommission);
+    return {
+      produitId: p.id, nom: p.nom, image: p.images?.[0] ?? null, prix: p.prix, devise: prog.tenant.devise, type: p.type,
+      categorie: p.categorie, ventes: p.ventes, taux, gain: arrondiDevise(p.prix * taux, prog.tenant.devise),
+      tenantId: p.tenantId, boutique: prog.tenant.nomBoutique, slug: prog.tenant.slug, logoUrl: prog.tenant.logoUrl, certifie: prog.tenant.certifie,
+      validationManuelle: !prog.autoApprobation, partenariat: statutPart.get(p.tenantId) ?? null,
+    };
+  });
+  const categories = [...new Set(liste.map((l) => l.categorie).filter((c): c is string => !!c))].sort();
+  if (f.tri !== "populaire") liste = liste.sort((a, b) => b.taux - a.taux || b.ventes - a.ventes);
+  return {
+    produits: liste.slice(0, f.take ?? 120), total: liste.length, categories,
+    boutiques: parTenant.size, tauxMax: liste.reduce((m, l) => Math.max(m, l.taux), 0),
+  };
 }

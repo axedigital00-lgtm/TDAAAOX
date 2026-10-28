@@ -219,8 +219,8 @@ export default function EditProduitPage() {
   const margeCout = form.cout && form.prix
     ? Math.round((1 - parseFloat(form.cout) / parseFloat(form.prix)) * 100) : null;
   const estDigital = ["digital", "fichier", "licence", "formation", "bundle"].includes(form.type);
-  // Mêmes types que lib/affiliation.ts (TYPES_PRODUIT_DIGITAL) : 50 % par défaut pour l'affilié.
-  const affDigital = ["digital", "fichier", "formation", "licence"].includes(form.type);
+  // Mêmes types que TYPES_NUMERIQUES (lib/pricing.ts) : minimum Axso de 20 % pour l'affilié (10 % en physique), lib/affiliation-regles.ts.
+  const affDigital = ["digital", "fichier", "formation", "licence", "bundle", "evenement", "bootcamp"].includes(form.type);
   const prixNum = parseFloat(form.prix), prixCompareNum = parseFloat(form.prixCompare);
   const promoInvalide = !!form.prixCompare && prixCompareNum > 0 && prixNum > 0 && prixCompareNum <= prixNum;
   const remisePct = prixCompareNum > prixNum && prixNum > 0 ? Math.round((1 - prixNum / prixCompareNum) * 100) : null;
@@ -599,15 +599,15 @@ export default function EditProduitPage() {
               </button>
             </div>
             <p className="text-[11.5px] text-gray-400">
-              {tr("Des affiliés font la promotion de ce produit avec leur lien. Tu ne paies une commission que sur les ventes qu'ils t'apportent.")}
+              {tr("Des affiliés font la promotion de ce produit avec leur lien. Sur les ventes payées en ligne qu'ils t'apportent, Axso leur verse une commission prélevée sur ta part.")}
             </p>
             {form.affiliationActive && (
               <div>
                 <label className="ax-label block mb-1.5">{tr("Taux de commission affilié (%)")}</label>
-                <input type="number" value={form.tauxCommissionAff} onChange={e => set("tauxCommissionAff", e.target.value)} min="0" max="100" placeholder={affDigital ? "50" : "10"} className={inputClass} />
+                <input type="number" value={form.tauxCommissionAff} onChange={e => set("tauxCommissionAff", e.target.value)} min="0" max="100" placeholder={affDigital ? "20" : "10"} className={inputClass} />
                 <p className="text-[10.5px] text-gray-400 mt-1.5">{affDigital
-                  ? tr("Laisse vide pour 50 % (taux habituel des produits numériques). Ex : 30 = 30 % du prix reversés à l'affilié sur chaque vente.")
-                  : tr("Laisse vide pour le taux de ton programme d'affiliation (10 % par défaut). Ex : 15 = 15 % du prix reversés à l'affilié sur chaque vente.")}</p>
+                  ? tr("Laisse vide pour le taux par défaut de ta boutique (10 % si non réglé). Jamais moins de 20 % pour un produit numérique. Ex : 30 = 30 % de ton prix pour l'affilié sur chaque vente.")
+                  : tr("Laisse vide pour le taux par défaut de ta boutique (10 % si non réglé). Jamais moins de 10 % pour un produit physique. Ex : 15 = 15 % de ton prix pour l'affilié sur chaque vente.")}</p>
               </div>
             )}
           </div>

@@ -1,30 +1,27 @@
+// Lien d'invitation d'une boutique : un affilié (compte Axso) rejoint son programme d'affiliation.
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { RejoindreForm } from "./RejoindreForm";
 
 export default async function RejoindrePage({ params }: { params: Promise<{ programmeId: string }> }) {
   const { programmeId } = await params;
-
-  const programme = await prisma.programmeAffiliation.findUnique({
-    where: { id: programmeId },
-    include: { tenant: { select: { nomBoutique: true, slug: true, logoUrl: true, devise: true } } },
-  });
-  if (!programme || !programme.actif) notFound();
-
+  const [programme, session] = await Promise.all([
+    prisma.programmeAffiliation.findUnique({
+      where: { id: programmeId },
+      select: { id: true, actif: true, valeurCommission: true, tenantId: true, tenant: { select: { nomBoutique: true, logoUrl: true, statut: true } } },
+    }),
+    auth(),
+  ]);
+  const ouvert = !!programme?.actif && programme.tenant.statut === "active";
   return (
     <RejoindreForm
-      programmeId={programme.id}
-      nomProgramme={programme.nom}
-      description={programme.description}
-      typeCommission={programme.typeCommission}
-      valeurCommission={programme.valeurCommission}
-      tiersActifs={programme.tiersActifs}
-      tier1Nom={programme.tier1Nom}
-      tier1Commission={programme.tier1Commission}
-      tier3Nom={programme.tier3Nom}
-      tier3Commission={programme.tier3Commission}
-      dureeCookie={programme.dureeCookie}
-      tenant={programme.tenant}
+      programmeId={programmeId}
+      ouvert={ouvert}
+      connecte={!!session?.user}
+      tenantId={programme?.tenantId ?? ""}
+      boutique={programme?.tenant.nomBoutique ?? ""}
+      logoUrl={programme?.tenant.logoUrl ?? null}
+      taux={programme?.valeurCommission ?? 10}
     />
   );
 }

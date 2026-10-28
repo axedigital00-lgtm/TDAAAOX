@@ -18,6 +18,7 @@ import { trackSnapchatEvent } from "./SnapchatPixel";
 import { useT } from "@/components/I18nProvider";
 import { PAYS_OPTIONS, exempleTelephone, exempleVille, codePays } from "@/lib/devise-convert";
 import { moyensEnLigne, moyensPhysique, type ReglagesPaiement } from "@/lib/paiement-pays";
+import { memoriserRef, lireRef, oublierRef } from "@/lib/ref-affiliation";
 
 export interface ParametresCommande {
   demanderEmail?: boolean;
@@ -161,10 +162,10 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
   const codeRef = useMemo(() => {
     const fromUrl = searchParams?.get("ref") ?? null;
     if (fromUrl) {
-      try { localStorage.setItem("axso_ref", fromUrl); } catch {}
+      memoriserRef(fromUrl);
       return fromUrl;
     }
-    try { return localStorage.getItem("axso_ref"); } catch { return null; }
+    return lireRef();
   }, [searchParams]);
 
   // Frais de livraison en direct selon le pays (et le quartier) choisis —
@@ -317,7 +318,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
       trackTikTokEvent("CompletePayment", { value: total, currency: devise, content_type: "product", contents: items.map((i: any) => ({ content_id: i.produitId, quantity: i.quantite })) });
       trackSnapchatEvent("PURCHASE", { price: total, currency: devise });
       if (typeof window !== "undefined") (window as any).dataLayer?.push({ event: "purchase", value: total, currency: devise, num_items: items.length });
-      try { localStorage.removeItem("axso_ref"); } catch {}
+      oublierRef();
       viderPanier();
       setDone(data);
       onCommandee?.();
@@ -810,10 +811,10 @@ function CheckoutDigital({ theme, slug, devise, tenantId, items, total, codeProm
   const codeRef = useMemo(() => {
     const fromUrl = searchParams?.get("ref") ?? null;
     if (fromUrl) {
-      try { localStorage.setItem("axso_ref", fromUrl); } catch {}
+      memoriserRef(fromUrl);
       return fromUrl;
     }
-    try { return localStorage.getItem("axso_ref"); } catch { return null; }
+    return lireRef();
   }, [searchParams]);
 
   const inp = "w-full px-4 py-3 rounded-xl border text-base sm:text-sm transition-all focus:ring-2 focus:outline-none";

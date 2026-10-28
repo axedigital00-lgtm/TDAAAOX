@@ -8,7 +8,6 @@ import { randomBytes, randomInt } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { TRANSITIONS_VALIDES, livraisonStatutPour } from "@/lib/commandes";
-import { capturerCommissionAffiliation } from "@/lib/affiliation";
 import { quotaCommandesAtteint } from "@/lib/abonnement";
 import { notifierMarchand } from "@/lib/notifications-marchand";
 import { notifierClientWhatsApp, notifierLivreurAssigneWhatsApp, notifierLivreurCourseRetiree, notifierLivreurNouvelleCourse } from "@/lib/whatsapp";
@@ -193,7 +192,6 @@ export async function changerStatutCommande(p: {
   });
   if (!applique) return { ok: false, status: 409, error: "La commande a changé entre-temps : rechargez la page" };
 
-  if (statut === "livree") await capturerCommissionAffiliation(id).catch(() => {});
   if (statut === "annulee" && commande.livreurId) {
     await retirerCourseAuLivreur(commande.livreurId, { id, numero: commande.numero, tenantId: commande.tenantId, boutique: commande.tenant.nomBoutique }, "annulee");
   }

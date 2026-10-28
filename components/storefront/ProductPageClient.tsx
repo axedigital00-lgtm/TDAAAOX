@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { urlVideoIntegree } from "@/lib/utils";
+import { urlVideoIntegree, adresseSite } from "@/lib/utils";
 import { usePrix } from "@/components/storefront/DeviseVitrine";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { CoordonneesPied } from "@/components/storefront/CoordonneesPied";
+import { lireRef } from "@/lib/ref-affiliation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Variante = { id: string; nom: string; valeur: string; prix: number | null; stock: number };
@@ -43,7 +44,7 @@ const DEFAULT_SECTIONS: ProdSection[] = [
 // "addToCart" (ancien bloc « Ajouter au panier ») n'est plus rendu : il n'y a pas de panier.
 const RIGHT_COL = new Set(["info", "variants", "quantity", "trust"]);
 // Types de produits digitaux — pas de stock physique, bouton "télécharger/accéder"
-// plutôt que "panier". Garder en phase avec TYPES_PRODUIT_DIGITAL (lib/affiliation.ts).
+// plutôt que "panier". Liste propre à la vitrine (voir TYPES_NUMERIQUES dans lib/pricing.ts).
 const TYPES_DIGITAUX = new Set(["digital", "fichier", "formation", "licence"]);
 // Textes qui parlent de livraison physique : hors sujet sur un produit numérique (badges, points forts).
 const PARLE_LIVRAISON = /livr|exp[ée]di|retour|delivery|shipping/i;
@@ -944,7 +945,7 @@ function AchatDirectDigital({ produitId, tenantId, prix, devise, texte, fond, co
     try {
       const cmd = await fetch("/api/commandes/digital-creer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, client: { nom: nom.trim(), telephone: telephone.trim(), email: email.trim().toLowerCase() }, items: [{ produitId, quantite: 1, variante }], codeAffiliation: (() => { try { return localStorage.getItem("axso_ref") || undefined; } catch { return undefined; } })() }),
+        body: JSON.stringify({ tenantId, client: { nom: nom.trim(), telephone: telephone.trim(), email: email.trim().toLowerCase() }, items: [{ produitId, quantite: 1, variante }], codeAffiliation: lireRef() || undefined }),
       });
       const c = await cmd.json();
       if (!cmd.ok) throw new Error(c.error || "Commande impossible");
@@ -1113,59 +1114,20 @@ function FormationCurriculumSection({ chapitres, accent, surface }: {
   );
 }
 
-// ─── Lien d'affiliation B2B (marchand AXSO devenant affilié d'un produit) ────
-function AffiliateLinkButton({ tenantId, produitId, accent, surface }: {
-  tenantId: string; produitId: string; accent: string; surface: string;
-}) {
+// ─── Lien d'affiliation (marchand Axso connecté qui veut recommander ce produit) ────
+// Le lien se prend dans son espace affilié, sur le site Axso (la vitrine peut être sur un sous-domaine).
+function AffiliateLinkButton({ nom, accent, surface }: { nom: string; accent: string; surface: string }) {
   const tx = useT();
-  const [lien, setLien] = useState<{ code: string } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [copie, setCopie] = useState(false);
-
-  async function generer() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/affiliation/generer", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, produitId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
-      setLien(data.lien);
-    } catch (e: any) {
-      toast.error(tx(e.message) || tx("Impossible de générer le lien"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const url = lien && typeof window !== "undefined" ? `${window.location.origin}/api/track/${lien.code}` : "";
-
   return (
     <div className="rounded-xl p-4" style={{ background: surface }}>
       <p className="text-xs font-bold flex items-center gap-1.5 mb-1" style={{ color: accent }}>
-        <Share2 size={12} />{" "}{tx("Vous êtes marchand AXSO ?")}
+        <Share2 size={12} />{" "}{tx("Recommandez ce produit")}
       </p>
-      {!lien ? (
-        <>
-          <p className="text-xs opacity-55 mb-2.5">{tx("Devenez affilié de ce produit et touchez une commission sur chaque vente que vous générez.")}</p>
-          <button onClick={generer} disabled={loading}
-            className="text-xs font-bold px-4 py-2 rounded-xl transition-all disabled:opacity-50"
-            style={{ background: accent, color: "#fff" }}>
-            {loading ? "…" : tx("Obtenir mon lien d'affiliation")}
-          </button>
-        </>
-      ) : (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 rounded-lg px-2.5 py-1.5 text-[11px] font-mono truncate" style={{ background: "rgba(0,0,0,0.05)" }}>{url}</div>
-          <button
-            onClick={() => { navigator.clipboard.writeText(url); setCopie(true); toast.success(tx("Copié !")); setTimeout(() => setCopie(false), 2000); }}
-            className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold"
-            style={{ background: accent, color: "#fff" }}>
-            {copie ? tx("Copié") : tx("Copier")}
-          </button>
-        </div>
-      )}
+      <p className="text-xs opacity-55 mb-2.5">{tx("Touchez une commission sur chaque vente payée en ligne grâce à votre lien, versée par Axso.")}</p>
+      <a href={`${adresseSite()}/affilie/catalogue?q=${encodeURIComponent(nom)}`} target="_blank" rel="noopener noreferrer"
+        className="inline-block text-xs font-bold px-4 py-2 rounded-xl" style={{ background: accent, color: "#fff" }}>
+        {tx("Obtenir mon lien d'affiliation")}
+      </a>
     </div>
   );
 }
@@ -1448,7 +1410,7 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
                 </div>
               )}
               {tenant.peutDevenirAffilie && (
-                <AffiliateLinkButton tenantId={tenant.id} produitId={produit.id} accent={accent} surface={surface} />
+                <AffiliateLinkButton nom={produit.nom} accent={accent} surface={surface} />
               )}
             </div>
           )}

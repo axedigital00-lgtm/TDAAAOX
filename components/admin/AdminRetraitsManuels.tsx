@@ -53,10 +53,12 @@ export function AdminRetraitsManuels({ peutTraiter, commissions = false, livreur
   return (
     <div className="rounded-2xl p-6 border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
       <h2 className="font-semibold mb-1 flex items-center gap-2" style={{ color: "#ffffff" }}>
-        <Clock size={16} style={{ color: "#F5A623" }} />{" "}{commissions ? t("Commissions d'affiliés à verser") : livreurs ? t("Retraits des livreurs à payer") : t("Retraits à traiter à la main")} ({retraits.length})
+        <Clock size={16} style={{ color: "#F5A623" }} />{" "}{commissions ? t("Retraits d'affiliés à verser") : livreurs ? t("Retraits des livreurs à payer") : t("Retraits à traiter à la main")} ({retraits.length})
       </h2>
       <p className="text-xs mb-4" style={{ color: "#AAAAAA" }}>
-        {livreurs
+        {commissions
+          ? t("Les commissions sont déjà retenues sur la part des marchands. Faites le transfert dans NotchPay (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le : les commissions redeviennent disponibles pour l'affilié.")
+          : livreurs
           ? t("Le solde du livreur est déjà débité. Faites le transfert dans NotchPay (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le pour recréditer le livreur.")
           : t("Le solde du marchand est déjà débité. Faites le transfert dans NotchPay (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le pour recréditer le marchand.")}
       </p>
