@@ -420,7 +420,9 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
 
       {/* Téléphone : le panier est un tiroir bas, résumé dans une barre toujours visible. */}
       {etroit && !fermee && (
-        <div className="sticky bottom-2 z-10 flex items-center gap-2 rounded-2xl bg-[#111111] p-2 shadow-xl">
+        // Hors kiosque, la barre de navigation flottante du téléphone occupe le bas : la barre Payer passe au-dessus.
+        <div className="sticky z-10 flex items-center gap-2 rounded-2xl bg-[#111111] p-2 shadow-xl"
+          style={{ bottom: kiosque ? "0.5rem" : "calc(env(safe-area-inset-bottom) + 7.25rem)" }}>
           <button type="button" onClick={() => setFenetre("panier")} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 text-left text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
             <ShoppingCart size={18} aria-hidden className="flex-shrink-0 text-[#F5A623]" />
             <span className="min-w-0">

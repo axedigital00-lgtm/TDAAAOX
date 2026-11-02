@@ -92,6 +92,15 @@ body {
   overscroll-behavior-x: none;
 }
 
+/* Un mot trop long (adresse, e-mail, lien) passe à la ligne au lieu de sortir de l'écran. */
+h1, h2, h3, h4, h5, p, li, label, dd, dt, blockquote, figcaption { overflow-wrap: break-word; }
+
+/* Téléphone : les boutons rétrécissent et passent à la ligne au lieu de déborder. */
+@media (max-width: 767px) {
+  .ax-btn { max-width: 100%; white-space: normal; text-align: center; justify-content: center; }
+  .ax-btn > svg { flex-shrink: 0; }
+}
+
 /* ── Dashboard utility classes ───────────────────────────────────────────── */
 .ax-card {
   background: var(--surface);

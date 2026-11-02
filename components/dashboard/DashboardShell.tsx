@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, ShoppingCart, Store, Users } from "lucide-react";
+import { Sparkles, ShoppingCart, Store, Users, Monitor } from "lucide-react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { BoutiqueSwitcher } from "@/components/dashboard/BoutiqueSwitcher";
 import { Header } from "@/components/dashboard/Header";
@@ -146,16 +146,21 @@ function MobileHeader({ boutiqueNom, permissions, nom }: { boutiqueNom?: string;
   return (
     <header className="sticky top-0 z-40 bg-white/96 backdrop-blur-xl border-b border-gray-100"
       style={{ boxShadow: "0 1px 12px rgba(0,0,0,0.04)" }}>
-      <div className="flex items-center justify-between px-4 h-14">
+      <div className="flex items-center justify-between gap-2 px-4 h-14">
         <img src="/logo.png" alt="axso" style={{ height: "32px", width: "auto", objectFit: "contain" }}/>
         {boutiqueNom && (
-          <div className="flex items-center gap-1.5 bg-[#F5A623]/8 border border-[#F5A623]/20 rounded-full px-3 py-1 max-w-[150px]">
+          <div className="flex items-center gap-1.5 bg-[#F5A623]/8 border border-[#F5A623]/20 rounded-full px-3 py-1 min-w-0 max-w-[150px]">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse flex-shrink-0"/>
             <span className="text-xs font-semibold text-[#F5A623] truncate">{t(boutiqueNom)}</span>
           </div>
         )}
         <div className="flex items-center gap-2 flex-shrink-0">
         <RechercheDashboard permissions={permissions} mobile />
+        {(!permissions || permissions.pos !== "aucun") && (
+          <Link href="/dashboard/pos/caisse" aria-label={t("Caisse")} className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-[#111111] text-white active:scale-95 transition-transform">
+            <Monitor size={17} />
+          </Link>
+        )}
         <Link href="/dashboard/profil" aria-label={t("Mon profil")} className="flex-shrink-0">
           <AvatarCompte nom={nom} className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F5A623] to-[#e8950f]" classeInitiales="text-white text-xs font-bold" />
         </Link>

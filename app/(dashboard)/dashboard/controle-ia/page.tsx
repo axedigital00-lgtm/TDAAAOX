@@ -105,7 +105,7 @@ export default function ControleIAPage() {
   if (chargement) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-400" /></div>;
 
   const limite = (c: Connexion, cle: "variationPrixMax" | "budgetPubMax" | "transactionMax", label: string, max: number) => (
-    <label className="text-sm text-gray-700 flex items-center gap-2">{tr(label)}
+    <label className="text-sm text-gray-700 flex flex-wrap items-center gap-2">{tr(label)}
       <input type="number" min={0} max={max} defaultValue={c[cle]} className={`${champ} w-28`}
         onBlur={(e) => { const v = Math.min(max, Math.max(0, Number(e.target.value) || 0)); if (v !== c[cle]) regler(c, { [cle]: v }); }} />
     </label>
@@ -116,19 +116,19 @@ export default function ControleIAPage() {
       <div>
         <div className="flex items-center gap-2 mb-1">
           <Sparkles size={18} className="text-[#F5A623]" />
-          <h1 className="text-2xl font-bold text-gray-900">{tr("Contrôle IA")}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{tr("Contrôle IA")}</h1>
         </div>
         <p className="text-gray-400 text-sm">{tr("Pilote ta boutique depuis Claude, ChatGPT ou un autre assistant, sans jamais lui donner ton mot de passe.")}</p>
       </div>
 
-      <div className="ax-card p-6 space-y-4">
+      <div className="ax-card p-4 sm:p-6 space-y-4">
         <h2 className="font-bold text-gray-900">{tr("Relier un assistant")}</h2>
         <div className="grid grid-cols-3 gap-2">
           {FOURNISSEURS.map(([id, nom]) => {
             const relie = connexions.some((c) => c.fournisseur === id);
             return (
-              <div key={id} className="border border-gray-100 rounded-xl p-3">
-                <p className="font-semibold text-gray-900 text-sm">{nom}</p>
+              <div key={id} className="border border-gray-100 rounded-xl p-2.5 sm:p-3 min-w-0">
+                <p className="font-semibold text-gray-900 text-sm truncate">{nom}</p>
                 <p className="text-xs" style={{ color: relie ? "#10b981" : "#9ca3af" }}>{relie ? tr("Relié") : tr("Non relié")}</p>
               </div>
             );
@@ -141,12 +141,12 @@ export default function ControleIAPage() {
         </div>
       </div>
 
-      <div className="ax-card p-6 space-y-4">
+      <div className="ax-card p-4 sm:p-6 space-y-4">
         <h2 className="font-bold text-gray-900">{tr("Assistants reliés")}</h2>
         {connexions.length === 0 && <p className="text-sm text-gray-400">{tr("Aucun assistant relié pour l'instant.")}</p>}
         {connexions.map((c) => (
           <div key={c.id} className="border border-gray-100 rounded-xl p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-900 break-words">{c.client}</p>
                 <p className="text-xs text-gray-400">{tr("Relié le")} {date(c.createdAt)} · {tr("dernière action")} {date(c.utiliseLe)}</p>
@@ -161,7 +161,7 @@ export default function ControleIAPage() {
                 </li>
               ))}
             </ul>
-            <label className="text-sm text-gray-700 flex items-center gap-2">{tr("Mode")}
+            <label className="text-sm text-gray-700 flex flex-wrap items-center gap-2">{tr("Mode")}
               <select value={c.mode} onChange={(e) => regler(c, { mode: e.target.value })} className={champ}>
                 {Object.entries(MODES).map(([m, { label }]) => <option key={m} value={m}>{tr(label)}</option>)}
               </select>
@@ -172,7 +172,7 @@ export default function ControleIAPage() {
                 {limite(c, "variationPrixMax", "Variation de prix max (%)", 100)}
                 {limite(c, "budgetPubMax", "Budget publicitaire max par action", 1_000_000_000)}
                 {limite(c, "transactionMax", "Achat ou paiement max par action", 1_000_000_000)}
-                <label className="text-sm text-gray-700 flex items-center gap-2">{tr("Publication de la boutique sans accord")}
+                <label className="text-sm text-gray-700 flex flex-wrap items-center gap-2">{tr("Publication de la boutique sans accord")}
                   <select value={c.risqueBuilderMax} onChange={(e) => regler(c, { risqueBuilderMax: e.target.value })} className={champ}>
                     <option value="faible">{tr("petits changements seulement")}</option>
                     <option value="moyen">{tr("jusqu'aux changements moyens")}</option>
@@ -185,11 +185,11 @@ export default function ControleIAPage() {
         ))}
       </div>
 
-      <div className="ax-card p-6 space-y-3">
+      <div className="ax-card p-4 sm:p-6 space-y-3">
         <h2 className="font-bold text-gray-900">{tr("En attente de ton accord")} ({accords.length})</h2>
         {accords.length === 0 && <p className="text-sm text-gray-400">{tr("Rien à valider.")}</p>}
         {accords.map((a) => (
-          <div key={a.id} className="flex items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
+          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
             <p className="text-sm text-gray-800 min-w-0 break-words">{a.message}</p>
             <div className="flex gap-2 shrink-0">
               <button onClick={() => decider(a.id, "refuser")} aria-label={tr("Refuser")} className="ax-btn ax-btn-secondary"><X size={14} /></button>
@@ -200,8 +200,8 @@ export default function ControleIAPage() {
       </div>
 
       {builder && (
-        <div className="ax-card p-6 space-y-4">
-          <div className="flex items-start justify-between gap-3">
+        <div className="ax-card p-4 sm:p-6 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="font-bold text-gray-900">{tr("Ta boutique et les IA")}</h2>
               <p className="text-sm text-gray-500">{tr("Les assistants préparent leurs changements dans un brouillon ; ta boutique en ligne ne change qu'à la publication.")}</p>
@@ -249,7 +249,7 @@ export default function ControleIAPage() {
             <div className="space-y-1.5">
               <p className="ax-label">{tr("Versions")}</p>
               {builder.versions.map((v) => (
-                <div key={v.numero} className="flex items-center justify-between gap-3 text-sm">
+                <div key={v.numero} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
                   <span className="min-w-0 break-words text-gray-700">v{v.numero} · {date(v.createdAt)} · {v.client ?? tr("toi")} — {v.raison}{v.nbChangements ? ` (${v.nbChangements})` : ""}</span>
                   {builder.peutDecider && (
                     <button onClick={() => appel("/api/controle-ia/builder", { method: "PATCH", body: JSON.stringify({ restaurer: v.numero }) }, "Version remise en ligne", "Restauration refusée")}
@@ -265,11 +265,11 @@ export default function ControleIAPage() {
         </div>
       )}
 
-      <div className="ax-card p-6 space-y-3">
+      <div className="ax-card p-4 sm:p-6 space-y-3">
         <h2 className="font-bold text-gray-900">{tr("Automatisations")}</h2>
         {automatisations.length === 0 && <p className="text-sm text-gray-400">{tr("Aucune automatisation. Demande à ton assistant d'en créer une, par exemple « préviens-moi et prépare une commande quand un stock est bas ».")}</p>}
         {automatisations.map((a) => (
-          <div key={a.id} className="flex items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
+          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 break-words">{a.nom} {!a.actif && <span className="text-xs font-normal text-gray-400">· {tr("en pause")}</span>}</p>
               <p className="text-xs text-gray-400 break-words">{a.resume ? `${a.resume} · ` : ""}{a.executions} {tr("exécutions")} · {tr("dernière")} {date(a.derniereExecution)}</p>
@@ -283,12 +283,12 @@ export default function ControleIAPage() {
       </div>
 
       {webhooks.length > 0 && (
-        <div className="ax-card p-6 space-y-3">
+        <div className="ax-card p-4 sm:p-6 space-y-3">
           <h2 className="font-bold text-gray-900">{tr("Webhooks")}</h2>
           <p className="text-sm text-gray-500">{tr("Adresses qui reçoivent les événements de ta boutique, signés avec un secret.")}</p>
           {webhooks.map((w) => (
             <div key={w.id} className="border border-gray-100 rounded-xl p-3 space-y-2">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900 break-all">{w.url}</p>
                   <p className="text-xs text-gray-400 break-words">{w.evenements.join(", ")} · {w.actif ? tr("actif") : tr("désactivé après des échecs")}</p>
@@ -311,11 +311,11 @@ export default function ControleIAPage() {
       )}
 
       {services.length > 0 && (
-        <div className="ax-card p-6 space-y-3">
+        <div className="ax-card p-4 sm:p-6 space-y-3">
           <h2 className="font-bold text-gray-900">{tr("Services reliés")}</h2>
           <p className="text-sm text-gray-500">{tr("Comptes que tes assistants peuvent utiliser à travers Axso. Ils n'en reçoivent jamais les accès.")}</p>
           {services.map((s) => (
-            <div key={s.type} className="flex items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
+            <div key={s.type} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900">{s.nom ?? s.type}</p>
                 <p className="text-xs text-gray-400 break-words">{s.compte ? `${s.compte} · ` : ""}{tr(s.statut)}{s.expireLe ? ` · ${tr("expire le")} ${date(s.expireLe)}` : ""}</p>
@@ -327,7 +327,7 @@ export default function ControleIAPage() {
       )}
 
       {activite && (
-        <div className="ax-card p-6 space-y-3">
+        <div className="ax-card p-4 sm:p-6 space-y-3">
           <h2 className="font-bold text-gray-900">{tr("Activité des 30 derniers jours")}</h2>
           <p className="text-sm text-gray-700">
             {activite.total} {tr("appels")} · {activite.parStatut.execute ?? 0} {tr("faits")} · {activite.parStatut.accord_demande ?? 0} {tr("accords demandés")} · {activite.parStatut.refuse ?? 0} {tr("refusés")} · {activite.parStatut.echec ?? 0} {tr("échecs")}
@@ -338,14 +338,14 @@ export default function ControleIAPage() {
         </div>
       )}
 
-      <div className="ax-card p-6 space-y-3">
+      <div className="ax-card p-4 sm:p-6 space-y-3">
         <h2 className="font-bold text-gray-900">{tr("Historique des actions")}</h2>
         {actions.length === 0 && <p className="text-sm text-gray-400">{tr("Aucune action pour l'instant.")}</p>}
         <div className="divide-y divide-gray-100">
           {actions.map((a) => (
             <details key={a.id} className="py-2.5">
               <summary className="flex items-center gap-3 text-sm cursor-pointer">
-                <span className="text-xs text-gray-400 w-28 shrink-0">{date(a.createdAt)}</span>
+                <span className="text-xs text-gray-400 w-24 sm:w-28 shrink-0">{date(a.createdAt)}</span>
                 <span className="font-medium text-gray-900 min-w-0 truncate">{a.client} · {a.outil.replace(/_/g, " ")}</span>
                 <span className="ml-auto text-[11px] font-semibold shrink-0" style={{ color: STATUTS[a.statut]?.couleur }}>{a.annuleLe ? tr("Annulé") : tr(STATUTS[a.statut]?.label ?? a.statut)}</span>
               </summary>

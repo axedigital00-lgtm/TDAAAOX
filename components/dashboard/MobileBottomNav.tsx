@@ -3,7 +3,7 @@ import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Package, ShoppingCart, X, BarChart3, TrendingUp, Megaphone, Truck, Star, Settings, Palette, Globe2, Calendar, Search, MessageSquare, Store, Paintbrush, CreditCard, Package2, Bot, Zap, Wallet, LifeBuoy } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, X, BarChart3, TrendingUp, Megaphone, Truck, Star, Settings, Palette, Globe2, Calendar, Search, MessageSquare, Store, Paintbrush, CreditCard, Package2, Bot, Zap, Wallet, LifeBuoy, Sparkles, Monitor, Boxes } from "lucide-react";
 import {
   IconAccueil, IconProduits, IconAxia, IconCommandes,
 } from "@/components/dashboard/AppIcons";
@@ -22,7 +22,16 @@ const GROUPS: { label: string; color: string; items: ItemMobile[] }[] = [
     label: "Intelligence IA", color: "#111111",
     items: [
       { href: "/dashboard",            label: "Axia — Assistante IA", icon: Zap, requiresPalier: "palier1" },
+      { href: "/dashboard/controle-ia", label: "Contrôle IA",    icon: Sparkles, requiresPalier: "palier1" },
       { href: "/dashboard/scheduler", label: "Planificateur",    icon: Calendar, moduleKey: "marketing" },
+    ],
+  },
+  {
+    label: "Caisse & magasin", color: "#F5A623",
+    items: [
+      { href: "/dashboard/pos/caisse",  label: "Caisse",           icon: Monitor, moduleKey: "pos" },
+      { href: "/dashboard/pos/session", label: "Session de caisse", icon: Wallet, moduleKey: "pos" },
+      { href: "/dashboard/pos/stock",   label: "Stocks",           icon: Boxes, moduleKey: "pos" },
     ],
   },
   {
@@ -175,7 +184,7 @@ export function MobileBottomNav({ permissions }: { permissions?: Record<ModuleKe
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className="flex flex-col items-center gap-0.5 px-4 py-1 rounded-2xl transition-all"
+                  className="flex flex-col items-center gap-0.5 px-3 min-[380px]:px-4 py-1 rounded-2xl transition-all"
                 >
                   <div className={`transition-all duration-200 ${active ? "scale-105" : "scale-90 opacity-50"}`}>
                     <AppIcon size={28} />
@@ -214,7 +223,7 @@ export function MobileBottomNav({ permissions }: { permissions?: Record<ModuleKe
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className="flex flex-col items-center gap-0.5 px-4 py-1 rounded-2xl transition-all"
+                  className="flex flex-col items-center gap-0.5 px-3 min-[380px]:px-4 py-1 rounded-2xl transition-all"
                 >
                   <div className={`transition-all duration-200 ${active ? "scale-105" : "scale-90 opacity-50"}`}>
                     <AppIcon size={28} />
@@ -237,7 +246,7 @@ export function MobileBottomNav({ permissions }: { permissions?: Record<ModuleKe
               type="button"
               aria-label={t("Tous les modules")}
               onClick={() => setDrawerOpen(true)}
-              className="flex flex-col items-center gap-0.5 px-4 py-1 rounded-2xl transition-all"
+              className="flex flex-col items-center gap-0.5 px-3 min-[380px]:px-4 py-1 rounded-2xl transition-all"
             >
               <div
                 className={`w-7 h-7 flex items-center justify-center rounded-xl transition-all ${drawerOpen ? "bg-[#F5A623]/12 scale-105" : "scale-90 opacity-50"}`}
