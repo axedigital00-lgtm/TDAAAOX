@@ -6,13 +6,13 @@ export const PAIEMENT = {
   PAYE: "completed",
   ECHOUE: "failed",
   REMBOURSE: "refunded",
-  // Remboursement demandé à NotchPay sans réponse claire (délai dépassé) : peut-être exécuté.
-  // Jamais relancé à l'aveugle — revérifié chez NotchPay au prochain essai (lib/remboursement.ts).
+  // Remboursement en ligne demandé sans réponse claire (délai dépassé) : peut-être exécuté.
+  // Jamais relancé à l'aveugle (lib/remboursement.ts). Anciennes commandes payées en ligne.
   EN_REMBOURSEMENT: "refunding",
 } as const;
 
-// Commande à payer en ligne (NotchPay) — « en_attente » : page de paiement jamais ouverte.
-// Toute autre méthode (whatsapp_cod, direct_cod, caisse…) est encaissée hors d'Axso.
+// Anciennes commandes payées en ligne (« notchpay ») ou jamais payées (« en_attente ») : plus aucune
+// n'est créée, gardées pour l'historique. Toute autre méthode (whatsapp_cod, direct_cod, caisse…) est encaissée hors d'Axso.
 export const METHODES_EN_LIGNE = ["notchpay", "en_attente"];
 
 /** Paiement en ligne attendu mais pas reçu : la commande ne peut ni avancer ni être marquée payée. */

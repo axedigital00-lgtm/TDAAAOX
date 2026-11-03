@@ -11,7 +11,7 @@
 //   affichées avec ETIQUETTE_ESTIMATION.
 // - `moyensPaiement` liste les moyens de paiement courants du pays, à titre
 //   indicatif : ce qui est réellement encaissable dépend des adapters branchés
-//   (voir lib/sourcing/paiements.ts — aujourd'hui NotchPay et le paiement à la livraison).
+//   (voir lib/sourcing/paiements.ts — aujourd'hui le paiement à la livraison seulement).
 
 import { PAYS_DEVISES } from "../devise-convert";
 

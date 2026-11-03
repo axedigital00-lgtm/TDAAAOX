@@ -90,7 +90,7 @@ export function AdminWalletPanel({ peutRetirer }: { peutRetirer: boolean }) {
           </div>
           <div>
             <h2 className="font-semibold" style={{ color: "#ffffff" }}>{t("Wallet Axso")}</h2>
-            <p className="text-xs" style={{ color: "#AAAAAA" }}>{t("Commission + revenus d'abonnement — argent réellement reçu via NotchPay")}</p>
+            <p className="text-xs" style={{ color: "#AAAAAA" }}>{t("Commission + revenus d'abonnement — argent réellement encaissé")}</p>
           </div>
         </div>
         {peutRetirer && (
@@ -126,7 +126,7 @@ export function AdminWalletPanel({ peutRetirer }: { peutRetirer: boolean }) {
           {showForm && peutRetirer && (
             <form onSubmit={retirer} className="rounded-xl p-4 mb-6 space-y-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex items-center gap-2 text-xs mb-1" style={{ color: "#16A34A" }}>
-                <ShieldCheck size={12} />{" "}{t("Débit atomique + remboursement automatique en cas d'échec NotchPay")}
+                <ShieldCheck size={12} />{" "}{t("Débit atomique : transfert fait à la main, recrédité en cas de refus")}
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <input

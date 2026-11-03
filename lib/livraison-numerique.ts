@@ -1,11 +1,10 @@
 // Livraison automatique des produits numériques — point de passage unique.
 //
 // - Les droits (jetons de téléchargement, accès formation, clés de licence) ne sont
-//   créés que pour une commande PAYÉE, c'est-à-dire confirmée côté serveur par
-//   NotchPay (webhook signé + relecture de la transaction, voir lib/paiement-commande.ts).
+//   créés que pour une commande PAYÉE, confirmée côté serveur par le prestataire de paiement.
 // - Idempotent : une ligne LivraisonDigitale par commande (contrainte unique), un droit
 //   par produit et par commande ; un verrou court empêche deux exécutions simultanées
-//   (webhook, page de retour, réconciliation, bouton marchand).
+//   (confirmation du paiement, page de retour, réconciliation, bouton marchand).
 // - Journal : statut, tentatives, dernière erreur (jamais de jeton ni de secret).
 // - L'e-mail n'est qu'une notification : s'il échoue, les accès restent sur la page
 //   de confirmation (lien signé) et dans « Mon compte » ; la réconciliation et le
@@ -30,7 +29,7 @@ export const nouveauJeton = () => crypto.randomBytes(32).toString("hex");
 // L'identifiant d'une commande n'est pas un secret (cuid, ~40 bits aléatoires, visible
 // du marchand, des livreurs, des journaux). La page qui affiche les accès exige donc
 // en plus une clé HMAC de 128 bits liée à la commande, présente dans l'URL de retour
-// NotchPay, l'e-mail et « Mon compte ».
+// du paiement, l'e-mail et « Mon compte ».
 function secretAcces(): string {
   const s = [process.env.AXSO_CLE_CHIFFREMENT, process.env.AUTH_SECRET, process.env.NEXTAUTH_SECRET].map((v) => v?.trim()).find(Boolean);
   if (!s) throw new Error("AUTH_SECRET manquant : impossible de signer les liens d'accès");

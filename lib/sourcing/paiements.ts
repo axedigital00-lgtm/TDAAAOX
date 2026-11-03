@@ -1,15 +1,11 @@
 // Moyens d'encaissement par pays derrière une seule interface, PaymentProvider.
-// SERVEUR uniquement (l'adapter NotchPay lit les clés d'API de l'environnement ;
-// elles ne sortent jamais d'ici — `etatPaiements()` ne renvoie que des statuts).
+// SERVEUR uniquement (`etatPaiements()` ne renvoie que des statuts).
 //
-// ÉTAT RÉEL DES INTÉGRATIONS :
-// - notchpay : ACTIF si ses clés sont configurées — le seul encaissement en
-//   ligne réellement branché (lib/notchpay.ts). C'est lui qu'utilise la vitrine.
+// ÉTAT RÉEL DES INTÉGRATIONS (aucun paiement en ligne branché pour l'instant) :
 // - cod (paiement à la livraison) : ACTIF, sans API — espèces remises au
 //   livreur, aucune commission Axso.
 // - mtn_momo, orange_money, wave (API directes des opérateurs) : À CONNECTER.
 //   Leurs méthodes lèvent PaiementNonBranche ; rien n'est simulé.
-import { hasNotchPay, initierPaiementNotchPay, verifierPaiementNotchPay, rembourserPaiementNotchPay, verifierSignatureWebhook } from "../notchpay";
 import { configPays, LIBELLES_PAIEMENT, type CodePays, type MoyenPaiement } from "./pays";
 import type { StatutIntegration } from "./connecteurs";
 
@@ -39,30 +35,9 @@ export interface PaymentProvider {
 export class PaiementNonBranche extends Error {
   status = 501;
   constructor(nom: string) {
-    super(`${nom} n'est pas encore branché en direct. Les paiements en ligne passent par NotchPay.`);
+    super(`${nom} n'est pas encore branché en direct.`);
   }
 }
-
-const notchpay: PaymentProvider = {
-  id: "notchpay",
-  nom: "NotchPay",
-  get statut() { return hasNotchPay() ? "actif" as const : "a_connecter" as const; },
-  // Les opérateurs réellement proposés au client dépendent du compte NotchPay et du pays.
-  moyens: ["mtn_momo", "orange_money", "carte"],
-  initier: async (d) => {
-    const r = await initierPaiementNotchPay({
-      amount: d.montant, currency: d.devise, email: d.client.email, name: d.client.nom, phone: d.client.telephone,
-      description: d.description, reference: d.reference, callback: d.urlRetour,
-    });
-    return { reference: r.transaction?.reference ?? d.reference, urlPaiement: r.authorizationUrl };
-  },
-  verifier: async (reference) => {
-    const { transaction } = await verifierPaiementNotchPay(reference);
-    return { paye: transaction?.status === "complete", brut: transaction };
-  },
-  rembourser: async (reference, raison) => { await rembourserPaiementNotchPay(reference, raison); },
-  verifierWebhook: verifierSignatureWebhook,
-};
 
 const cod: PaymentProvider = {
   id: "cod",
@@ -83,7 +58,7 @@ function aConnecter(id: MoyenPaiement): PaymentProvider {
   return { id, nom: `${nom} (API directe)`, statut: "a_connecter", moyens: [id], initier: refuser, verifier: refuser, rembourser: refuser, verifierWebhook: () => false };
 }
 
-export const PRESTATAIRES_PAIEMENT: PaymentProvider[] = [notchpay, cod, aConnecter("mtn_momo"), aConnecter("orange_money"), aConnecter("wave")];
+export const PRESTATAIRES_PAIEMENT: PaymentProvider[] = [cod, aConnecter("mtn_momo"), aConnecter("orange_money"), aConnecter("wave")];
 
 export function prestatairePaiement(id: string): PaymentProvider | undefined {
   return PRESTATAIRES_PAIEMENT.find((p) => p.id === id);

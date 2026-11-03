@@ -193,7 +193,7 @@ export function genererDemo(maintenant = Date.now()): Dataset {
     { id: "exp5", nom: "Relance SMS J+3 sans commande", type: "Campagne", hypothese: "Une relance SMS à J+3 augmente la première commande.", statut: "brouillon", debut: fin, fin: null, variantes: [] },
   ];
   const incidents: Incident[] = [
-    { id: "inc1", date: fin - 2 * JOUR, titre: "Latence NotchPay sur Mobile Money (CM)", gravite: "majeur", resoluLe: fin - 2 * JOUR + 3 * 3600_000 },
+    { id: "inc1", date: fin - 2 * JOUR, titre: "Latence du paiement Mobile Money (CM)", gravite: "majeur", resoluLe: fin - 2 * JOUR + 3 * 3600_000 },
     { id: "inc2", date: fin - 9 * JOUR, titre: "Échec d'envoi des emails transactionnels", gravite: "mineur", resoluLe: fin - 9 * JOUR + 5400_000 },
     { id: "inc3", date: fin - 26 * JOUR, titre: "Indisponibilité du constructeur de boutique", gravite: "critique", resoluLe: fin - 26 * JOUR + 2400_000 },
     { id: "inc4", date: fin - 0.3 * JOUR, titre: "Webhooks de paiement retardés", gravite: "mineur", resoluLe: null },

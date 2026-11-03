@@ -2,8 +2,8 @@ import { AVEC_CENTIMES } from "./changement-devise";
 
 // POLITIQUE DE PRIX (depuis le 20/10/2026) — le client paie la majoration en plus, le vendeur
 // garde toujours son prix :
-// - physique ou dropshipping payé EN LIGNE : +10 % (7 % Axso + 3 % NotchPay) ;
-// - produit numérique : +13 % (10 % Axso + 3 % NotchPay) ;
+// - physique ou dropshipping payé EN LIGNE : +10 % (7 % Axso + 3 % frais de paiement) ;
+// - produit numérique : +13 % (10 % Axso + 3 % frais de paiement) ;
 // - physique payé À LA LIVRAISON, en espèces au marchand : rien n'est ajouté ni prélevé.
 // `taux` = Tenant.commissionRate (0,10 par défaut) ; le numérique y ajoute SUPPLEMENT_NUMERIQUE.
 // Texte public : page /legal/politique-prix.

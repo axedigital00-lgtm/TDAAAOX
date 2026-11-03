@@ -1,5 +1,5 @@
 // Circuit manuel des retraits (tous depuis le 20/10/2026, voir lib/wallet.ts) : Axso fait le
-// transfert dans NotchPay puis clôture ici.
+// transfert à la main puis clôture ici.
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession, getAdminSessionPour, estAdminComplet } from "@/lib/admin-auth";
 import { journaliser } from "@/lib/command-center/serveur";
@@ -11,8 +11,8 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
 
   const retraits = await prisma.retrait.findMany({
-    // « traitement » aussi : un transfert lancé (transfer.sent) reste à clôturer ici.
-    where: { statut: { in: ["en_attente", "traitement"] }, reference: null },
+    // « traitement » aussi : les anciens transferts lancés automatiquement se clôturent ici à la main.
+    where: { statut: { in: ["en_attente", "traitement"] } },
     orderBy: { createdAt: "asc" },
     take: 100,
   });

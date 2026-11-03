@@ -1,21 +1,16 @@
 // Wallet AXSO — logique métier
-// Flux : paiement confirmé (NotchPay) → crédit wallet (montant net, commission déduite), en
-//        séquestre 48 h (compté dans le solde, pas encore retirable : WalletTransaction.disponibleLe)
+// Flux : crédit (bonus, gains…) ; une vente reste en séquestre 48 h (comptée dans le solde, pas
+//        encore retirable : WalletTransaction.disponibleLe) ;
 //        retrait → débit du seul solde disponible → Axso fait le transfert à la main (voir initierRetrait)
 
 import { prisma } from "./prisma";
 import { versXAF } from "./devise-convert";
 import { tauxDuJour } from "./taux-change";
 import { Prisma } from "@prisma/client";
-import { expirationApresPaiement, boutiquesDuMemeCompte } from "./abonnement";
-import { finEssai } from "./essai-regles";
-import { retirerRefsEnAttente } from "./abonnement-regles";
 import { etatSequestre, finSequestre, minimumRetrait, arrondiDevise } from "./wallet-regles";
-import { verifierTransfertNotchPay, hasNotchPay } from "./notchpay";
 import { pousserAdmins } from "./push";
 import { envoyerAlerteRetrait } from "./email";
 import { notifierMarchand } from "./notifications-marchand";
-import { partVendeur } from "./pricing";
 import { normaliserTelephone } from "./devise-convert";
 
 type Tx = Prisma.TransactionClient;
@@ -23,25 +18,6 @@ type Tx = Prisma.TransactionClient;
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type TypeTransaction = "CREDIT" | "COMMISSION" | "RETRAIT" | "REMBOURSEMENT" | "FRAIS" | "BONUS";
-
-export interface CreditWalletParams {
-  tenantId: string;
-  montantBrut: number;
-  tauxCommission: number;
-  devise: string;
-  description: string;
-  commandeId?: string;
-  reference?: string;
-  // Frais de traitement NotchPay réels sur cette transaction (jamais déduits du
-  // vendeur — uniquement de la commission Axso, qui est la seule chose qui les couvre).
-  fraisPasserelle?: number;
-  // Part du montant payé qui n'a jamais été majorée de la commission (frais de livraison) : reversée en entier au vendeur.
-  montantHorsCommission?: number;
-  // Lignes de la commande (prix client unitaires) : part du vendeur exacte au franc près (lib/pricing.ts).
-  lignes?: { prix: number; quantite: number }[];
-  // Commission d'affilié (lib/affiliation.ts) : retirée de la part du vendeur, gardée par Axso qui la verse à l'affilié.
-  commissionAffilie?: number;
-}
 
 export interface RetraitParams {
   tenantId: string;
@@ -100,69 +76,6 @@ const enXAF = (montant: number, devise: string, description: string, taux: Recor
   ? { montant, devise, description }
   : { montant: versXAF(montant, devise, taux), devise: "XAF", description: `${description} (${montant} ${devise})` };
 
-async function crediterPlateformeTx(tx: any, taux: Record<string, number>, montantDevise: number, deviseOrigine: string, descriptionOrigine: string, reference?: string) {
-  if (montantDevise <= 0) return;
-  const { montant, devise, description } = enXAF(montantDevise, deviseOrigine, descriptionOrigine, taux);
-  const tenantId = await getOrCreatePlatformTenantId(tx);
-  const wallet = await tx.wallet.upsert({
-    where: { tenantId },
-    create: { tenantId, devise, solde: montant, totalRecu: montant },
-    update: { solde: { increment: montant }, totalRecu: { increment: montant } },
-  });
-  await tx.walletTransaction.create({
-    data: { walletId: wallet.id, type: "CREDIT", montant, devise, description, reference, statut: "completed" },
-  });
-}
-
-async function logFraisPasserelleTx(tx: any, taux: Record<string, number>, fraisDevise: number, deviseOrigine: string, descriptionOrigine: string, reference?: string) {
-  if (fraisDevise <= 0) return;
-  const { montant: frais, devise, description } = enXAF(fraisDevise, deviseOrigine, descriptionOrigine, taux);
-  const platformTenantId = await getOrCreatePlatformTenantId(tx);
-  const wallet = await tx.wallet.upsert({ where: { tenantId: platformTenantId }, create: { tenantId: platformTenantId, devise }, update: {} });
-  // Ligne purement informative : le wallet n'a jamais été crédité du montant brut,
-  // donc ce n'est pas un débit réel — juste la trace de ce que NotchPay a prélevé,
-  // pour que l'admin voie exactement où passe l'écart entre "commission attendue" et "solde réel".
-  await tx.walletTransaction.create({
-    data: { walletId: wallet.id, type: "FRAIS", montant: -frais, devise, description, reference, statut: "completed" },
-  });
-}
-
-// Abonnement payé : activation du palier + revenu Axso (net des frais NotchPay
-// réels) dans UNE transaction, la boutique verrouillée. Un webhook rejoué ou reçu
-// deux fois en même temps ne prolonge ni ne crédite deux fois : la référence
-// NotchPay déjà inscrite au portefeuille plateforme vaut « déjà traité ».
-// Renvoie false si ce paiement avait déjà été appliqué.
-// Toutes les boutiques du compte sont verrouillées : l'échéance part de la meilleure du même
-// palier sur le compte (et de la fin de l'essai en cours), jamais de la seule boutique payée.
-export async function activerAbonnementPaye(p: { tenantId: string; plan: string; jours: number; montant: number; frais: number; devise: string; reference: string }): Promise<boolean> {
-  const net = Math.max(0, p.montant - p.frais);
-  const taux = await tauxDuJour(); // hors transaction : aucun appel réseau pendant qu'elle est ouverte
-  const ids = (await boutiquesDuMemeCompte(p.tenantId, { id: true })).map((b) => b.id);
-  if (!ids.length) return false;
-  return prisma.$transaction(async (tx) => {
-    const compte = await tx.$queryRaw<{ id: string; nomBoutique: string; planType: string; planExpiresAt: Date | null; essaiFinLe: Date | null; planPendingRef: string | null }[]>`SELECT "id", "nomBoutique", "planType", "planExpiresAt", "essaiFinLe", "planPendingRef" FROM "Tenant" WHERE "id" IN (${Prisma.join(ids)}) ORDER BY "id" FOR UPDATE`;
-    const tenant = compte.find((t) => t.id === p.tenantId);
-    if (!tenant) return false;
-    const platformTenantId = await getOrCreatePlatformTenantId(tx);
-    const deja = await tx.walletTransaction.findFirst({ where: { reference: p.reference, wallet: { tenantId: platformTenantId } }, select: { id: true } });
-    if (deja) return false;
-
-    const maintenant = new Date();
-    await tx.tenant.update({
-      where: { id: p.tenantId },
-      data: {
-        planType: p.plan, planExpiresAt: expirationApresPaiement(compte, p.plan, p.jours, maintenant, finEssai(compte)),
-        // Seul CE paiement sort de l'attente : un autre paiement en cours n'est pas oublié.
-        planPendingRef: retirerRefsEnAttente(tenant.planPendingRef, [p.reference]), planRappel: null,
-      },
-    });
-    const description = `Abonnement ${p.plan} — ${tenant.nomBoutique}`;
-    if (net > 0) await crediterPlateformeTx(tx, taux, net, p.devise, description, p.reference);
-    await logFraisPasserelleTx(tx, taux, p.frais, p.devise, `Frais NotchPay · ${p.reference}`, p.reference);
-    return true;
-  });
-}
-
 // ─── Récompenser un marchand ───────────────────────────────────────────────────
 // Bonus versé par Axso depuis son propre wallet plateforme — débite réellement
 // la plateforme (même débit atomique conditionnel que initierRetrait) pour ne
@@ -194,175 +107,19 @@ export async function crediterBonusWallet(tenantId: string, montant: number, dev
   });
 }
 
-// ─── Créditer le wallet après confirmation d'un paiement ─────────────────────
-// Point d'entrée unique — calcule la commission, crédite le net, log la commission.
-
-export async function crediterWallet(
-  params: CreditWalletParams
-): Promise<{ montantNet: number; montantCommission: number }> {
-  const { tenantId, montantBrut, tauxCommission, devise, description, commandeId, reference, fraisPasserelle } = params;
-
-  // montantBrut = ce que le client a payé : produits majorés de la commission côté storefront
-  // (prix vendeur × (1 + tauxCommission)) + livraison non majorée. On extrait le net du vendeur
-  // par division sur la seule part majorée : le vendeur reçoit exactement son prix et sa livraison.
-  // FCFA et autres monnaies sans centimes : arrondi à l'unité.
-  const part = partVendeur(montantBrut, params.montantHorsCommission ?? 0, tauxCommission, devise, params.lignes);
-  const { montantCommission } = part;
-  const affilie = Math.min(Math.max(0, params.commissionAffilie ?? 0), part.montantNet);
-  const montantNet = Math.round((part.montantNet - affilie) * 100) / 100;
-
-  const taux = await tauxDuJour(); // hors transaction : aucun appel réseau pendant qu'elle est ouverte
-  const credite = await prisma.$transaction(async (tx) => {
-    // Une commande n'est créditée qu'une fois, même si sa finalisation est rejouée
-    // (webhook, page de retour, réconciliation) : verrou sur la commande, puis contrôle.
-    if (commandeId) {
-      await tx.$queryRaw`SELECT id FROM "Commande" WHERE id = ${commandeId} FOR UPDATE`;
-      if (await tx.walletTransaction.findFirst({ where: { commandeId, type: "CREDIT" }, select: { id: true } })) return false;
-    }
-    const wallet = await tx.wallet.upsert({
-      where: { tenantId },
-      create: {
-        tenantId,
-        devise,
-        solde: montantNet,
-        totalRecu: montantBrut,
-        totalCommission: montantCommission,
-      },
-      update: {
-        solde: { increment: montantNet },
-        totalRecu: { increment: montantBrut },
-        totalCommission: { increment: montantCommission },
-      },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        type: "CREDIT",
-        montant: montantNet,
-        devise,
-        description: affilie > 0 ? `${description} (commission affilié −${affilie.toLocaleString("fr-FR")} ${devise})` : description,
-        reference,
-        commandeId,
-        statut: "completed",
-        // Séquestre 48 h (protection acheteur) : dans le solde, retirable seulement ensuite.
-        disponibleLe: finSequestre(),
-      },
-    });
-
-    if (montantCommission > 0) {
-      await tx.walletTransaction.create({
-        data: {
-          walletId: wallet.id,
-          type: "COMMISSION",
-          montant: -montantCommission,
-          devise,
-          description: `Commission Axso${reference ? ` · ${reference}` : ""}`,
-          reference,
-          commandeId,
-          statut: "completed",
-        },
-      });
-    }
-
-    if (commandeId && montantCommission > 0) {
-      await tx.commission.upsert({
-        where: { commandeId },
-        create: {
-          commandeId,
-          tenantId,
-          montantCommande: montantBrut,
-          montantCommission,
-          montantMarchand: montantNet,
-          taux: tauxCommission,
-          devise,
-          statut: "captured",
-          capturedAt: new Date(),
-        },
-        update: { statut: "captured", capturedAt: new Date() },
-      });
-    }
-
-    // La commission n'est plus qu'une ligne d'audit — elle doit aussi devenir
-    // de l'argent réel, retirable par Axso. Créditée dans la MÊME transaction
-    // pour ne jamais pouvoir diverger du crédit marchand. NotchPay prélève lui
-    // aussi son propre frais de traitement sur ce que le client a payé — ce
-    // frais ne touche JAMAIS le vendeur (déjà crédité de son plein prix
-    // ci-dessus), il est absorbé par la commission Axso, jamais en dessous de 0.
-    if (montantCommission > 0) {
-      const platformTenantId = await getOrCreatePlatformTenantId(tx);
-      if (tenantId !== platformTenantId) {
-        const frais = Math.min(Math.max(0, fraisPasserelle ?? 0), montantCommission);
-        const commissionNette = montantCommission - frais;
-        if (commissionNette > 0) {
-          await crediterPlateformeTx(tx, taux, commissionNette, devise, `Commission sur vente${reference ? ` · ${reference}` : ""}`, reference);
-        }
-        await logFraisPasserelleTx(tx, taux, frais, devise, `Frais NotchPay${reference ? ` · ${reference}` : ""}`, reference);
-      }
-    }
-    return true;
-  });
-
-  return credite ? { montantNet, montantCommission } : { montantNet: 0, montantCommission: 0 };
-}
-
-// ─── Reprendre une vente en ligne remboursée ──────────────────────────────────
-// Modèle Shopify/Stripe : le marchand rend ce qui lui avait été crédité pour cette
-// commande (son solde peut passer en négatif — les retraits sont alors bloqués et
-// la dette se résorbe sur ses ventes suivantes), Axso rend sa commission. NotchPay
-// ne rend pas ses frais : Axso les absorbe. Idempotent par commande.
-export async function reprendreVenteRemboursee(p: { tenantId: string; commandeId: string; numero: string; reference?: string }) {
-  const taux = await tauxDuJour(); // hors transaction : aucun appel réseau pendant qu'elle est ouverte
-  await prisma.$transaction(async (tx) => {
-    const wallet = await tx.wallet.findUnique({ where: { tenantId: p.tenantId } });
-    if (!wallet) return;
-    const deja = await tx.walletTransaction.findFirst({ where: { walletId: wallet.id, commandeId: p.commandeId, type: "REMBOURSEMENT" } });
-    if (deja) return;
-
-    const credits = await tx.walletTransaction.findMany({ where: { walletId: wallet.id, commandeId: p.commandeId, type: "CREDIT" } });
-    const net = Math.round(credits.reduce((s, c) => s + c.montant, 0) * 100) / 100;
-    const commission = await tx.commission.findUnique({ where: { commandeId: p.commandeId } });
-    // Remboursé pendant le séquestre : l'argent repris est d'abord celui encore en attente
-    // (la vente sort du séquestre), le disponible ne bouge pas.
-    await tx.walletTransaction.updateMany({ where: { walletId: wallet.id, commandeId: p.commandeId, type: "CREDIT", disponibleLe: { gt: new Date() } }, data: { disponibleLe: new Date() } });
-    if (net > 0) {
-      // totalRecu avait été augmenté du montant payé par le client (brut), pas du net.
-      await tx.wallet.update({ where: { id: wallet.id }, data: { solde: { decrement: net }, totalRecu: { decrement: commission?.montantCommande ?? net } } });
-      await tx.walletTransaction.create({
-        data: { walletId: wallet.id, type: "REMBOURSEMENT", montant: -net, devise: wallet.devise, description: `Remboursement client #${p.numero}`, reference: p.reference, commandeId: p.commandeId, statut: "completed" },
-      });
-    }
-
-    if (commission && commission.statut !== "remboursee") {
-      await tx.commission.update({ where: { commandeId: p.commandeId }, data: { statut: "remboursee" } });
-      await tx.wallet.update({ where: { id: wallet.id }, data: { totalCommission: { decrement: commission.montantCommission } } });
-      const { montant, devise, description } = enXAF(commission.montantCommission, commission.devise, `Commission rendue · remboursement #${p.numero}`, taux);
-      const platformTenantId = await getOrCreatePlatformTenantId(tx);
-      const plateforme = await tx.wallet.upsert({ where: { tenantId: platformTenantId }, create: { tenantId: platformTenantId, devise }, update: {} });
-      await tx.wallet.update({ where: { id: plateforme.id }, data: { solde: { decrement: montant }, totalRecu: { decrement: montant } } });
-      await tx.walletTransaction.create({
-        data: { walletId: plateforme.id, type: "REMBOURSEMENT", montant: -montant, devise, description, reference: p.reference, commandeId: p.commandeId, statut: "completed" },
-      });
-    }
-  });
-}
-
 // ─── Initier un retrait ───────────────────────────────────────────────────────
 // Sécurité : le débit du solde et sa vérification sont une SEULE opération atomique
 // (updateMany conditionnel) pour éliminer toute race condition entre deux retraits
 // concurrents qui passeraient tous les deux un contrôle de solde fait séparément.
 //
-// Circuit unique depuis le 20/10/2026 : MANUEL. NotchPay n'accepte les transferts par API que
-// depuis des IP déclarées, et Vercel n'a pas d'IP fixe (refus « IP address not allowed »). Chaque
-// retrait reste « en_attente » sans référence : Axso est prévenu (cloche + push du Command Center,
-// e-mail à EMAIL_RETRAITS), fait le transfert dans le tableau de bord NotchPay, puis le marque payé
-// ou refusé dans Admin › Finances. Les retraits plus anciens suivis par NotchPay (référence) restent
-// mis à jour par le webhook et synchroniserRetraits.
+// Circuit MANUEL : chaque retrait reste « en_attente » ; Axso est prévenu (cloche + push du Command
+// Center, e-mail à EMAIL_RETRAITS), fait le transfert lui-même, puis le marque payé ou refusé dans
+// Admin › Finances.
 
-// Lie la ligne RETRAIT du wallet à son retrait (et sert de référence marchande NotchPay).
+// Lie la ligne RETRAIT du wallet à son retrait.
 const refRetrait = (retraitId: string) => `AXSO-${retraitId}`;
 
-// Numéro mobile camerounais au format attendu par NotchPay, ou null.
+// Numéro mobile camerounais au format international (+2376…), ou null.
 export function telCameroun(saisie: string): string | null {
   const d = saisie.replace(/\D/g, "").replace(/^(00)?237/, "");
   return /^6\d{8}$/.test(d) ? `+237${d}` : null;
@@ -441,21 +198,9 @@ export async function initierRetrait(params: RetraitParams) {
 /** Destinataire des alertes « retrait à valider ». */
 export const EMAIL_RETRAITS = "axedigital00@gmail.com";
 
-/** Canal NotchPay à choisir pour ce retrait, ou null s'il se paie hors NotchPay (Wave, banque, autre pays).
- *  Le préfixe du numéro fait foi (un marchand peut se tromper d'opérateur) ; l'opérateur déclaré sert de repli. */
-export function canalNotchPay(r: { methode: string; operateur: string | null; devise: string; destinataire: string }): string | null {
-  const tel = telCameroun(r.destinataire);
-  if (r.methode !== "mobile_money" || r.devise !== "XAF" || !tel) return null;
-  const declare = (r.operateur ?? "").toLowerCase();
-  // Autre service déclaré (Wave…) : payé hors NotchPay, même si le numéro est aussi chez MTN/Orange.
-  if (declare && declare !== "mtn" && declare !== "orange") return null;
-  const op = operateurCameroun(tel) ?? declare;
-  return op === "mtn" || op === "orange" ? `cm.${op}` : null;
-}
-
 /**
  * Prévient Axso qu'un retrait attend son transfert : push du Command Center + e-mail détaillé
- * (tout ce qu'il faut pour faire le transfert à l'identique dans NotchPay et vérifier le marchand).
+ * (tout ce qu'il faut pour faire le transfert et vérifier le marchand).
  */
 export async function signalerRetraitAValider(retraitId: string) {
   const r = await prisma.retrait.findUniqueOrThrow({ where: { id: retraitId } });
@@ -475,7 +220,7 @@ export async function signalerRetraitAValider(retraitId: string) {
       a: EMAIL_RETRAITS,
       retraitId: r.id, reference: refRetrait(r.id), creeLe: r.createdAt,
       montant: r.montant, devise: r.devise, methode: r.methode, operateur: r.operateur, destinataire: r.destinataire,
-      canal: canalNotchPay(r), notes: r.notes,
+      notes: r.notes,
       boutique, slug: tenant?.slug ?? "", proprietaire: tenant?.proprietaires[0]?.user ?? null,
       emailBoutique: tenant?.email ?? null, whatsappBoutique: tenant?.whatsapp ?? null,
       soldeApres: wallet?.solde ?? null, premierRetraitVersCeNumero: dejaPayes === 0,
@@ -484,13 +229,12 @@ export async function signalerRetraitAValider(retraitId: string) {
 }
 
 // ─── Appliquer l'état d'un transfert à son retrait ────────────────────────────
-// Point de passage unique : réponse de NotchPay à l'initiation, webhook,
-// re-vérification au chargement du wallet et clôture manuelle par l'admin.
+// Point de passage unique de la clôture d'un retrait par l'admin.
 // Un retrait déjà clos (complete / echoue) ne bouge plus.
 const STATUTS_ECHEC = ["failed", "canceled", "cancelled", "reversed", "rejected", "expired"];
 
 // Renvoie vrai seulement pour l'appel qui a clos le retrait (payé ou échoué) : lui seul prévient
-// le marchand, qu'il vienne de l'admin, du webhook (transfer.complete) ou de la re-vérification.
+// le marchand.
 export async function appliquerStatutTransfert(retraitId: string, status?: string, reference?: string): Promise<boolean> {
   if (status && STATUTS_ECHEC.includes(status)) {
     const rembourse = await rembourserRetraitEchoue(retraitId);
@@ -522,18 +266,16 @@ async function prevenirMarchandRetrait(retraitId: string, paye: boolean) {
   }).catch((e) => console.error("[wallet/retrait] notification", retraitId, e?.message));
 }
 
-// Clôture d'un retrait du circuit manuel (jamais un retrait suivi par NotchPay). Un retrait passé
-// « en cours » (transfer.sent du webhook, transfert lancé à la main) reste clôturable.
+// Clôture d'un retrait par l'admin (y compris un ancien retrait resté « en cours »).
 // Deux clôtures simultanées : une seule gagne (mise à jour conditionnelle), l'autre échoue.
 export async function cloturerRetraitManuel(retraitId: string, paye: boolean) {
   const retrait = await prisma.retrait.findUnique({ where: { id: retraitId } });
   if (!retrait) throw new Error("Retrait introuvable");
-  if (retrait.reference) throw new Error("Ce retrait est suivi automatiquement par NotchPay");
   if (!(await appliquerStatutTransfert(retraitId, paye ? "complete" : "failed"))) throw new Error("Ce retrait est déjà traité");
 }
 
 // ─── Rembourser un retrait qui a échoué ───────────────────────────────────────
-// Idempotent même sous concurrence (webhook + re-vérification simultanés) : le
+// Idempotent même sous concurrence (deux clôtures simultanées) : le
 // passage à « echoue » est conditionnel et seul celui qui le gagne recrédite (vrai).
 export async function rembourserRetraitEchoue(retraitId: string): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
@@ -569,22 +311,6 @@ export async function rembourserRetraitEchoue(retraitId: string): Promise<boolea
   });
 }
 
-// Filet de sécurité si le webhook n'arrive pas (toujours le cas en local) :
-// on redemande à NotchPay l'état des transferts encore ouverts de la boutique.
-async function synchroniserRetraits(tenantId: string) {
-  if (!hasNotchPay()) return;
-  const ouverts = await prisma.retrait.findMany({
-    where: { tenantId, statut: { in: ["en_attente", "traitement"] }, reference: { not: null } },
-    take: 5,
-  });
-  await Promise.all(ouverts.map(async (r) => {
-    try {
-      const { transfer } = await verifierTransfertNotchPay(r.reference!);
-      await appliquerStatutTransfert(r.id, transfer?.status);
-    } catch {}
-  }));
-}
-
 // ─── Résumé wallet (pour le dashboard) ───────────────────────────────────────
 
 const ventesEnSequestre = (walletId: string) =>
@@ -597,7 +323,6 @@ export async function soldeDisponible(tenantId: string) {
 }
 
 export async function getWalletResume(tenantId: string) {
-  await synchroniserRetraits(tenantId);
   const wallet = await prisma.wallet.findUnique({
     where: { tenantId },
     include: {

@@ -3,19 +3,14 @@
 //
 // - libererCommande : défait ce qu'une commande avait engagé (stock, code promo,
 //   commissions d'affiliation non versées). Appelée à l'annulation et au remboursement.
-// - rembourserCommande : rend l'argent d'une commande payée, selon le mode de paiement.
-//   En ligne (NotchPay) : remboursement sur le moyen d'origine, portefeuille du marchand
-//   et commission Axso repris (lib/wallet.ts). À la livraison : l'argent n'est jamais
-//   passé par Axso, le marchand rend les espèces lui-même ; on enregistre le remboursement.
-//   Dans les deux cas la vente sort du CA (paiementStatut = REMBOURSE) et les accès
-//   digitaux sont coupés (téléchargements et formations exigent un paiement PAYE,
-//   les clés de licence sont révoquées).
+// - rembourserCommande : enregistre le remboursement d'une commande payée à la livraison
+//   (l'argent n'est jamais passé par Axso, le marchand rend les espèces lui-même). La vente
+//   sort du CA (paiementStatut = REMBOURSE) et les accès digitaux sont coupés (téléchargements
+//   et formations exigent un paiement PAYE, les clés de licence sont révoquées).
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { PAIEMENT } from "./commandes";
 import { compterVentes, rendreStock } from "./stock";
-import { reprendreVenteRemboursee } from "./wallet";
-import { rembourserPaiementNotchPay, verifierPaiementNotchPay, hasNotchPay } from "./notchpay";
 import { notifierMarchand } from "./notifications-marchand";
 import { notifierClientWhatsApp } from "./whatsapp";
 import { formatMontant } from "./utils";
@@ -57,48 +52,30 @@ export async function rembourserCommande(p: {
   motif: string;
   /** La marchandise revient en stock (retour accepté, annulation avant envoi). */
   restock: boolean;
-}): Promise<Resultat<{ montant: number; enLigne: boolean }>> {
+}): Promise<Resultat<{ montant: number }>> {
   const commande = await prisma.commande.findUnique({
     where: { id: p.commandeId },
     include: { tenant: { select: { nomBoutique: true, slug: true } } },
   });
   if (!commande || commande.tenantId !== p.tenantId) return { ok: false, status: 404, error: "Commande introuvable" };
-  if (commande.paiementStatut === PAIEMENT.REMBOURSE) return { ok: true, montant: commande.montantTotal, enLigne: commande.methodePaiement === "notchpay" };
-  const enLigne = commande.methodePaiement === "notchpay";
-  // Remboursement précédent resté sans réponse de NotchPay : jamais relancé à l'aveugle.
-  const reprise = enLigne && commande.paiementStatut === PAIEMENT.EN_REMBOURSEMENT;
-  if (commande.paiementStatut !== PAIEMENT.PAYE && !reprise) return { ok: false, status: 400, error: "Cette commande n'a pas été payée : rien à rembourser" };
-
-  if (enLigne && (!hasNotchPay() || !commande.paiementReference)) {
-    return { ok: false, status: 503, error: "Remboursement en ligne indisponible (paiement NotchPay introuvable)" };
+  if (commande.paiementStatut === PAIEMENT.REMBOURSE) return { ok: true, montant: commande.montantTotal };
+  // Ancienne commande payée en ligne : l'argent est chez l'ancien prestataire, Axso ne peut pas le rendre seul.
+  if (commande.methodePaiement === "notchpay") {
+    return { ok: false, status: 400, error: "Commande payée en ligne : le remboursement automatique n'est plus disponible. Contacte le support Axso pour rembourser ce client." };
   }
+  if (commande.paiementStatut !== PAIEMENT.PAYE) return { ok: false, status: 400, error: "Cette commande n'a pas été payée : rien à rembourser" };
 
-  // Prise atomique : deux demandes simultanées ne remboursent jamais deux fois. En ligne, l'état
-  // intermédiaire EN_REMBOURSEMENT reste tant que NotchPay n'a pas répondu clairement.
+  // Prise atomique : deux demandes simultanées ne remboursent jamais deux fois.
   const pris = await prisma.commande.updateMany({
-    where: { id: commande.id, paiementStatut: reprise ? PAIEMENT.EN_REMBOURSEMENT : PAIEMENT.PAYE },
-    data: { paiementStatut: enLigne ? PAIEMENT.EN_REMBOURSEMENT : PAIEMENT.REMBOURSE },
+    where: { id: commande.id, paiementStatut: PAIEMENT.PAYE },
+    data: { paiementStatut: PAIEMENT.REMBOURSE },
   });
-  if (pris.count === 0) return { ok: true, montant: commande.montantTotal, enLigne };
+  if (pris.count === 0) return { ok: true, montant: commande.montantTotal };
 
-  if (enLigne) {
-    const r = await demanderRemboursementNotchPay(commande.paiementReference!, p.motif, reprise);
-    if (r === "refuse" || r === "inconnu") {
-      // Refus explicite : rien n'a bougé, la commande redevient payée. Sans réponse : elle reste
-      // « en remboursement » et le prochain essai vérifie d'abord chez NotchPay.
-      if (r === "refuse") await prisma.commande.updateMany({ where: { id: commande.id, paiementStatut: PAIEMENT.EN_REMBOURSEMENT }, data: { paiementStatut: PAIEMENT.PAYE } });
-      return { ok: false, status: 502, error: r === "refuse"
-        ? "Remboursement refusé par NotchPay : réessaie plus tard ou contacte le support Axso."
-        : "NotchPay n'a pas répondu : le remboursement a peut-être été fait. Réessaie dans quelques minutes, Axso vérifiera chez NotchPay avant de relancer." };
-    }
-    await prisma.commande.update({ where: { id: commande.id }, data: { paiementStatut: PAIEMENT.REMBOURSE } });
-  }
-
-  // L'argent est rendu (ou la commande COD marquée remboursée) : la suite ne doit jamais rester
+  // Commande marquée remboursée : la suite ne doit jamais rester
   // à moitié faite. Chaque bloc est idempotent ou transactionnel, on le retente donc avant d'alerter.
   for (let essai = 1; ; essai++) {
     try {
-      if (enLigne) await reprendreVenteRemboursee({ tenantId: commande.tenantId, commandeId: commande.id, numero: commande.numero, reference: commande.paiementReference ?? undefined });
       await prisma.$transaction(async (tx) => {
         await compterVentes(tx, commande.id, -1);
         await libererCommande(tx, { commandeId: commande.id, motif: `Remboursement #${commande.numero}`, restock: p.restock });
@@ -121,15 +98,13 @@ export async function rembourserCommande(p: {
     tenantId: commande.tenantId,
     type: "commande_remboursee",
     titre: `Commande #${commande.numero} remboursée`,
-    message: enLigne
-      ? `${formatMontant(commande.montantTotal, commande.devise)} renvoyés au client via NotchPay, repris sur ton portefeuille.`
-      : `Paiement à la livraison : rends ${formatMontant(commande.montantTotal, commande.devise)} au client en espèces.`,
+    message: `Paiement à la livraison : rends ${formatMontant(commande.montantTotal, commande.devise)} au client en espèces.`,
     lien: `/dashboard/commandes/${commande.id}`,
     commandeId: commande.id,
   }).catch(() => {});
   await notifierClientWhatsApp({
     telephone: commande.clientTelephone,
-    statut: enLigne ? "rembourse_en_ligne" : "rembourse_especes",
+    statut: "rembourse_especes",
     numero: commande.numero,
     boutique: commande.tenant.nomBoutique,
     slug: commande.tenant.slug,
@@ -137,31 +112,7 @@ export async function rembourserCommande(p: {
     tenantId: commande.tenantId,
   }).catch(() => {});
 
-  return { ok: true, montant: commande.montantTotal, enLigne };
-}
-
-/**
- * Demande le remboursement à NotchPay. `reprise` : une demande précédente est restée sans réponse —
- * le paiement est relu d'abord et n'est re-remboursé que s'il est toujours « complete ».
- * "fait" : remboursé ; "refuse" : refus explicite (4xx), rien n'a bougé ; "inconnu" : pas de réponse claire.
- */
-async function demanderRemboursementNotchPay(reference: string, motif: string, reprise: boolean): Promise<"fait" | "refuse" | "inconnu"> {
-  if (reprise) {
-    const statut = await verifierPaiementNotchPay(reference).then((r) => r.transaction?.status).catch(() => null);
-    if (!statut) return "inconnu";
-    // ponytail: tout statut autre que « complete » est pris pour le remboursement déjà exécuté
-    // (refunded…) ; à affiner si NotchPay expose un statut « remboursement en cours » distinct.
-    if (statut !== "complete") return "fait";
-  }
-  try {
-    await rembourserPaiementNotchPay(reference, motif);
-    return "fait";
-  } catch (err: any) {
-    console.error("[remboursement] NotchPay", reference, err?.status, err?.message);
-    // Réponse 4xx : NotchPay a refusé. Délai dépassé, réseau ou 5xx : peut-être exécuté.
-    // En reprise, un refus peut vouloir dire « déjà remboursé » : la commande reste en remboursement.
-    return !reprise && err?.status >= 400 && err?.status < 500 ? "refuse" : "inconnu";
-  }
+  return { ok: true, montant: commande.montantTotal };
 }
 
 // ─── Retours (RMA) — interface, AXIA et agents ───────────────────────────────

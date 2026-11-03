@@ -16,9 +16,8 @@ export interface Integration {
 export const INTEGRATIONS: Integration[] = [
   { cle: "base", nom: "Base de données", fonction: "Toute l'application.", variables: ["DATABASE_URL"], indispensable: true },
   { cle: "connexion", nom: "Connexion des comptes", fonction: "Ouverture de session des marchands, clients et admins.", variables: ["AUTH_SECRET", "NEXTAUTH_SECRET"], indispensable: true },
-  { cle: "adresses", nom: "Adresse du site", fonction: "Liens, e-mails, retours de paiement, sous-domaines des boutiques.", variables: ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_AXSO_DOMAIN"], indispensable: true },
+  { cle: "adresses", nom: "Adresse du site", fonction: "Liens, e-mails, sous-domaines des boutiques.", variables: ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_AXSO_DOMAIN"], indispensable: true },
   { cle: "fichiers", nom: "Stockage des fichiers", fonction: "Images produits, médias, documents fournisseurs.", variables: ["BLOB_READ_WRITE_TOKEN"], indispensable: true },
-  { cle: "notchpay", nom: "Paiements NotchPay", fonction: "Paiement en ligne des commandes et des abonnements, retraits automatiques.", variables: ["NOTCHPAY_PUBLIC_KEY", "NOTCHPAY_PRIVATE_KEY", "NOTCHPAY_WEBHOOK_SECRET"], indispensable: true },
   { cle: "crons", nom: "Tâches planifiées", fonction: "Surveillance des fournisseurs, alertes de caisse, publications programmées.", variables: ["CRON_SECRET"], indispensable: true },
   { cle: "emails", nom: "E-mails (Resend)", fonction: "Confirmations de commande, invitations, mots de passe oubliés.", variables: ["RESEND_API_KEY"], indispensable: true },
   { cle: "ia", nom: "IA (Gemini)", fonction: "AXIA, assistant Sourcing, génération de boutiques et de textes.", variables: ["GEMINI_API_KEY"], indispensable: true },

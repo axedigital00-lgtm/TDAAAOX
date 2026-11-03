@@ -27,7 +27,7 @@ const SECTIONS = [
   },
   {
     titre: "5. Partage des données",
-    contenu: `Vos données peuvent être partagées avec : nos partenaires de paiement (NotchPay, Orange Money, MTN Mobile Money) pour le traitement des transactions, nos partenaires logistiques pour la gestion des livraisons, nos prestataires techniques (hébergement, IA) dans le cadre de contrats conformes au RGPD. Aucune vente de données à des tiers.`,
+    contenu: `Vos données peuvent être partagées avec : nos prestataires de paiement pour le traitement des transactions, nos partenaires logistiques pour la gestion des livraisons, nos prestataires techniques (hébergement, IA) dans le cadre de contrats conformes au RGPD. Aucune vente de données à des tiers.`,
   },
   {
     titre: "6. Conservation des données",
@@ -55,7 +55,7 @@ export default async function PrivacyPage() {
             <Lock size={14} className="inline-block mr-1.5" />{t("Légal")}
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold mb-3">{t("Politique de Confidentialité")}</h1>
-          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 14 octobre 2026")}</p>
+          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 2 novembre 2026")}</p>
 
           <div className="space-y-10">
             {SECTIONS.map(s => (

@@ -4,18 +4,16 @@ import Link from "next/link";
 import { urlVideoIntegree, adresseSite } from "@/lib/utils";
 import { usePrix } from "@/components/storefront/DeviseVitrine";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { WishlistHeartButton } from "./WishlistHeartButton";
 import { SECTIONS_FICHE, whatsappFicheActif } from "@/lib/fiche-produit";
 import {
-  Package, AlertTriangle, Lock, RotateCcw, Check, Loader2, ChevronLeft,
+  Package, AlertTriangle, Lock, RotateCcw, Check, ChevronLeft,
   Star, Minus, Plus, Truck, ZoomIn,
   MessageCircle, Download, ChevronRight, ShoppingBag,
   ChevronDown, Share2, PlayCircle, Headphones, FileText,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { CoordonneesPied } from "@/components/storefront/CoordonneesPied";
-import { lireRef } from "@/lib/ref-affiliation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Variante = { id: string; nom: string; valeur: string; prix: number | null; stock: number };
@@ -920,80 +918,18 @@ function ComparisonSection({ config, accent, surface }: { config: Record<string,
   );
 }
 
-// ─── Achat direct d'un produit digital ───────────────────────────────────────
-// Un clic → nom, téléphone et email du client (l'email sert à envoyer le lien
-// de téléchargement) → page de paiement NotchPay
-// (MTN MoMo, Orange Money, carte bancaire). Aucun montant n'est envoyé : le
-// serveur le recalcule depuis la base (commande puis paiement).
-function AchatDirectDigital({ produitId, tenantId, prix, devise, texte, fond, couleurTexte, radius, desactive, variante }: {
-  produitId: string; tenantId: string; prix: number; devise: string; texte: string; fond: string; couleurTexte: string; radius: string; desactive: boolean;
-  variante?: string; // « Nom: Valeur » — revérifiée et facturée à son prix par digital-creer
-}) {
+// ─── Produit digital ─────────────────────────────────────────────────────────
+// Il se paie en ligne : pas de paiement en ligne pour l'instant, l'achat n'est pas possible.
+function AchatDigitalIndisponible({ fond, couleurTexte, radius }: { fond: string; couleurTexte: string; radius: string }) {
   const tx = useT();
-  const { fmt, aPayer } = usePrix();
-  const [ouvert, setOuvert] = useState(false);
-  const [nom, setNom] = useState("");
-  const [telephone, setTelephone] = useState("");
-  const [email, setEmail] = useState("");
-  const [envoi, setEnvoi] = useState(false);
-  const valide = nom.trim().length > 1 && telephone.replace(/\D/g, "").length >= 8 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-
-  const payer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!valide || envoi) return;
-    setEnvoi(true);
-    try {
-      const cmd = await fetch("/api/commandes/digital-creer", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, client: { nom: nom.trim(), telephone: telephone.trim(), email: email.trim().toLowerCase() }, items: [{ produitId, quantite: 1, variante }], codeAffiliation: lireRef() || undefined }),
-      });
-      const c = await cmd.json();
-      if (!cmd.ok) throw new Error(c.error || "Commande impossible");
-      const pay = await fetch("/api/paiements/notchpay/initier", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commandeId: c.commandeId }),
-      });
-      const p = await pay.json();
-      if (!pay.ok || !p.authorizationUrl) throw new Error(pay.status === 503 ? "Le paiement en ligne n'est pas encore activé sur cette boutique." : p.error || "Paiement indisponible");
-      window.location.assign(p.authorizationUrl);
-    } catch (err) {
-      toast.error(err instanceof Error ? tx(err.message) : tx("Paiement indisponible"));
-      setEnvoi(false);
-    }
-  };
-
-  if (!ouvert) {
-    return (
-      <div className="space-y-2">
-        <button onClick={() => setOuvert(true)} disabled={desactive}
-          className="w-full py-4 font-bold text-[15px] flex items-center justify-center gap-2.5 transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-35"
-          style={{ background: fond, color: couleurTexte, borderRadius: radius }}>
-          <Download size={18} /> {desactive ? tx("Indisponible") : `${texte} — ${fmt(prix, devise)}`}
-        </button>
-        <p className="text-[12.5px] text-center opacity-60">{tx("Produit numérique : paiement en ligne, accès immédiat après paiement (lien envoyé par e-mail). Aucune livraison.")}</p>
-      </div>
-    );
-  }
   return (
-    <form onSubmit={payer} className="space-y-2.5 p-4 rounded-2xl border" style={{ borderColor: `${fond}40`, background: `${fond}08` }}>
-      {([
-        { label: "Nom complet", type: "text", valeur: nom, maj: setNom, ph: "Ex : Aminata Diallo", auto: "name" },
-        { label: "Téléphone", type: "tel", valeur: telephone, maj: setTelephone, ph: "+237 6 00 00 00 00", auto: "tel" },
-        { label: "Email — le lien de téléchargement y sera envoyé", type: "email", valeur: email, maj: setEmail, ph: "email@exemple.com", auto: "email" },
-      ] as const).map((c, i) => (
-        <label key={c.type} className="block">
-          <span className="block text-[13px] font-semibold mb-1.5">{tx(c.label)}</span>
-          <input type={c.type} required autoFocus={i === 0} value={c.valeur} onChange={(e) => c.maj(e.target.value)} placeholder={c.ph} autoComplete={c.auto}
-            className="w-full h-12 px-4 rounded-xl border bg-white text-base @min-[640px]:text-[15px] text-[#111111] outline-none focus:ring-2" style={{ borderColor: `${fond}50` }} />
-        </label>
-      ))}
-      <button type="submit" disabled={!valide || envoi}
-        className="w-full py-3.5 font-bold text-[15px] flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40"
+    <div className="space-y-2">
+      <button disabled className="w-full py-4 font-bold text-[15px] flex items-center justify-center gap-2.5 disabled:opacity-35"
         style={{ background: fond, color: couleurTexte, borderRadius: radius }}>
-        {envoi ? <><Loader2 size={17} className="animate-spin" />{" "}{tx("Redirection vers le paiement…")}</> : <><Lock size={16} />{" "}{tx("Payer")}{" "}{aPayer(prix, devise)}</>}
+        <Download size={18} /> {tx("Indisponible")}
       </button>
-      <p className="text-[12px] text-center opacity-60">{tx("Paiement sécurisé NotchPay · MTN MoMo, Orange Money, carte bancaire")}</p>
-    </form>
+      <p className="text-[12.5px] text-center opacity-60">{tx("Le paiement en ligne n'est pas encore disponible pour cette boutique.")}</p>
+    </div>
   );
 }
 
@@ -1211,13 +1147,13 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
   const [tab, setTab] = useState<"description" | "livraison" | "avis">("description");
   const router = useRouter();
 
-  // Variante payée à son prix, physique comme numérique (digital-creer la refacture côté serveur).
+  // Variante payée à son prix (le serveur la refacture à la commande).
   const prixEffectif = selectedVariante?.prix || produit.prixAffiche;
   const stockEffectif = selectedVariante !== null ? selectedVariante.stock : produit.stock;
   const enRupture     = stockSuivi && stockEffectif <= 0;
 
   // Pas de panier : on commande ce produit directement — formulaire de commande
-  // puis WhatsApp du marchand (physique) ou paiement en ligne (dropshipping).
+  // puis WhatsApp du marchand ou paiement à la livraison (physique).
   function commander(canal?: "whatsapp") {
     if (enRupture) return;
     const q = new URLSearchParams({ produit: produit.id, quantite: String(quantite) });
@@ -1344,11 +1280,9 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
                   </div>
                 </div>
               )}
-              {/* Produit digital : achat direct — l'email du client puis la page de paiement NotchPay. */}
+              {/* Produit digital : se paie en ligne, indisponible pour l'instant. */}
               {estDigital ? (
-                <AchatDirectDigital produitId={produit.id} tenantId={tenant.id} prix={prixEffectif} devise={tenant.devise}
-                  variante={selectedVariante ? `${selectedVariante.nom}: ${selectedVariante.valeur}` : undefined}
-                  texte={cfg.texteBouton || produit.texteBoutonAchat || tx("Acheter")} fond={btnFond} couleurTexte={btnTexte} radius={btnRadiusPx} desactive={enRupture} />
+                <AchatDigitalIndisponible fond={btnFond} couleurTexte={btnTexte} radius={btnRadiusPx} />
               ) : (
               <div className="space-y-2.5">
                 <button data-navigue onClick={() => commander()} disabled={enRupture}

@@ -9,8 +9,8 @@ interface RetraitManuel {
   destinataire: string; operateur?: string; notes?: string; createdAt: string;
 }
 
-// Retraits des marchands (tous, depuis le 20/10/2026) : l'admin fait le transfert dans
-// NotchPay (détails dans l'e-mail « Retrait à valider ») puis le marque payé, ou le refuse
+// Retraits des marchands (tous, depuis le 20/10/2026) : l'admin fait le transfert à la main
+// (détails dans l'e-mail « Retrait à valider ») puis le marque payé, ou le refuse
 // (le marchand est alors recrédité). Le marchand est prévenu dans les deux cas.
 // `commissions` : même écran pour les commissions d'affiliés (Admin › Affiliés, /api/admin/affilies).
 // `livreurs` : retraits des livreurs (lib/gains-livreur.ts) ; refusé → le livreur est recrédité.
@@ -57,10 +57,10 @@ export function AdminRetraitsManuels({ peutTraiter, commissions = false, livreur
       </h2>
       <p className="text-xs mb-4" style={{ color: "#AAAAAA" }}>
         {commissions
-          ? t("Les commissions sont déjà retenues sur la part des marchands. Faites le transfert dans NotchPay (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le : les commissions redeviennent disponibles pour l'affilié.")
+          ? t("Les commissions sont déjà retenues sur la part des marchands. Faites le transfert à la main (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le : les commissions redeviennent disponibles pour l'affilié.")
           : livreurs
-          ? t("Le solde du livreur est déjà débité. Faites le transfert dans NotchPay (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le pour recréditer le livreur.")
-          : t("Le solde du marchand est déjà débité. Faites le transfert dans NotchPay (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le pour recréditer le marchand.")}
+          ? t("Le solde du livreur est déjà débité. Faites le transfert à la main (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le pour recréditer le livreur.")
+          : t("Le solde du marchand est déjà débité. Faites le transfert à la main (détails dans l'e-mail reçu), puis marquez-le payé — ou refusez-le pour recréditer le marchand.")}
       </p>
       <div className="space-y-2">
         {retraits.map(r => (

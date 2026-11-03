@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { planActif } from "@/lib/abonnement";
 import { PAYS_DEVISES } from "@/lib/ai-agent";
 import { NOMS_PALIERS } from "@/lib/plans";
 import { etatEssai } from "@/lib/essai";
-import { verifierAbonnementEnAttente } from "@/lib/abonnement-paiement";
 
 // État du plan du tenant courant, pour l'overlay abonnement plein écran
 // (déclenché depuis n'importe quel cadenas du dashboard côté client).
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
@@ -19,9 +18,6 @@ export async function GET(req: NextRequest) {
   if (!tenantId) {
     return NextResponse.json({ error: "Tenant introuvable" }, { status: 404 });
   }
-
-  // ?verifier=1 (retour NotchPay du tunnel d'inscription) : paiements en attente relus et activés d'abord.
-  if (req.nextUrl.searchParams.get("verifier") === "1") await verifierAbonnementEnAttente(tenantId);
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },

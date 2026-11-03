@@ -20,10 +20,7 @@ import { MANIFESTE_LIBRAIRIE, detecterCategorie, choisir4Themes } from "@/lib/ax
 import { useT } from "@/components/I18nProvider";
 import { demanderCodeConnexion } from "@/components/auth/BoutonRenvoyerCode";
 import { EcranCode } from "@/components/auth/EcranCode";
-import { EcranPaiement, prixPlan } from "./EcranPaiement";
-import { PLANS_CATALOGUE } from "@/lib/plans-catalogue";
-import { lireParametresInscription, planInscription, planPayant } from "@/lib/inscription";
-import type { Palier } from "@/lib/plans";
+import { lireParametresInscription } from "@/lib/inscription";
 
 // ─── Palette AXSO (couleurs du logo) ─────────────────────────────────────────
 const NAVY    = "#111111";   // noir AXSO (--axso-navy)
@@ -173,7 +170,7 @@ const schemaCompte = z.object({
 });
 type CompteData = z.infer<typeof schemaCompte>;
 
-type Phase = "welcome"|"q-type"|"q-vente"|"q-nom"|"q-pays"|"analyse"|"plan"|"q-compte"|"creation"|"code"|"paiement"|"succes";
+type Phase = "welcome"|"q-type"|"q-vente"|"q-nom"|"q-pays"|"analyse"|"plan"|"q-compte"|"creation"|"code"|"succes";
 // Uniquement deux types possibles — un marchand vend soit du physique, soit
 // du digital, jamais "les deux" en tant que catégorie de boutique (un
 // marchand avec un catalogue mixte choisit simplement "physique", le champ
@@ -741,30 +738,6 @@ function CompteForm({ onSubmit, loading, erreur, pays, email }: {
   );
 }
 
-// ─── Plan d'abonnement choisi sur la landing (?plan=) : récapitulatif modifiable ───
-function ChoixAbonnement({ choisi, onChange }: { choisi:Palier; onChange:(p:Palier)=>void }) {
-  const tr = useT();
-  return (
-    <div className="msg-in rep" style={{ paddingLeft:47 }}>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, maxWidth:420 }}>
-        {PLANS_CATALOGUE.map(p=>{
-          const sel = p.id===choisi;
-          return (
-            <button key={p.id} type="button" aria-pressed={sel} onClick={()=>onChange(p.id)}
-              style={{ padding:"10px 8px", borderRadius:12, cursor:"pointer", textAlign:"left",
-                background:sel?`${YELLOW}12`:SURFACE, border:`1.5px solid ${sel?YELLOW:BORDER}`,
-                boxShadow:sel?`0 0 0 2px ${YELLOW}22`:"none", fontFamily:"'Inter',sans-serif" }}>
-              <div style={{ fontFamily:"'Sora',sans-serif", fontSize:13, fontWeight:700, color:NAVY }}>{tr(p.nom)}</div>
-              <div style={{ fontSize:12.5, fontWeight:700, color:YELLOW_D, marginTop:2 }}>{p.prixXAF ? prixPlan(p.prixXAF) : tr("Gratuit")}</div>
-              {p.prixXAF>0 && <div style={{ fontSize:10.5, color:MUTED }}>{tr("par mois")}</div>}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function InscriptionPage() {
   const tr = useT();
@@ -789,22 +762,10 @@ export default function InscriptionPage() {
   // Connexion automatique après création : le code reçu par email (double authentification) est demandé ici.
   const [compteCree,setCompteCree] = useState<{email:string;password:string}|null>(null);
   const [erreurCode,setErreurCode] = useState("");
-  // Arrivée depuis la landing : ?email= (pré-remplit le compte), ?plan= (abonnement choisi),
-  // ?paiement=en_cours (retour de NotchPay). Lus une fois, au chargement.
+  // Arrivée depuis la landing : ?email= pré-remplit le compte. Lu une fois, au chargement.
   const [emailInitial,setEmailInitial] = useState("");
-  const [abonnement,setAbonnement]     = useState<Palier|null>(null);
-  const [retourPaiement,setRetourPaiement] = useState(false);
   useEffect(()=>{
-    const p = lireParametresInscription(new URLSearchParams(window.location.search));
-    setEmailInitial(p.email); setAbonnement(p.plan);
-    // Promo de lancement : les packs payants sont fermés, on s'inscrit en gratuit (qui a déjà tout).
-    if(!p.retourPaiement && planPayant(p.plan)){
-      fetch("/api/promo").then(r=>r.json()).then(d=>{ if(d?.finLe) setAbonnement(null); }).catch(()=>{});
-    }
-    if(p.retourPaiement){
-      if(planPayant(p.plan)){ setRetourPaiement(true); setPhase("paiement"); }
-      else window.location.href = "/dashboard/builder?bienvenue=1";
-    }
+    setEmailInitial(lireParametresInscription(new URLSearchParams(window.location.search)).email);
   },[]);
 
   useEffect(()=>{
@@ -926,7 +887,6 @@ export default function InscriptionPage() {
       toast("success","🎉 Ta boutique est prête — personnalise-la avant de la publier !");
       const identifiants = { email:compteData.email, password:compteData.password };
       setCompteCree(identifiants);
-      // Plan payant choisi : le compte reste en Essentiel tant que l'abonnement n'est pas payé (étape « paiement »).
       try{
         // Emails non configurés : pas de code, connexion directe.
         if(await demanderCodeConnexion(identifiants.email,identifiants.password)) await connecter(identifiants);
@@ -942,7 +902,7 @@ export default function InscriptionPage() {
       toast("error",err.message||"Erreur lors de la création.");
       setPhase("q-compte");
     }finally{ setLoading(false); }
-  },[plan,typeBoutique,themeIds,toast,abonnement]); // eslint-disable-line react-hooks/exhaustive-deps
+  },[plan,typeBoutique,themeIds,toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Renvoie un message d'erreur, ou null une fois connecté.
   async function connecter(identifiants:{email:string;password:string}, codeSaisi?:string):Promise<string|null>{
@@ -953,8 +913,6 @@ export default function InscriptionPage() {
       window.location.href = "/connexion?inscription=success";
       return null;
     }
-    // Connecté : un plan payant se paie maintenant, avant d'entrer dans l'espace marchand.
-    if(planPayant(abonnement)){ setPhase("paiement"); return null; }
     // Code validé sur son écran : direction le Constructeur sans repasser par la discussion.
     if(codeSaisi){ window.location.href = "/dashboard/builder?bienvenue=1"; return null; }
     setPhase("succes");
@@ -982,19 +940,6 @@ export default function InscriptionPage() {
             onValider={(code)=>connecter(compteCree,code)}
             onRenvoyer={()=>demanderCodeConnexion(compteCree.email,compteCree.password).then(()=>{})}
           />
-        </div>
-      </div>
-    );
-  }
-
-  if(phase==="paiement" && abonnement){
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-12" style={{ background:"#ffffff", fontFamily:"'Poppins','Century Gothic',system-ui,sans-serif" }}>
-        <div className="w-full max-w-md">
-          <Link href="/" className="flex justify-center mb-8">
-            <img src="/logo.png" alt="axso" style={{ height:72, width:"auto", objectFit:"contain" }}/>
-          </Link>
-          <EcranPaiement planInitial={abonnement} retour={retourPaiement}/>
         </div>
       </div>
     );
@@ -1152,13 +1097,11 @@ export default function InscriptionPage() {
                 className="btn-primary"
                 style={{ padding:"17px 52px", borderRadius:18, fontSize:15, display:"inline-flex", alignItems:"center", gap:12, boxShadow:`0 12px 40px rgba(245,166,35,.32)` }}>
                 <Sparkles size={18}/>
-                {tr(planPayant(abonnement) ? "Créer ma boutique" : "Créer ma boutique gratuitement")}
+                {tr("Créer ma boutique gratuitement")}
                 <ChevronRight size={18}/>
               </button>
               <p style={{ marginTop:11, fontSize:12, color:MUTED }}>
-                {planPayant(abonnement)
-                  ? <>{tr("Plan")}{" "}<strong style={{color:YELLOW_D}}>{tr(planInscription(abonnement)!.nom)}</strong>{" "}— {prixPlan(planInscription(abonnement)!.prixXAF)}{" "}{tr("par mois, payé à la fin de l'inscription")}</>
-                  : tr("Gratuit · Sans carte bancaire · En ligne en 3 minutes")}
+                {tr("Gratuit · Sans carte bancaire · En ligne en 3 minutes")}
               </p>
 
               {/* Drapeaux pays */}
@@ -1335,25 +1278,12 @@ export default function InscriptionPage() {
                     <strong style={{color:YELLOW_D}}>{tr(plan?.nomBoutique)}</strong>. 🚀
                   </span>
                 </AxiaMsg>
-                {/* Plan choisi sur la landing : récapitulatif avec prix, modifiable. */}
-                {abonnement && (
-                  <>
-                    <AxiaMsg delay={200}>
-                      {tr("Ton plan :")}{" "}<strong style={{color:YELLOW_D}}>{tr(planInscription(abonnement)!.nom)}</strong>
-                      {planPayant(abonnement)
-                        ? <>{" "}— {prixPlan(planInscription(abonnement)!.prixXAF)}{" "}{tr("par mois. Tu le paies juste après la création du compte (Orange Money ou MTN Mobile Money) ; il est activé dès que le paiement est confirmé.")}</>
-                        : <>{" "}— {tr("gratuit.")}</>}
-                      {" "}{tr("Tu peux le changer ici :")}
-                    </AxiaMsg>
-                    {phase==="q-compte" && <ChoixAbonnement choisi={abonnement} onChange={setAbonnement}/>}
-                  </>
-                )}
-                {/* Essai Illimité (lib/essai.ts) : annoncé ici, proposé à l'arrivée sur la plateforme (pas à qui paie un plan). */}
-                {!planPayant(abonnement) && <AxiaMsg delay={300}>
+                {/* Essai Illimité (lib/essai.ts) : annoncé ici, proposé à l'arrivée sur la plateforme. */}
+                <AxiaMsg delay={300}>
                   🎁{" "}{tr("Ton compte démarre en")}{" "}<strong>{tr("Essentiel (gratuit)")}</strong>.{" "}
                   {tr("En bonus, tu peux essayer le plan")}{" "}<strong style={{color:YELLOW_D}}>{tr("Illimité")}</strong>{" "}
                   {tr("pendant 7 jours, sans payer et sans carte. Je te le proposerai dès ton arrivée — tu pourras accepter ou refuser.")}
-                </AxiaMsg>}
+                </AxiaMsg>
                 {phase==="q-compte" && (
                   <CompteForm onSubmit={launchCreation} loading={loading} erreur={erreur||undefined} pays={paysCode} email={emailInitial}/>
                 )}

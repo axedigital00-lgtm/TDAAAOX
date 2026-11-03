@@ -161,7 +161,7 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">{t("Méthode")}</span>
-                <span className="text-[#111111]">{t(({ whatsapp_cod: "À la livraison (WhatsApp)", direct_cod: "À la livraison", notchpay: "En ligne (NotchPay)", en_attente: "En ligne — non finalisé" } as Record<string, string>)[commande.methodePaiement] ?? commande.methodePaiement)}</span>
+                <span className="text-[#111111]">{t(({ whatsapp_cod: "À la livraison (WhatsApp)", direct_cod: "À la livraison", notchpay: "Payé en ligne", en_attente: "En ligne — non finalisé" } as Record<string, string>)[commande.methodePaiement] ?? commande.methodePaiement)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">{t("Statut paiement")}</span>

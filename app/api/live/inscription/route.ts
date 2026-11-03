@@ -1,5 +1,5 @@
 // Inscription GRATUITE à un événement / bootcamp depuis la vitrine. Les places payantes passent
-// par le checkout existant (digital-creer → NotchPay → lib/livraison-numerique.ts).
+// par une commande payée en ligne (digital-creer → lib/livraison-numerique.ts), indisponible pour l'instant.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";

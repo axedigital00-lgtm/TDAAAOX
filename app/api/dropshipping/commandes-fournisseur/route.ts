@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { changerStatutCommande } from "@/lib/cycle-livraison";
 import { PAIEMENT } from "@/lib/commandes";
-import { NOTE_PRIX_ACHAT_MANQUANT } from "@/lib/paiement-commande";
 import { avancerCommandeFournisseur } from "@/lib/sourcing/fournisseurs/service";
 import { MOTIFS_ANNULATION } from "@/lib/sourcing/statuts";
 import { accesSourcing } from "@/lib/sourcing/acces";
+
+const NOTE_PRIX_ACHAT_MANQUANT = "Prix d'achat à renseigner : le montant fournisseur est incomplet.";
 
 // Mêmes valeurs que CommandeFournisseur.statut (prisma/schema.prisma).
 const STATUTS = ["en_attente", "envoye", "confirme", "expedie", "livre", "annule"];

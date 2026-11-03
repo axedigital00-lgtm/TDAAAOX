@@ -35,9 +35,6 @@ const MESSAGES: Record<string, (params: { numero: string; boutique: string; lien
   annulee: ({ numero, boutique }) =>
     `❌ *Commande annulée*\n\nVotre commande *#${numero}* — *${boutique}* a été annulée.\n\nContactez la boutique pour plus d'informations.`,
 
-  rembourse_en_ligne: ({ numero, boutique }) =>
-    `💸 *Remboursement effectué*\n\nVotre commande *#${numero}* — *${boutique}* a été remboursée sur le moyen de paiement utilisé (Mobile Money ou carte). Le délai d'arrivée dépend de votre opérateur.`,
-
   rembourse_especes: ({ numero, boutique }) =>
     `💸 *Remboursement accordé*\n\nLa boutique *${boutique}* rembourse votre commande *#${numero}*. Elle vous rend la somme directement.`,
 };

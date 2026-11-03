@@ -121,7 +121,7 @@ export default async function FacturePage({ params }: { params: Promise<{ slug: 
             <div style={{ fontSize:10, fontWeight:700, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12 }}>{t("Détails")}</div>
             <div style={{ fontSize:13, color:"#666", marginBottom:4 }}>{t("Date :")}{" "}<strong style={{ color:"#1A1A1A" }}>{date}</strong></div>
             <div style={{ fontSize:13, color:"#666", marginBottom:4 }}>{t("Commande :")}{" "}<strong style={{ color:"#1A1A1A" }}>#{commande.numero}</strong></div>
-            <div style={{ fontSize:13, color:"#666" }}>{t("Paiement :")}{" "}<strong style={{ color:"#1A1A1A" }}>{commande.methodePaiement === "notchpay" ? t("En ligne (NotchPay)") : t("À la livraison")}</strong></div>
+            <div style={{ fontSize:13, color:"#666" }}>{t("Paiement :")}{" "}<strong style={{ color:"#1A1A1A" }}>{commande.methodePaiement === "notchpay" ? t("Payé en ligne") : t("À la livraison")}</strong></div>
           </div>
         </div>
 

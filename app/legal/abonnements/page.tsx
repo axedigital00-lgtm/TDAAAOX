@@ -24,7 +24,7 @@ const SECTIONS = [
   },
   {
     titre: "2. Paiement",
-    contenu: `Les plans payants sont prépayés pour 30 jours, en FCFA, via NotchPay par Orange Money ou MTN Mobile Money. Il n'y a aucun prélèvement automatique : rien n'est débité sans une action de votre part, et il n'y a donc rien à résilier. Pour continuer après 30 jours, vous effectuez simplement un nouveau paiement.`,
+    contenu: `Les plans payants sont prépayés pour 30 jours, en FCFA. Le paiement en ligne des abonnements est momentanément indisponible : pour l'instant, les plans Pro et Illimité ne peuvent pas être achetés depuis le tableau de bord. Il n'y a aucun prélèvement automatique : rien n'est débité sans une action de votre part, et il n'y a donc rien à résilier. Pour continuer après 30 jours, vous effectuez simplement un nouveau paiement.`,
   },
   {
     titre: "3. Renouvellement",
@@ -56,7 +56,7 @@ export default async function AbonnementsPage() {
             <CreditCard size={14} className="inline-block mr-1.5" />{t("Légal")}
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold mb-3">{t("Conditions d'abonnement")}</h1>
-          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 14 octobre 2026")}</p>
+          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 2 novembre 2026")}</p>
 
           {/* Plans recap */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">

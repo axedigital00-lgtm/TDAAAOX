@@ -10,27 +10,27 @@ export const metadata: Metadata = {
 
 // Reflète lib/pricing.ts (prixClient, tauxProduit, SUPPLEMENT_NUMERIQUE) : à modifier ensemble.
 const CAS = [
-  { nom: "Produit numérique", detail: "Fichier, formation, licence, pack, événement en ligne", majoration: "+13 %", axso: "10 %", notchpay: "3 %", exemple: "10 000 F → le client paie 11 300 F", accent: "#7c3aed" },
-  { nom: "Produit physique payé en ligne", detail: "Orange Money, MTN Mobile Money", majoration: "+10 %", axso: "7 %", notchpay: "3 %", exemple: "10 000 F → le client paie 11 000 F", accent: "#F5A623" },
-  { nom: "Produit physique payé à la livraison", detail: "En espèces, directement au marchand", majoration: "0 %", axso: "0 %", notchpay: "0 %", exemple: "10 000 F → le client paie 10 000 F", accent: "#16A34A" },
+  { nom: "Produit numérique", detail: "Dès le retour du paiement en ligne", majoration: "+13 %", axso: "10 %", paiement: "3 %", exemple: "10 000 F → le client paie 11 300 F", accent: "#7c3aed" },
+  { nom: "Produit physique payé en ligne", detail: "Dès le retour du paiement en ligne", majoration: "+10 %", axso: "7 %", paiement: "3 %", exemple: "10 000 F → le client paie 11 000 F", accent: "#F5A623" },
+  { nom: "Produit physique payé à la livraison", detail: "En espèces, directement au marchand", majoration: "0 %", axso: "0 %", paiement: "0 %", exemple: "10 000 F → le client paie 10 000 F", accent: "#16A34A" },
 ];
 
 const SECTIONS = [
   {
     titre: "1. Vous gardez toujours votre prix",
-    contenu: "Le prix que vous saisissez pour un produit est celui que vous recevez. AXSO ne retire jamais rien de votre prix : sa commission et les frais de paiement de NotchPay sont ajoutés au prix payé par le client.",
+    contenu: "Le prix que vous saisissez pour un produit est celui que vous recevez. AXSO ne retire jamais rien de votre prix : sa commission et les frais du prestataire de paiement sont ajoutés au prix payé par le client.",
   },
   {
     titre: "2. Produits numériques",
-    contenu: "Pour un produit numérique (fichier à télécharger, formation, licence, pack, événement en ligne), la plateforme ajoute 13 % à votre prix : 10 % pour AXSO et 3 % pour NotchPay, le service qui encaisse le paiement. Exemple : si votre produit vaut 10 000 F, le client voit et paie 11 300 F ; vous recevez 10 000 F.",
+    contenu: "Un produit numérique (fichier à télécharger, formation, licence, pack, événement en ligne) se paie en ligne : sa vente est suspendue tant que le paiement en ligne n'est pas de nouveau disponible. À son retour, la plateforme ajoutera 13 % à votre prix : 10 % pour AXSO et 3 % pour le prestataire qui encaisse le paiement. Exemple : si votre produit vaut 10 000 F, le client verra et paiera 11 300 F ; vous recevrez 10 000 F.",
   },
   {
     titre: "3. Produits physiques payés en ligne",
-    contenu: "Quand votre client paie un produit physique en ligne, la plateforme ajoute 10 % à votre prix : 7 % pour AXSO et 3 % pour NotchPay. Exemple : pour un produit à 10 000 F, le client paie 11 000 F et vous recevez 10 000 F.",
+    contenu: "Le paiement en ligne est momentanément indisponible. À son retour, quand votre client paiera un produit physique en ligne, la plateforme ajoutera 10 % à votre prix : 7 % pour AXSO et 3 % pour le prestataire de paiement. Exemple : pour un produit à 10 000 F, le client paiera 11 000 F et vous recevrez 10 000 F.",
   },
   {
     titre: "4. Paiement à la livraison",
-    contenu: "Quand votre client paie à la livraison, en espèces, il paie exactement votre prix. AXSO ne prend aucune commission et ne prélève rien sur votre wallet.",
+    contenu: "Quand votre client paie à la livraison, en espèces, ou commande par WhatsApp, il paie exactement votre prix. AXSO ne prend aucune commission et ne prélève rien sur votre wallet.",
   },
   {
     titre: "5. Frais de livraison",
@@ -38,7 +38,7 @@ const SECTIONS = [
   },
   {
     titre: "6. Où arrive votre argent",
-    contenu: "Les paiements en ligne sont crédités sur votre wallet AXSO, déjà débarrassés de la commission et des frais NotchPay : vous recevez votre prix et vos frais de livraison. Vous retirez ensuite votre solde vers votre compte Mobile Money depuis votre tableau de bord.",
+    contenu: "Aujourd'hui, votre client vous paie directement, à la livraison. Quand le paiement en ligne reviendra, ces paiements seront crédités sur votre wallet AXSO, déjà débarrassés de la commission et des frais de paiement : vous recevrez votre prix et vos frais de livraison. Vous demandez le retrait de votre solde depuis votre tableau de bord ; l'équipe AXSO vous le verse.",
   },
   {
     titre: "7. Modifications",
@@ -58,7 +58,7 @@ export default async function PolitiquePrixPage() {
             <Percent size={14} className="inline-block mr-1.5" />{t("Légal")}
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold mb-3">{t("Politique de prix")}</h1>
-          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 20 octobre 2026")}</p>
+          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 2 novembre 2026")}</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
             {CAS.map((c) => (
@@ -68,7 +68,7 @@ export default async function PolitiquePrixPage() {
                 <p className="text-3xl font-black mb-3" style={{ color: c.accent }}>{c.majoration}</p>
                 <ul className="space-y-1.5 text-xs text-[#666666]">
                   <li>{t("AXSO")} : <strong>{c.axso}</strong></li>
-                  <li>{t("NotchPay")} : <strong>{c.notchpay}</strong></li>
+                  <li>{t("Frais de paiement")} : <strong>{c.paiement}</strong></li>
                   <li>{t(c.exemple)}</li>
                 </ul>
               </div>

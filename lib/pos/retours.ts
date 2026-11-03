@@ -1,8 +1,8 @@
 // Retours et remboursements en caisse : complet, partiel ligne par ligne,
 // avoir, échange. SERVEUR uniquement.
 //
-// À CÔTÉ de lib/remboursement.ts (remboursement d'une commande ENTIÈRE, vitrine
-// et NotchPay), que ce fichier ne modifie pas. Ici un retour porte sur des
+// À CÔTÉ de lib/remboursement.ts (remboursement d'une commande ENTIÈRE, vitrine),
+// que ce fichier ne modifie pas. Ici un retour porte sur des
 // lignes et des quantités, et tout ce qu'il engage est recalculé dans UNE
 // transaction idempotente (`cle`) :
 // - stock : mouvement « retour » dans l'entrepôt du magasin + quantiteRetournee

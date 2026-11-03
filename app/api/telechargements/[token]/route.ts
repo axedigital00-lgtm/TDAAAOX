@@ -14,7 +14,7 @@ const parJeton = rateLimit({ windowMs: 10 * 60_000, max: 20, keyPrefix: "dl-jeto
 
 // GET /api/telechargements/[token]?fichier=[fichierId]
 // Jeton aléatoire lié à une commande et à un produit. Le fichier n'est servi que si la
-// commande est payée (confirmée par NotchPay), non annulée/remboursée, le jeton non révoqué
+// commande est payée (paiement confirmé), non annulée/remboursée, le jeton non révoqué
 // ni expiré et la limite du produit non atteinte. L'adresse de stockage n'est jamais renvoyée.
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {

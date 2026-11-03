@@ -10,14 +10,14 @@ import { PAYS_DEVISES, PAYS_OPTIONS } from "@/lib/ai-agent";
 import { SelectPays } from "@/components/ui/SelectPays";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
-import { lireReglagesPaiement, paiementEnLigneDisponible, type ReglagesPaiement } from "@/lib/paiement-pays";
+import { lireReglagesPaiement, type ReglagesPaiement } from "@/lib/paiement-pays";
 import { urlBoutique } from "@/lib/utils";
 
 const PARAMETRES_TUTORIAL_STEPS = [
   { Icon: Settings,      titre: "Vos informations générales", description: "Nom, description, catégorie, pays et devise — la base de votre identité sur Axso." },
   { Icon: MessageCircle, titre: "Numéro WhatsApp Business",    description: "Ce numéro recevra les confirmations de commandes pour vos produits physiques et dropshipping." },
   { Icon: ClipboardList, titre: "Formulaire de commande",       description: "Choisissez les informations demandées à l'acheteur qui commande sans passer par WhatsApp (email, GPS, champ personnalisé)." },
-  { Icon: CreditCard,    titre: "Moyens de paiement",           description: "Paiement à la livraison, commande WhatsApp, paiement en ligne : choisissez ce que vous acceptez, et pour quels pays." },
+  { Icon: CreditCard,    titre: "Moyens de paiement",           description: "Paiement à la livraison, commande WhatsApp : choisissez ce que vous acceptez, et pour quels pays." },
   { Icon: Bell,          titre: "Domaine, notifications, équipe", description: "Retrouvez ici les réglages avancés : domaine personnalisé, alertes et accès de vos collaborateurs." },
 ];
 
@@ -87,7 +87,7 @@ export default function ParametresPage() {
   }
 
   async function sauvegarderPaiement() {
-    if (!paiement.livraison && !paiement.whatsapp && !paiement.enLigne) { toast.error(t("Gardez au moins un moyen de paiement")); return; }
+    if (!paiement.livraison && !paiement.whatsapp) { toast.error(t("Gardez au moins un moyen de paiement")); return; }
     setSavingPaiement(true);
     try {
       const res = await fetch("/api/tenants", {
@@ -358,20 +358,19 @@ export default function ParametresPage() {
         </button>
       </div>
 
-      {/* ── Moyens de paiement (produits physiques ; le digital se paie toujours en ligne) ── */}
+      {/* ── Moyens de paiement ── */}
       <div className="ax-card p-6 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <CreditCard size={14} className="text-[#F5A623]" />
           <h2 className="text-[13px] font-semibold text-[#111111]">{t("Moyens de paiement")}</h2>
         </div>
         <p className="text-[12px] text-[#AAAAAA]">
-          {t("Ce que vos clients peuvent choisir pour vos produits physiques. Les produits digitaux et le dropshipping se paient toujours en ligne.")}
+          {t("Ce que vos clients peuvent choisir pour vos produits physiques.")}
         </p>
         {([
           ["livraison", "Paiement à la livraison", "Le client paie le livreur en espèces ou par Mobile Money à la réception."],
           ["whatsapp", "Commande via WhatsApp", "La commande arrive sur votre WhatsApp, payée à la livraison."],
-          ["enLigne", "Paiement en ligne", "Mobile Money ou carte, avant l'expédition. Le prix payé inclut la commission Axso, comme pour le digital : vous recevez votre prix intégral sur votre portefeuille."],
-          ["livraisonHorsPays", "Paiement à la livraison hors de votre pays", "Désactivé : un client d'un autre pays doit payer en ligne. Évite les colis envoyés loin puis refusés."],
+          ["livraisonHorsPays", "Paiement à la livraison hors de votre pays", "Désactivé : un client d'un autre pays ne peut pas commander. Évite les colis envoyés loin puis refusés."],
         ] as const).map(([cle, titre, aide], i) => (
           <label key={cle} className={`flex items-start justify-between gap-4 py-2 cursor-pointer ${i ? "border-t border-[#F5F5F5]" : ""}`}>
             <span className="min-w-0">
@@ -383,11 +382,6 @@ export default function ParametresPage() {
               className="w-4 h-4 mt-0.5 accent-[#F5A623] flex-shrink-0" />
           </label>
         ))}
-        {paiement.enLigne && tenant?.devise && !paiementEnLigneDisponible(tenant.devise) && (
-          <p className="text-[12px] text-[#B45309] bg-[#FFF7ED] border border-[#FDE68A] rounded-2xl p-3 leading-relaxed">
-            {t("Le paiement en ligne n'accepte pas encore le {0} : vos clients ne verront pas ce choix tant que votre devise n'est pas couverte.", tenant.devise)}
-          </p>
-        )}
         <button type="button" onClick={sauvegarderPaiement} disabled={savingPaiement}
           className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-[13px] text-white transition-all hover:scale-[1.01] disabled:opacity-50"
           style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)", boxShadow: "0 4px 16px rgba(245,166,35,0.25)" }}>
@@ -407,7 +401,7 @@ export default function ParametresPage() {
           </div>
           <div className="space-y-2.5">
             {[
-              { label: "Commission Axso", value: "+10 % en ligne (13 % numérique), 0 % à la livraison" },
+              { label: "Commission Axso", value: "0 % (paiement à la livraison)" },
               { label: "Actif depuis",   value: new Date(tenant.createdAt).toLocaleDateString(t.loc) },
             ].map(row => (
               <div key={row.label} className="flex justify-between text-[12.5px]">

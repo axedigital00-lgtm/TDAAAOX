@@ -18,12 +18,12 @@ export default async function AdminFinancesPage() {
   const platformWallet = await prisma.wallet.findUnique({ where: { tenantId: platformTenantId } });
 
   // Montants de toutes les boutiques convertis en XAF (devise du portefeuille AXSO) — voir lib/finances-admin.ts
-  const [parBoutique, revenuPending, fraisNotchPay] = await Promise.all([
+  const [parBoutique, revenuPending, fraisPasserelle] = await Promise.all([
     commissionsParBoutiqueXAF({ statut: "captured" }),
     totalCommissionsXAF({ statut: "pending" }),
     prisma.walletTransaction.aggregate({
       _sum: { montant: true },
-      // Frais NotchPay des VENTES seulement : ceux des abonnements (référence SUB-…) ne sont pas prélevés sur la commission.
+      // Frais du prestataire de paiement, VENTES seulement : ceux des abonnements (référence SUB-…) ne sont pas prélevés sur la commission.
       where: { walletId: platformWallet?.id, type: "FRAIS", OR: [{ reference: null }, { NOT: { reference: { startsWith: "SUB-" } } }] },
     }),
   ]);
@@ -43,7 +43,7 @@ export default async function AdminFinancesPage() {
   });
 
   const revenuCapture = Math.round(parBoutique.reduce((s, g) => s + g.commissionXAF, 0));
-  const fraisTotal = Math.abs(fraisNotchPay._sum.montant || 0);
+  const fraisTotal = Math.abs(fraisPasserelle._sum.montant || 0);
   const revenuNetReel = Math.max(0, revenuCapture - fraisTotal);
 
   const kpiCard = "rounded-2xl p-5 border";
@@ -62,13 +62,13 @@ export default async function AdminFinancesPage() {
       <AdminRetraitsManuels peutTraiter={estAdminComplet(session)} />
       <AdminRetraitsManuels peutTraiter={estAdminComplet(session)} livreurs />
 
-      {/* Commission brute vs frais NotchPay vs net réel */}
+      {/* Commission brute vs frais de paiement vs net réel */}
       <div className="rounded-2xl p-6 border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
         <h2 className="font-semibold mb-1 flex items-center gap-2" style={{ color: "#ffffff" }}>
           <Receipt size={15} style={{ color: "#F5A623" }} />
           {tx("Ce qu'Axso garde réellement")}
         </h2>
-        <p className="text-xs mb-5" style={{ color: "#AAAAAA" }}>{tx("NotchPay prélève son propre frais de traitement sur chaque paiement — jamais sur le vendeur, toujours sur la commission Axso.")}</p>
+        <p className="text-xs mb-5" style={{ color: "#AAAAAA" }}>{tx("Le prestataire de paiement prélève son frais de traitement sur chaque paiement — jamais sur le vendeur, toujours sur la commission Axso.")}</p>
         <div className="grid sm:grid-cols-3 gap-4">
           <div>
             <p className="text-lg font-bold" style={{ color: "#ffffff" }}>{formatMontant(revenuCapture, "XAF")}</p>
@@ -76,7 +76,7 @@ export default async function AdminFinancesPage() {
           </div>
           <div>
             <p className="text-lg font-bold" style={{ color: "#DC2626" }}>−{formatMontant(fraisTotal, "XAF")}</p>
-            <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx("Frais NotchPay prélevés")}</p>
+            <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx("Frais de paiement prélevés")}</p>
           </div>
           <div>
             <p className="text-lg font-bold" style={{ color: "#16A34A" }}>{formatMontant(revenuNetReel, "XAF")}</p>

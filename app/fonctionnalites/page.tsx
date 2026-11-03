@@ -17,7 +17,7 @@ const STATS = [
   { n: "0 FCFA", label: "pour démarrer" },
 ];
 
-// Modes réellement encaissés par Axso (NotchPay) + paiement à la livraison
+// Paiement en ligne retiré (2/11/2026) : Orange Money / MTN MoMo reviennent avec le futur prestataire
 const PAIEMENTS = ["Orange Money", "MTN MoMo", "Paiement à la livraison"];
 
 const AGENTS = [
@@ -214,7 +214,7 @@ export default async function FonctionnalitesPage() {
               {t("Tous les paiements africains,")}<br />{t("nativement intégrés")}
             </h2>
             <p className="text-[#666666] text-lg leading-relaxed mb-8">
-              {t("Vos clients paient comme ils en ont l'habitude — Mobile Money, carte ou virement. Aucune intégration manuelle, tout est prêt à l'activation.")}
+              {t("Vos clients paient comme ils en ont l'habitude — à la livraison ou en commandant par WhatsApp. Aucune intégration manuelle, tout est prêt à l'activation.")}
             </p>
             <div className="flex flex-wrap gap-2 mb-8">
               {PAIEMENTS.map(p => (
@@ -226,9 +226,9 @@ export default async function FonctionnalitesPage() {
             </div>
             <ul className="space-y-3.5">
               {[
-                "Wallet marchand avec retrait Mobile Money automatique",
+                "Wallet marchand avec retrait vers votre Mobile Money",
                 "Codes promo et réductions à la commande",
-                "Gestion des remboursements en un clic",
+                "Suivi des retours et des remboursements",
                 "Facturation automatique PDF à chaque vente",
               ].map(item => (
                 <li key={item} className="flex items-start gap-3">

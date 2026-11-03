@@ -134,7 +134,7 @@ export async function demanderRetraitLivreur(p: { livreurId: string; montant: nu
     envoyerAlerteRetrait({
       a: "axedigital00@gmail.com", // même destinataire que EMAIL_RETRAITS (lib/wallet.ts)
       retraitId: retrait.id, reference: `AXSO-LIV-${retrait.id}`, creeLe: retrait.createdAt,
-      montant, devise: p.devise, methode: "mobile_money", operateur, destinataire, canal: null,
+      montant, devise: p.devise, methode: "mobile_money", operateur, destinataire,
       notes: `Livreur ${livreur.tenant ? `de la boutique ${livreur.tenant.nomBoutique}` : "de la plateforme"} · tél. ${livreur.telephone}`,
       boutique: `Livreur ${livreur.nom}`, slug: livreur.tenant?.slug ?? "plateforme", proprietaire: { name: livreur.nom, email: null },
       emailBoutique: null, whatsappBoutique: livreur.telephone, soldeApres: solde?.solde ?? null, premierRetraitVersCeNumero: dejaPayes === 0,

@@ -74,7 +74,7 @@ export async function chargerReel(): Promise<Dataset> {
   });
 
   const abonnements: PaiementAbonnement[] = [];
-  // Une même référence SUB-… porte la ligne CREDIT et la ligne FRAIS NotchPay : un paiement = une référence.
+  // Une même référence SUB-… porte la ligne CREDIT et la ligne FRAIS de paiement : un paiement = une référence.
   const vues = new Set<string>();
   for (const s of subs) {
     if (!s.reference || vues.has(s.reference)) continue;

@@ -1,14 +1,14 @@
 // RETRAITS ET COMMISSIONS VALIDÉS PAR AXSO — tests d'intégration sur la base LOCALE (`npm run test:integration`).
 // Prouvé ici : un retrait débite le wallet et reste « en attente » sans transfert automatique ;
-// le numéro prend l'indicatif du pays de la boutique (invalide → refusé, rien débité) ; le canal
-// NotchPay est bien déduit ; « payé » clôt et prévient ; « refusé » recrédite. Retraits d'affiliés :
+// le numéro prend l'indicatif du pays de la boutique (invalide → refusé, rien débité) ;
+// « payé » clôt et prévient ; « refusé » recrédite ; un ancien retrait avec référence se clôt aussi. Retraits d'affiliés :
 // seules les commissions disponibles partent, refusé → de nouveau disponibles.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { canalNotchPay, cloturerRetraitManuel, initierRetrait } from "@/lib/wallet";
+import { cloturerRetraitManuel, initierRetrait } from "@/lib/wallet";
 import { cloturerRetraitAffilie, demanderRetraitAffilie } from "@/lib/affiliation";
 
 const url = process.env.DATABASE_URL ?? "";
@@ -37,19 +37,10 @@ after(async () => {
 
 const solde = async () => (await prisma.wallet.findUniqueOrThrow({ where: { tenantId } })).solde;
 
-test("canal NotchPay : MTN/Orange Cameroun en XAF seulement", () => {
-  assert.equal(canalNotchPay({ methode: "mobile_money", operateur: "MTN", devise: "XAF", destinataire: "677 12 34 56" }), "cm.mtn");
-  assert.equal(canalNotchPay({ methode: "mobile_money", operateur: "Orange", devise: "XAF", destinataire: "+237699123456" }), "cm.orange");
-  assert.equal(canalNotchPay({ methode: "mobile_money", operateur: "Wave", devise: "XAF", destinataire: "677123456" }), null);
-  // Opérateur MTN/Orange déclaré par erreur : le préfixe du numéro fait foi (69x = Orange).
-  assert.equal(canalNotchPay({ methode: "mobile_money", operateur: "MTN", devise: "XAF", destinataire: "699123456" }), "cm.orange");
-  assert.equal(canalNotchPay({ methode: "virement_bancaire", operateur: null, devise: "XAF", destinataire: "CM21 1234 5678" }), null);
-});
-
 test("Retrait : en attente sans transfert, puis payé (marchand prévenu) ou refusé (recrédité)", async () => {
   const r1 = await initierRetrait({ tenantId, montant: 3000, devise: "XAF", methode: "mobile_money", destinataire: "677123456", operateur: "MTN" });
   assert.equal(r1.statut, "en_attente");
-  assert.equal(r1.reference, null, "aucun transfert NotchPay tenté");
+  assert.equal(r1.reference, null, "aucun transfert automatique tenté");
   assert.equal(r1.destinataire, "+237677123456", "indicatif du pays de la boutique");
   assert.equal(await solde(), 7000);
 
@@ -63,6 +54,11 @@ test("Retrait : en attente sans transfert, puis payé (marchand prévenu) ou ref
   assert.equal(await solde(), 7000, "recrédité");
   assert.ok(await prisma.notificationMarchand.findFirst({ where: { tenantId, type: "retrait_refuse" } }));
   await assert.rejects(cloturerRetraitManuel(r2.id, true), /déjà traité/);
+
+  // Ancien retrait lancé automatiquement (référence, « traitement ») : clôturé à la main lui aussi.
+  const ancien = await prisma.retrait.create({ data: { tenantId, montant: 1000, devise: "XAF", methode: "mobile_money", destinataire: "+237677123456", statut: "traitement", reference: `ANCIEN-${X}` } as any });
+  await cloturerRetraitManuel(ancien.id, true);
+  assert.equal((await prisma.retrait.findUniqueOrThrow({ where: { id: ancien.id } })).statut, "complete");
 });
 
 test("Numéro invalide pour le pays de la boutique : refusé avant tout débit", async () => {
@@ -77,7 +73,7 @@ test("Retrait d'affilié : disponible seulement, payé ou refusé (commissions d
     const affilie = await prisma.affilie.create({ data: { tenantId, userId: user.id, nom: `Aff ${X}`, email: user.email!, codeParrainage: `C${X}`, statut: "actif" } });
     let n = 0;
     const vente = async (livreeIlYa: number | null) => {
-      const c = await prisma.commande.create({ data: { tenantId, numero: `${X}-${++n}`, clientNom: "Client", clientTelephone: "+237611111111", adresseLivraison: "", ville: "", pays: "CM", montantSousTotal: 15000, methodePaiement: "notchpay", montantTotal: 15000, devise: "XAF", paiementStatut: "completed", statut: livreeIlYa == null ? "confirmee" : "livree", livreeAt: livreeIlYa == null ? null : new Date(Date.now() - livreeIlYa * 3600_000) } as any });
+      const c = await prisma.commande.create({ data: { tenantId, numero: `${X}-${++n}`, clientNom: "Client", clientTelephone: "+237611111111", adresseLivraison: "", ville: "", pays: "CM", montantSousTotal: 15000, methodePaiement: "mobilemoney", montantTotal: 15000, devise: "XAF", paiementStatut: "completed", statut: livreeIlYa == null ? "confirmee" : "livree", livreeAt: livreeIlYa == null ? null : new Date(Date.now() - livreeIlYa * 3600_000) } as any });
       return prisma.commissionAffilie.create({ data: { tenantId, affilieId: affilie.id, commandeId: c.id, montantCommission: 1500, devise: "XAF" } });
     };
     const dispo = await vente(72);   // livrée il y a 3 jours : disponible

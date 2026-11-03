@@ -1,14 +1,12 @@
 "use client";
-// Vitrine Live Academy : inscription (gratuite ou payante via le checkout existant) et espace
+// Vitrine Live Academy : inscription (gratuite ; les places payantes attendent le paiement en ligne) et espace
 // personnel de l'inscrit (jeton). Mobile d'abord. Le lien de salle n'arrive qu'au clic « Rejoindre »,
 // et seulement si le serveur juge la fenêtre d'accès ouverte.
 import { useCallback, useEffect, useState } from "react";
 import { upload } from "@vercel/blob/client";
-import { Loader2, Lock, Video, Download, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, Video, Download, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { usePrix } from "@/components/storefront/DeviseVitrine";
 import { Communaute } from "@/components/live/Communaute";
-import { lireRef } from "@/lib/ref-affiliation";
 
 const champ = "w-full h-11 px-3 rounded-xl border bg-white text-base sm:text-[15px] text-[#111] outline-none";
 const date = (d: string | Date, fuseau?: string) => {
@@ -18,12 +16,11 @@ const date = (d: string | Date, fuseau?: string) => {
 
 // ─── Inscription ─────────────────────────────────────────────────────────────
 
-export function InscriptionLive({ slug, tenantId, produitId, prix, devise, accent, fermeture }: {
+export function InscriptionLive({ slug, produitId, prix, accent, fermeture }: {
   slug: string; tenantId: string; produitId: string; prix: number; devise: string; accent: string; fermeture: string | null;
 }) {
   const t = useT();
-  const { aPayer } = usePrix();
-  const [v, setV] = useState({ nom: "", email: "", telephone: "", codePromo: "" });
+  const [v, setV] = useState({ nom: "", email: "" });
   const [envoi, setEnvoi] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; texte: string } | null>(null);
   const payant = prix > 0;
@@ -31,25 +28,11 @@ export function InscriptionLive({ slug, tenantId, produitId, prix, devise, accen
   async function valider(e: React.FormEvent) {
     e.preventDefault(); setEnvoi(true); setMsg(null);
     try {
-      if (!payant) {
-        const r = await fetch("/api/live/inscription", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ produitId, nom: v.nom, email: v.email }) });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error ?? "Inscription impossible");
-        if (d.token) { window.location.assign(`/${slug}/live/${d.token}`); return; }
-        setMsg({ ok: true, texte: t("Vous êtes déjà inscrit : votre lien personnel vient d'être renvoyé par e-mail.") });
-      } else {
-        const cmd = await fetch("/api/commandes/digital-creer", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenantId, client: { nom: v.nom.trim(), telephone: v.telephone.trim(), email: v.email.trim().toLowerCase() }, items: [{ produitId, quantite: 1 }], codePromo: v.codePromo.trim() || undefined, codeAffiliation: lireRef() || undefined }),
-        });
-        const c = await cmd.json().catch(() => ({}));
-        if (!cmd.ok) throw new Error(c.error || "Commande impossible");
-        const pay = await fetch("/api/paiements/notchpay/initier", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commandeId: c.commandeId }) });
-        const p = await pay.json().catch(() => ({}));
-        if (!pay.ok || !p.authorizationUrl) throw new Error(p.error || "Paiement indisponible");
-        window.location.assign(p.authorizationUrl);
-        return;
-      }
+      const r = await fetch("/api/live/inscription", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ produitId, nom: v.nom, email: v.email }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error ?? "Inscription impossible");
+      if (d.token) { window.location.assign(`/${slug}/live/${d.token}`); return; }
+      setMsg({ ok: true, texte: t("Vous êtes déjà inscrit : votre lien personnel vient d'être renvoyé par e-mail.") });
     } catch (err) {
       setMsg({ ok: false, texte: t(err instanceof Error ? err.message : "Erreur") });
     }
@@ -57,16 +40,15 @@ export function InscriptionLive({ slug, tenantId, produitId, prix, devise, accen
   }
 
   if (fermeture) return <p className="rounded-xl p-4 text-center font-semibold bg-black/5">{t(fermeture)}</p>;
+  // Place payante : pas de paiement en ligne pour l'instant, la réservation n'est pas possible.
+  if (payant) return <p className="rounded-xl p-4 text-center font-semibold bg-black/5">{t("Le paiement en ligne n'est pas encore disponible pour cette boutique.")}</p>;
   return (
     <form onSubmit={valider} className="space-y-2.5 rounded-2xl border p-4" style={{ borderColor: `${accent}40` }}>
       <input required minLength={2} placeholder={t("Nom complet")} autoComplete="name" className={champ} value={v.nom} onChange={(e) => setV({ ...v, nom: e.target.value })} />
       <input required type="email" placeholder={t("E-mail (votre lien d'accès y sera envoyé)")} autoComplete="email" className={champ} value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} />
-      {payant && <input required type="tel" placeholder={t("Téléphone")} autoComplete="tel" className={champ} value={v.telephone} onChange={(e) => setV({ ...v, telephone: e.target.value })} />}
-      {payant && <input placeholder={t("Code promo (facultatif)")} className={champ} value={v.codePromo} onChange={(e) => setV({ ...v, codePromo: e.target.value })} />}
       <button disabled={envoi} className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: accent }}>
-        {envoi ? <Loader2 size={17} className="animate-spin" /> : payant ? <><Lock size={15} />{t("Réserver ma place")} · {aPayer(prix, devise)}</> : t("Je m'inscris gratuitement")}
+        {envoi ? <Loader2 size={17} className="animate-spin" /> : t("Je m'inscris gratuitement")}
       </button>
-      {payant && <p className="text-[12px] text-center opacity-60">{t("Paiement sécurisé NotchPay · MTN MoMo, Orange Money, carte bancaire")}</p>}
       {msg && <p className={`text-sm text-center ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.texte}</p>}
     </form>
   );

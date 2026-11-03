@@ -11,20 +11,20 @@ export async function GET(req: NextRequest) {
   // Textes dans la langue de l'admin, comme la page /admin/alertes.
   const { alertes } = analyser(c, await getT());
   const liste = alertes.map(({ id, categorie, titre, detail, lien }) => ({ id, categorie, titre, detail, lien }));
-  // Retraits à faire dans NotchPay (circuit manuel) : en tête. L'id suit le plus récent, donc un
+  // Retraits à faire à la main : en tête. L'id suit le plus récent, donc un
   // nouveau retrait fait revenir l'alerte même si la précédente a été vue.
   if (peutVoir(c.session.role, "finances")) {
-    const where = { statut: "en_attente", reference: null };
+    const where = { statut: { in: ["en_attente", "traitement"] } };
     const [n, dernier] = await Promise.all([prisma.retrait.count({ where }), prisma.retrait.findFirst({ where, orderBy: { createdAt: "desc" }, select: { id: true } })]);
-    if (n && dernier) liste.unshift({ id: `retraits-${dernier.id}`, categorie: "critique", titre: `💸 ${n} retrait(s) à valider dans NotchPay`, detail: "Les marchands attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/finances" });
+    if (n && dernier) liste.unshift({ id: `retraits-${dernier.id}`, categorie: "critique", titre: `💸 ${n} retrait(s) à valider`, detail: "Les marchands attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/finances" });
     // Retraits des livreurs (lib/gains-livreur.ts), même circuit.
     const [nl, dernierL] = await Promise.all([prisma.retraitLivreur.count({ where: { statut: "en_attente" } }), prisma.retraitLivreur.findFirst({ where: { statut: "en_attente" }, orderBy: { createdAt: "desc" }, select: { id: true } })]);
-    if (nl && dernierL) liste.unshift({ id: `retraits-livreurs-${dernierL.id}`, categorie: "critique", titre: `🛵 ${nl} retrait(s) de livreur à valider dans NotchPay`, detail: "Les livreurs attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/finances" });
+    if (nl && dernierL) liste.unshift({ id: `retraits-livreurs-${dernierL.id}`, categorie: "critique", titre: `🛵 ${nl} retrait(s) de livreur à valider`, detail: "Les livreurs attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/finances" });
   }
   if (peutVoir(c.session.role, "affilies")) {
     const where = { statut: "en_attente" };
     const [n, dernier] = await Promise.all([prisma.retraitAffilie.count({ where }), prisma.retraitAffilie.findFirst({ where, orderBy: { createdAt: "desc" }, select: { id: true } })]);
-    if (n && dernier) liste.unshift({ id: `commissions-${dernier.id}`, categorie: "critique", titre: `🤝 ${n} retrait(s) d'affilié à verser dans NotchPay`, detail: "Les affiliés attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/affilies" });
+    if (n && dernier) liste.unshift({ id: `commissions-${dernier.id}`, categorie: "critique", titre: `🤝 ${n} retrait(s) d'affilié à verser`, detail: "Les affiliés attendent leur argent : fais le transfert puis marque-le payé.", lien: "/admin/affilies" });
   }
   // Problèmes signalés par les marchands, pas encore pris en charge (même principe d'id que les retraits).
   if (peutVoir(c.session.role, "support")) {

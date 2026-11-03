@@ -11,7 +11,7 @@ import { reprendreImportsEchus } from "@/lib/import-creations/pipeline";
 import { NextResponse } from "next/server";
 import { passeDuCron } from "@/lib/controle-ia/automatisations";
 import { passeRelances } from "@/lib/relances";
-import { reconcilierPaiements } from "@/lib/reconciliation-paiements";
+import { reprendreLivraisons } from "@/lib/livraison-numerique";
 import { passeRappelsLive } from "@/lib/live/service";
 import { traiterTaches } from "@/lib/academie/studio";
 import { synchroniserSousDomaines } from "@/lib/domaines";
@@ -23,11 +23,11 @@ export const maxDuration = 60;
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || !(req.headers.get("x-cron-secret") === secret || req.headers.get("authorization") === `Bearer ${secret}`)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  // Au même passage : relances automatiques (lib/relances.ts) et vérification des paiements NotchPay
-  // (lib/reconciliation-paiements.ts) — appelée souvent, elle confirme un paiement sans webhook en minutes.
+  // Au même passage : relances automatiques (lib/relances.ts) et reprise des livraisons numériques
+  // incomplètes ou des e-mails de lien en échec (lib/livraison-numerique.ts).
   const erreur = (e: any) => ({ erreur: String(e?.message ?? e) });
   // Rappels des événements live (lib/live/service.ts) : idempotents, rattrapés au passage suivant.
-  const [automatisations, relances, paiements, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement] = await Promise.all([passeDuCron(), passeRelances().catch(erreur), reconcilierPaiements().catch(erreur), reprendreImportsEchus().catch(erreur), passeRappelsLive().catch(erreur),
+  const [automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement] = await Promise.all([passeDuCron(), passeRelances().catch(erreur), reprendreLivraisons().catch(erreur), reprendreImportsEchus().catch(erreur), passeRappelsLive().catch(erreur),
     // File de l'AI Course Studio (lib/academie/studio.ts) : reprend les tâches dues de toutes les boutiques.
     traiterTaches({ demarrerAvant: Date.now() + 10_000, max: 2 }).catch(erreur),
     // Sous-domaines nom.axsoafrica.com des boutiques publiées non encore déclarés à Vercel (lib/domaines.ts).
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     passeRappelsEssai().catch(erreur),
     // Abonnement payé : rappels 3 jours avant l'échéance et le jour même (lib/abonnement-paiement.ts), une fois chacun.
     passeRappelsAbonnement().catch(erreur)]);
-  return NextResponse.json({ ...automatisations, relances, paiements, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement });
+  return NextResponse.json({ ...automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement });
 }
 
 export const POST = GET;

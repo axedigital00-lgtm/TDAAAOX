@@ -209,10 +209,10 @@ export const OUTILS_VENTES: Outil[] = [
     },
   },
   {
-    // Effet réel (lib/cycle-livraison.ts) : une commande déjà PAYÉE est d'abord REMBOURSÉE — via NotchPay si elle a été
-    // payée en ligne (l'argent sort du portefeuille du marchand) — puis annulée, stock rendu. D'où risque élevé + droit remboursements (regles.ts).
+    // Effet réel (lib/cycle-livraison.ts) : une commande déjà PAYÉE est marquée REMBOURSÉE — le marchand rend lui-même
+    // l'argent au client (plus de remboursement en ligne) — puis annulée, stock rendu. D'où risque élevé + droit remboursements (regles.ts).
     name: "cancel_order", module: "commandes", niveau: "ecriture", risque: "eleve", capacite: "commandes",
-    description: "Annule une commande pas encore livrée ET rembourse le client si elle était payée : paiement en ligne → remboursement NotchPay repris sur le portefeuille du marchand ; paiement reçu en espèces → le marchand rend l'argent lui-même. Le stock revient en rayon, le code promo et les commissions d'affiliation sont libérés, le client est prévenu par WhatsApp. Irréversible. Vérifie d'abord avec get_order (refund_on_cancel).",
+    description: "Annule une commande pas encore livrée ; si elle était payée, elle est marquée remboursée et le marchand rend l'argent au client lui-même (pas de remboursement en ligne). Le stock revient en rayon, le code promo et les commissions d'affiliation sont libérés, le client est prévenu par WhatsApp. Irréversible. Vérifie d'abord avec get_order (refund_on_cancel).",
     parameters: objet({ order_id: REF_COMMANDE, reason: { type: "string", description: "Motif, gardé dans le journal des actions" }, version: VERSION }, ["order_id", "reason"]),
     sortie: "{ order_id, number, status: \"annulee\", refunded, refund_amount, refund_channel }",
     exemple: { order_id: "AX-20261013-K3P9QX", reason: "Client injoignable depuis 5 jours" },
@@ -220,13 +220,13 @@ export const OUTILS_VENTES: Outil[] = [
       const c = await commandeDe(ctx.tenantId, a);
       requis(a, "reason", 300);
       exigerVersion(a, (v) => versionAJour(v, c.updatedAt), c.updatedAt.toISOString());
-      const payee = c.paiementStatut === PAIEMENT.PAYE, enLigne = c.methodePaiement === "notchpay";
+      const payee = c.paiementStatut === PAIEMENT.PAYE;
       const r = await changerStatutCommande({ commandeId: c.id, statut: "annulee", acteur: { type: "marchand", tenantId: ctx.tenantId, source: "axia" } });
       if (!r.ok) return refuser(r.status >= 500 ? "UNAVAILABLE" : r.status === 404 ? "NOT_FOUND" : r.status === 403 ? "PLAN_REQUIRED" : "CONFLICT", `${r.error}. La commande n'a pas été annulée.`);
       const montant = formatMontant(c.montantTotal, c.devise);
       return ok(
-        `Commande #${c.numero} annulée, stock rendu. ${!payee ? "Elle n'était pas payée : rien à rembourser." : enLigne ? `${montant} remboursés au client via NotchPay et repris sur le portefeuille du marchand.` : `Elle avait été payée hors ligne : le marchand doit rendre ${montant} au client lui-même.`}`,
-        { order_id: c.id, number: c.numero, status: "annulee", refunded: payee, refund_amount: payee ? c.montantTotal : 0, refund_channel: !payee ? null : enLigne ? "notchpay" : "especes" },
+        `Commande #${c.numero} annulée, stock rendu. ${!payee ? "Elle n'était pas payée : rien à rembourser." : `Elle avait été payée : le marchand doit rendre ${montant} au client lui-même.`}`,
+        { order_id: c.id, number: c.numero, status: "annulee", refunded: payee, refund_amount: payee ? c.montantTotal : 0, refund_channel: payee ? "especes" : null },
       );
     },
   },

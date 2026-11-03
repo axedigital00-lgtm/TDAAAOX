@@ -1,5 +1,5 @@
 // Retraits des livreurs (lib/gains-livreur.ts) : même circuit manuel que les retraits marchands —
-// Axso fait le transfert dans NotchPay puis clôture ici (Admin › Finances).
+// Axso fait le transfert à la main puis clôture ici (Admin › Finances).
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession, getAdminSessionPour, estAdminComplet } from "@/lib/admin-auth";
 import { journaliser } from "@/lib/command-center/serveur";

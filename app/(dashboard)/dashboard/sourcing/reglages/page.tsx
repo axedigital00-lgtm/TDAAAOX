@@ -147,7 +147,7 @@ export default function ReglagesSourcingPage() {
         </ul>
         <p className="text-[11px] text-[#AAAAAA] mt-2 leading-snug">
           {paysEnregistre
-            ? t("Liste indicative. Les opérateurs réellement proposés à vos clients dépendent de votre compte NotchPay.")
+            ? t("Liste indicative. Les opérateurs réellement proposés à vos clients dépendent du prestataire de paiement.")
             : t("Enregistrez pour voir ce qui est réellement encaissable dans ce pays.")}
         </p>
         {boutonEnregistrer}

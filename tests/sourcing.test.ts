@@ -1,11 +1,10 @@
-// Calculs d'argent de Sourcing et des paiements en ligne : devises, prix conseillé,
-// coût réel, contrôle du montant payé, paliers. Fonctions pures uniquement.
+// Calculs d'argent de Sourcing : devises, prix conseillé,
+// coût réel, paliers. Fonctions pures uniquement.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { normaliserDevise, schemaDevise, tauxEntre } from "@/lib/sourcing/cout-rendu";
 import { calculerCoutReel, prixPsychologique, recommanderPrix } from "@/lib/sourcing/rentabilite";
 import { MOTIFS_ANNULATION, MOTIFS_IMPUTABLES_FOURNISSEUR } from "@/lib/sourcing/statuts";
-import { paiementCouvre } from "@/lib/notchpay";
 import { aAcces, palierAuMoins, type Palier } from "@/lib/plans";
 import { prixClient } from "@/lib/pricing";
 
@@ -58,16 +57,6 @@ test("coût réel : le risque de refus à la livraison augmente le coût par com
   assert.ok(avec.coutTotal > sans.coutTotal);
   assert.ok((avec.margeNette ?? 0) < (sans.margeNette ?? 0));
   assert.ok(sans.coutTotal >= 3000 + 1500 + 1500 + 2000);
-});
-
-test("paiement en ligne : confirmé seulement si abouti, au bon montant et dans la bonne devise", () => {
-  assert.equal(paiementCouvre({ status: "complete", amount: 5000, currency: "XAF" }, 5000, "XAF"), true);
-  assert.equal(paiementCouvre({ status: "complete", amount: "5000", currency: "xaf" }, 5000, "XAF"), true);
-  assert.equal(paiementCouvre({ status: "complete", amount: 100, currency: "XAF" }, 5000, "XAF"), false);
-  assert.equal(paiementCouvre({ status: "complete", amount: 5000, currency: "NGN" }, 5000, "XAF"), false);
-  assert.equal(paiementCouvre({ status: "pending", amount: 5000, currency: "XAF" }, 5000, "XAF"), false);
-  assert.equal(paiementCouvre(null, 5000, "XAF"), false);
-  assert.equal(paiementCouvre({ status: "complete", currency: "XAF" }, 5000, "XAF"), false);
 });
 
 test("paliers : Sourcing réservé au palier 2, une valeur héritée vaut palier 0", () => {

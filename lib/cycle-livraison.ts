@@ -110,8 +110,8 @@ export async function changerStatutCommande(p: {
   if (!(TRANSITIONS_VALIDES[commande.statut] || []).includes(statut)) {
     return { ok: false, status: 400, error: `Transition invalide : ${commande.statut} → ${statut}` };
   }
-  // Commande à payer en ligne : rien ne part tant que NotchPay n'a pas confirmé le paiement
-  // (sinon elle serait livrée, puis marquée payée, sans argent reçu). Seule l'annulation reste possible.
+  // Ancienne commande à payer en ligne jamais payée : rien ne part (sinon elle serait livrée,
+  // puis marquée payée, sans argent reçu). Seule l'annulation reste possible.
   if (statut !== "annulee" && paiementEnLigneNonRecu(commande)) {
     return { ok: false, status: 409, code: "paiement_non_recu", error: "Paiement en ligne non reçu : la commande ne peut pas avancer tant que le client n'a pas payé. Annule-la si elle ne sera pas payée." };
   }
@@ -128,8 +128,8 @@ export async function changerStatutCommande(p: {
     }
   }
 
-  // Annuler une commande déjà payée en ligne, c'est d'abord la rembourser : si
-  // NotchPay refuse, la commande n'est pas annulée. La marchandise n'est pas
+  // Annuler une commande déjà payée, c'est d'abord la rembourser : si le
+  // remboursement échoue, la commande n'est pas annulée. La marchandise n'est pas
   // encore livrée (annulee n'est possible qu'avant), elle revient donc en stock.
   const aRembourser = statut === "annulee" && (commande.paiementStatut === PAIEMENT.PAYE || commande.paiementStatut === PAIEMENT.EN_REMBOURSEMENT);
   if (aRembourser) {

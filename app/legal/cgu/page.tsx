@@ -18,7 +18,7 @@ const SECTIONS = [
   },
   {
     titre: "3. Services proposés",
-    contenu: `AXSO propose une plateforme SaaS permettant la création et la gestion de boutiques en ligne, incluant : la gestion de catalogue produits, l'encaissement des paiements via Mobile Money (Orange Money, MTN Mobile Money) et le paiement à la livraison, la gestion logistique et de livraison, des outils de marketing et d'analyse, une assistance par intelligence artificielle (Axia).`,
+    contenu: `AXSO propose une plateforme SaaS permettant la création et la gestion de boutiques en ligne, incluant : la gestion de catalogue produits, la prise de commandes payées à la livraison ou passées par WhatsApp, la gestion logistique et de livraison, des outils de marketing et d'analyse, une assistance par intelligence artificielle (Axia).`,
   },
   {
     titre: "4. Obligations de l'utilisateur",
@@ -26,7 +26,7 @@ const SECTIONS = [
   },
   {
     titre: "5. Tarification et facturation",
-    contenu: `AXSO propose plusieurs plans tarifaires. Le plan Essentiel est gratuit. Les plans Pro et Illimité sont prépayés pour 30 jours par Orange Money ou MTN Mobile Money, sans renouvellement ni prélèvement automatique. Les prix sont fixés en FCFA. À l'expiration d'une période non renouvelée, le compte repasse au plan Essentiel. Le détail figure dans les Conditions d'abonnement.`,
+    contenu: `AXSO propose plusieurs plans tarifaires. Le plan Essentiel est gratuit. Les plans Pro et Illimité sont prépayés pour 30 jours, sans renouvellement ni prélèvement automatique ; leur paiement en ligne est momentanément indisponible. Les prix sont fixés en FCFA. À l'expiration d'une période non renouvelée, le compte repasse au plan Essentiel. Le détail figure dans les Conditions d'abonnement.`,
   },
   {
     titre: "6. Données personnelles",
@@ -54,7 +54,7 @@ export default async function CguPage() {
             {t("⚖️ Légal")}
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold mb-3">{t("Conditions Générales d'Utilisation")}</h1>
-          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 14 octobre 2026")}</p>
+          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 2 novembre 2026")}</p>
 
           <div className="space-y-10">
             {SECTIONS.map(s => (

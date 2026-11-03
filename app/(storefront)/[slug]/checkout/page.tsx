@@ -11,8 +11,7 @@ import { habillageDesign } from "@/components/storefront/templates/HabillageDesi
 import { resolveConfigVitrine } from "@/lib/vitrine-design";
 import { Lock } from "lucide-react";
 import { getT } from "@/lib/i18n/serveur";
-import { hasNotchPay } from "@/lib/notchpay";
-import { lireReglagesPaiement, paiementEnLigneDisponible } from "@/lib/paiement-pays";
+import { lireReglagesPaiement } from "@/lib/paiement-pays";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -46,7 +45,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
   if (!tenant || !(await boutiqueVisible(tenant))) notFound();
 
   const article = await articleCommande(tenant.id, tenant.commissionRate ?? 0.1, await searchParams);
-  const paiement = { paiement: lireReglagesPaiement(tenant.parametresPaiement), enLigneDispo: hasNotchPay() && paiementEnLigneDisponible(tenant.devise) };
+  const paiement = { paiement: lireReglagesPaiement(tenant.parametresPaiement) };
   const cfg = await resolveConfigVitrine(tenant.themeId, tenant.id, (tenant.themeConfig as Record<string, any>) || {});
   const theme = cfg.colors;
 
@@ -94,7 +93,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
       </div>
 
       <footer className="border-t py-8 text-center text-sm opacity-50" style={{ borderColor: `${theme.accent}20` }}>
-        <p>{article?.type === "physique" ? t("Paiement à la livraison") : t("Paiement sécurisé via NotchPay · SSL 256-bit")}</p>
+        <p>{article?.type === "physique" ? t("Paiement à la livraison") : t("Paiement sécurisé")}</p>
       </footer>
     </div>
   );

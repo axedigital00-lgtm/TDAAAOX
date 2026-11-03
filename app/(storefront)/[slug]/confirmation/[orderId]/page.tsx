@@ -3,8 +3,6 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { resolveConfigVitrine } from "@/lib/vitrine-design";
-import { hasNotchPay } from "@/lib/notchpay";
-import { confirmerPaiementCommande } from "@/lib/paiement-commande";
 import { TYPES_LIVRAISON_DIGITALE } from "@/lib/affiliation";
 import { ConfirmationDigitaleContent } from "@/components/storefront/ConfirmationDigitaleContent";
 import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
@@ -17,19 +15,6 @@ interface Props {
   searchParams: Promise<Record<string, string | undefined>>;
 }
 
-// Filet de sécurité : si le webhook NotchPay n'est pas encore arrivé au moment
-// où le client revient de la page de paiement hébergée, on relit la transaction
-// chez NotchPay CÔTÉ SERVEUR (référence enregistrée à l'initialisation, jamais un
-// paramètre de l'URL) ; confirmerPaiementCommande contrôle montant, devise et
-// référence avant de créer le moindre droit. Idempotent.
-async function verifierEtConfirmerNotchPay(commandeId: string, paiementReference: string | null) {
-  if (!hasNotchPay() || !paiementReference) return;
-  // paiementReference = référence NotchPay ("trx.xxx") stockée à l'initialisation.
-  await confirmerPaiementCommande(commandeId, paiementReference).catch(() => {
-    // NotchPay injoignable : le webhook et la réconciliation prendront le relais.
-  });
-}
-
 export default async function ConfirmationPage({ params, searchParams }: Props) {
   const t = await getT();
   const { slug, orderId } = await params;
@@ -39,11 +24,6 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
 
   const tenant = await prisma.tenant.findUnique({ where: { slug } });
   if (!tenant || tenant.statut !== "active") notFound();
-
-  const commandeAvant = await prisma.commande.findUnique({ where: { id: orderId }, select: { paiementStatut: true, methodePaiement: true, paiementReference: true } });
-  if (commandeAvant?.paiementStatut === "pending" && commandeAvant.methodePaiement === "notchpay") {
-    await verifierEtConfirmerNotchPay(orderId, commandeAvant.paiementReference);
-  }
 
   const commande = await prisma.commande.findUnique({
     where: { id: orderId },
@@ -82,7 +62,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
   // Droits affichés seulement pour une commande payée et une clé valide ; jetons révoqués exclus.
   const montrerAcces = paye && autorise && tousProduitIds.length > 0;
   // Reprise : une livraison restée incomplète (erreur passagère) est retentée à l'ouverture de la page.
-  if (montrerAcces && isDigital && commande.methodePaiement === "notchpay") {
+  if (montrerAcces && isDigital) {
     const etat = await prisma.livraisonDigitale.findUnique({ where: { commandeId: orderId }, select: { statut: true } });
     if (etat?.statut !== "livree" && etat?.statut !== "revoquee") await livrerCommandeDigitale(orderId).catch(() => {});
   }

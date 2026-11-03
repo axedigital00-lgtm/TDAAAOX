@@ -11,13 +11,12 @@ import {
   Package, Zap, Phone, MapPin, User, Mail, ArrowLeft,
   Receipt, Save, ClipboardList, Check
 } from "lucide-react";
-import { NotchPayCheckout } from "./NotchPayCheckout";
 import { trackPixelEvent } from "./MetaPixel";
 import { trackTikTokEvent } from "./TikTokPixel";
 import { trackSnapchatEvent } from "./SnapchatPixel";
 import { useT } from "@/components/I18nProvider";
 import { PAYS_OPTIONS, exempleTelephone, exempleVille, codePays } from "@/lib/devise-convert";
-import { moyensEnLigne, moyensPhysique, type ReglagesPaiement } from "@/lib/paiement-pays";
+import { moyensPhysique, type ReglagesPaiement } from "@/lib/paiement-pays";
 import { memoriserRef, lireRef, oublierRef } from "@/lib/ref-affiliation";
 
 export interface ParametresCommande {
@@ -32,7 +31,6 @@ interface Props {
   parametresCommande?: ParametresCommande;
   paysBoutique?: string; // code ISO2 — pays présélectionné dans le formulaire
   paiement: ReglagesPaiement; // moyens acceptés par la boutique (Paramètres → Moyens de paiement)
-  enLigneDispo: boolean;      // NotchPay configuré et devise de la boutique encaissable en ligne
 }
 
 /** Pays présélectionné : celui où se trouve le client (détecté, ou choisi dans la pastille pays),
@@ -125,7 +123,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHECKOUT PHYSIQUE — Paiement à la livraison → WhatsApp
 // ═══════════════════════════════════════════════════════════════════════════════
-function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePromo, viderPanier, parametresCommande, paysBoutique, paiement, enLigneDispo, onCommandee }: any) {
+function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePromo, viderPanier, parametresCommande, paysBoutique, paiement, onCommandee }: any) {
   const t = useT();
   const { fmt } = usePrix();
   const searchParams = useSearchParams();
@@ -133,9 +131,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
   const demanderEmail = cfg.demanderEmail ?? true;
   const demanderGps = cfg.demanderGps ?? true;
   const champPerso = cfg.champPersonnalise?.actif ? cfg.champPersonnalise.label : null;
-  const [loadingCanal, setLoadingCanal] = useState<"whatsapp" | "direct" | "en_ligne" | null>(null);
-  // Commande payée en ligne : créée, puis réglée sur NotchPay (montant du serveur, commission comprise).
-  const [aPayerEnLigne, setAPayerEnLigne] = useState<{ commandeId: string; montant: number } | null>(null);
+  const [loadingCanal, setLoadingCanal] = useState<"whatsapp" | "direct" | null>(null);
   // ?canal=whatsapp (bouton « Commander via WhatsApp » de la fiche) : formulaire WhatsApp ouvert d'emblée.
   const [popup, setPopup] = useState<"whatsapp" | "direct" | null>(() => (searchParams?.get("canal") === "whatsapp" && paiement.whatsapp ? "whatsapp" : null));
   const loading = loadingCanal !== null;
@@ -279,9 +275,9 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
   }
 
   // Selon le pays du client : paiement à la livraison seulement dans le pays de la boutique (sauf réglage contraire).
-  const moyens = moyensPhysique(paiement, { paysClient: codePays(form.pays), paysBoutique, enLigneDispo });
+  const moyens = moyensPhysique(paiement, { paysClient: codePays(form.pays), paysBoutique });
 
-  async function commander(canal: "whatsapp" | "direct" | "en_ligne") {
+  async function commander(canal: "whatsapp" | "direct") {
     if (!form.nom.trim() || !form.telephone.trim()) { toast.error(t("Nom et téléphone obligatoires")); return; }
     if (attendQuartier) { toast.error(t("Sélectionnez votre zone de livraison")); return; }
     // Sans liste de zones, la ville dit où livrer et fixe les frais (revérifié par le serveur).
@@ -307,7 +303,6 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      if (canal === "en_ligne") { setAPayerEnLigne({ commandeId: data.commandeId, montant: data.montantTotal }); return; } // vente comptée au paiement
       trackPixelEvent("Purchase", {
         content_ids: items.map((i: any) => i.produitId),
         contents: items.map((i: any) => ({ id: i.produitId, quantity: i.quantite })),
@@ -332,20 +327,6 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
     } finally {
       setLoadingCanal(null);
     }
-  }
-
-  if (aPayerEnLigne) {
-    return (
-      <div className="max-w-lg mx-auto py-8 space-y-4">
-        <div className="rounded-2xl border p-5" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
-          <h2 className="font-bold font-playfair text-base mb-1 flex items-center gap-2"><Lock size={16} />{" "}{t("Paiement sécurisé")}</h2>
-          <p className="text-xs opacity-60 mb-4">{t("Votre commande est réservée. Elle est confirmée dès le paiement reçu.")}</p>
-          <NotchPayCheckout commandeId={aPayerEnLigne.commandeId} montant={aPayerEnLigne.montant} devise={devise}
-            clientEmail={form.email} clientNom={form.nom} clientTelephone={form.telephone} paysClient={codePays(form.pays)}
-            onError={(msg) => toast.error(t(msg))} />
-        </div>
-      </div>
-    );
   }
 
   // Succès
@@ -758,16 +739,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
             </button>
           )}
 
-          {moyens.enLigne && (
-            <button onClick={() => commander("en_ligne")} disabled={loading || attendQuartier}
-              className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3"
-              style={{ background: theme.accent, color: "#fff" }}>
-              {loadingCanal === "en_ligne" ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-              {loadingCanal === "en_ligne" ? t("Préparation du paiement…") : t("Payer en ligne")}
-            </button>
-          )}
-
-          {!moyens.whatsapp && !moyens.livraison && !moyens.enLigne && (
+          {!moyens.whatsapp && !moyens.livraison && (
             <p className="text-sm text-center rounded-2xl border p-4 leading-relaxed" style={{ borderColor: `${theme.accent}30` }}>
               {t("Cette boutique ne propose pas encore de moyen de paiement pour une livraison dans votre pays. Contactez-la pour commander.")}
             </p>
@@ -775,9 +747,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
 
           <div className="flex items-center gap-2 text-xs opacity-40 justify-center text-center">
             <Lock size={10} className="flex-shrink-0" />{" "}
-            {moyens.enLigne
-              ? t("En ligne : {0} · frais de service inclus", t(moyensEnLigne(codePays(form.pays))))
-              : t("Commande sécurisée · Paiement à la livraison")}
+            {t("Commande sécurisée · Paiement à la livraison")}
           </div>
         </div>
       </div>
@@ -786,243 +756,15 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CHECKOUT DIGITAL — Paiement NotchPay · Wallet Axso · Livraison instantanée
+// PRODUIT NUMÉRIQUE / DROPSHIPPING — se paie en ligne : pas encore disponible
 // ═══════════════════════════════════════════════════════════════════════════════
-function CheckoutDigital({ theme, slug, devise, tenantId, items, total, codePromo, paysBoutique, enLigneDispo }: any) {
+function PaiementEnLigneIndisponible() {
   const t = useT();
-  const { aPayer } = usePrix();
-  const searchParams = useSearchParams();
-
-  const [phase, setPhase] = useState<"form" | "paiement">("form");
-  const [loading, setLoading] = useState(false);
-  const [commandeId, setCommandeId] = useState<string | null>(null);
-  const paysClient = useVisiteur()?.pays;
-  const [form, setForm] = useState({ nom: "", email: "", telephone: "", adresse: "", ville: "", pays: paysParDefaut(paysClient, paysBoutique) });
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-  // Dropshipping : payé en ligne mais expédié (adresse requise, suivi au lieu d'un téléchargement).
-  const expedier = items[0]?.type === "dropshipping";
-  const zones = useZones(slug);
-  const [zone, setZone] = useState("");
-  const zonesActives = expedier && codePays(form.pays) === paysBoutique ? zones : [];
-  // Montant réel calculé par le serveur (frais de livraison inclus), affiché à l'étape de paiement.
-  const [aRegler, setARegler] = useState<{ total: number; livraison: number } | null>(null);
-
-  // Code d'affiliation depuis l'URL (?ref=CODE) ou localStorage
-  const codeRef = useMemo(() => {
-    const fromUrl = searchParams?.get("ref") ?? null;
-    if (fromUrl) {
-      memoriserRef(fromUrl);
-      return fromUrl;
-    }
-    return lireRef();
-  }, [searchParams]);
-
-  const inp = "w-full px-4 py-3 rounded-xl border text-base sm:text-sm transition-all focus:ring-2 focus:outline-none";
-  const inpStyle = { backgroundColor: theme.surface, borderColor: `${theme.accent}30`, color: theme.texte, ["--tw-ring-color" as any]: `${theme.accent}40` };
-
-  async function creerCommande() {
-    if (!form.nom.trim() || !form.email.trim() || !form.telephone.trim()) {
-      toast.error(t("Nom, email et téléphone obligatoires"));
-      return;
-    }
-    if (expedier && (!form.adresse.trim() || !form.ville.trim())) {
-      toast.error(t("Adresse et ville de livraison obligatoires"));
-      return;
-    }
-    if (zonesActives.length && !zone) { toast.error(t("Sélectionnez votre zone de livraison")); return; }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/commandes/digital-creer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId,
-          client: { ...form },
-          items: items.map((i: any) => ({ produitId: i.produitId, nom: i.nom, prix: i.prix, quantite: i.quantite, variante: i.variante, imageUrl: i.imageUrl })),
-          total, devise, codePromo,
-          codeAffiliation: codeRef || null,
-          zone: expedier ? (zonesActives.length ? zone : form.ville) : undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setARegler({ total: data.total, livraison: data.montantLivraison ?? 0 });
-      setCommandeId(data.commandeId);
-      setPhase("paiement");
-    } catch (e: any) {
-      toast.error(t(e.message) || t("Erreur lors de la création de la commande"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── Phase 2 : paiement NotchPay ──────────────────────────────────────────────
-  if (phase === "paiement" && commandeId) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
-        <div className="lg:col-span-3 space-y-5">
-          <button onClick={() => setPhase("form")}
-            className="flex items-center gap-1.5 text-sm opacity-50 hover:opacity-80 transition-opacity">
-            <ArrowLeft size={14} />{" "}{t("Modifier mes informations")}
-          </button>
-
-          {/* Bandeau digital */}
-          <div className="flex items-start gap-3 p-4 rounded-2xl" style={{ background: `${theme.accent}10`, border: `1px solid ${theme.accent}30` }}>
-            <Zap size={18} style={{ color: theme.accent }} className="flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-bold" style={{ color: theme.accent }}>{expedier ? t("Expédition directe") : t("Livraison instantanée")}</p>
-              <p className="text-xs opacity-70 mt-0.5 leading-relaxed">
-                {expedier ? t("Votre commande part chez le fournisseur dès le paiement. Vous recevrez un lien de suivi.") : t("Vos fichiers seront disponibles immédiatement après le paiement.")}
-              </p>
-            </div>
-          </div>
-
-          {/* NotchPay checkout */}
-          <div className="rounded-2xl border p-5" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
-            <h2 className="font-bold font-playfair text-base mb-4 flex items-center gap-2"><CreditCard size={16} />{" "}{t("Paiement sécurisé")}</h2>
-            <NotchPayCheckout
-              commandeId={commandeId}
-              montant={aRegler?.total ?? total}
-              devise={devise}
-              clientEmail={form.email}
-              clientNom={form.nom}
-              clientTelephone={form.telephone}
-              paysClient={codePays(form.pays)}
-              onError={(msg) => toast.error(t(msg))}
-            />
-          </div>
-        </div>
-
-        <div className="lg:col-span-2">
-          <div className="lg:sticky lg:top-24 space-y-4">
-            <Recap theme={theme} devise={devise} items={items} total={aRegler ? aRegler.total - aRegler.livraison : total} codePromo={codePromo} label={expedier ? t("Votre commande") : t("Produits digitaux")} fraisLivraison={expedier ? aRegler?.livraison ?? null : null} />
-            {codeRef && (
-              <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl" style={{ background: `${theme.accent}10`, color: theme.accent }}>
-                <CheckCircle2 size={12} />{" "}{t("Code affiliation")}{" "}<span className="font-mono font-bold">{codeRef}</span>{" "}{t("appliqué")}
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-xs opacity-40 justify-center">
-              <Download size={10} />{" "}{expedier ? t("Lien de suivi envoyé après paiement") : t("Téléchargement disponible immédiatement après paiement")}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Paiement en ligne impossible (NotchPay non configuré, ou devise de la boutique non couverte) :
-  // dit avant le formulaire, plutôt qu'un refus au moment de payer.
-  if (!enLigneDispo) {
-    return (
-      <div className="max-w-lg mx-auto py-12 text-center space-y-3">
-        <CreditCard size={28} className="mx-auto opacity-40" />
-        <p className="font-semibold">{t("Le paiement en ligne n'est pas encore disponible pour cette boutique.")}</p>
-        <p className="text-sm opacity-60">{t("Contactez la boutique pour acheter ce produit.")}</p>
-      </div>
-    );
-  }
-
-  // ── Phase 1 : formulaire ───────────────────────────────────────────────────
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
-      <div className="lg:col-span-3 space-y-5">
-        {/* Bandeau digital */}
-        <div className="flex items-start gap-3 p-4 rounded-2xl" style={{ background: `${theme.accent}10`, border: `1px solid ${theme.accent}30` }}>
-          <Zap size={18} style={{ color: theme.accent }} className="flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold" style={{ color: theme.accent }}>{expedier ? t("Expédition directe") : t("Livraison instantanée")}</p>
-            <p className="text-xs opacity-70 mt-0.5 leading-relaxed">
-              {expedier
-                ? t("Payez en ligne : votre commande part chez le fournisseur et vous recevez un lien de suivi. Les frais de livraison de votre ville s'ajoutent à l'étape suivante.")
-                : t("Votre fichier sera disponible immédiatement après la confirmation du paiement. Un lien de téléchargement vous sera envoyé par email.")}
-            </p>
-          </div>
-        </div>
-
-        {/* Infos client */}
-        <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
-          <h2 className="font-bold font-playfair text-base flex items-center gap-2"><User size={16} />{" "}{t("Vos informations")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2">
-              <Field label={t("Nom complet")} required>
-                <div className="relative">
-                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
-                  <input value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={t("Ex: Aminata Diallo")} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
-                </div>
-              </Field>
-            </div>
-            <Field label={expedier ? t("Email") : t("Email (recevez votre fichier ici)")} required>
-              <div className="relative">
-                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
-                <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@exemple.com" className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
-              </div>
-            </Field>
-            <Field label={t("Téléphone")} required>
-              <div className="relative">
-                <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
-                <input type="tel" value={form.telephone} onChange={e => set("telephone", e.target.value)} placeholder={exempleTelephone(form.pays)} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
-              </div>
-            </Field>
-            <Field label={t("Pays")}>
-              <select value={form.pays} onChange={e => set("pays", e.target.value)} className={inp} style={inpStyle}>
-                {PAYS_OPTIONS.map(p => <option key={p.code} value={p.nom} style={{ backgroundColor: theme.surface }}>{t(p.nom)}</option>)}
-              </select>
-            </Field>
-            {expedier && (
-              <>
-                <div className="sm:col-span-2">
-                  <Field label={t("Adresse de livraison")} required>
-                    <input value={form.adresse} onChange={e => set("adresse", e.target.value)} placeholder={t("Rue, quartier, numéro, point de repère…")} className={inp} style={inpStyle} />
-                  </Field>
-                </div>
-                {zonesActives.length > 0 && (
-                  <Field label={t("Zone de livraison")} required>
-                    <select value={zone} onChange={e => setZone(e.target.value)} className={inp} style={inpStyle}>
-                      <option value="" style={{ backgroundColor: theme.surface }}>{t("Sélectionnez votre zone…")}</option>
-                      {zonesActives.map(z => <option key={z} value={z} style={{ backgroundColor: theme.surface }}>{t(z)}</option>)}
-                    </select>
-                  </Field>
-                )}
-                <Field label={t("Ville")} required>
-                  <input value={form.ville} onChange={e => set("ville", e.target.value)} placeholder={exempleVille(form.pays)} className={inp} style={inpStyle} />
-                </Field>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Info paiement */}
-        <div className="flex items-center gap-3 p-4 rounded-2xl border" style={{ borderColor: `${theme.accent}15`, background: `${theme.accent}05` }}>
-          <CreditCard size={16} style={{ color: theme.accent }} className="flex-shrink-0" />
-          <p className="text-xs opacity-60 leading-relaxed">
-            {t("Paiement sécurisé par")}{" "}<span className="font-bold" style={{ color: "#111111" }}>NotchPay</span>{" · "}{t(moyensEnLigne(codePays(form.pays)))}{" · "}{t("Chiffrement SSL 256-bit")}
-          </p>
-        </div>
-      </div>
-
-      {/* Récap + CTA */}
-      <div className="lg:col-span-2">
-        <div className="lg:sticky lg:top-24 space-y-4">
-          <Recap theme={theme} devise={devise} items={items} total={total} codePromo={codePromo} label={expedier ? t("Votre commande") : t("Produits digitaux")} />
-
-          {codeRef && (
-            <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl" style={{ background: `${theme.accent}10`, color: theme.accent }}>
-              <CheckCircle2 size={12} />{" "}{t("Code affiliation")}{" "}<span className="font-mono font-bold">{codeRef}</span>{" "}{t("appliqué")}
-            </div>
-          )}
-
-          <button onClick={creerCommande} disabled={loading}
-            className="w-full py-4 rounded-2xl font-bold text-base transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3 shadow-lg"
-            style={{ backgroundColor: "#635BFF", color: "#fff", boxShadow: "0 4px 20px rgba(99,91,255,0.4)" }}>
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <Shield size={16} />}
-            {loading ? t("Préparation du paiement…") : expedier ? t("Continuer vers le paiement") : t("Payer {0}", aPayer(total, devise))}
-          </button>
-
-          <div className="flex items-center gap-2 text-xs opacity-40 justify-center">
-            <Download size={10} />{" "}{expedier ? t("Lien de suivi envoyé après paiement") : t("Téléchargement disponible immédiatement après paiement")}
-          </div>
-        </div>
-      </div>
+    <div className="max-w-lg mx-auto py-12 text-center space-y-3">
+      <CreditCard size={28} className="mx-auto opacity-40" />
+      <p className="font-semibold">{t("Le paiement en ligne n'est pas encore disponible pour cette boutique.")}</p>
+      <p className="text-sm opacity-60">{t("Contactez la boutique pour acheter ce produit.")}</p>
     </div>
   );
 }
@@ -1039,7 +781,7 @@ export interface ArticleCommande {
 // Pas de panier : on commande UN produit, choisi sur sa fiche (Commander →
 // /checkout?produit=…). L'article et son prix viennent du serveur (page
 // checkout), jamais du navigateur ; le serveur les recalcule de toute façon.
-export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoUrl, parametresCommande, paysBoutique, paiement, enLigneDispo, article }: Props & { article: ArticleCommande | null }) {
+export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoUrl, parametresCommande, paysBoutique, paiement, article }: Props & { article: ArticleCommande | null }) {
   const t = useT();
   const items = useMemo(() => (article ? [article] : []), [article]);
   const sousTotal = article ? article.prix * article.quantite : 0;
@@ -1049,7 +791,7 @@ export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoU
   const viderPanier = () => {};
   const [commandee, setCommandee] = useState(false); // écran de confirmation : plus de badge ni de code promo
 
-  // digital + dropshipping → paiement en ligne ; physique → WhatsApp / paiement à la livraison
+  // digital + dropshipping → paiement en ligne (indisponible) ; physique → WhatsApp / paiement à la livraison
   const typePanier = !article ? "vide" : article.type === "physique" ? "physique" : "digital";
 
   useEffect(() => {
@@ -1076,7 +818,7 @@ export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoU
     );
   }
 
-  const commonProps = { theme, slug, devise, tenantId, nomBoutique, logoUrl, items, total, codePromo, viderPanier, parametresCommande, paysBoutique, paiement, enLigneDispo };
+  const commonProps = { theme, slug, devise, tenantId, nomBoutique, logoUrl, items, total, codePromo, viderPanier, parametresCommande, paysBoutique, paiement };
 
   return (
     <>
@@ -1084,20 +826,15 @@ export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoU
       {!commandee && <div className="max-w-xl mx-auto mb-5">
         {typePanier === "physique" && (
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "rgba(16,185,129,0.1)", color: "#10B981", border: "1px solid rgba(16,185,129,0.2)" }}>
-            <Package size={14} />{" "}{paiement.enLigne && enLigneDispo ? t("Commande physique · À la livraison ou en ligne") : t("Commande physique · Paiement à la livraison")}
-          </div>
-        )}
-        {typePanier === "digital" && (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: `${theme.accent}15`, color: theme.accent, border: `1px solid ${theme.accent}30` }}>
-            <Zap size={14} /> {article.type === "dropshipping" ? t("Expédition directe · Paiement en ligne sécurisé") : t("Livraison instantanée · Paiement en ligne sécurisé")}
+            <Package size={14} />{" "}{t("Commande physique · Paiement à la livraison")}
           </div>
         )}
       </div>}
 
-      {!commandee && <CodePromo theme={theme} slug={slug} devise={devise} sousTotal={sousTotal} items={items} promo={promo} onChange={setPromo} />}
+      {!commandee && typePanier === "physique" && <CodePromo theme={theme} slug={slug} devise={devise} sousTotal={sousTotal} items={items} promo={promo} onChange={setPromo} />}
 
       {typePanier === "physique" && <CheckoutPhysique {...commonProps} onCommandee={() => setCommandee(true)} />}
-      {typePanier === "digital"  && <CheckoutDigital {...commonProps} />}
+      {typePanier === "digital"  && <PaiementEnLigneIndisponible />}
     </>
   );
 }

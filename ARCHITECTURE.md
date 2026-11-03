@@ -27,7 +27,7 @@ tableau de bord, 16 pages vitrine, 10 pages admin, 19 migrations, 5 fichiers de 
 | Validation | zod 4 | `lib/validations.ts`, routes |
 | Interface | Tailwind CSS 4, composants shadcn (style `base-nova`), `lucide-react`, `sonner`, `recharts`, `@dnd-kit`, `leaflet`, `zustand` | `package.json`, `components.json`, `store/` |
 | Stockage de fichiers | Vercel Blob (`@vercel/blob` 0.27) ; une vidéo marketing sur Cloudinary | `app/api/upload/*`, `lib/televerser.ts`, `components/marketing/VideoSection.tsx` |
-| Paiements | NotchPay (appels `fetch`, pas de SDK) : encaissement, remboursement, transferts | `lib/notchpay.ts` |
+| Paiements | Aucun paiement en ligne pour l'instant (prestataire à intégrer) : paiement à la livraison ou commande WhatsApp ; retraits et commissions d'affiliés versés à la main par l'équipe Axso | `lib/wallet.ts` |
 | E-mails | Resend 6 ; Gmail du marchand par OAuth Google | `lib/email.ts`, `lib/mcp/connectors/gmail.ts` |
 | SMS | Africa's Talking | `lib/mcp/connectors/sms.ts`, `lib/integrations.ts` |
 | WhatsApp | Genuka, sinon Cloud API Meta, sinon lien `wa.me` | `lib/whatsapp.ts`, `lib/genuka.ts` |
@@ -92,7 +92,7 @@ Page (serveur ou "use client")  ──fetch──▶  app/api/**/route.ts  ─�
 ```
 
 - Les règles métier partagées ont un « point de passage unique » dans `lib/` : `lib/cycle-livraison.ts`,
-  `lib/remboursement.ts`, `lib/stock.ts`, `lib/paiement-commande.ts`, `lib/wallet.ts`, `lib/commandes.ts` (constantes de statut).
+  `lib/remboursement.ts`, `lib/stock.ts`, `lib/wallet.ts`, `lib/commandes.ts` (constantes de statut).
 - La couche n'est pas étanche : de nombreuses routes appellent Prisma directement, et dix routes
   `app/api/ai/agent-*/route.ts` exportent leur logique, importée ensuite par `lib/agent-consumer.ts`.
 - 67 fichiers `page.tsx` sur 163 sont des composants client (`"use client"`).
@@ -121,7 +121,7 @@ Page (serveur ou "use client")  ──fetch──▶  app/api/**/route.ts  ─�
 | Vitrine | `app/(storefront)/[slug]/*` | `api/storefront`, `api/recherche`, `api/stock/reserver`, `api/avis`, `api/pixel` | `fiche-produit.ts`, `pricing.ts`, `devise-visiteur.ts`, `pixels.ts` |
 | Catalogue | `dashboard/produits` (+ `nouveau`, `creer`, `[id]`, `categories`) | `api/produits`, `api/categories`, `api/variantesPrix`, `api/magic-import` | `categories-produits.ts`, `images-carrees.ts` |
 | Produits digitaux, formations, licences, bundles | `dashboard/produits/digital`, `[slug]/formation/[token]` | `api/produits/digitaux`, `api/formations`, `api/licences`, `api/telechargements`, `api/livraison-digitale` | `affiliation.ts::traiterPaiementDigital`, `bundle-delivery.ts`, `commandes.ts::accesDigitalOuvert` |
-| Commandes | `dashboard/commandes`, `dashboard/retours` | `api/commandes` (10 routes), `api/retours`, `api/tracking`, `api/suivi` | `commandes.ts`, `paiement-commande.ts`, `remboursement.ts` |
+| Commandes | `dashboard/commandes`, `dashboard/retours` | `api/commandes` (10 routes), `api/retours`, `api/tracking`, `api/suivi` | `commandes.ts`, `remboursement.ts` |
 | Livraison et livreurs | `dashboard/livraison`, `dashboard/livreurs`, `dashboard/transporteurs`, `app/(livreur)` | `api/livraison`, `api/livreurs`, `api/transporteurs` | `cycle-livraison.ts`, `livraison.ts` |
 | Clients | `dashboard/clients`, `dashboard/messages`, `dashboard/avis` | `api/messages`, `api/clients-acheteurs`, `api/chatbot` | `compte-acheteur.ts` |
 | Caisse (POS 2.0) | `dashboard/pos/*` (caisse, stock, inventaire, receptions, credit, fidelite, comptabilite…), `app/scanner` | `api/pos` (75 routes, 41 sous-dossiers) | `lib/pos/*` : `acces.ts`, `vente.ts`, `stock.ts`, `retours.ts`, `droits.ts`, `idempotence.ts`, `audit.ts`, `evenements.ts`, `hors-ligne/`, `achats/`, `operations/`, `promotions/`, `scanner/` |
@@ -129,7 +129,7 @@ Page (serveur ou "use client")  ──fetch──▶  app/api/**/route.ts  ─�
 | Sourcing et fournisseurs | `dashboard/sourcing` (+ `fournisseurs`, `reglages`) | `api/sourcing` (10), `api/fournisseurs` (9), `api/dropshipping` | `lib/sourcing/*` (`acces.ts`, `connecteurs.ts`, `rentabilite.ts`, `fulfillment.ts`, `fournisseurs/`), `sync-fournisseurs.ts` |
 | Marketing | `dashboard/marketing` (codes-promo, email, tracking), `campagnes`, `sms`, `popups`, `publicite`, `scheduler`, `automation`, `veille`, `whatsapp`, `feeds` | `api/campagnes`, `api/codes-promo`, `api/email`, `api/sms`, `api/popups`, `api/posts`, `api/automation`, `api/veille`, `api/feed` | `email.ts`, `whatsapp.ts`, `lib/mcp/*` |
 | Affiliation | `dashboard/affiliation`, `app/affilie`, `app/mon-espace-affilie` | `api/affiliation` (10), `api/affilie`, `api/track` | `affiliation.ts`, `affiliation-local.ts` |
-| Finances | `dashboard/wallet`, `factures`, `revenus`, `paiements`, `abonnement`, `rapports` | `api/wallet`, `api/factures`, `api/tva`, `api/abonnement`, `api/paiements/notchpay/*` | `wallet.ts`, `notchpay.ts`, `plans.ts`, `abonnement.ts`, `taux-change.ts`, `devise-convert.ts` |
+| Finances | `dashboard/wallet`, `factures`, `revenus`, `paiements`, `abonnement`, `rapports` | `api/wallet`, `api/factures`, `api/tva`, `api/abonnement` | `wallet.ts`, `plans.ts`, `abonnement.ts`, `taux-change.ts`, `devise-convert.ts` |
 | Équipe et permissions | `dashboard/parametres/equipe`, `app/(auth)/rejoindre-equipe/[token]` | `api/equipe` (4), `api/boutiques` (+ `switch`) | `permissions.ts`, `permissions-server.ts`, `permissions-api.ts`, `tenant.ts` |
 | Médias et fichiers | `dashboard/medias`, `dashboard/fichiers`, `dashboard/studio` | `api/upload`, `api/fichiers`, `api/medias`, `api/ai/video`, `api/ai/voix-off` | `televerser.ts`, `fichiers-boutique.ts`, `image-gen.ts` |
 | IA marchand | `dashboard/axia`, `dashboard/agents`, `dashboard/objectifs`, `dashboard/controle-ia` | `api/ai` (21), `api/axia`, `api/orchestrator`, `api/objectifs`, `api/controle-ia` | sections 7 et 8 |
@@ -234,7 +234,7 @@ documentés en commentaire). Migrations dans `prisma/migrations/` (19, dont `con
 ### 5.4 Plans
 
 - Paliers `palier0` (Essentiel), `palier1` (Pro, 6000 XAF), `palier2` (Illimité, 20000 XAF) : `lib/plans.ts`,
-  `lib/plans-catalogue.ts`, prix repris dans `app/api/paiements/notchpay/webhook/route.ts`.
+  `lib/plans-catalogue.ts`.
 - `lib/abonnement.ts::planActif` : le meilleur palier non expiré parmi les boutiques des mêmes propriétaires.
 - Fonctions par palier : `sourcing_mondial`, `analytics_avance`, `analytics_temps_reel`, `multi_boutique` ;
   les outils AXIA portent un `tier` filtré par `filtrerOutilsParPalier`.
@@ -271,8 +271,7 @@ Relevé par recherche des routes sans `auth()`, garde admin, caisse ou sourcing 
 
 - **Vitrine** : `storefront/[slug]/{contact,newsletter,recherche}`, `storefront/wishlist`, `boutique/[slug]/zones`,
   `livraison/calculer`, `codes-promo/verifier`, `stock/reserver`, `avis`, `tva`, `pixel`, `preview-theme`.
-- **Commande et paiement** : `commandes/digital-creer`, `commandes/whatsapp-creer`,
-  `paiements/notchpay/{initier,verifier,webhook}`.
+- **Commande** : `commandes/whatsapp-creer`.
 - **Accès par jeton** : `tracking/[token]`, `suivi`, `telechargements/[token]`, `formations/progression`,
   `licences/activer`, `affilie/[token]`, `equipe/accepter`, `pos/scanner/appairage/echange`.
 - **Affiliation et flux** : `affiliation/{tracker,rejoindre}`, `affilie/track-clic`, `track/[code]`, `v/[varianteId]`,
@@ -284,7 +283,6 @@ Relevé par recherche des routes sans `auth()`, garde admin, caisse ou sourcing 
 
 | Route | Vérification |
 |---|---|
-| `app/api/paiements/notchpay/webhook/route.ts` | signature `x-notch-signature` (`lib/notchpay.ts::verifierSignatureWebhook`) ; aiguillage par préfixe de référence (`ORD-`, `SUB-`, transferts) |
 | `app/api/webhooks/meta/route.ts` | HMAC SHA-256 `x-hub-signature-256` avec le secret de l'application, comparaison à temps constant |
 | `app/api/webhooks/whatsapp/route.ts` | même signature ; traitement après réponse par `after()` |
 | `app/api/webhooks/genuka/[tenantId]/route.ts` | HMAC avec le secret enregistré par le marchand (`lib/genuka.ts`) |
@@ -450,7 +448,6 @@ Registre : `lib/integrations.ts` (`INTEGRATIONS`, `integrationActive`, `etatInte
 | Service | Usage | Fichiers | Variables (noms seulement) |
 |---|---|---|---|
 | PostgreSQL | toute l'application | `lib/prisma.ts` | `DATABASE_URL` |
-| NotchPay | paiement des commandes et des abonnements, remboursements, retraits | `lib/notchpay.ts`, `lib/wallet.ts`, `lib/paiement-commande.ts`, `app/api/paiements/notchpay/*` | `NOTCHPAY_PUBLIC_KEY`, `NOTCHPAY_PRIVATE_KEY`, `NOTCHPAY_WEBHOOK_SECRET` |
 | Vercel Blob | fichiers | section 9 | `BLOB_READ_WRITE_TOKEN` |
 | Vercel API | domaines personnalisés | `lib/domaines.ts` | `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` |
 | Resend | e-mails transactionnels, 2FA | `lib/email.ts` | `RESEND_API_KEY` |
@@ -499,7 +496,6 @@ Uniquement ce qui a été vu dans le code. Classés par gravité estimée.
 | 15 | **CI non bloquante** : contrôle de types, lint et audit se terminent par `\|\| true` ; aucun fichier de configuration ESLint à la racine ; la CI ne se déclenche que sur `main` et `develop` | `.github/workflows/ci.yml` |
 | 16 | Caches en mémoire par instance (domaines, 60 s) | `lib/domaines.ts` |
 | 17 | Aucune dépendance de suivi d'erreurs ou de métriques : journaux `console.*` seulement | `package.json` |
-| 18 | Le webhook NotchPay accuse réception même si le traitement échoue (voulu, noté dans le fichier) : un échec ne sera pas rejoué | `app/api/paiements/notchpay/webhook/route.ts` |
 
 ### Qualité du code
 
@@ -533,7 +529,7 @@ Uniquement ce qui a été vu dans le code. Classés par gravité estimée.
 | Commandes et livraison | `lib/cycle-livraison.ts` (`changerStatutCommande`, `assignerLivreurCommande`, `marquerEspecesRemises`) | Point de passage unique, notifications comprises |
 | Annulation, remboursement, retours | `lib/remboursement.ts` | |
 | Stock | `lib/stock.ts` (`sortirStock`, `rendreStock`) | |
-| Argent | `lib/wallet.ts`, `lib/notchpay.ts`, `lib/paiement-commande.ts`, `lib/affiliation.ts::payerCommissionsAffilie` | |
+| Argent | `lib/wallet.ts`, `lib/affiliation.ts::payerCommissionsAffilie` | |
 | Prix et livraison | `lib/pricing.ts`, `lib/livraison.ts::calculerOptionsLivraison` | |
 | Caisse | `lib/pos/*` avec `lib/pos/idempotence.ts`, `lib/pos/audit.ts`, `lib/pos/evenements.ts` | Modèle d'idempotence et de journal chaîné réutilisable tel quel |
 | Sourcing | `lib/sourcing/*` (`acces.ts`, `rentabilite.ts`, `fulfillment.ts`, interface `SupplierConnector`) | Connecteurs réels non branchés |

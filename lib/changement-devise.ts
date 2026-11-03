@@ -34,7 +34,7 @@ export async function convertirDeviseBoutique(tx: Tx, tenantId: string, ancienne
 
   // Historique (seulement ce qui est encore dans l'ancienne devise)
   await tx.$executeRaw`UPDATE "LigneCommande" l SET ${conv("prix", "l")} FROM "Commande" c WHERE l."commandeId" = c.id AND c."tenantId" = ${t} AND c.devise = ${a} AND NOT (c."paiementStatut" = 'pending' AND c."paiementReference" IS NOT NULL)`;
-  await tx.$executeRaw`UPDATE "Commande" SET ${conv("montantSousTotal")}, ${conv("montantLivraison")}, ${conv("montantReduction")}, ${conv("montantTotal")}, devise = ${n} WHERE "tenantId" = ${t} AND devise = ${a} AND NOT ("paiementStatut" = 'pending' AND "paiementReference" IS NOT NULL)`; // paiement NotchPay en cours : créé dans l'ancienne devise
+  await tx.$executeRaw`UPDATE "Commande" SET ${conv("montantSousTotal")}, ${conv("montantLivraison")}, ${conv("montantReduction")}, ${conv("montantTotal")}, devise = ${n} WHERE "tenantId" = ${t} AND devise = ${a} AND NOT ("paiementStatut" = 'pending' AND "paiementReference" IS NOT NULL)`; // paiement en ligne en cours : créé dans l'ancienne devise
   await tx.$executeRaw`UPDATE "Commission" SET ${conv("montantCommande")}, ${conv("montantCommission")}, ${conv("montantMarchand")}, devise = ${n} WHERE "tenantId" = ${t} AND devise = ${a}`;
   await tx.$executeRaw`UPDATE "WalletTransaction" w SET ${conv("montant", "w")}, devise = ${n} FROM "Wallet" wa WHERE w."walletId" = wa.id AND wa."tenantId" = ${t} AND w.devise = ${a}`;
   await tx.$executeRaw`UPDATE "Wallet" SET ${conv("solde")}, ${conv("totalRecu")}, ${conv("totalRetire")}, ${conv("totalCommission")}, devise = ${n} WHERE "tenantId" = ${t} AND devise = ${a}`;

@@ -83,7 +83,7 @@ Client en colère, commande perdue, litige → tu restes calme et factuel. Tu pr
 
 ─── MARCHÉ ──────────────────────────────────────────────────────────────────
 
-Afrique francophone (Sénégal, Côte d'Ivoire, Cameroun, etc.) + diaspora. Paiements encaissés par Axso : Orange Money et MTN Mobile Money (via NotchPay) + paiement à la livraison — ne cite aucun autre moyen de paiement. WhatsApp = canal de vente #1. Les prix sont dans la devise de la boutique.
+Afrique francophone (Sénégal, Côte d'Ivoire, Cameroun, etc.) + diaspora. Paiement : le paiement en ligne est momentanément indisponible — les clients paient à la livraison ou commandent par WhatsApp ; ne cite aucun autre moyen de paiement et ne promets pas de paiement en ligne. Les produits numériques ne peuvent pas être vendus tant que le paiement en ligne n'est pas revenu. WhatsApp = canal de vente #1. Les prix sont dans la devise de la boutique.
 
 ─── EXEMPLES BONS VS MAUVAIS ────────────────────────────────────────────────
 
@@ -1214,7 +1214,7 @@ const executeOutil: ToolExecutor = async (nom, args, tenantId) => {
         // Ouvre un vrai retour (RMA) — la commande garde son statut ; l'accepter la remboursera.
         const r = await creerRetour({ tenantId, commande: String(args.commandeId), raison: args.raison, type: args.type === "echange" ? "echange" : "remboursement" });
         if (!r.ok) return { succes: false, resultat: r.error };
-        return { succes: true, resultat: `✅ Retour ouvert pour la commande ${r.numero} (${args.type === "echange" ? "échange" : "remboursement"}). Motif : ${args.raison}. Accepte-le dans Logistique → Retours pour déclencher le remboursement.` };
+        return { succes: true, resultat: `✅ Retour ouvert pour la commande ${r.numero} (${args.type === "echange" ? "échange" : "remboursement"}). Motif : ${args.raison}. Accepte-le dans Logistique → Retours ; le remboursement au client se fait par toi, en espèces.` };
       }
       case "escalader_vers_humain": {
         const urgenceLabel = args.urgence === "haute" ? "🔴 HAUTE" : args.urgence === "basse" ? "🟢 BASSE" : "🟡 NORMALE";

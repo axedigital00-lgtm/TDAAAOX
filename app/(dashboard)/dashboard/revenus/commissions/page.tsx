@@ -65,7 +65,7 @@ export default async function CommissionsPage() {
         <p className="text-[#B45309] text-sm font-semibold">{t("Comment ça marche ?")}</p>
         <div className="grid sm:grid-cols-3 gap-3 text-xs">
           {[
-            { step: "1. Prix payé en ligne", desc: "Le client paie votre prix + 10 % (7 % Axso, 3 % NotchPay), ou + 13 % pour un produit numérique (10 % Axso, 3 % NotchPay)." },
+            { step: "1. Prix payé en ligne", desc: "Le client paie votre prix + 10 % (7 % Axso, 3 % de frais de paiement), ou + 13 % pour un produit numérique (10 % Axso, 3 % de frais de paiement)." },
             { step: "2. Paiement en ligne", desc: "Dès que le paiement est confirmé, votre wallet est crédité de votre prix, en entier." },
             { step: "3. Paiement à la livraison", desc: "Le client paie votre prix, en espèces : aucune commission, rien n'est prélevé sur votre wallet." },
           ].map((s) => (

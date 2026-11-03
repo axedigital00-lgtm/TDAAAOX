@@ -6,7 +6,7 @@ import { getAdminSessionPour, estAdminComplet } from "@/lib/admin-auth";
 import { AdminRetraitsManuels } from "@/components/admin/AdminRetraitsManuels";
 import { getT } from "@/lib/i18n/serveur";
 
-// Affiliés de toutes les boutiques : retraits d'affiliés à faire dans NotchPay (validation par Axso,
+// Affiliés de toutes les boutiques : retraits d'affiliés à faire à la main (validation par Axso,
 // lib/affiliation.ts), vue d'ensemble des partenariats et derniers retraits traités.
 export default async function AdminAffiliesPage() {
   const tx = await getT();

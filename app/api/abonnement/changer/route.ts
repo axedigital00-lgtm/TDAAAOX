@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { boutiquesDuCompte } from "@/lib/tenant";
 
 // Cette route ne gère que le downgrade gratuit (aucun paiement requis).
-// Les upgrades payants passent par /api/abonnement/paiement (NotchPay).
+// Les paliers payants ne s'achètent pas en ligne pour l'instant (prestataire à venir).
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   const plan = body.plan?.toLowerCase();
   if (plan !== "palier0") {
     return NextResponse.json(
-      { error: "Les upgrades payants passent par le paiement NotchPay" },
+      { error: "Paiement en ligne bientôt disponible" },
       { status: 400 }
     );
   }
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   // s'applique à toutes les boutiques du propriétaire, sinon le palier d'une autre resterait actif.
   await prisma.tenant.updateMany({
     where: { id: { in: proprietaire } },
-    data: { planType: "palier0", planExpiresAt: null, planPendingRef: null, planRappel: null },
+    data: { planType: "palier0", planExpiresAt: null, planRappel: null },
   });
 
   return NextResponse.json({ succes: true, plan: "palier0" });

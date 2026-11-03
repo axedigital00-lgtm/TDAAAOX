@@ -1,15 +1,14 @@
 // LIVRAISON NUMÉRIQUE — tests d'intégration sur la base LOCALE (`npm run test:integration`).
-// Aucun appel réseau réel : NotchPay, Resend et Vercel Blob sont simulés par un faux fetch
-// (tout autre hôte fait échouer le test). Le webhook est signé localement avec un secret
-// de test, puis passe par la vraie route, la vraie vérification de signature et la vraie base.
+// Aucun appel réseau réel : Resend et Vercel Blob sont simulés par un faux fetch
+// (tout autre hôte fait échouer le test). Une commande payée est livrée par la vraie
+// livraison numérique, la vraie route de téléchargement et la vraie base.
 // Une boutique de test est créée puis entièrement supprimée.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createHmac, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { POST as webhook } from "@/app/api/paiements/notchpay/webhook/route";
 import { GET as telecharger } from "@/app/api/telechargements/[token]/route";
 import { livrerCommandeDigitale, reprendreLivraisons, cleAccesCommande, cleAccesValide } from "@/lib/livraison-numerique";
 import { rembourserCommande } from "@/lib/remboursement";
@@ -19,25 +18,16 @@ if (!/@localhost[/:]|host=\/var\/run/.test(url)) throw new Error("Tests d'intég
 
 // Secrets de TEST uniquement (jamais les vraies clés) : lus au moment de l'appel, après ces lignes.
 Object.assign(process.env, {
-  NOTCHPAY_PUBLIC_KEY: "pk_test_local", NOTCHPAY_PRIVATE_KEY: "sk_test_local", NOTCHPAY_WEBHOOK_SECRET: "hsk_test_local",
   RESEND_API_KEY: "re_test_local", AUTH_SECRET: process.env.AUTH_SECRET || "secret-de-test", NEXT_PUBLIC_APP_URL: "http://localhost:3000",
 });
 
 // ─── Faux réseau ─────────────────────────────────────────────────────────────
-const transactions = new Map<string, any>();
 const emails: any[] = [];
 let resendEnPanne = false;
 const vraiFetch = globalThis.fetch;
 globalThis.fetch = (async (entree: any, init?: any) => {
   const u = new URL(typeof entree === "string" ? entree : entree.url);
   const json = (corps: unknown, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
-  if (u.hostname === "api.notchpay.co") {
-    if (u.pathname.startsWith("/payments/")) {
-      const t = transactions.get(decodeURIComponent(u.pathname.slice(10)));
-      return t ? json({ transaction: t }) : json({ message: "Not found" }, 404);
-    }
-    if (u.pathname === "/refunds") return json({ refund: { status: "processing" } });
-  }
   if (u.hostname === "api.resend.com") {
     if (resendEnPanne) return json({ name: "application_error", message: "panne simulée", statusCode: 500 }, 500);
     emails.push(JSON.parse(init?.body ?? "{}"));
@@ -50,24 +40,17 @@ globalThis.fetch = (async (entree: any, init?: any) => {
 const X = `ln${randomBytes(4).toString("hex")}`;
 const ids: Record<string, string> = {};
 
-async function nouvelleCommande(nom: string, produits: string[], montant = 5500) {
-  const ref = `trx.${X}.${nom}`;
+// Commande payée (à la livraison, encaissée) ou non : la livraison numérique ne regarde que le paiement.
+async function nouvelleCommande(nom: string, produits: string[], payee = true, montant = 5500) {
   const c = await prisma.commande.create({
     data: {
       numero: `${X}-${nom}`, tenantId: ids.tenant, clientNom: "Awa Test", clientEmail: `awa-${X}@exemple.test`, clientTelephone: "+237600000001",
       adresseLivraison: "Digital", ville: "Douala", pays: "CM", montantSousTotal: montant, montantTotal: montant, devise: "XAF",
-      methodePaiement: "notchpay", paiementProvider: "notchpay", paiementReference: ref,
+      methodePaiement: "direct_cod", paiementStatut: payee ? "completed" : "pending",
       lignes: { create: produits.map((p) => ({ produitId: p, nom: `Produit ${p.slice(-4)}`, prix: montant / produits.length, quantite: 1 })) },
     },
   });
-  transactions.set(ref, { reference: ref, merchant_reference: `ORD-${c.id}`, status: "complete", amount: montant, currency: "XAF", fees: [{ amount: 100 }] });
-  return { id: c.id, ref };
-}
-
-function evenementSigne(commandeId: string, ref: string, secret = "hsk_test_local") {
-  const corps = JSON.stringify({ type: "payment.complete", data: { reference: ref, merchant_reference: `ORD-${commandeId}` } });
-  const signature = createHmac("sha256", secret).update(corps).digest("hex");
-  return new NextRequest("http://localhost/api/paiements/notchpay/webhook", { method: "POST", body: corps, headers: { "x-notch-signature": signature } });
+  return c.id;
 }
 
 const dl = (token: string, fichier?: string) =>
@@ -113,14 +96,11 @@ after(async () => {
   await prisma.$disconnect();
 });
 
-test("C — webhook signé → paiement relu chez NotchPay → droits créés → e-mail confirmé par Resend", async () => {
-  const { id, ref } = await nouvelleCommande("c", [ids.pdf, ids.lic]);
+test("C — commande payée → droits créés → e-mail confirmé par Resend", async () => {
+  const id = await nouvelleCommande("c", [ids.pdf, ids.lic]);
   ids.cmdC = id;
-  const res = await webhook(evenementSigne(id, ref));
-  assert.equal(res.status, 200);
+  assert.ok((await livrerCommandeDigitale(id)).ok);
   const c = await prisma.commande.findUniqueOrThrow({ where: { id } });
-  assert.equal(c.paiementStatut, "completed");
-  assert.equal(c.statut, "livree");
   const jetons = await prisma.telechargement.findMany({ where: { commandeId: id } });
   assert.equal(jetons.length, 1);
   assert.match(jetons[0].token, /^[0-9a-f]{64}$/); // 256 bits
@@ -140,20 +120,8 @@ test("C — webhook signé → paiement relu chez NotchPay → droits créés �
   assert.equal(r.headers.get("cache-control"), "private, no-store");
 });
 
-test("signature invalide ou montant insuffisant → aucun droit", async () => {
-  const a = await nouvelleCommande("sig", [ids.pdf]);
-  assert.equal((await webhook(evenementSigne(a.id, a.ref, "mauvais-secret"))).status, 400);
-  const b = await nouvelleCommande("montant", [ids.pdf]);
-  transactions.get(b.ref).amount = 100; // payé 100 XAF au lieu de 5500
-  assert.equal((await webhook(evenementSigne(b.id, b.ref))).status, 200);
-  for (const id of [a.id, b.id]) {
-    assert.equal((await prisma.commande.findUniqueOrThrow({ where: { id } })).paiementStatut, "pending");
-    assert.equal(await prisma.telechargement.count({ where: { commandeId: id } }), 0);
-  }
-});
-
 test("D — commande non payée : aucune livraison, jeton refusé (403)", async () => {
-  const { id } = await nouvelleCommande("d", [ids.pdf]);
+  const id = await nouvelleCommande("d", [ids.pdf], false);
   ids.cmdD = id;
   assert.deepEqual(await livrerCommandeDigitale(id), { ok: false, raison: "non_payee" });
   assert.equal(await prisma.telechargement.count({ where: { commandeId: id } }), 0);
@@ -163,27 +131,25 @@ test("D — commande non payée : aucune livraison, jeton refusé (403)", async 
   assert.equal((await dl(token)).status, 403);
 });
 
-test("E — webhook répété (en série et en parallèle) → une seule livraison, un seul e-mail", async () => {
-  const { id, ref } = await nouvelleCommande("e", [ids.pdf, ids.lic]);
+test("E — livraison répétée (en série et en parallèle) → une seule livraison, un seul e-mail", async () => {
+  const id = await nouvelleCommande("e", [ids.pdf, ids.lic]);
   const auClient = () => emails.filter((e) => [e.to].flat().includes(`awa-${X}@exemple.test`)).length;
   const avant = auClient();
-  await Promise.all([webhook(evenementSigne(id, ref)), webhook(evenementSigne(id, ref)), webhook(evenementSigne(id, ref))]);
-  await webhook(evenementSigne(id, ref));
+  await Promise.all([livrerCommandeDigitale(id), livrerCommandeDigitale(id), livrerCommandeDigitale(id)]);
   await livrerCommandeDigitale(id);
   assert.equal(await prisma.telechargement.count({ where: { commandeId: id } }), 1);
   assert.equal(await prisma.cleLicence.count({ where: { commandeId: id } }), 1);
-  assert.equal(await prisma.walletTransaction.count({ where: { commandeId: id, type: "CREDIT" } }), 1);
   assert.equal(auClient() - avant, 1, "un seul e-mail au client (l'alerte marchand est à part)");
 });
 
 test("F — Resend en panne : accès conservés, erreur journalisée, reprise puis e-mail envoyé", async () => {
   resendEnPanne = true;
-  const { id, ref } = await nouvelleCommande("f", [ids.pdf]);
-  await webhook(evenementSigne(id, ref));
+  const id = await nouvelleCommande("f", [ids.pdf]);
+  await livrerCommandeDigitale(id);
   let journal = await prisma.livraisonDigitale.findUniqueOrThrow({ where: { commandeId: id } });
   assert.equal(journal.statut, "livree");
   assert.equal(journal.emailStatut, "echec");
-  assert.ok(journal.derniereErreur && !/re_test_local|hsk_|sk_/.test(journal.derniereErreur), "erreur sans secret");
+  assert.ok(journal.derniereErreur && !/re_test_local/.test(journal.derniereErreur), "erreur sans secret");
   const jeton = await prisma.telechargement.findFirstOrThrow({ where: { commandeId: id } });
   assert.equal((await dl(jeton.token)).status, 200, "téléchargement disponible malgré l'e-mail en échec");
   resendEnPanne = false;

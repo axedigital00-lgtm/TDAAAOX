@@ -1,5 +1,5 @@
 // Retraits d'affiliés à verser (circuit manuel, voir lib/affiliation.ts) : Axso fait le transfert
-// dans NotchPay puis clôture ici. Même format que /api/admin/wallet/retraits.
+// à la main puis clôture ici. Même format que /api/admin/wallet/retraits.
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession, getAdminSessionPour, estAdminComplet } from "@/lib/admin-auth";
 import { journaliser } from "@/lib/command-center/serveur";

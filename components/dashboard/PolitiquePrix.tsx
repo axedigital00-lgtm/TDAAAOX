@@ -21,12 +21,12 @@ export function PolitiquePrix({ prix, type }: { prix: string | number; type: str
       <div>
         {numerique ? (
           <p>{p > 0
-            ? tr("Le client paiera {0} : votre prix + 13 % (10 % AXSO, 3 % NotchPay). Vous recevez {1}.", fmt(prixClient(p, TAUX, type)), fmt(p))
-            : tr("Produit numérique : la plateforme ajoute 13 % à votre prix (10 % AXSO, 3 % NotchPay). Le client les paie, vous gardez votre prix.")}</p>
+            ? tr("Vente en ligne momentanément indisponible. À son retour, le client paiera {0} : votre prix + 13 % (10 % AXSO, 3 % frais de paiement). Vous recevrez {1}.", fmt(prixClient(p, TAUX, type)), fmt(p))
+            : tr("Produit numérique : vente en ligne momentanément indisponible. À son retour, la plateforme ajoutera 13 % à votre prix (10 % AXSO, 3 % frais de paiement) ; vous garderez votre prix.")}</p>
         ) : (
           <p>{p > 0
-            ? tr("Payé à la livraison : le client paie {0}, sans commission. Payé en ligne : il paie {1}, votre prix + 10 % (7 % AXSO, 3 % NotchPay). Vous recevez toujours {0}.", fmt(p), fmt(prixClient(p, TAUX, "en_ligne")))
-            : tr("Produit physique : rien n'est ajouté s'il est payé à la livraison ; payé en ligne, la plateforme ajoute 10 % (7 % AXSO, 3 % NotchPay). Vous gardez toujours votre prix.")}</p>
+            ? tr("Payé à la livraison : le client paie {0}, sans commission. Vous recevez {0}.", fmt(p))
+            : tr("Produit physique : payé à la livraison, rien n'est ajouté à votre prix. Vous le gardez en entier.")}</p>
         )}
         <Link href="/legal/politique-prix" target="_blank" className="font-semibold underline">{tr("Politique de prix")}</Link>
       </div>

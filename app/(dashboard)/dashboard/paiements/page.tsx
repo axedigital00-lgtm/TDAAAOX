@@ -21,7 +21,7 @@ const METHODE_LABEL: Record<string, string> = {
   card: "Carte",
   mobilemoney: "Mobile Money",
   banktransfer: "Virement",
-  notchpay: "NotchPay",
+  notchpay: "Paiement en ligne",
   whatsapp_cod: "Paiement à la livraison (WhatsApp)",
   direct_cod: "Paiement à la livraison",
   en_attente: "En attente de paiement",

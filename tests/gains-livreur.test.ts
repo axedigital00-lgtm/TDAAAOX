@@ -44,7 +44,7 @@ function fausseTx(livreurTenantId: string | null, reglage: { mode: string; monta
 }
 const commande = (methodePaiement: string) => ({ id: "c1", numero: "A1", tenantId: "t1", livreurId: "l1", montantLivraison: 1500, montantTotal: 10000, devise: "XAF", methodePaiement });
 
-test("en ligne : crédité au livreur, débité du marchand, une seule fois", async () => {
+test("payée en ligne (anciennes commandes) : crédité au livreur, débité du marchand, une seule fois", async () => {
   const { tx, db } = fausseTx(null, null);
   await enregistrerGainCourse(tx, commande("notchpay"));
   await enregistrerGainCourse(tx, commande("notchpay"));

@@ -1,5 +1,5 @@
-// Créer une commande physique (paiement à la livraison, ou en ligne si la boutique l'accepte) + lien WhatsApp + tokens tracking/facture.
-// Le dropshipping et le digital se paient en ligne (digital-creer) : refusés ici.
+// Créer une commande physique (paiement à la livraison) + lien WhatsApp + tokens tracking/facture.
+// Le dropshipping et le digital se paient en ligne (indisponible pour l'instant) : refusés ici.
 import { lienBoutique } from "@/lib/origine-site";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -11,15 +11,14 @@ import { villeCommande } from "@/lib/livraison-reglages";
 import { codePays } from "@/lib/devise-convert";
 import { randomBytes } from "crypto";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
-import { prixClient, reductionPromo, filtreUsagePromo } from "@/lib/pricing";
+import { reductionPromo, filtreUsagePromo } from "@/lib/pricing";
 import { RuptureStock, sortirStock } from "@/lib/stock";
 import { COOKIE_XP, noterConversion } from "@/lib/builder/experiences";
-import { hasNotchPay } from "@/lib/notchpay";
-import { lireReglagesPaiement, moyensPhysique, paiementEnLigneDisponible } from "@/lib/paiement-pays";
+import { lireReglagesPaiement, moyensPhysique } from "@/lib/paiement-pays";
 
 function genToken() { return randomBytes(20).toString("hex"); }
 
-// Formulaire public : limite par IP (partagée avec digital-creer).
+// Formulaire public : limite par IP.
 const limiteCommande = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "commande-vitrine" });
 
 export async function POST(req: NextRequest) {
@@ -28,8 +27,7 @@ export async function POST(req: NextRequest) {
     if (!rl.success) return rateLimitResponse(rl.reset);
     // Prix, total, remise et devise NE viennent JAMAIS du navigateur : recalculés depuis la base.
     const { tenantId, slug, client, items: itemsClient, codePromo: codeSaisi, localisation, canal, champPersonnalise, zone, codeAffiliation } = await req.json();
-    const enLigne = canal === "en_ligne";
-    const viaWhatsapp = !enLigne && canal !== "direct";
+    const viaWhatsapp = canal !== "direct";
 
     if (!tenantId || !Array.isArray(itemsClient) || !itemsClient.length || itemsClient.length > 50 || !client?.nom || !client?.telephone) {
       return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
@@ -46,17 +44,16 @@ export async function POST(req: NextRequest) {
 
     // Moyen choisi : accepté par la boutique et possible pour le pays du client (le navigateur ne fait que proposer).
     const moyens = moyensPhysique(lireReglagesPaiement(tenant.parametresPaiement), {
-      paysClient: codePays(client?.pays), paysBoutique: tenant.pays, enLigneDispo: hasNotchPay() && paiementEnLigneDisponible(tenant.devise),
+      paysClient: codePays(client?.pays), paysBoutique: tenant.pays,
     });
-    if (!(enLigne ? moyens.enLigne : viaWhatsapp ? moyens.whatsapp : moyens.livraison)) {
-      return NextResponse.json({ error: enLigne ? "Le paiement en ligne n'est pas disponible pour cette boutique" : "Le paiement à la livraison n'est pas proposé pour votre pays" }, { status: 409 });
+    if (!(viaWhatsapp ? moyens.whatsapp : moyens.livraison)) {
+      return NextResponse.json({ error: "Le paiement à la livraison n'est pas proposé pour votre pays" }, { status: 409 });
     }
 
     const produits = await prisma.produit.findMany({
       where: { id: { in: itemsClient.map((i: any) => String(i.produitId)) }, tenantId, actif: true },
       select: { id: true, nom: true, type: true, prix: true, images: true, variantes: { where: { actif: true }, select: { nom: true, valeur: true, prix: true } } },
     });
-    const taux = tenant.commissionRate ?? 0.1;
     const items: { produitId: string; nom: string; prix: number; quantite: number; imageUrl: string | null; variante: string | null }[] = [];
     for (const item of itemsClient) {
       const p = produits.find((x) => x.id === String(item.produitId));
@@ -67,8 +64,8 @@ export async function POST(req: NextRequest) {
       const variante = item.variante ? p.variantes.find((v) => `${v.nom}: ${v.valeur}` === item.variante) : null;
       if (item.variante && !variante) return NextResponse.json({ error: `Variante « ${item.variante} » introuvable pour ${p.nom}` }, { status: 400 });
       items.push({
-        // Payé en ligne : commission Axso ajoutée au prix, comme pour le digital (à la livraison : prix du marchand).
-        produitId: p.id, nom: p.nom, prix: prixClient(variante?.prix ?? p.prix, taux, enLigne ? "en_ligne" : p.type),
+        // À la livraison : prix du marchand, sans commission.
+        produitId: p.id, nom: p.nom, prix: variante?.prix ?? p.prix,
         quantite: Math.min(Math.max(Math.floor(Number(item.quantite) || 1), 1), 999),
         imageUrl: p.images[0] ?? null, variante: variante ? item.variante : null,
       });
@@ -120,7 +117,7 @@ export async function POST(req: NextRequest) {
         clientTelephone: client.telephone,
         adresseLivraison: localisation?.adresseExacte || client.adresse || "À préciser",
         ville: villeCommande(zone, client.ville) || "—",
-        tauxCommission: enLigne ? taux : null, // physique payé en ligne : +10 % ; à la livraison : rien
+        tauxCommission: null, // à la livraison : rien n'est prélevé
         pays: client.pays || "—",
         montantSousTotal: sousTotal,
         montantReduction: reduction,
@@ -130,7 +127,7 @@ export async function POST(req: NextRequest) {
         devise,
         statut: "en_attente",
         paiementStatut: "pending",
-        methodePaiement: enLigne ? "en_attente" : viaWhatsapp ? "whatsapp_cod" : "direct_cod",
+        methodePaiement: viaWhatsapp ? "whatsapp_cod" : "direct_cod",
         codeAffiliation: codeAffiliation || null,
         trackingToken,
         livreurToken,
@@ -146,19 +143,12 @@ export async function POST(req: NextRequest) {
       });
       await sortirStock(tx, { tenantId, commandeId: c.id, motif: `Commande #${c.numero}` });
       // Incrément conditionnel : deux commandes simultanées ne dépassent pas maxUtilisations.
-      // Payé en ligne : compté au paiement reçu (lib/paiement-commande.ts).
-      if (promoValide && !enLigne) {
+      if (promoValide) {
         const { count } = await tx.codePromo.updateMany({ where: filtreUsagePromo(promo), data: { utilisations: { increment: 1 } } });
         if (!count) throw new RuptureStock("Ce code promo vient d'être épuisé — réessayez sans le code");
       }
       return c;
     });
-
-    // Payé en ligne : la commande attend son paiement ; notifications, affiliation et messages partent
-    // à la confirmation du paiement (lib/paiement-commande.ts). Non payée, elle est libérée par cron/paiements.
-    if (enLigne) {
-      return NextResponse.json({ commandeId: commande.id, numero: commande.numero, enLigne: true, montantLivraison, montantTotal: montantTotalAvecLivraison, trackingToken });
-    }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://axsoafrica.com";
     const factureUrl  = await lienBoutique(tenant.slug, `/facture/${trackingToken}`);

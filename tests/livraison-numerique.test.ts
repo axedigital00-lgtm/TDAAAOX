@@ -1,11 +1,10 @@
 // Livraison numérique — règles pures : contrôle d'un jeton de téléchargement, clé signée
-// de la page d'accès, adresse de stockage servie en flux, transaction NotchPay liée à la commande.
-// Le parcours complet (webhook signé, base, e-mail, reprise, remboursement) : tests/integration/livraison-numerique.test.ts.
+// de la page d'accès, adresse de stockage servie en flux.
+// Le parcours complet (base, e-mail, reprise, remboursement) : tests/integration/livraison-numerique.test.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 process.env.AUTH_SECRET ||= "secret-de-test";
 import { controlerJeton, cleAccesCommande, cleAccesValide, estFichierBlob, nouveauJeton } from "@/lib/livraison-numerique";
-import { transactionAppartient } from "@/lib/paiement-commande";
 
 const paye = { paiementStatut: "completed", statut: "livree" };
 const jeton = { expireAt: null, revoqueAt: null, nbTelechargements: 0 };
@@ -47,16 +46,3 @@ test("seul le stockage Vercel Blob est lu par le serveur (pas de SSRF)", () => {
   }
 });
 
-test("transaction NotchPay : aboutie, montant, devise et référence de CETTE commande", () => {
-  const commande = { id: "c1", montantTotal: 5500, devise: "XAF", paiementReference: "trx.1" };
-  const ok = { reference: "trx.1", merchant_reference: "ORD-c1", status: "complete", amount: 5500, currency: "XAF" };
-  assert.ok(transactionAppartient(ok, commande, "trx.1"));
-  assert.ok(!transactionAppartient({ ...ok, status: "pending" }, commande, "trx.1"));
-  assert.ok(!transactionAppartient({ ...ok, amount: 5000 }, commande, "trx.1"));
-  assert.ok(!transactionAppartient({ ...ok, currency: "EUR" }, commande, "trx.1"));
-  assert.ok(!transactionAppartient({ ...ok, merchant_reference: "ORD-c2" }, commande, "trx.1"), "paiement d'une autre commande");
-  assert.ok(!transactionAppartient(null, commande, "trx.1"));
-  const sansRef = { ...ok, merchant_reference: undefined };
-  assert.ok(transactionAppartient(sansRef, commande, "trx.1"), "sans référence marchande : la référence enregistrée fait foi");
-  assert.ok(!transactionAppartient({ ...sansRef, reference: "trx.9" }, commande, "trx.9"));
-});

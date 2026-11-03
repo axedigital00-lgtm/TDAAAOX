@@ -52,7 +52,7 @@ export default async function AdminAbonnementsPage() {
     }),
   ]);
 
-  // Boutiques ayant réellement payé un abonnement en ligne (référence NotchPay SUB-{tenantId}-…) : un palier peut aussi être attribué par un admin, sans paiement.
+  // Boutiques ayant réellement payé un abonnement en ligne (référence SUB-{tenantId}-…) : un palier peut aussi être attribué par un admin, sans paiement.
   const refsAbonnement = platformWallet ? await prisma.walletTransaction.findMany({ where: { walletId: platformWallet.id, reference: { startsWith: "SUB-" } }, select: { reference: true } }) : [];
   const ontPaye = new Set(refsAbonnement.map((r) => (r.reference ? lireRefAbonnement(r.reference)?.tenantId : undefined)).filter(Boolean));
 

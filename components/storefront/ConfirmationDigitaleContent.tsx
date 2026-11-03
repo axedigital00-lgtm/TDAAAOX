@@ -6,8 +6,8 @@ import { CopyableKey } from "@/components/storefront/CopyableKey";
 import { LockedDownloads } from "@/components/storefront/LockedDownloads";
 import { getT } from "@/lib/i18n/serveur";
 
-// Contenu de la page de confirmation (paiement en ligne — digital/dropshipping/
-// mixte), extrait de app/(storefront)/[slug]/confirmation/[orderId]/page.tsx
+// Contenu de la page de confirmation (commande payée à la livraison, ou ancienne commande
+// payée en ligne — digital/dropshipping/mixte), extrait de app/(storefront)/[slug]/confirmation/[orderId]/page.tsx
 // pour pouvoir être enchâssé tel quel dans le chrome d'un thème importé/généré
 // (voir ImportedLiteralConfirmationShell.tsx) — comportement strictement
 // identique à avant, seul le contenu a été déplacé dans son propre composant.
@@ -87,14 +87,12 @@ export async function ConfirmationDigitaleContent({
         </div>
       ) : isDigital && !paye ? (
         <div className="text-center mb-10">
-          {/* Le webhook NotchPay confirme en quelques secondes : la page se recharge seule. */}
-          <meta httpEquiv="refresh" content="6" />
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
             style={{ backgroundColor: `${theme.accent}20`, border: `2px solid ${theme.accent}` }}>
             <Clock size={36} style={{ color: theme.accent }} />
           </div>
           <h1 className="text-2xl font-bold font-playfair mb-2" style={{ color: theme.accent }}>{t("Paiement en cours de confirmation")}</h1>
-          <p className="opacity-60 text-sm">{t("Vos accès apparaîtront ici dès que le paiement sera confirmé. Cette page se met à jour automatiquement.")}</p>
+          <p className="opacity-60 text-sm">{t("Vos accès apparaîtront ici dès que le paiement sera confirmé.")}</p>
         </div>
       ) : isDigital ? (
         <div className="text-center mb-10">

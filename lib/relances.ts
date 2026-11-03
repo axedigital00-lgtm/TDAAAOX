@@ -5,7 +5,7 @@
 // Ce qui se déclenche :
 //   - bienvenue        : nouveau client, X heures après sa création
 //   - apres_achat      : commande livrée, X heures après la livraison
-//   - panier_abandonne : paiement en ligne commencé mais jamais payé, X heures après
+//   - panier_abandonne : commande payable en ligne jamais payée, X heures après (anciennes commandes en ligne)
 //   - inactif          : client sans commande depuis X heures (une fois par période d'inactivité)
 // Pas d'anniversaire (aucune date de naissance) ni de SMS (aucun fournisseur) : ignorés.
 // Seuls les événements postérieurs à la création du workflow comptent (pas d'envoi en masse sur
@@ -14,7 +14,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { planActif } from "@/lib/abonnement";
 import { palierAuMoins } from "@/lib/plans";
-import { PAIEMENT } from "@/lib/commandes";
+import { METHODES_EN_LIGNE, PAIEMENT } from "@/lib/commandes";
 import { emailReel, envoyerEmailTexte } from "@/lib/email";
 import { envoyerWhatsApp } from "@/lib/whatsapp";
 import { lienBoutique, origineAxso } from "@/lib/origine-site";
@@ -25,7 +25,6 @@ export const CANAUX_RELANCE = ["email", "whatsapp"] as const;
 const HEURE = 3_600_000;
 const FENETRE = 7 * 24 * HEURE;
 const MAX_PAR_PASSAGE = 50; // par workflow : le reste part au passage suivant
-const PAIEMENTS_EN_LIGNE = ["notchpay", "en_attente"]; // en_attente : commande créée, page de paiement jamais ouverte
 
 interface Cible { cle: string; clientId: string; nom: string; email: string | null; telephone: string | null }
 
@@ -60,7 +59,7 @@ async function cibles(wf: Workflow, maintenant: Date): Promise<Cible[]> {
   if (wf.type === "apres_achat" || wf.type === "panier_abandonne") {
     const where = wf.type === "apres_achat"
       ? { tenantId: wf.tenantId, statut: "livree", livreeAt: { gte: debut, lt: fin } }
-      : { tenantId: wf.tenantId, statut: "en_attente", paiementStatut: PAIEMENT.ATTENTE, methodePaiement: { in: PAIEMENTS_EN_LIGNE }, createdAt: { gte: debut, lt: fin } };
+      : { tenantId: wf.tenantId, statut: "en_attente", paiementStatut: PAIEMENT.ATTENTE, methodePaiement: { in: METHODES_EN_LIGNE }, createdAt: { gte: debut, lt: fin } };
     const commandes = await prisma.commande.findMany({
       where: { ...where, clientId: { not: null } },
       select: { id: true, clientNom: true, clientEmail: true, clientTelephone: true, client: { select: client } },

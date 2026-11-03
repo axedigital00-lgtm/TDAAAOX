@@ -41,7 +41,7 @@ const ANNULABLE = new Set(["en_attente", "confirmee", "en_preparation", "expedie
 interface Props {
   commandeId: string;
   statutActuel: string;
-  /** Payée en ligne : l'annulation rembourse le client (NotchPay) et reprend la vente au portefeuille. */
+  /** Payée en ligne : l'annulation rembourse le client et reprend la vente au portefeuille. */
   payeeEnLigne?: boolean;
 }
 

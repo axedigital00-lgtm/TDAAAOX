@@ -303,7 +303,7 @@ export default function WalletPage() {
             <Info size={15} className="text-[#F5A623] mt-0.5 flex-shrink-0" />
             <p className="text-[12.5px] text-[#92400E] leading-relaxed">
               <strong>{tr("Comment fonctionne le Wallet Axso ?")}</strong><br />
-              {tr("Chaque vente payée en ligne reste")}{" "}<strong>{tr("48h en séquestre")}</strong>{" "}{tr("(protection acheteur) : elle apparaît tout de suite en attente, puis passe sur votre solde disponible, retirable. Un remboursement pendant ce délai reprend d'abord l'argent en attente. Vous recevez l'intégralité de votre prix : la commission Axso et les frais NotchPay (10 %, ou 13 % pour un produit numérique) sont ajoutés au prix payé par le client.")}
+              {tr("Chaque vente payée en ligne reste")}{" "}<strong>{tr("48h en séquestre")}</strong>{" "}{tr("(protection acheteur) : elle apparaît tout de suite en attente, puis passe sur votre solde disponible, retirable. Un remboursement pendant ce délai reprend d'abord l'argent en attente. Vous recevez l'intégralité de votre prix : la commission Axso et les frais de paiement (10 %, ou 13 % pour un produit numérique) sont ajoutés au prix payé par le client.")}
             </p>
           </div>
 

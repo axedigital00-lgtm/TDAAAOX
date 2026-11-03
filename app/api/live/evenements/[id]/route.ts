@@ -87,7 +87,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     case "annuler": {
       if (ev.statut === "annule") return ok({ notifies: 0 });
       await prisma.evenement.update({ where: { id }, data: { statut: "annule", annuleAt: new Date(), raisonAnnulation: a.raison } });
-      // Les places payées ne sont PAS remboursées automatiquement : le marchand rembourse chaque commande (NotchPay) depuis Commandes.
+      // Les places payées ne sont PAS remboursées automatiquement : le marchand rembourse chaque commande depuis Commandes.
       const n = await notifierInscrits(id, `Annulé : ${ev.titre}`, (lien) => `Bonjour,\n\n« ${ev.titre} » prévu le ${formaterDate(ev.debut, ev.fuseau)} est annulé.\nMotif : ${a.raison}\n\nSi vous avez payé, l'organisateur vous contactera pour le remboursement.\nVotre espace : ${lien}`);
       const payees = await prisma.inscriptionLive.count({ where: { evenementId: id, statut: "inscrite", commandeId: { not: null } } });
       return ok({ notifies: n, aRembourser: payees });

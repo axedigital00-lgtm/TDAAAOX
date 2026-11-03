@@ -329,11 +329,11 @@ export async function envoyerOffreNouvelleVersion(params: { email: string; nom: 
 }
 
 // Retrait de marchand (lib/wallet.ts) ou commission d'affilié (lib/affiliation.ts, `affilie` présent)
-// à faire dans NotchPay : tout ce qu'il faut pour saisir le transfert à l'identique.
+// à payer à la main par l'équipe Axso : tout ce qu'il faut pour faire le transfert à l'identique.
 export async function envoyerAlerteRetrait(p: {
   a: string; lienAdmin?: string; affilie?: { nom: string; email: string }; retraitId: string; reference: string; creeLe: Date;
   montant: number; devise: string; methode: string; operateur: string | null; destinataire: string;
-  canal: string | null; notes: string | null;
+  notes: string | null;
   boutique: string; slug: string; proprietaire: { name: string | null; email: string | null } | null;
   emailBoutique: string | null; whatsappBoutique: string | null; soldeApres: number | null; premierRetraitVersCeNumero: boolean;
 }): Promise<boolean> {
@@ -352,15 +352,15 @@ export async function envoyerAlerteRetrait(p: {
     subject: `💸 ${quoi} à valider : ${montant} — ${p.boutique}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>${quoi} à faire dans NotchPay</h2>
+        <h2>${quoi} à payer à la main</h2>
         <p>${p.affilie
           ? `L'affilié <strong>${e(p.affilie.nom)}</strong>${p.affilie.email ? ` (${e(p.affilie.email)})` : ""} retire ses commissions (déjà prélevées sur les ventes, gardées par Axso) : il attend le transfert.`
           : `${e(p.boutique)} demande un retrait. Son wallet est déjà débité : le marchand attend le transfert.`}</p>
         ${p.premierRetraitVersCeNumero ? `<p style="background:#FFFBEB;border:1px solid #FDE68A;padding:10px;border-radius:8px">⚠️ <strong>Premier retrait payé vers ce numéro/compte</strong> pour cette boutique : vérifie qu'il appartient bien au marchand avant d'envoyer.</p>` : ""}
-        <h3>À saisir dans NotchPay (Transferts)</h3>
+        <h3>Transfert à faire</h3>
         <table style="border-collapse:collapse;font-size:14px">
           ${ligne("Montant", montant, true)}
-          ${ligne("Canal", p.canal ?? `${moyen} — hors canaux NotchPay (cm.mtn / cm.orange) : à payer par un autre moyen`, true)}
+          ${ligne("Moyen", moyen, true)}
           ${ligne("Numéro / compte", p.destinataire, true)}
           ${ligne("Nom du bénéficiaire", p.affilie?.nom || p.proprietaire?.name || p.boutique)}
           ${ligne("Description / référence", p.reference)}

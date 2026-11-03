@@ -12,53 +12,22 @@ interface AbonnementActionsProps {
   couleur: string;
 }
 
-const ORDRE: Record<string, number> = {
-  palier0: 0,
-  palier1: 1,
-  palier2: 2,
-};
-
-export default function AbonnementActions({
-  planId,
-  planActuel,
-  couleur,
-}: AbonnementActionsProps) {
+// Paliers payants : pas de paiement en ligne pour l'instant (prestataire à venir).
+// Seul le retour en Essentiel reste possible ici.
+export default function AbonnementActions({ planId, planActuel }: AbonnementActionsProps) {
   const t = useT();
   const router = useRouter();
-  const [loading, setLoading] = useState<"" | "notchpay">("");
+  const [loading, setLoading] = useState(false);
 
-  const estActuel = planId === planActuel;
-  const estSuperieur = ORDRE[planId] > ORDRE[planActuel];
-
-  async function appeler(url: string, body: object) {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
-    return data;
+  if (planId !== "palier0") {
+    return (
+      <p className="w-full py-2.5 rounded-xl text-sm font-semibold text-center text-gray-500 bg-gray-50 border border-gray-200">
+        {t("Paiement en ligne bientôt disponible")}
+      </p>
+    );
   }
 
-  async function choisirPlan() {
-    if (estActuel && planId === "palier0") return;
-    try {
-      if (planId === "palier0") {
-        if (!window.confirm(t("Toutes tes boutiques repasseront en Essentiel et les jours payés restants seront perdus. Continuer ?"))) return;
-        setLoading("notchpay");
-        await appeler("/api/abonnement/changer", { plan: planId });
-        toast.success(t("Plan Essentiel activé"));
-        router.refresh();
-      } else {
-        setLoading("notchpay");
-        const data = await appeler("/api/abonnement/paiement", { plan: planId });
-        window.location.href = data.authorizationUrl;
-      }
-    } catch (err: any) {
-      toast.error(t(err.message) ?? t("Erreur lors du changement de plan"));
-    } finally {
-      setLoading("");
-    }
-  }
-
-  if (estActuel && planId === "palier0") {
+  if (planActuel === "palier0") {
     return (
       <button
         disabled
@@ -69,35 +38,31 @@ export default function AbonnementActions({
     );
   }
 
+  async function retrograder() {
+    if (!window.confirm(t("Toutes tes boutiques repasseront en Essentiel et les jours payés restants seront perdus. Continuer ?"))) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/abonnement/changer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan: planId }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
+      toast.success(t("Plan Essentiel activé"));
+      router.refresh();
+    } catch (err: any) {
+      toast.error(t(err.message) ?? t("Erreur lors du changement de plan"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="space-y-2">
-      <button
-        onClick={choisirPlan}
-        disabled={!!loading}
-        className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-        style={
-          estSuperieur || estActuel
-            ? {
-                backgroundColor: couleur,
-                color: couleur === "#F5A623" ? "#1a1a1a" : "#ffffff",
-                boxShadow: `0 2px 8px ${couleur}30`,
-              }
-            : {
-                backgroundColor: "#f3f4f6",
-                color: "#6b7280",
-                border: "1px solid #e5e7eb",
-              }
-        }
-      >
-        {loading === "notchpay" && <Loader2 size={14} className="animate-spin" />}
-        {loading === "notchpay"
-          ? t("Changement...")
-          : estActuel
-          ? t("Renouveler (+30 jours)")
-          : estSuperieur
-          ? t("Choisir ce plan")
-          : t("Rétrograder")}
-      </button>
-    </div>
+    <button
+      onClick={retrograder}
+      disabled={loading}
+      className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+      style={{ backgroundColor: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+    >
+      {loading && <Loader2 size={14} className="animate-spin" />}
+      {loading ? t("Changement...") : t("Rétrograder")}
+    </button>
   );
 }
