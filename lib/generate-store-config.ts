@@ -31,152 +31,32 @@ export function detectCategory(cat: string): CategoryType {
   return "general";
 }
 
-// ─── Sections page produit par catégorie ──────────────────────────────────────
+// ─── Sections page produit par catégorie ────────────────────────────────────
+// Seulement de la structure : aucune promesse écrite à la place du marchand
+// (matière, certificat, garantie, délai…). Le contenu vient de ses fiches produit.
+const TITRES_SIMILAIRES: Partial<Record<CategoryType, string>> = {
+  fashion: "Ces pièces vous correspondent", beauty: "Des produits qui complètent votre routine",
+  food: "Ces produits vont ensemble", tech: "Ces produits vous intéresseront aussi",
+  home: "Ces articles complètent votre décoration", jewelry: "Ces bijoux vous séduiront aussi",
+  kids: "D'autres coups de cœur pour vos enfants", health: "Ces produits complètent votre bien-être",
+  sport: "Ces équipements améliorent votre performance", agriculture: "Ces produits vont avec vos achats",
+  artisan: "D'autres créations artisanales",
+};
+
 function buildProductSections(type: CategoryType): ProductPageSection[] {
-  const gallery   = (style = "vertical-thumbs"): ProductPageSection =>
-    ({ id: "gallery",     type: "gallery",     actif: true, config: { style, zoom: true, sticky: true } });
-  const info      = (): ProductPageSection =>
-    ({ id: "info",        type: "info",        actif: true, config: { breadcrumbs: true, badges: true, stock: true } });
-  const variants  = (): ProductPageSection => ({ id: "variants",  type: "variants",  actif: true, config: {} });
-  const quantity  = (): ProductPageSection => ({ id: "quantity",  type: "quantity",  actif: true, config: {} });
-  const trust     = (): ProductPageSection => ({ id: "trust",     type: "trust",     actif: true, config: {} });
-  const desc      = (): ProductPageSection => ({ id: "description",type:"description",actif: true, config: { ai: true } });
-  const reviews   = (): ProductPageSection => ({ id: "reviews",   type: "reviews",   actif: true, config: {} });
-  const similar   = (titre = "Vous aimerez aussi"): ProductPageSection =>
-    ({ id: "similar",     type: "similar",     actif: true, config: { count: 4, titre } });
-
-  const custom = (id: string, type: string, config: Record<string, any>): ProductPageSection =>
+  const s = (id: string, type: string, config: Record<string, any> = {}): ProductPageSection =>
     ({ id, type: type as any, actif: true, config });
-
-  switch (type) {
-    case "fashion": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("sizeguide", "sizeguide", { titre: "Guide des tailles", headers: ["Taille","Tour de poitrine","Tour de taille","Tour de hanches"], rows: [{ cells: ["XS","80-84 cm","60-64 cm","86-90 cm"] },{ cells: ["S","84-88 cm","64-68 cm","90-94 cm"] },{ cells: ["M","88-92 cm","68-72 cm","94-98 cm"] },{ cells: ["L","92-96 cm","72-76 cm","98-102 cm"] },{ cells: ["XL","96-102 cm","76-82 cm","102-108 cm"] }] }),
-      custom("features_fashion", "features", { titre: "Pourquoi choisir cette pièce ?", items: [{ icone: "✦", titre: "Qualité premium", texte: "Matières soigneusement sélectionnées pour un confort optimal." },{ icone: "🚀", titre: "Livraison express", texte: "Expédition sous 24h, suivi en temps réel." },{ icone: "↩️", titre: "Retour facile", texte: "Échange ou remboursement sous 14 jours sans condition." }] }),
-      desc(), reviews(),
-      custom("faq_fashion", "faq", { titre: "Questions fréquentes", items: [{ question: "Comment entretenir cet article ?", reponse: "Lavage en machine délicat à 30°C. Éviter l'essorage. Séchage à plat recommandé." },{ question: "Le guide des tailles est-il fiable ?", reponse: "Nos tailles correspondent aux standards européens. En cas de doute entre deux tailles, prenez la plus grande." },{ question: "Quel délai pour un échange ?", reponse: "Renvoyez-nous l'article sous 14 jours, nous procédons à l'échange ou au remboursement sous 48h." }] }),
-      custom("social", "social", {}),
-      similar("Ces pièces vous correspondent"),
-    ];
-
-    case "beauty": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("ingredients_beauty", "ingredients", { titre: "Composition & ingrédients", texte: "Formule sans parabènes, sans sulfates, testée dermatologiquement.", items: [{ nom: "Eau florale de rose", desc: "Hydrate et apaise les peaux sensibles." },{ nom: "Aloe Vera bio", desc: "Propriétés régénérantes et anti-inflammatoires." },{ nom: "Huile de jojoba", desc: "Nourrit sans occlure les pores." }] }),
-      custom("howto_beauty", "howto", { titre: "Comment l'utiliser ?", steps: [{ num: "01", titre: "Nettoyer", texte: "Appliquez sur peau propre et légèrement humide." },{ num: "02", titre: "Appliquer", texte: "Massez en mouvements circulaires jusqu'à absorption complète." },{ num: "03", titre: "Répéter", texte: "Utilisez matin et soir pour des résultats optimaux en 4 semaines." }] }),
-      custom("features_beauty", "features", { titre: "Nos engagements beauté", items: [{ icone: "🌿", titre: "100% naturel", texte: "Formule vegan et cruelty-free, certifiée." },{ icone: "🔬", titre: "Testé dermatologiquement", texte: "Convient aux peaux sensibles et réactives." },{ icone: "✨", titre: "Résultats visibles", texte: "Efficacité prouvée en 4 semaines d'utilisation régulière." }] }),
-      desc(), reviews(),
-      custom("faq_beauty", "faq", { titre: "Questions fréquentes", items: [{ question: "Convient-il aux peaux sensibles ?", reponse: "Oui, notre formule est hypoallergénique et testée dermatologiquement, convient aux peaux les plus sensibles." },{ question: "Quelle est la date de péremption ?", reponse: "30 mois après fabrication. Une fois ouvert, utilisez de préférence dans les 12 mois." },{ question: "Le produit est-il vegan ?", reponse: "Oui, tous nos produits sont 100% vegan et non testés sur les animaux." }] }),
-      similar("Des produits qui complètent votre routine"),
-    ];
-
-    case "food": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("ingredients_food", "ingredients", { titre: "Composition & valeurs nutritives", texte: "Ingrédients naturels, sans conservateurs artificiels, cultivés localement.", items: [{ nom: "Protéines", desc: "Source essentielle pour votre énergie quotidienne." },{ nom: "Vitamines A, C, E", desc: "Antioxydants naturels pour votre vitalité." },{ nom: "Sans additifs", desc: "Aucun colorant ni conservateur artificiel." }] }),
-      custom("howto_food", "howto", { titre: "Comment préparer ?", steps: [{ num: "01", titre: "Préparer", texte: "Sortez le produit du réfrigérateur 15 minutes avant consommation." },{ num: "02", titre: "Préparer", texte: "Suivez nos instructions de préparation pour le meilleur résultat." },{ num: "03", titre: "Savourer", texte: "Consommez immédiatement après préparation pour conserver toutes les saveurs." }] }),
-      custom("guarantee_food", "guarantee", { titre: "Nos garanties fraîcheur", items: [{ icone: "❄️", titre: "Chaîne du froid", texte: "Produits conservés à température contrôlée de la production à la livraison." },{ icone: "🌿", titre: "100% naturel", texte: "Aucun conservateur artificiel, issu de l'agriculture locale." },{ icone: "✅", titre: "Contrôle qualité", texte: "Chaque lot est contrôlé avant expédition." }] }),
-      desc(), reviews(),
-      custom("faq_food", "faq", { titre: "Questions fréquentes", items: [{ question: "Comment conserver ce produit ?", reponse: "Conservez dans un endroit frais et sec, à l'abri de la lumière directe. Réfrigérez après ouverture." },{ question: "Quelle est la date de consommation ?", reponse: "La date limite est indiquée sur l'emballage. Pour les produits frais, consommez dans les 3 jours." },{ question: "Les produits sont-ils certifiés bio ?", reponse: "Nos produits proviennent de producteurs locaux respectant les pratiques d'agriculture durable." }] }),
-      similar("Ces produits vont ensemble"),
-    ];
-
-    case "tech": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("specs_tech", "specs", { titre: "Caractéristiques techniques", rows: [{ cle: "Processeur", valeur: "Voir description" },{ cle: "Mémoire", valeur: "Voir description" },{ cle: "Stockage", valeur: "Voir description" },{ cle: "Connectivité", valeur: "WiFi, Bluetooth 5.0" },{ cle: "Garantie", valeur: "12 mois constructeur" },{ cle: "Poids", valeur: "Voir description" }] }),
-      custom("features_tech", "features", { titre: "Pourquoi choisir ce produit ?", items: [{ icone: "✅", titre: "Produit authentique", texte: "100% original avec certificat d'authenticité et numéro de série vérifiable." },{ icone: "🛡️", titre: "Garantie 12 mois", texte: "SAV réactif sous 48h, pièces de rechange disponibles." },{ icone: "📦", titre: "Livraison sécurisée", texte: "Emballage renforcé, assurance transport incluse." }] }),
-      custom("comparison_tech", "comparison", { titre: "Pourquoi nous ?", headers: ["Critère","Notre boutique","Marché classique"], rows: [{ cells: ["Authenticité","✓ Garantie","Non certifié"] },{ cells: ["SAV","✓ Sous 48h","Variable"] },{ cells: ["Prix","Meilleur prix","Prix marché"] }] }),
-      desc(), reviews(),
-      custom("faq_tech", "faq", { titre: "Questions fréquentes", items: [{ question: "Le produit est-il compatible avec mon pays ?", reponse: "Oui, nos produits sont compatibles avec les normes locales (prise 220V, fréquences réseau adaptées)." },{ question: "Comment fonctionne la garantie ?", reponse: "En cas de défaut, contactez-nous sous 48h. Réparation ou remplacement sans frais sous garantie." },{ question: "Livrez-vous en dehors de la capitale ?", reponse: "Oui, nous livrons dans tout le pays via nos partenaires logistiques. Délai : 2 à 5 jours ouvrés." }] }),
-      custom("guarantee_tech", "guarantee", { titre: "Acheter en toute confiance", items: [{ icone: "🔒", titre: "Paiement sécurisé", texte: "Orange Money, MTN Mobile Money, carte bancaire — transactions cryptées SSL." },{ icone: "🛡️", titre: "SAV réactif", texte: "Une question ou un souci ? Nous vous répondons rapidement." },{ icone: "📦", titre: "Retour 30 jours", texte: "Produit défectueux ? Retour ou échange sans frais." }] }),
-      similar("Ces produits vous intéresseront aussi"),
-    ];
-
-    case "home": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("specs_home", "specs", { titre: "Dimensions & matières", rows: [{ cle: "Dimensions", valeur: "Voir description" },{ cle: "Matière principale", valeur: "Voir description" },{ cle: "Couleurs disponibles", valeur: "Voir variantes" },{ cle: "Assemblage", valeur: "Facile — notice incluse" },{ cle: "Poids", valeur: "Voir description" }] }),
-      custom("features_home", "features", { titre: "Ce qui rend ce produit unique", items: [{ icone: "🏠", titre: "Design contemporain", texte: "Esthétique moderne qui s'intègre dans tous les intérieurs." },{ icone: "💪", titre: "Durabilité", texte: "Matériaux de qualité pour une longévité exceptionnelle." },{ icone: "📦", titre: "Livraison soignée", texte: "Emballage renforcé pour une livraison en parfait état." }] }),
-      desc(), reviews(),
-      custom("faq_home", "faq", { titre: "Questions fréquentes", items: [{ question: "Le produit est-il facile à assembler ?", reponse: "Oui, une notice illustrée est incluse. Le montage prend en moyenne 20-30 minutes." },{ question: "Puis-je personnaliser la couleur ?", reponse: "Plusieurs coloris sont disponibles selon le modèle. Consultez les variantes disponibles." },{ question: "Quelle garantie est offerte ?", reponse: "12 mois sur les défauts de fabrication. SAV disponible par WhatsApp." }] }),
-      similar("Ces articles complètent votre décoration"),
-    ];
-
-    case "jewelry": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("sizeguide_jewelry", "sizeguide", { titre: "Guide des tailles", headers: ["Taille (mm)", "Tour de doigt (cm)", "Pointure EU"], rows: [{ cells: ["46 mm", "4,6 cm", "46"] },{ cells: ["48 mm", "4,8 cm", "48"] },{ cells: ["50 mm", "5,0 cm", "50"] },{ cells: ["52 mm", "5,2 cm", "52"] },{ cells: ["54 mm", "5,4 cm", "54"] },{ cells: ["56 mm", "5,6 cm", "56"] }] }),
-      custom("features_jewelry", "features", { titre: "L'excellence de nos créations", items: [{ icone: "💎", titre: "Matières précieuses", texte: "Or 18 carats, argent 925, pierres naturelles certifiées." },{ icone: "✦", titre: "Fait à la main", texte: "Chaque pièce est travaillée artisanalement par nos maîtres joailliers." },{ icone: "📜", titre: "Certificat d'authenticité", texte: "Chaque bijou est livré avec son certificat de garantie." }] }),
-      custom("guarantee_jewelry", "guarantee", { titre: "Notre promesse", items: [{ icone: "💎", titre: "Authenticité certifiée", texte: "Chaque pièce vient avec un certificat d'authenticité des matériaux." },{ icone: "🎁", titre: "Écrin offert", texte: "Livraison dans un écrin luxueux, prêt à offrir." },{ icone: "✨", titre: "Entretien garanti", texte: "Nettoyage et entretien gratuit pendant 1 an." }] }),
-      desc(), reviews(),
-      custom("faq_jewelry", "faq", { titre: "Questions fréquentes", items: [{ question: "Comment entretenir mes bijoux ?", reponse: "Nettoyez avec un chiffon doux. Évitez le contact avec les produits chimiques, la mer et la piscine. Rangez séparément." },{ question: "Les pierres sont-elles naturelles ?", reponse: "Oui, toutes nos pierres sont naturelles et certifiées. Le certificat d'authenticité est inclus." },{ question: "Puis-je faire graver un bijou ?", reponse: "Oui, la gravure personnalisée est disponible sur demande. Délai supplémentaire de 3 à 5 jours." }] }),
-      similar("Ces bijoux vous séduiront aussi"),
-    ];
-
-    case "kids": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("features_kids", "features", { titre: "Conçu pour la sécurité de vos enfants", items: [{ icone: "🛡️", titre: "Certifié CE", texte: "Conformité aux normes européennes de sécurité enfant." },{ icone: "🌿", titre: "Matériaux non toxiques", texte: "Sans BPA, sans phtalates, testés en laboratoire." },{ icone: "👶", titre: "Adapté à l'âge", texte: "Recommandations d'âge strictement respectées." }] }),
-      custom("specs_kids", "specs", { titre: "Informations produit", rows: [{ cle: "Âge recommandé", valeur: "Voir description" },{ cle: "Matière", valeur: "Voir description" },{ cle: "Certification", valeur: "CE / EN71" },{ cle: "Lavable", valeur: "Voir description" },{ cle: "Origine", valeur: "Voir description" }] }),
-      desc(), reviews(),
-      custom("faq_kids", "faq", { titre: "Questions fréquentes", items: [{ question: "Le produit est-il sécurisé pour les très jeunes enfants ?", reponse: "Oui, notre produit est certifié CE et respecte les normes EN71. Toujours surveiller les enfants de moins de 3 ans." },{ question: "Comment nettoyer ce produit ?", reponse: "Consultez l'étiquette pour les instructions d'entretien spécifiques. La plupart de nos produits sont lavables en machine." },{ question: "Puis-je personnaliser avec un prénom ?", reponse: "La personnalisation est disponible sur certains articles. Contactez-nous avant commande." }] }),
-      similar("D'autres coups de cœur pour vos enfants"),
-    ];
-
-    case "health": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("ingredients_health", "ingredients", { titre: "Composition & principes actifs", texte: "Formule scientifiquement éprouvée, sans additifs nocifs.", items: [{ nom: "Principe actif principal", desc: "Dosage optimisé pour une efficacité maximale." },{ nom: "Excipients naturels", desc: "Sans colorants ni conservateurs artificiels." },{ nom: "Certifié ISO", desc: "Fabriqué selon les bonnes pratiques pharmaceutiques." }] }),
-      custom("howto_health", "howto", { titre: "Posologie & mode d'emploi", steps: [{ num: "01", titre: "Dosage", texte: "Respectez le dosage recommandé indiqué sur l'emballage ou prescrit par votre médecin." },{ num: "02", titre: "Moment de prise", texte: "De préférence le matin avec un grand verre d'eau, avant ou après le repas selon le produit." },{ num: "03", titre: "Durée", texte: "Cure recommandée : 4 à 8 semaines. Renouvelable après avis médical." }] }),
-      custom("features_health", "features", { titre: "Pourquoi ce produit ?", items: [{ icone: "🔬", titre: "Formule cliniquement testée", texte: "Efficacité prouvée par des études cliniques indépendantes." },{ icone: "🌿", titre: "100% naturel", texte: "Ingrédients d'origine naturelle, sans OGM." },{ icone: "🏥", titre: "Recommandé par les pros", texte: "Approuvé par des professionnels de santé." }] }),
-      desc(), reviews(),
-      custom("faq_health", "faq", { titre: "Questions fréquentes", items: [{ question: "Ce produit a-t-il des contre-indications ?", reponse: "Consultez votre médecin si vous êtes enceinte, allaitante, ou sous traitement médical. Lisez la notice complète." },{ question: "Combien de temps avant de voir des résultats ?", reponse: "Les premiers effets sont généralement visibles après 2 à 4 semaines d'utilisation régulière." },{ question: "Puis-je l'associer à d'autres produits ?", reponse: "Consultez un professionnel de santé avant d'associer plusieurs compléments alimentaires." }] }),
-      custom("guarantee_health", "guarantee", { titre: "Nos garanties qualité", items: [{ icone: "🏆", titre: "Qualité certifiée", texte: "Fabriqué selon les normes de qualité pharmaceutiques les plus strictes." },{ icone: "🌿", titre: "Naturel & sûr", texte: "Formule naturelle, testée et approuvée par des experts en nutrition." },{ icone: "↩️", titre: "Satisfait ou remboursé", texte: "30 jours pour tester. Remboursement intégral si non satisfait." }] }),
-      similar("Ces produits complètent votre bien-être"),
-    ];
-
-    case "sport": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("specs_sport", "specs", { titre: "Caractéristiques techniques", rows: [{ cle: "Matière", valeur: "Voir description" },{ cle: "Taille", valeur: "Voir variantes" },{ cle: "Poids", valeur: "Voir description" },{ cle: "Norme", valeur: "Conforme aux standards sportifs" },{ cle: "Utilisation", valeur: "Intérieur / Extérieur" }] }),
-      custom("sizeguide_sport", "sizeguide", { titre: "Guide des tailles sportswear", headers: ["Taille","Tour de poitrine","Tour de taille","Longueur"], rows: [{ cells: ["XS/36","80-84 cm","60-64 cm","Voir produit"] },{ cells: ["S/38","84-88 cm","64-68 cm","Voir produit"] },{ cells: ["M/40","88-92 cm","68-72 cm","Voir produit"] },{ cells: ["L/42","92-96 cm","72-76 cm","Voir produit"] },{ cells: ["XL/44","96-100 cm","76-80 cm","Voir produit"] }] }),
-      custom("features_sport", "features", { titre: "Conçu pour la performance", items: [{ icone: "⚡", titre: "Performance maximale", texte: "Matériaux techniques pour une liberté de mouvement totale." },{ icone: "💧", titre: "Respirant & évacuant", texte: "Technologie moisture-wicking pour rester au sec pendant l'effort." },{ icone: "💪", titre: "Durabilité renforcée", texte: "Coutures renforcées pour résister aux entraînements les plus intenses." }] }),
-      desc(), reviews(),
-      custom("faq_sport", "faq", { titre: "Questions fréquentes", items: [{ question: "Comment choisir ma taille ?", reponse: "Consultez notre guide des tailles. Pour les équipements, prenez votre mesure habituelle. En cas de doute, choisissez la taille supérieure." },{ question: "Comment entretenir cet équipement ?", reponse: "Lavage machine à 30°C. Pas de sèche-linge. Séchage à l'air libre pour conserver les propriétés techniques." },{ question: "Convient-il à tous les niveaux ?", reponse: "Ce produit convient aussi bien aux débutants qu'aux sportifs confirmés, avec des caractéristiques adaptées à toutes les pratiques." }] }),
-      similar("Ces équipements améliorent votre performance"),
-    ];
-
-    case "agriculture": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("ingredients_agri", "ingredients", { titre: "Origine & composition", texte: "Produits 100% naturels, cultivés sans pesticides chimiques.", items: [{ nom: "Origine", desc: "Cultivé localement, circuit court." },{ nom: "Culture", desc: "Pratiques agricoles durables et responsables." },{ nom: "Certification", desc: "Conforme aux standards de qualité alimentaire." }] }),
-      custom("specs_agri", "specs", { titre: "Informations produit", rows: [{ cle: "Origine", valeur: "Local / National" },{ cle: "Type de culture", valeur: "Voir description" },{ cle: "Conservation", valeur: "Voir description" },{ cle: "Conditionnement", valeur: "Voir description" },{ cle: "Saisonnalité", valeur: "Voir description" }] }),
-      custom("features_agri", "features", { titre: "Nos engagements", items: [{ icone: "🌱", titre: "Agriculture locale", texte: "Soutien direct aux producteurs locaux, circuits courts garantis." },{ icone: "🌿", titre: "Sans pesticides", texte: "Culture naturelle, respect de l'environnement et des consommateurs." },{ icone: "📦", titre: "Livraison fraîche", texte: "Emballage adapté pour conserver toute la fraîcheur à la livraison." }] }),
-      desc(), reviews(),
-      custom("faq_agri", "faq", { titre: "Questions fréquentes", items: [{ question: "Quelle est la fraîcheur des produits ?", reponse: "Nos produits sont récoltés et expédiés dans les 24 à 48h. Fraîcheur garantie à la livraison." },{ question: "Puis-je commander en grande quantité ?", reponse: "Oui, nous gérons les commandes en gros pour restaurateurs et revendeurs. Contactez-nous pour un devis." },{ question: "Les produits sont-ils certifiés ?", reponse: "Nos producteurs respectent les bonnes pratiques agricoles. Certificats disponibles sur demande." }] }),
-      similar("Ces produits vont avec vos achats"),
-    ];
-
-    case "services": return [
-      info(), quantity(), trust(),
-      custom("features_services", "features", { titre: "Ce qui est inclus dans votre forfait", items: [{ icone: "✅", titre: "Prestation complète", texte: "Service clé en main de A à Z, aucun frais caché." },{ icone: "⚡", titre: "Démarrage rapide", texte: "Lancement de votre projet sous 48h après commande." },{ icone: "🤝", titre: "Accompagnement dédié", texte: "Un expert à votre disposition tout au long de la mission." }] }),
-      custom("howto_services", "howto", { titre: "Comment ça marche ?", steps: [{ num: "01", titre: "Commande", texte: "Passez votre commande en ligne et choisissez vos options." },{ num: "02", titre: "Brief", texte: "Nous vous contactons sous 24h pour définir vos besoins précis." },{ num: "03", titre: "Livraison", texte: "Réception de votre prestation dans les délais convenus avec satisfaction garantie." }] }),
-      desc(), reviews(),
-      custom("faq_services", "faq", { titre: "Questions fréquentes", items: [{ question: "Quel est le délai d'exécution ?", reponse: "Le délai varie selon la prestation. Il est précisé dans la description. Nous respectons toujours les délais convenus." },{ question: "Que se passe-t-il si je ne suis pas satisfait ?", reponse: "Nous offrons des révisions illimitées jusqu'à votre satisfaction complète. Remboursement si non livré." },{ question: "Comment s'effectue le paiement ?", reponse: "Paiement sécurisé par Orange Money, MTN Mobile Money ou virement bancaire. Acompte de 50% à la commande." }] }),
-      custom("guarantee_services", "guarantee", { titre: "Notre engagement qualité", items: [{ icone: "✅", titre: "Satisfaction garantie", texte: "Révisions illimitées jusqu'à votre validation complète." },{ icone: "⏱️", titre: "Respect des délais", texte: "Ponctualité absolue — pénalité en cas de retard de notre fait." },{ icone: "🔒", titre: "Confidentialité", texte: "Vos données et projets restent strictement confidentiels." }] }),
-      custom("social_services", "social", {}),
-    ];
-
-    case "artisan": return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("features_artisan", "features", { titre: "L'excellence artisanale", items: [{ icone: "🤲", titre: "Fait à la main", texte: "Chaque pièce est façonnée entièrement à la main par nos artisans." },{ icone: "🌍", titre: "Savoir-faire local", texte: "Techniques transmises de génération en génération." },{ icone: "♻️", titre: "Matériaux durables", texte: "Matières premières locales, respectueuses de l'environnement." }] }),
-      custom("howto_artisan", "howto", { titre: "Le processus de création", steps: [{ num: "01", titre: "Sélection", texte: "Choix rigoureux des matières premières locales de qualité supérieure." },{ num: "02", titre: "Façonnage", texte: "Travail minutieux à la main selon les techniques artisanales traditionnelles." },{ num: "03", titre: "Finitions", texte: "Contrôle qualité et finitions soignées avant expédition." }] }),
-      custom("guarantee_artisan", "guarantee", { titre: "Notre promesse artisanale", items: [{ icone: "✦", titre: "Pièce unique", texte: "Chaque création est unique, légèrement différente des autres — c'est sa richesse." },{ icone: "📜", titre: "Certificat d'artisan", texte: "Livré avec le certificat du créateur et l'histoire de la pièce." },{ icone: "♻️", titre: "Éco-responsable", texte: "Processus de fabrication respectueux de l'environnement." }] }),
-      desc(), reviews(),
-      custom("faq_artisan", "faq", { titre: "Questions fréquentes", items: [{ question: "Les pièces sont-elles toutes identiques ?", reponse: "Chaque pièce étant faite à la main, il peut y avoir de légères variations. C'est ce qui rend chaque pièce unique et précieuse." },{ question: "Puis-je commander une pièce personnalisée ?", reponse: "Oui, nous acceptons les commandes sur mesure. Délai de 2 à 4 semaines selon la complexité." },{ question: "Comment entretenir ma pièce artisanale ?", reponse: "Instructions d'entretien incluses dans chaque colis selon la matière utilisée." }] }),
-      similar("D'autres créations artisanales"),
-    ];
-
-    default: return [
-      gallery("vertical-thumbs"), info(), variants(), quantity(), trust(),
-      custom("features_default", "features", { titre: "Pourquoi nous choisir ?", items: [{ icone: "✅", titre: "Qualité garantie", texte: "Sélection rigoureuse de produits vérifiés et testés." },{ icone: "🚀", titre: "Livraison rapide", texte: "Expédition sous 24h, suivi en temps réel." },{ icone: "🤝", titre: "Service client 7j/7", texte: "Notre équipe répond à toutes vos questions rapidement." }] }),
-      desc(), reviews(),
-      custom("faq_default", "faq", { titre: "Questions fréquentes", items: [{ question: "Quels sont vos délais de livraison ?", reponse: "Livraison sous 24 à 48h pour les commandes passées avant 14h. Suivi disponible par WhatsApp." },{ question: "Comment retourner un produit ?", reponse: "Retour sous 14 jours. Contactez-nous par WhatsApp pour initier le retour, remboursement sous 48h." },{ question: "Quels modes de paiement acceptez-vous ?", reponse: "Orange Money, MTN Mobile Money, paiement à la livraison disponible." }] }),
-      similar("Ces produits vous plairont aussi"),
-    ];
-  }
+  const desc = s("description", "description", { ai: true });
+  const reviews = s("reviews", "reviews");
+  if (type === "services") return [s("info", "info", { breadcrumbs: true, badges: true, stock: true }), s("quantity", "quantity"), s("trust", "trust"), desc, reviews];
+  return [
+    s("gallery", "gallery", { style: "vertical-thumbs", zoom: true, sticky: true }),
+    s("info", "info", { breadcrumbs: true, badges: true, stock: true }),
+    s("variants", "variants"), s("quantity", "quantity"), s("trust", "trust"),
+    desc, reviews,
+    ...(type === "fashion" ? [s("social", "social")] : []),
+    s("similar", "similar", { count: 4, titre: TITRES_SIMILAIRES[type] ?? "Ces produits vous plairont aussi" }),
+  ];
 }
 
 // ─── Détection de langue ──────────────────────────────────────────────────────
@@ -614,8 +494,7 @@ export function generateStoreConfig(opts: {
   const type   = detectCategory(categorie);
   const langue = detectLangue(pays);
   const { sections, sectionOrder, customSections } = buildHomeSections(type, nomBoutique, langue);
-  // Boutique digitale : pas de guide des tailles ni de composition (produits téléchargeables).
-  const productSections = buildProductSections(type).filter((sec) => modeBoutique !== "digital" || !["sizeguide", "ingredients"].includes(sec.type));
+  const productSections = buildProductSections(type);
   const productLayout = selectProductLayout(type);
   const { aboutPage, contactPage } = buildAboutContactPages(type, nomBoutique, langue);
 

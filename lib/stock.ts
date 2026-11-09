@@ -173,10 +173,20 @@ export async function rendreStock(tx: Tx, p: { commandeId: string; motif: string
   }
 }
 
-/** Compteur de ventes des produits : +1 au paiement acquis, -1 au remboursement. */
+/**
+ * Compteurs de vente : produits et fiche client (commandes, total dépensé).
+ * +1 au paiement acquis, -1 au remboursement. La caisse (lib/pos/vente.ts) tient ses propres compteurs.
+ */
 export async function compterVentes(tx: Tx, commandeId: string, sens: 1 | -1) {
   const lignes = await tx.ligneCommande.findMany({ where: { commandeId }, select: { produitId: true, quantite: true } });
   for (const l of lignes) {
     await tx.produit.update({ where: { id: l.produitId }, data: { ventes: { increment: sens * l.quantite } } });
+  }
+  const c = await tx.commande.findUnique({ where: { id: commandeId }, select: { clientId: true, montantTotal: true } });
+  if (c?.clientId) {
+    await tx.client.update({
+      where: { id: c.clientId },
+      data: { totalCommandes: { increment: sens }, totalDepense: { increment: sens * c.montantTotal } },
+    });
   }
 }

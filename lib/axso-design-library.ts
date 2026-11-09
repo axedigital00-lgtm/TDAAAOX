@@ -16,6 +16,7 @@ import { MANIFESTE_LIBRAIRIE, selectionnerGabaritLibrairie, choisir4Themes, type
 import {
   extraireVuesLibrairie,
   injecterGrilleLibrairie,
+  personnaliserAccueilLibrairie,
   type ProduitPourClone,
 } from "./theme-import-clone";
 
@@ -74,7 +75,12 @@ export async function provisionerThemeDepuisLibrairie(params: {
   const vues = extraireVuesLibrairie({ htmlBrut, slug });
   if (!vues) throw new Error(`Bibliothèque AXSO Design : ${entree.fichier} ne suit pas la convention à 6 vues attendue.`);
 
-  const home = injecterGrilleLibrairie({ vueHtml: vues.home, idConteneur: "homeGrid", carteTemplate: entree.carteTemplate, produits, slug });
+  // Textes de démonstration de l'accueil remplacés par ceux de la boutique (voir personnaliserAccueilLibrairie).
+  const boutique_ = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, categorie: true, description: true } });
+  const accueil = personnaliserAccueilLibrairie(vues.home, {
+    nom: boutique_?.nomBoutique || nomBoutique || entree.nom, accroche: boutique_?.categorie, description: boutique_?.description,
+  });
+  const home = injecterGrilleLibrairie({ vueHtml: accueil, idConteneur: "homeGrid", carteTemplate: entree.carteTemplate, produits, slug });
   const boutique = injecterGrilleLibrairie({ vueHtml: vues.boutique, idConteneur: "plpGrid", carteTemplate: entree.carteTemplate, produits, slug });
 
   // Socle structurel (sections/animations/etc. — types requis par

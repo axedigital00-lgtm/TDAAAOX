@@ -386,3 +386,44 @@ export function injecterGrilleLibrairie(params: {
   return racine.outerHTML;
 }
 
+
+// Accueil d'un design de la bibliothèque : ses textes de démonstration (« Ton bureau
+// mérite de la couleur », « 5 ans de garantie », faux témoignages…) ne doivent jamais
+// parler à la place du marchand. On garde l'en-tête (h1) avec ses vrais nom, catégorie
+// et description, la grille de produits titrée « Nos produits », et l'on retire tout
+// autre texte. Le visuel du design (formes, couleurs, mise en page) reste intact.
+export function personnaliserAccueilLibrairie(vueHtml: string, p: { nom: string; accroche?: string | null; description?: string | null }): string {
+  const vue = parse(vueHtml).firstChild as ParsedElement | null;
+  if (!vue?.childNodes) return vueHtml;
+  const blocs = vue.childNodes.filter((n) => (n as ParsedElement).tagName) as ParsedElement[];
+  const entete = blocs.find((b) => b.querySelector("h1"));
+  const grille = blocs.find((b) => b.id === "homeGrid" || b.querySelector("#homeGrid"));
+  if (!entete || !grille) return vueHtml;
+  for (const b of blocs) if (b !== entete && b !== grille) b.remove();
+
+  const aTexte = (e: ParsedElement) => e.childNodes.some((n) => n.nodeType === 3 && n.text.trim());
+  const h1 = entete.querySelector("h1")!;
+  // Éléments portant du texte, dans l'ordre du document (h1 exclu : il est remplacé tel quel).
+  const textes = entete.querySelectorAll("*").filter((e) => aTexte(e) && e !== h1 && !h1.querySelectorAll("*").includes(e));
+  const position = (e: ParsedElement) => entete.querySelectorAll("*").indexOf(e);
+  const iH1 = position(h1);
+  const surtitre = textes.find((e) => position(e) < iH1 && e.tagName !== "A" && e.tagName !== "BUTTON");
+  const paragraphe = textes.find((e) => position(e) > iH1 && e.tagName === "P");
+  const bouton = textes.find((e) => e.tagName === "A" && e.classList.contains("btn-primary")) ?? textes.find((e) => e.tagName === "A");
+
+  h1.set_content(echapperHtml(p.nom));
+  if (surtitre && p.accroche?.trim()) surtitre.set_content(echapperHtml(p.accroche.trim()));
+  if (paragraphe && p.description?.trim()) paragraphe.set_content(echapperHtml(p.description.trim()));
+  if (bouton) bouton.set_content("Voir la boutique");
+  const gardes = new Set([surtitre && p.accroche?.trim() ? surtitre : null, paragraphe && p.description?.trim() ? paragraphe : null, bouton]);
+  for (const e of textes) if (!gardes.has(e)) e.remove();
+
+  // Cartes de démonstration (faux produits, faux prix) : la grille se remplit avec les vrais produits.
+  (grille.id === "homeGrid" ? grille : grille.querySelector("#homeGrid"))!.set_content("");
+  // En-tête de la grille (« Pièces signature », « Le drop 014 »…) : un titre neutre, rien d'autre.
+  const titre = grille.querySelector("h2");
+  for (const e of grille.querySelectorAll("*").filter((e) => aTexte(e) && !e.closest("#homeGrid"))) {
+    if (e === titre) e.set_content("Nos produits"); else e.remove();
+  }
+  return vue.outerHTML;
+}
