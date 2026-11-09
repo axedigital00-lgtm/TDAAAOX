@@ -29,16 +29,12 @@ function exporterCSV(nom: string, blocs: BlocExport[]) {
 }
 
 async function exporterExcel(nom: string, blocs: BlocExport[]) {
-  const XLSX = await import("xlsx");
-  const wb = XLSX.utils.book_new();
-  const pris = new Set<string>();
-  for (const b of blocs) {
-    let n = b.titre.replace(/[\\/?*[\]:]/g, " ").slice(0, 28) || "Feuille";
-    for (let i = 2; pris.has(n); i++) n = `${n.slice(0, 26)} ${i}`;
-    pris.add(n);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([b.colonnes.map((c) => c.nom), ...b.lignes.map((l) => b.colonnes.map((c) => l[c.cle] ?? ""))]), n);
-  }
-  XLSX.writeFile(wb, `${nom}.xlsx`);
+  const { classeurXlsx, TYPE_XLSX } = await import("@/lib/excel"); // exceljs chargé seulement au clic
+  const octets = await classeurXlsx(blocs.map((b) => ({
+    nom: b.titre,
+    lignes: [b.colonnes.map((c) => c.nom), ...b.lignes.map((l) => b.colonnes.map((c) => (l[c.cle] ?? "") as any))],
+  })));
+  telecharger(new Blob([octets as BlobPart], { type: TYPE_XLSX }), `${nom}.xlsx`);
 }
 
 /** Boutons d'export du rapport complet ; déclenche aussi l'export / l'impression demandés dans l'URL. */

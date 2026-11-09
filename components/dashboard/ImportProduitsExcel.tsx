@@ -49,7 +49,7 @@ export function ImportProduitsExcel() {
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <h2 id="titre-import" className="text-[16px] font-bold text-[#111111]">{t("Importer des produits")}</h2>
-                <p className="text-[12.5px] text-[#888888] mt-1">{t("Remplis le modèle Excel (une ligne par produit), puis envoie-le. Fichiers .xlsx, .xls ou .csv acceptés.")}</p>
+                <p className="text-[12.5px] text-[#888888] mt-1">{t("Remplis le modèle Excel (une ligne par produit), puis envoie-le. Fichiers .xlsx ou .csv acceptés.")}</p>
               </div>
               <button type="button" onClick={fermer} aria-label={t("Fermer")} className="p-1.5 rounded-xl hover:bg-[#F5F5F7]"><X size={16} /></button>
             </div>
@@ -64,7 +64,7 @@ export function ImportProduitsExcel() {
               <span className="text-[13px] font-semibold text-[#111111]">{envoi ? t("Import en cours…") : t("Choisir mon fichier")}</span>
               <span className="text-[11.5px] text-[#AAAAAA]">{t("Colonnes obligatoires : Nom et Prix")}</span>
               <input ref={inputRef} type="file" className="sr-only" disabled={envoi}
-                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) importer(f); }} />
             </label>
 

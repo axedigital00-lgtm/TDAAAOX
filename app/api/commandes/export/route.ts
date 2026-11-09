@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import * as XLSX from "xlsx";
+import { classeurXlsx, TYPE_XLSX } from "@/lib/excel";
 
 export const runtime = "nodejs";
 
@@ -71,24 +71,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // ── Workbook ─────────────────────────────────────────────────────────────
-  const wb = XLSX.utils.book_new();
-
-  const wsCommandes = XLSX.utils.json_to_sheet(rowsCommandes);
-  wsCommandes["!cols"] = [
-    { wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 25 },
-    { wch: 15 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
-    { wch: 8 },  { wch: 10 }, { wch: 40 }, { wch: 22 },
-  ];
-  XLSX.utils.book_append_sheet(wb, wsCommandes, "Commandes");
-
-  const wsLignes = XLSX.utils.json_to_sheet(rowsLignes);
-  wsLignes["!cols"] = [
-    { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 28 }, { wch: 12 },
-    { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 8 },
-  ];
-  XLSX.utils.book_append_sheet(wb, wsLignes, "Lignes articles");
-
   // ── Feuille résumé ───────────────────────────────────────────────────────
   const totalVentes = commandes.filter(c => c.paiementStatut === "completed").reduce((s, c) => s + c.montantTotal, 0);
   const rowsResume = [
@@ -101,16 +83,21 @@ export async function GET(req: NextRequest) {
     { "Métrique": "Boutique",                       "Valeur": tenant?.nomBoutique ?? "—" },
     { "Métrique": "Export généré le",               "Valeur": new Date().toLocaleString("fr-FR") },
   ];
-  const wsResume = XLSX.utils.json_to_sheet(rowsResume);
-  wsResume["!cols"] = [{ wch: 30 }, { wch: 25 }];
-  XLSX.utils.book_append_sheet(wb, wsResume, "Résumé");
-
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+  // En-têtes = clés des objets ci-dessus (écrites même sans aucune commande).
+  const enTableau = (lignes: Record<string, unknown>[], entetes: string[]) =>
+    [entetes, ...lignes.map((l) => entetes.map((e) => l[e] as any))];
+  const buffer = await classeurXlsx([
+    { nom: "Commandes", lignes: enTableau(rowsCommandes, ["N° Commande", "Date", "Client", "Téléphone", "Email", "Ville", "Statut", "Paiement", "Méthode", "Montant Total", "Devise", "Nb Articles", "Produits", "Créée le"]),
+      largeurs: [18, 20, 22, 16, 25, 15, 14, 14, 16, 14, 8, 10, 40, 22] },
+    { nom: "Lignes articles", lignes: enTableau(rowsLignes, ["N° Commande", "Date", "Client", "Produit", "Type", "Quantité", "Prix Unitaire", "Sous-Total", "Devise"]),
+      largeurs: [18, 14, 20, 28, 12, 10, 14, 12, 8] },
+    { nom: "Résumé", lignes: enTableau(rowsResume, ["Métrique", "Valeur"]), largeurs: [30, 25] },
+  ]);
   const filename = `commandes-axso-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
-  return new NextResponse(buffer, {
+  return new NextResponse(buffer as BodyInit, {
     headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type": TYPE_XLSX,
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
     },

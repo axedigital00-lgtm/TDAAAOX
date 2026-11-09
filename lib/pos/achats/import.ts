@@ -22,7 +22,7 @@
 // le stock connu est calculé à l'écriture, sous verrou de l'article ; réimporter
 // le même fichier donne un écart nul et n'écrit donc aucun mouvement.
 import { createHash } from "node:crypto";
-import * as XLSX from "xlsx";
+import { classeurXlsx, csv, lireTableur, FichierIllisible, TYPE_XLSX } from "@/lib/excel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma";
 import { slugify } from "../../utils";
@@ -51,13 +51,10 @@ export async function lireFichier(entite: Entite, fichier: File): Promise<Fichie
   const octets = new Uint8Array(await fichier.arrayBuffer());
   let brut: Record<string, unknown>[];
   try {
-    // Un CSV lu en binaire perd ses accents : on le décode en UTF-8 d'abord. `raw` garde les zéros de tête des codes-barres.
-    const classeur = /\.csv$/i.test(fichier.name)
-      ? XLSX.read(new TextDecoder("utf-8").decode(octets).replace(/^﻿/, ""), { type: "string", raw: true })
-      : XLSX.read(octets, { type: "array" });
-    brut = XLSX.utils.sheet_to_json<Record<string, unknown>>(classeur.Sheets[classeur.SheetNames[0]], { defval: "" });
-  } catch {
-    throw new ErreurPos("fichier_illisible", 400, "Ce fichier est illisible. Utilisez le modèle fourni, au format Excel (.xlsx) ou CSV.");
+    // CSV lu comme du texte : les zéros de tête des codes-barres sont gardés.
+    brut = await lireTableur(fichier.name, octets);
+  } catch (e) {
+    throw new ErreurPos("fichier_illisible", 400, e instanceof FichierIllisible ? e.message : "Ce fichier est illisible. Utilisez le modèle fourni, au format Excel (.xlsx) ou CSV.");
   }
   if (!brut.length) throw erreurs.invalide("Ce fichier ne contient aucune ligne sous les en-têtes.");
   if (brut.length > LIMITES_IMPORT.lignes) {
@@ -222,19 +219,14 @@ export async function appliquerImport(ctx: ContextePos, entite: Entite, fichier:
 export type Format = "xlsx" | "csv";
 
 /** Fichier téléchargeable (réponse HTTP) à partir d'un tableau : première ligne = en-têtes. */
-export function fichierTableur(nom: string, feuille: string, tableau: (string | number | null)[][], format: Format, enTetesHttp: Record<string, string> = {}): Response {
-  const f = XLSX.utils.aoa_to_sheet(tableau);
-  f["!cols"] = (tableau[0] ?? []).map((c) => ({ wch: Math.max(14, String(c ?? "").length + 4) }));
+export async function fichierTableur(nom: string, feuille: string, tableau: (string | number | null)[][], format: Format, enTetesHttp: Record<string, string> = {}): Promise<Response> {
   if (format === "csv") {
-    // Point-virgule + BOM : s'ouvre proprement dans Excel en français, accents compris.
-    return new Response(`﻿${XLSX.utils.sheet_to_csv(f, { FS: ";" })}`, {
+    return new Response(csv(tableau), {
       headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${nom}.csv"`, ...enTetesHttp },
     });
   }
-  const classeur = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(classeur, f, feuille);
-  return new Response(new Uint8Array(XLSX.write(classeur, { type: "buffer", bookType: "xlsx" }) as Buffer), {
-    headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${nom}.xlsx"`, ...enTetesHttp },
+  return new Response(await classeurXlsx([{ nom: feuille, lignes: tableau }]) as BodyInit, {
+    headers: { "Content-Type": TYPE_XLSX, "Content-Disposition": `attachment; filename="${nom}.xlsx"`, ...enTetesHttp },
   });
 }
 

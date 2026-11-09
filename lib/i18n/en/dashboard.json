@@ -2842,7 +2842,7 @@
  "livraison a échoué et attend une replanification": "delivery failed and is awaiting rescheduling",
  "Importer (Excel)": "Import (Excel)",
  "Importer des produits": "Import products",
- "Remplis le modèle Excel (une ligne par produit), puis envoie-le. Fichiers .xlsx, .xls ou .csv acceptés.": "Fill in the Excel template (one row per product), then upload it. .xlsx, .xls or .csv files accepted.",
+ "Remplis le modèle Excel (une ligne par produit), puis envoie-le. Fichiers .xlsx ou .csv acceptés.": "Fill in the Excel template (one row per product), then upload it. .xlsx or .csv files accepted.",
  "Télécharger le modèle Excel": "Download the Excel template",
  "Choisir mon fichier": "Choose my file",
  "Colonnes obligatoires : Nom et Prix": "Required columns: Name and Price",

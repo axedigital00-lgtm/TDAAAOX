@@ -26,11 +26,9 @@ export function exporterCSV(nom: string, colonnes: Colonne[], lignes: Ligne[]) {
 }
 
 export async function exporterExcel(nom: string, colonnes: Colonne[], lignes: Ligne[]) {
-  const XLSX = await import("xlsx");
-  const ws = XLSX.utils.aoa_to_sheet([colonnes.map((c) => c.nom), ...lignes.map((l) => colonnes.map((c) => (c.format === "date" && typeof l[c.cle] === "number" ? new Date(l[c.cle] as number) : l[c.cle] ?? "")))]);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, nom.slice(0, 31));
-  XLSX.writeFile(wb, `${nom}.xlsx`);
+  const { classeurXlsx, TYPE_XLSX } = await import("@/lib/excel"); // exceljs chargé seulement au clic
+  const octets = await classeurXlsx([{ nom, lignes: [colonnes.map((c) => c.nom), ...lignes.map((l) => colonnes.map((c) => (c.format === "date" && typeof l[c.cle] === "number" ? new Date(l[c.cle] as number) : (l[c.cle] ?? "") as any)))] }]);
+  telecharger(new Blob([octets as BlobPart], { type: TYPE_XLSX }), `${nom}.xlsx`);
 }
 
 function telecharger(b: Blob, nom: string) {

@@ -157,7 +157,7 @@ export function ImportExport() {
 
         <div className="mt-2 flex flex-wrap items-end gap-2 border-t border-[#F0F0F0] pt-3">
           <label className="block min-w-0 flex-1 basis-64 text-[12px] font-semibold text-[#111111]">{t("2. Votre fichier (.xlsx ou .csv)")}
-            <input ref={champ} type="file" accept=".xlsx,.xls,.csv" disabled={occupe} onChange={(e) => reinitialiser(e.target.files?.[0] ?? null)}
+            <input ref={champ} type="file" accept=".xlsx,.csv" disabled={occupe} onChange={(e) => reinitialiser(e.target.files?.[0] ?? null)}
               className={`mt-1 block w-full min-h-11 rounded-xl border border-[#E8E8E8] bg-white p-2 text-[13px] font-normal file:mr-3 file:rounded-lg file:border-0 file:bg-[#111111] file:px-3 file:py-1.5 file:text-[12px] file:font-bold file:text-white ${FOCUS}`} />
           </label>
           <Bouton variante="sombre" icone={<Upload size={15} aria-hidden />} disabled={!fichier || etape === "import"} charge={etape === "verification"} onClick={() => void verifier()}>{t("Vérifier le fichier")}</Bouton>

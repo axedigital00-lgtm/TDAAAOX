@@ -1,10 +1,10 @@
-// Import de produits depuis un fichier Excel (.xlsx, .xls) ou CSV.
+// Import de produits depuis un fichier Excel (.xlsx) ou CSV.
 // GET  → modèle Excel à remplir (une ligne d'exemple).
 // POST → FormData { fichier } : chaque ligne valide devient un produit physique ;
 //        les lignes invalides sont ignorées et renvoyées avec leur numéro.
 // Permission « produits » appliquée par proxy.ts (lib/permissions-api.ts).
 import { NextResponse } from "next/server";
-import * as XLSX from "xlsx";
+import { classeurXlsx, lireTableur, FichierIllisible, TYPE_XLSX } from "@/lib/excel";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { schemaProduit } from "@/lib/validations";
@@ -18,18 +18,14 @@ export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ message: "Non autorisé" }, { status: 401 });
 
-  const feuille = XLSX.utils.aoa_to_sheet([
+  const contenu = await classeurXlsx([{ nom: "Produits", lignes: [
     COLONNES,
     ["Sac cabas en cuir", 24900, 29900, 12, "Cuir pleine fleur, cousu main à Dakar.", "Maroquinerie", "SAC-001", "", "https://exemple.com/photo1.jpg, https://exemple.com/photo2.jpg", "oui"],
-  ]);
-  feuille["!cols"] = COLONNES.map((c) => ({ wch: Math.max(14, c.length + 4) }));
-  const classeur = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(classeur, feuille, "Produits");
-  const contenu = XLSX.write(classeur, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  ] }]);
 
-  return new NextResponse(new Uint8Array(contenu), {
+  return new NextResponse(contenu as BodyInit, {
     headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type": TYPE_XLSX,
       "Content-Disposition": 'attachment; filename="modele-import-produits-axso.xlsx"',
     },
   });
@@ -58,14 +54,10 @@ export async function POST(request: Request) {
 
   let lignes: Record<string, unknown>[];
   try {
-    // Un CSV lu en binaire perd ses accents (« Prix barrÃ© ») : on le décode en UTF-8 d'abord.
-    const classeur = /\.csv$/i.test(fichier.name)
-      ? XLSX.read(await fichier.text(), { type: "string" })
-      : XLSX.read(new Uint8Array(await fichier.arrayBuffer()), { type: "array" });
-    const brut = XLSX.utils.sheet_to_json<Record<string, unknown>>(classeur.Sheets[classeur.SheetNames[0]], { defval: "" });
+    const brut = await lireTableur(fichier.name, new Uint8Array(await fichier.arrayBuffer()));
     lignes = brut.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) => [cle(k), v])));
-  } catch {
-    return NextResponse.json({ message: "Fichier illisible : utilise le modèle Excel ou un CSV" }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json({ message: e instanceof FichierIllisible ? e.message : "Fichier illisible : utilise le modèle Excel ou un CSV" }, { status: 400 });
   }
   if (!lignes.length) return NextResponse.json({ message: "Le fichier ne contient aucune ligne" }, { status: 400 });
   if (lignes.length > MAX_LIGNES) return NextResponse.json({ message: `${MAX_LIGNES} produits maximum par import` }, { status: 400 });
