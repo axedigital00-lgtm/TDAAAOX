@@ -3941,3 +3941,18 @@ model Signalement {
   @@index([userId, createdAt])
   @@index([statut, createdAt])
 }
+
+// Parcours d'inscription marchand, étape par étape (vue, choix, abandon, durée). Anonyme : aucune
+// donnée personnelle, aucune relation (le compte n'existe pas encore). Voir lib/inscription-suivi.ts.
+model EvenementInscription {
+  id        String   @id @default(cuid())
+  session   String   // id anonyme du navigateur (sessionStorage)
+  type      String   // vue | choix | abandon | fin | erreur
+  etape     String
+  valeur    String?  // valeur non personnelle : type de boutique, code pays, id de design
+  dureeMs   Int?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([session])
+}

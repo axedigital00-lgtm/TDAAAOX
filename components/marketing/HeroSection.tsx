@@ -170,6 +170,14 @@ export function HeroSection() {
         .ax-float { animation: axFloat 6s ease-in-out infinite; }
         .ax-float-2 { animation-delay: -2s; }
         .ax-float-3 { animation-delay: -4s; }
+        @media (prefers-reduced-motion: reduce) { .ax-float { animation: none; } }
+      `}</style>
+    </section>
+  );
+}
+
+// Styles du fond, portés par HeroFond : il marche seul (Preloader, inscription), sans HeroSection.
+const FOND_CSS = `
         .ax-nappe { position: absolute; border-radius: 9999px; filter: blur(70px); will-change: transform; }
         .ax-nappe-1 { width: 620px; height: 620px; left: -8%; top: -18%; background: rgba(245,166,35,0.30); animation: axDerive1 22s ease-in-out infinite; }
         .ax-nappe-2 { width: 540px; height: 540px; right: -6%; top: 6%; background: rgba(255,122,61,0.20); animation: axDerive2 27s ease-in-out infinite; }
@@ -189,16 +197,14 @@ export function HeroSection() {
           background-image: linear-gradient(#11111109 1px, transparent 1px), linear-gradient(90deg, #11111109 1px, transparent 1px);
           background-size: 56px 56px; animation: axGlisse 30s linear infinite; will-change: transform; }
         @keyframes axGlisse { to { transform: translate(56px, 56px) } }
-        @media (prefers-reduced-motion: reduce) { .ax-float, .ax-nappe, .ax-lueur, .ax-grille-motif { animation: none; } }
-      `}</style>
-    </section>
-  );
-}
+        @media (prefers-reduced-motion: reduce) { .ax-nappe, .ax-lueur, .ax-grille-motif { animation: none; } }
+`;
 
-/** Fond animé du hero — réutilisé par le Preloader. Les classes ax-* sont définies dans le <style> de HeroSection. */
+/** Fond animé du hero — réutilisé par le Preloader et l'inscription. */
 export function HeroFond() {
   return (
     <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+      <style>{FOND_CSS}</style>
       <div className="ax-nappe ax-nappe-1" />
       <div className="ax-nappe ax-nappe-2" />
       <div className="ax-nappe ax-nappe-3" />
