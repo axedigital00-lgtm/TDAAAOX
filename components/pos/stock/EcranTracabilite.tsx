@@ -350,7 +350,7 @@ function VueSeries({ lieux, caisseId }: { lieux: Lieux | null; caisseId: string 
         </Champ>
         {/* Le poste de scan de la recherche se tait quand la fenêtre d'enregistrement a le sien. */}
         {!nouveau && <PosteScan contexte="recherche" caisseId={caisseId} onScan={(s) => setRecherche(s.code)} libelle="Scanner" />}
-        {(lieux?.droits.reception || lieux?.droits.ajuster) && <Bouton onClick={() => setNouveau(true)} icone={<Plus size={15} aria-hidden />}>{t("Enregistrer")}</Bouton>}
+        {(lieux?.droits.reception || lieux?.droits.ajuster) && <Bouton onClick={() => setNouveau(true)} icone={<Plus size={15} aria-hidden />}>{t("Enregistrer des numéros")}</Bouton>}
       </div>
       {erreur ? <EtatPos code={erreur.code} message={erreur.message} onReessayer={recharger} />
         : !donnees ? <EtatChargement texte="Chargement des numéros…" />

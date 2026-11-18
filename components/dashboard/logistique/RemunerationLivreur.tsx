@@ -2,9 +2,10 @@
 // Rémunération d'un livreur choisie par le marchand (lib/gains-livreur.ts), chargée à l'ouverture.
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Wallet } from "lucide-react";
+import { ChevronDown, Wallet } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { formatMontant } from "@/lib/utils";
+import { formatMontant, cn } from "@/lib/utils";
+import { Bouton, Saisie, Squelette } from "@/components/ui";
 
 type Resume = { mode: string; montantFixe: number; devise: string; totaux: { paiement: string; devise: string; montant: number; courses: number }[] };
 
@@ -25,9 +26,9 @@ export function RemunerationLivreur({ livreurId }: { livreurId: string }) {
   async function ouvrir() {
     setOuvert(!ouvert);
     if (r || ouvert) return;
-    const res = await fetch(`/api/livreurs/${livreurId}/remuneration`);
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) { toast.error(t(d.error || "Erreur")); return; }
+    const res = await fetch(`/api/livreurs/${livreurId}/remuneration`).catch(() => null);
+    const d = await res?.json().catch(() => ({}));
+    if (!res?.ok) { setOuvert(false); toast.error(d?.error ? t(d.error) : t("La rémunération n'a pas pu être chargée. Réessaie.")); return; }
     setR(d); setMode(d.mode); setFixe(d.montantFixe ? String(d.montantFixe) : "");
   }
 
@@ -39,48 +40,48 @@ export function RemunerationLivreur({ livreurId }: { livreurId: string }) {
         body: JSON.stringify({ mode, montantFixe: Number(fixe) || 0 }),
       });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || "Erreur");
+      if (!res.ok) throw new Error(d.error || "La rémunération n'a pas pu être enregistrée. Réessaie.");
       toast.success(t("Rémunération enregistrée — elle s'applique aux prochaines courses livrées"));
     } catch (e: any) { toast.error(t(e.message)); } finally { setSaving(false); }
   }
 
   return (
-    <div className="border-t border-gray-100 pt-3">
-      <button type="button" onClick={ouvrir} className="text-xs font-semibold text-[#F5A623] flex items-center gap-1.5">
-        <Wallet size={12} />{" "}{t("Rémunération")}
+    <div className="border-t border-bordure pt-3">
+      <button type="button" onClick={ouvrir} aria-expanded={ouvert}
+        className="flex min-h-10 items-center gap-1.5 text-sm font-semibold text-encre hover:text-attention">
+        <Wallet className="size-4" aria-hidden />{t("Rémunération")}
+        <ChevronDown className={cn("size-4 transition-transform", ouvert && "rotate-180")} aria-hidden />
       </button>
-      {ouvert && !r && <Loader2 size={14} className="animate-spin text-[#F5A623] mt-2" />}
+      {ouvert && !r && <Squelette className="mt-2 h-20 w-full" />}
       {ouvert && r && (
         <div className="mt-3 space-y-3">
-          <div className="grid sm:grid-cols-3 gap-2">
-            {MODES.map(m => (
-              <label key={m.v} className={`rounded-xl border p-3 cursor-pointer text-xs ${mode === m.v ? "border-[#F5A623] bg-[#F5A623]/5" : "border-gray-200"}`}>
-                <input type="radio" className="sr-only" checked={mode === m.v} onChange={() => setMode(m.v)} />
-                <span className="font-semibold text-gray-900 block">{t(m.label)}</span>
-                <span className="text-gray-500">{t(m.aide)}</span>
-              </label>
-            ))}
-          </div>
+          <fieldset>
+            <legend className="sr-only">{t("Mode de rémunération")}</legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {MODES.map(m => (
+                <label key={m.v} className={cn("cursor-pointer rounded-controle border p-3 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus",
+                  mode === m.v ? "border-primaire bg-primaire-fond" : "border-bordure hover:border-bordure-forte")}>
+                  <input type="radio" name={`remuneration-${livreurId}`} className="sr-only" checked={mode === m.v} onChange={() => setMode(m.v)} />
+                  <span className="block font-semibold text-encre">{t(m.label)}</span>
+                  <span className="ax-aide">{t(m.aide)}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           {mode === "fixe" && (
-            <label className="block text-xs text-gray-500">
-              {t("Montant par course")} ({r.devise})
-              <input type="number" min={0} inputMode="decimal" value={fixe} onChange={e => setFixe(e.target.value)}
-                className="mt-1 w-full sm:w-48 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[#F5A623]/50" />
-            </label>
+            <Saisie type="number" min={0} inputMode="decimal" label={t("Montant par course")} suffixe={r.devise}
+              value={fixe} onChange={e => setFixe(e.target.value)} className="sm:w-56" />
           )}
-          <p className="text-[11px] text-gray-500">
+          <p className="ax-aide">
             {t("Paiement en ligne : sa part est prise sur ton wallet Axso et créditée à son solde. Paiement à la livraison : il garde sa part sur l'argent encaissé et te remet le reste.")}
           </p>
-          <button type="button" onClick={enregistrer} disabled={saving}
-            className="flex items-center gap-2 bg-[#F5A623] text-black font-semibold px-4 py-2 rounded-xl text-xs disabled:opacity-50">
-            {saving && <Loader2 size={12} className="animate-spin" />}{t("Enregistrer")}
-          </button>
+          <Bouton variante="secondaire" onClick={enregistrer} charge={saving} texteCharge={t("Enregistrement…")}>{t("Enregistrer la rémunération")}</Bouton>
           {r.totaux.length > 0 && (
-            <div className="text-xs text-gray-600 space-y-1">
+            <div className="space-y-1 text-sm text-doux">
               {r.totaux.map(x => (
                 <p key={`${x.paiement}|${x.devise}`}>
                   {x.paiement === "en_ligne" ? t("Payé depuis ton wallet") : t("Gardé sur les espèces encaissées")}
-                  {" : "}<strong>{formatMontant(x.montant, x.devise)}</strong>{" "}· {t("{0} course(s)", x.courses)}
+                  {" : "}<strong className="text-encre">{formatMontant(x.montant, x.devise)}</strong>{" "}· {t("{0} course(s)", x.courses)}
                 </p>
               ))}
             </div>

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { televerser } from "@/lib/televerser";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Save, Trash2, X, Plus, Sparkles, Loader2,
+  Save, Trash2, X, Plus, Sparkles, Loader2,
   Package, Image as ImageIcon, Tag, BarChart2, Globe,
   Upload, Video, FileText, Truck, Download, ExternalLink, Info, Zap,
   HelpCircle, ListOrdered, Eye, EyeOff, ShoppingCart, ScanLine, RefreshCw,
@@ -27,6 +27,7 @@ import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { PolitiquePrix } from "@/components/dashboard/PolitiquePrix";
 import { urlBoutique } from "@/lib/utils";
+import { Badge, Bouton, EnTetePage, EtatChargement, EtatErreur, useConfirmation } from "@/components/ui";
 
 const TYPES_PRODUIT = [
   { id: "physique",     icon: Package,  label: "Physique",      desc: "Stock, livraison, poids",                 color: "#F5A623" },
@@ -78,6 +79,14 @@ export default function EditProduitPage() {
   const [savingVariante, setSavingVariante] = useState(false);
   const [showPubAssistant, setShowPubAssistant] = useState(false);
   const [scanBarcodeOuvert, setScanBarcodeOuvert] = useState(false);
+  const { confirmer, dialogue } = useConfirmation();
+  // Lien direct « Mettre à jour le stock » depuis la liste (#stock) : le champ n'existe qu'après le chargement.
+  useEffect(() => {
+    if (loading || window.location.hash !== "#stock") return;
+    const champ = document.getElementById("stock") as HTMLInputElement | null;
+    champ?.scrollIntoView({ block: "center" });
+    champ?.focus({ preventScroll: true });
+  }, [loading]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -289,7 +298,7 @@ export default function EditProduitPage() {
       });
       const data = await res.json();
       if (data.description) set("description", data.description);
-    } catch { toast.error(tr("Erreur IA")); }
+    } catch { toast.error(tr("La description n'a pas pu être générée. Réessayez ou écrivez-la vous-même.")); }
     finally { setGenIA(false); }
   }
 
@@ -307,7 +316,7 @@ export default function EditProduitPage() {
 
   async function sauvegarder(overrides: Partial<FormState> = {}) {
     const form_ = { ...form, ...overrides };
-    if (!form_.nom || !form_.prix) { toast.error(tr("Nom et prix obligatoires")); return; }
+    if (!form_.nom || !form_.prix) { toast.error(tr("Indiquez le nom et le prix de vente du produit avant d'enregistrer.")); return; }
     const prix = parseFloat(form_.prix), stock = parseInt(form_.stock, 10);
     if (!(prix > 0)) { toast.error(tr("Le prix de vente doit être supérieur à 0")); return; }
     if (!estDigital && (isNaN(stock) || stock < 0)) { toast.error(tr("Le stock doit être un nombre entier positif")); return; }
@@ -351,79 +360,57 @@ export default function EditProduitPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.details?.[0] ? `${data.error} : ${data.details[0].path?.join(".")} — ${data.details[0].message}` : data.error || "Erreur");
-      toast.success(tr("Produit mis à jour !"));
+      toast.success(tr("Modifications du produit enregistrées."));
     } catch (e: any) { toast.error(tr(e.message)); }
     finally { setSaving(false); }
   }
 
   async function supprimer() {
-    if (!confirm(tr("Supprimer ce produit définitivement ?"))) return;
+    if (!(await confirmer({
+      titre: tr("Supprimer ce produit ?"),
+      objet: form.nom || tr("Ce produit"),
+      description: tr("Il disparaît de votre boutique et de la caisse. Les commandes déjà passées restent visibles. Cette action est définitive."),
+      libelleConfirmer: tr("Supprimer le produit"),
+    }))) return;
     setDeleting(true);
     const res = await fetch(`/api/produits/${id}`, { method: "DELETE" });
     if (res.ok) { toast.success(tr("Produit supprimé")); router.push("/dashboard/produits"); }
-    else { toast.error(tr((await res.json().catch(() => ({}))).error || "Erreur lors de la suppression")); setDeleting(false); }
+    else { toast.error(tr((await res.json().catch(() => ({}))).error || "Le produit n'a pas pu être supprimé. Réessayez dans un instant.")); setDeleting(false); }
   }
 
   const inputClass = "w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 placeholder:text-[#CCCCCC] transition-all";
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-64">
-      <Loader2 size={24} className="animate-spin text-[#F5A623]" />
-    </div>
-  );
+  if (loading) return <EtatChargement texte={tr("Chargement du produit…")} />;
 
   if (erreurChargement) return (
-    <div className="ax-card p-10 text-center max-w-md mx-auto">
-      <p className="text-[14px] font-semibold text-[#111111] mb-2">{erreurChargement}</p>
-      <Link href="/dashboard/produits" className="text-[12.5px] font-semibold text-[#F5A623] hover:underline">{tr("Retour aux produits")}</Link>
-    </div>
+    <EtatErreur className="max-w-md mx-auto" titre={tr("Ce produit ne peut pas être ouvert")}
+      texte={tr("{0}. Il a peut-être été supprimé ou appartient à une autre boutique.", erreurChargement)}>
+      <Bouton variante="secondaire" href="/dashboard/produits">{tr("Retour aux produits")}</Bouton>
+    </EtatErreur>
   );
 
   return (
     <>
     <div className="max-w-4xl space-y-6">
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/produits"
-            className="w-9 h-9 rounded-xl bg-white border border-[#E8E8E8] flex items-center justify-center text-[#888] hover:text-[#111] hover:border-[#CCC] transition-all">
-            <ArrowLeft size={16} />
-          </Link>
-          <div>
-            <h1 className="text-[18px] font-bold text-[#111111] tracking-tight line-clamp-1">{tr(form.nom) || tr("Éditer le produit")}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-[#AAAAAA]">{tr(stats.ventes)} ventes</span>
-              <span className="text-[#DDDDDD]">·</span>
-              <span className="text-[11px] text-[#AAAAAA]">{tr(stats.vues)} vues</span>
-              <span className="text-[#DDDDDD]">·</span>
-              <span className="text-[11px] text-[#AAAAAA]">{tr(stats.avis)} avis</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={supprimer} disabled={deleting}
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl border border-[#FECACA] text-[#DC2626] hover:bg-[#FEF2F2] transition-all disabled:opacity-50">
-            {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}{" "}{tr("Supprimer")}
-          </button>
-          <button
+      <EnTetePage
+        className="mb-0"
+        retour={{ href: "/dashboard/produits", libelle: tr("Produits") }}
+        titre={<span className="line-clamp-2 break-words">{form.nom || tr("Modifier le produit")}</span>}
+        indicateurs={form.actif ? <Badge ton="succes" icone={<Eye aria-hidden />}>{tr("En ligne")}</Badge> : <Badge icone={<EyeOff aria-hidden />}>{tr("Hors ligne")}</Badge>}
+        description={<>{stats.ventes} {tr(stats.ventes > 1 ? "ventes" : "vente")} · {stats.vues} {tr(stats.vues > 1 ? "vues" : "vue")} · {stats.avis} {tr("avis")}</>}
+        actions={<>
+          <Bouton variante="danger" onClick={supprimer} charge={deleting} icone={<Trash2 className="size-4" aria-hidden />}>{tr("Supprimer")}</Bouton>
+          <Bouton variante="secondaire" icone={form.actif ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
             onClick={() => {
               if (!form.actif) { setShowPubAssistant(true); }
-              else { set("actif", false); }
-            }}
-            className="text-[12px] font-semibold px-3.5 py-2 rounded-2xl border transition-all"
-            style={form.actif
-              ? { background: "#F0FDF4", borderColor: "#BBF7D0", color: "#16A34A" }
-              : { background: "#F9F9F9", borderColor: "#E8E8E8", color: "#888888" }}>
-            {form.actif ? tr("✓ Actif") : tr("Publier")}
-          </button>
-          <button onClick={() => sauvegarder()} disabled={saving}
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-4 py-2 rounded-2xl text-white transition-all disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)", boxShadow: "0 4px 12px rgba(245,166,35,0.25)" }}>
-            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}{" "}{tr("Enregistrer")}
-          </button>
-        </div>
-      </div>
+              else { set("actif", false); toast.info(tr("Le produit sera masqué de la boutique quand vous enregistrerez.")); }
+            }}>
+            {form.actif ? tr("Masquer de la boutique") : tr("Publier")}
+          </Bouton>
+          <Bouton variante="primaire" onClick={() => sauvegarder()} charge={saving} texteCharge={tr("Enregistrement…")} icone={<Save className="size-4" aria-hidden />}>{tr("Enregistrer")}</Bouton>
+        </>}
+      />
 
       {/* ── Sélecteur de type ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -467,11 +454,11 @@ export default function EditProduitPage() {
               <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Informations générales")}</h2>
             </div>
             <div>
-              <label className="ax-label block mb-1.5">{tr("Nom du produit *")}</label>
-              <input value={form.nom} onChange={e => set("nom", e.target.value)} maxLength={120} className={inputClass} />
+              <label htmlFor="produit-nom" className="ax-label block mb-1.5">{tr("Nom du produit *")}</label>
+              <input id="produit-nom" required value={form.nom} onChange={e => set("nom", e.target.value)} maxLength={120} className={inputClass} />
             </div>
             <div>
-              <label className="ax-label block mb-1.5">{tr("Slug URL")}</label>
+              <label className="ax-label block mb-1.5">{tr("Adresse de la page produit (facultatif)")}</label>
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                 <span className="text-gray-400 text-xs flex-shrink-0">/produits/</span>
                 <input value={form.slug} onChange={e => set("slug", e.target.value)} className="bg-transparent text-sm text-gray-600 outline-none flex-1 min-w-0" />
@@ -551,8 +538,8 @@ export default function EditProduitPage() {
                 <p className="text-[12px] font-semibold text-[#111111]">{tr("Inventaire")}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="ax-label block mb-1.5">{tr("Stock disponible")}</label>
-                    <input type="number" inputMode="numeric" step="1" min="0" value={form.stock} onChange={e => set("stock", e.target.value)} className={inputClass} />
+                    <label htmlFor="stock" className="ax-label block mb-1.5">{tr("Stock disponible")}</label>
+                    <input id="stock" type="number" inputMode="numeric" step="1" min="0" value={form.stock} onChange={e => set("stock", e.target.value)} className={inputClass} />
                     {variantes.length > 0 && <p className="text-[11px] text-gray-400 mt-1">{tr("Les variantes ont chacune leur propre stock (colonne de droite).")}</p>}
                   </div>
                   <div>
@@ -795,18 +782,20 @@ export default function EditProduitPage() {
           </div>
 
           {/* SEO & Open Graph */}
-          <div className="ax-card p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Globe size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("SEO & Open Graph")}</h2>
-            </div>
+          <details className="ax-card p-6">
+            <summary className="flex items-center gap-2 min-h-10 cursor-pointer select-none">
+              <Globe size={15} className="text-primaire" aria-hidden />
+              <h2 className="text-[13px] font-semibold text-encre">{tr("Référencement Google et partage")}</h2>
+              <span className="ax-aide">{tr("facultatif")}</span>
+            </summary>
+            <div className="space-y-4 mt-4">
             <div>
-              <label className="ax-label block mb-1.5">{tr("Titre méta")}</label>
+              <label className="ax-label block mb-1.5">{tr("Titre affiché sur Google")}</label>
               <input value={form.metaTitle} onChange={e => set("metaTitle", e.target.value)} placeholder={tr("Titre pour Google (max 60 car.)")} className={inputClass} />
               {form.metaTitle && <p className={`text-[10px] mt-1 ${form.metaTitle.length > 60 ? "text-red-400" : "text-gray-400"}`}>{form.metaTitle.length}/60</p>}
             </div>
             <div>
-              <label className="ax-label block mb-1.5">{tr("Méta description")}</label>
+              <label className="ax-label block mb-1.5">{tr("Description affichée sur Google")}</label>
               <textarea value={form.metaDesc} onChange={e => set("metaDesc", e.target.value)} rows={2} placeholder={tr("Description Google (max 155 car.)…")} className={`${inputClass} resize-none`} />
               {form.metaDesc && <p className={`text-[10px] mt-1 ${form.metaDesc.length > 155 ? "text-red-400" : "text-gray-400"}`}>{form.metaDesc.length}/155</p>}
             </div>
@@ -821,6 +810,7 @@ export default function EditProduitPage() {
               <p className="text-[10px] text-gray-400 mt-1">{tr("Si vide, la première image produit est utilisée.")}</p>
             </div>
           </div>
+          </details>
 
           {/* Tarification avancée (variantes de prix) */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5">
@@ -987,7 +977,7 @@ export default function EditProduitPage() {
                   <p className="text-gray-800 text-sm">{tr(opt.label)}</p>
                   <p className="text-gray-400 text-xs">{tr(opt.desc)}</p>
                 </div>
-                <button onClick={() => set(opt.key, !(form as any)[opt.key])}
+                <button type="button" role="switch" aria-checked={!!(form as any)[opt.key]} aria-label={tr(opt.label)} onClick={() => set(opt.key, !(form as any)[opt.key])}
                   className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${(form as any)[opt.key] ? "bg-[#F5A623]" : "bg-gray-200"}`}>
                   <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${(form as any)[opt.key] ? "left-5" : "left-0.5"}`} />
                 </button>
@@ -1063,6 +1053,7 @@ export default function EditProduitPage() {
       onClose={() => setScanBarcodeOuvert(false)}
       onDetect={code => { set("codeBarres", code); toast.success(tr("Code-barres scanné !")); }}
     />
+    {dialogue}
     </>
   );
 }

@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PCOnlyGate } from "@/components/dashboard/PCOnlyGate";
-import { ApercuDesign, parametresApercu, fichierDuTheme, CONFIRMER_CHANGEMENT } from "@/components/dashboard/ApercuDesign";
+import { ApercuDesign, parametresApercu, fichierDuTheme, optionsChangementDesign } from "@/components/dashboard/ApercuDesign";
+import { Badge, Bouton, BoutonIcone, EtatChargement, EtatErreur, EtatVide, classesBouton, useConfirmation } from "@/components/ui";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import {
   Plus, Palette, Trash2, Edit2, ExternalLink,
@@ -13,7 +14,7 @@ import { useT } from "@/components/I18nProvider";
 import { urlBoutique } from "@/lib/utils";
 
 const THEMES_TUTORIAL_STEPS = [
-  { Icon: Palette,  titre: "Choisissez un design AXSO", description: "15 designs prêts à l'emploi, pensés pour différents univers : mode, artisanat, beauté... En choisir un branche directement vos vrais produits." },
+  { Icon: Palette,  titre: "Choisissez un design AXSO", description: "Des designs prêts à l'emploi, pensés pour différents univers : mode, artisanat, beauté... En choisir un branche directement vos vrais produits." },
   { Icon: Sparkles, titre: "Importez votre propre design", description: "Envoyez un fichier HTML de référence — notre IA en extrait le style pour créer un thème AXSO personnalisé." },
 ];
 
@@ -37,35 +38,40 @@ export default function ThemesPage() {
   const [activating, setActivating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [params, setParams] = useState(""); // aperçus avec les vrais nom, devise et produits
+  const [erreurChargement, setErreurChargement] = useState(false);
+  const { confirmer, dialogue } = useConfirmation();
 
-  useEffect(() => {
+  const charger = () => {
+    setLoading(true); setErreurChargement(false);
     Promise.all([
-      fetch("/api/themes").then((r) => r.json()),
-      fetch("/api/tenants/moi").then((r) => r.json()),
+      fetch("/api/themes").then((r) => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch("/api/tenants/moi").then((r) => { if (!r.ok) throw new Error(); return r.json(); }),
       fetch("/api/produits?limit=24&actif=true").then((r) => r.json()).catch(() => ({})),
     ]).then(([td, te, pr]) => {
       setThemes(td.themes || []);
       setTenant(te.tenant);
       setParams(parametresApercu(te.tenant, pr.produits ?? []));
-      setLoading(false);
-    });
-  }, []);
+    }).catch(() => setErreurChargement(true)).finally(() => setLoading(false));
+  };
+  useEffect(charger, []);
 
   // Thèmes perso (import manuel ou anciens thèmes créés avant la bibliothèque) —
   // un Theme existe déjà, on ne fait qu'assigner directement son id.
   async function activerCustom(id: string) {
-    if (!confirm(CONFIRMER_CHANGEMENT(themes.find((t) => t.id === id)?.nom || "ce thème"))) return;
+    const nom = themes.find((t) => t.id === id)?.nom || tr("ce thème");
+    if (!(await confirmer(optionsChangementDesign(nom, tr)))) return;
     setActivating(id);
     try {
-      await fetch("/api/tenants", {
+      const res = await fetch("/api/tenants", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ themeId: id }),
       });
+      if (!res.ok) throw new Error();
       setTenant((t: any) => ({ ...t, themeId: id }));
-      toast.success(tr("Thème activé !"));
+      toast.success(tr("Thème « {0} » activé sur votre boutique.", nom));
     } catch {
-      toast.error(tr("Erreur lors de l'activation"));
+      toast.error(tr("Le thème n'a pas pu être activé. Vérifiez votre connexion et réessayez."));
     } finally {
       setActivating(null);
     }
@@ -76,7 +82,7 @@ export default function ThemesPage() {
   // crée un vrai Theme propre à CE tenant (vos produits déjà branchés dans
   // la grille) — voir app/api/themes/provisionner.
   async function activerLibrairie(fichier: string, nom: string) {
-    if (!confirm(CONFIRMER_CHANGEMENT(nom))) return;
+    if (!(await confirmer(optionsChangementDesign(nom, tr)))) return;
     setActivating(fichier);
     try {
       const res = await fetch("/api/themes/provisionner", {
@@ -91,9 +97,9 @@ export default function ThemesPage() {
       // pour que isLibrairieActive() le détecte.
       const td = await fetch("/api/themes").then((r) => r.json());
       setThemes(td.themes || []);
-      toast.success(tr("Design \"{0}\" activé !", nom));
+      toast.success(tr("Design « {0} » activé sur votre boutique.", nom));
     } catch {
-      toast.error(tr("Erreur lors de l'activation"));
+      toast.error(tr("Le design n'a pas pu être activé. Vérifiez votre connexion et réessayez."));
     } finally {
       setActivating(null);
     }
@@ -106,78 +112,62 @@ export default function ThemesPage() {
   }
 
   async function supprimer(id: string) {
-    if (!confirm(tr("Supprimer ce thème ?"))) return;
+    const nom = themes.find((t) => t.id === id)?.nom || tr("Thème");
+    if (!(await confirmer({ titre: tr("Supprimer ce thème ?"), objet: nom, description: tr("Il disparaît de « Mes thèmes ». Votre boutique n'est pas touchée : ce thème n'est pas celui qui est actif."), libelleConfirmer: tr("Supprimer le thème") }))) return;
     setDeleting(id);
     try {
-      await fetch(`/api/themes/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/themes/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
       setThemes((ts) => ts.filter((t) => t.id !== id));
-      toast.success(tr("Thème supprimé"));
+      toast.success(tr("Thème « {0} » supprimé.", nom));
     } catch {
-      toast.error(tr("Erreur"));
+      toast.error(tr("Le thème n'a pas pu être supprimé. Réessayez dans un instant."));
     } finally {
       setDeleting(null);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <EtatChargement texte={tr("Chargement des thèmes…")} />;
+  if (erreurChargement) return (
+    <div className="p-page">
+      <EtatErreur titre={tr("Les thèmes n'ont pas pu être chargés.")} texte={tr("Vérifiez votre connexion puis réessayez.")} onReessayer={charger} />
+    </div>
+  );
 
   const librairie = themes.filter((t) => t.axsoDesign);
   const custom = themes.filter((t) => !t.builtin);
 
   return (
-    <div
-      className="h-screen flex flex-col bg-[#F5F7FA] overflow-hidden"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}
-    >
+    <div className="h-screen flex flex-col bg-fond overflow-hidden">
+      {dialogue}
       <ModuleTutorial moduleKey="themes" titre={tr("Thèmes")} sousTitre={tr("Personnalise l'apparence de ta boutique")} steps={THEMES_TUTORIAL_STEPS} />
       <PCOnlyGate label={tr("Theme Studio")} />
 
       {/* ── Header ── */}
-      <header className="h-14 flex items-center gap-4 px-6 bg-white border-b border-gray-200 flex-shrink-0">
-        <button
-          onClick={() => router.push("/dashboard/boutique")}
-          className="flex items-center gap-2 text-gray-400 hover:text-gray-700 transition-colors"
-        >
-          <ArrowLeft size={15} />
-          <span className="text-sm font-medium">{tr("Boutique")}</span>
-        </button>
-        <div className="h-5 w-px bg-gray-200" />
+      <header className="min-h-14 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 px-6 bg-carte border-b border-bordure flex-shrink-0">
+        <Bouton variante="fantome" taille="compact" href="/dashboard/boutique" icone={<ArrowLeft size={15} aria-hidden />}>
+          {tr("Ma boutique")}
+        </Bouton>
+        <div className="h-5 w-px bg-bordure" aria-hidden />
         <div className="flex items-center gap-2">
-          <Palette size={16} className="text-[#F5A623]" />
-          <h1 className="text-sm font-bold text-gray-800">{tr("Theme Studio")}</h1>
+          <Palette size={16} className="text-attention" aria-hidden />
+          <h1 className="ax-sous-titre">{tr("Thèmes")}</h1>
           <BoutonRevoirTutoriel moduleKey="themes" />
         </div>
 
         {tenant && (
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FFF7ED] border border-[#F5A623]/20 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-[#F5A623]" />
-              <span className="text-xs font-medium text-[#92400E]">
-                {tr(themes.find((t) => t.id === tenant.themeId || t.slug === tenant.themeId)?.nom) || tr(tenant.themeId)}
-              </span>
-            </div>
+          <div className="ml-auto flex flex-wrap items-center gap-3">
+            <Badge ton="accent">
+              {tr("Thème actif :")} {tr(themes.find((t) => t.id === tenant.themeId || t.slug === tenant.themeId)?.nom) || tr(tenant.themeId)}
+            </Badge>
             {tenant.slug && (
-              <a
-                href={urlBoutique(tenant)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:border-gray-400 hover:text-gray-700 transition-all"
-              >
-                <ExternalLink size={11} />{" "}{tr("Voir la boutique")}
+              <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer" className={classesBouton({ variante: "secondaire", taille: "compact" })}>
+                <ExternalLink size={13} aria-hidden />{tr("Voir la boutique")}
               </a>
             )}
-            <button
-              onClick={() => router.push("/dashboard/themes/creer")}
-              className="flex items-center gap-2 bg-[#F5A623] text-white px-4 py-1.5 rounded-lg font-semibold text-xs hover:bg-[#d4820a] transition-all"
-            >
-              <Plus size={14} />{" "}{tr("Créer un thème")}
-            </button>
+            <Bouton taille="compact" onClick={() => router.push("/dashboard/themes/creer")} icone={<Plus size={14} aria-hidden />}>
+              {tr("Créer un thème")}
+            </Bouton>
           </div>
         )}
       </header>
@@ -188,10 +178,11 @@ export default function ThemesPage() {
         {/* Bibliothèque AXSO Design */}
         <section className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={14} className="text-[#F5A623]" />
-            <h2 className="text-sm font-bold text-gray-700">{tr("Bibliothèque AXSO Design")}</h2>
-            <span className="text-[10px] bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full font-semibold">{librairie.length} designs</span>
+            <Sparkles size={16} className="text-attention" aria-hidden />
+            <h2 className="ax-titre-section">{tr("Bibliothèque AXSO Design")}</h2>
+            <Badge ton="accent">{librairie.length} {tr("designs")}</Badge>
           </div>
+          {!librairie.length && <EtatVide titre={tr("Aucun design disponible pour le moment.")} texte={tr("Vous pouvez créer ou importer votre propre thème.")}><Bouton href="/dashboard/themes/creer">{tr("Créer un thème")}</Bouton></EtatVide>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {librairie.map((t) => (
               <SimpleThemeCard
@@ -211,9 +202,9 @@ export default function ThemesPage() {
         {custom.length > 0 && (
           <section className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles size={14} className="text-[#F5A623]" />
-              <h2 className="text-sm font-bold text-gray-700">{tr("Mes thèmes")}</h2>
-              <span className="text-[10px] bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full font-semibold">{custom.length}</span>
+              <Sparkles size={16} className="text-attention" aria-hidden />
+              <h2 className="ax-titre-section">{tr("Mes thèmes")}</h2>
+              <Badge ton="accent">{custom.length}</Badge>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {custom.map((t) => (
@@ -294,42 +285,35 @@ function SimpleThemeCard({
   };
 
   return (
-    <div className={`rounded-2xl border-2 overflow-hidden transition-all ${actif ? "border-[#F5A623] shadow-lg shadow-[#F5A623]/15" : "border-gray-200 hover:border-gray-300"}`}>
+    <div className={`rounded-carte border-2 overflow-hidden transition-all ${actif ? "border-primaire shadow-carte" : "border-bordure hover:border-bordure-forte"}`}>
       {fichier ? <ApercuDesign fichier={fichier} fond={colors.fond} params={params} /> : <ThemePreview colors={colors} radius={theme.config?.radius || "12px"} />}
-      <div className="bg-white p-3.5">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-sm font-semibold text-gray-800">{tr(theme.nom)}</p>
-          <div className="flex gap-1">
+      <div className="bg-carte p-3.5">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <h3 className="text-sm font-semibold text-encre">{tr(theme.nom)}</h3>
+          <div className="flex gap-1" aria-hidden>
             {[colors.fond, colors.accent, colors.texte].map((c, i) => (
               <div key={i} className="w-3.5 h-3.5 rounded-full border border-gray-200" style={{ backgroundColor: c }} />
             ))}
           </div>
         </div>
-        {theme.description && <p className="text-gray-400 text-[11px] mb-3 leading-snug">{tr(theme.description)}</p>}
+        {theme.description && <p className="ax-aide mb-3">{tr(theme.description)}</p>}
         <div className="flex gap-2">
           {actif ? (
-            <div className="flex-1 text-center py-2 rounded-xl text-[11px] font-semibold text-[#F5A623] bg-[#FFF7ED] border border-[#F5A623]/20">
-              {tr("Thème actif")}
-            </div>
+            <div className="flex-1 flex items-center justify-center min-h-10"><Badge ton="succes">{tr("Thème actif")}</Badge></div>
           ) : (
-            <button
-              onClick={onActivate}
-              disabled={activating}
-              className="flex-1 py-2 rounded-xl text-[11px] font-bold text-white disabled:opacity-50 hover:opacity-90 transition-all"
-              style={{ backgroundColor: colors.accent }}
-            >
-              {activating ? "..." : tr("Activer")}
-            </button>
+            <Bouton variante="secondaire" taille="compact" className="flex-1" onClick={onActivate} charge={activating} texteCharge={tr("Activation…")}>
+              {tr("Activer ce thème")}
+            </Bouton>
           )}
           {onEdit && (
-            <button onClick={onEdit} className="w-8 h-8 rounded-xl flex items-center justify-center border border-gray-200 hover:border-[#F5A623]/40 text-gray-400 hover:text-[#F5A623] transition-all">
-              <Edit2 size={13} />
-            </button>
+            <BoutonIcone variante="secondaire" label={tr("Modifier le thème")} onClick={onEdit} className="sm:size-8 sm:min-h-8">
+              <Edit2 size={14} aria-hidden />
+            </BoutonIcone>
           )}
           {onDelete && (
-            <button onClick={onDelete} disabled={deleting} className="w-8 h-8 rounded-xl flex items-center justify-center border border-gray-200 hover:border-red-200 text-gray-400 hover:text-red-400 transition-all">
-              {deleting ? <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" /> : <Trash2 size={13} />}
-            </button>
+            <BoutonIcone variante="danger" label={`${tr("Supprimer le thème")} ${theme.nom}`} onClick={onDelete} charge={deleting} className="sm:size-8 sm:min-h-8">
+              <Trash2 size={14} aria-hidden />
+            </BoutonIcone>
           )}
         </div>
       </div>

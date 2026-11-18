@@ -17,6 +17,7 @@ import { traiterTaches } from "@/lib/academie/studio";
 import { synchroniserSousDomaines } from "@/lib/domaines";
 import { passeRappelsEssai } from "@/lib/essai";
 import { passeRappelsAbonnement } from "@/lib/abonnement-paiement";
+import { passeRelancesDemarrage } from "@/lib/demarrage-relances";
 
 export const maxDuration = 60;
 
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
   // incomplètes ou des e-mails de lien en échec (lib/livraison-numerique.ts).
   const erreur = (e: any) => ({ erreur: String(e?.message ?? e) });
   // Rappels des événements live (lib/live/service.ts) : idempotents, rattrapés au passage suivant.
-  const [automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement] = await Promise.all([passeDuCron(), passeRelances().catch(erreur), reprendreLivraisons().catch(erreur), reprendreImportsEchus().catch(erreur), passeRappelsLive().catch(erreur),
+  const [automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement, relancesDemarrage] = await Promise.all([passeDuCron(), passeRelances().catch(erreur), reprendreLivraisons().catch(erreur), reprendreImportsEchus().catch(erreur), passeRappelsLive().catch(erreur),
     // File de l'AI Course Studio (lib/academie/studio.ts) : reprend les tâches dues de toutes les boutiques.
     traiterTaches({ demarrerAvant: Date.now() + 10_000, max: 2 }).catch(erreur),
     // Sous-domaines nom.axsoafrica.com des boutiques publiées non encore déclarés à Vercel (lib/domaines.ts).
@@ -35,8 +36,10 @@ export async function GET(req: Request) {
     // Essai Illimité : rappels 48 h avant la fin et à la fin (lib/essai.ts), une fois chacun.
     passeRappelsEssai().catch(erreur),
     // Abonnement payé : rappels 3 jours avant l'échéance et le jour même (lib/abonnement-paiement.ts), une fois chacun.
-    passeRappelsAbonnement().catch(erreur)]);
-  return NextResponse.json({ ...automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement });
+    passeRappelsAbonnement().catch(erreur),
+    // Boutique publiée incomplète : relances J+1 / J+3 / J+7 vers les étapes manquantes (lib/demarrage-relances.ts).
+    passeRelancesDemarrage().catch(erreur)]);
+  return NextResponse.json({ ...automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement, relancesDemarrage });
 }
 
 export const POST = GET;

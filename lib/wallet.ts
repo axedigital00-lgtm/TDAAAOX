@@ -191,7 +191,15 @@ export async function initierRetrait(params: RetraitParams) {
   });
 
   // Jamais bloquant : le retrait est enregistré même si l'alerte échoue (il reste visible dans Finances).
-  await signalerRetraitAValider(retrait.id).catch((e) => console.error("[wallet/retrait] alerte admin", retrait.id, e?.message));
+  await Promise.all([
+    signalerRetraitAValider(retrait.id).catch((e) => console.error("[wallet/retrait] alerte admin", retrait.id, e?.message)),
+    // Étape « Demandé » du suivi : le marchand est prévenu dès la demande, puis à la clôture (prevenirMarchandRetrait).
+    notifierMarchand({
+      tenantId, type: "retrait_demande", lien: "/dashboard/wallet",
+      titre: `Retrait de ${retrait.montant.toLocaleString("fr-FR")} ${retrait.devise} demandé`,
+      message: `Axso valide ton retrait vers ${destinataire} sous 24 à 48 h ouvrées. Tu seras prévenu dès qu'il est payé.`,
+    }),
+  ]);
   return retrait;
 }
 

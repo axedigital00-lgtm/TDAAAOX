@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
-import { Wand2, Sparkles, Package, Download, Check, Loader2, RefreshCw, ChevronRight, Info } from "lucide-react";
+import { Wand2, Sparkles, Package, Download, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useT } from "@/components/I18nProvider";
+import { Alerte, Bouton, EnTetePage, ZoneTexte, classesBouton } from "@/components/ui";
 
 interface ProduitGenere {
   nom: string;
@@ -37,9 +38,10 @@ export default function MagicImportPage() {
   const [importing, setImporting] = useState(false);
   const [phase, setPhase] = useState<"input" | "review" | "done">("input");
   const [importedCount, setImportedCount] = useState(0);
+  const [erreurDescription, setErreurDescription] = useState("");
 
   async function generer() {
-    if (!description.trim()) { toast.error(t("Décrivez votre boutique ou vos produits")); return; }
+    if (!description.trim()) { setErreurDescription(t("Décrivez votre boutique ou vos produits en quelques mots.")); return; }
     setGenerating(true);
     try {
       const res = await fetch("/api/magic-import", {
@@ -53,7 +55,7 @@ export default function MagicImportPage() {
       setPhase("review");
       toast.success(t("{0} produits générés par Gemini", data.total));
     } catch (err: any) {
-      toast.error(t(err.message) || t("Erreur de génération"));
+      toast.error(t(err.message) || t("Le catalogue n'a pas pu être généré. Réessayez dans un instant ou reformulez la description."));
     } finally {
       setGenerating(false);
     }
@@ -65,7 +67,7 @@ export default function MagicImportPage() {
 
   async function importer() {
     const selected = produits.filter(p => p.selected);
-    if (!selected.length) { toast.error(t("Sélectionne au moins un produit")); return; }
+    if (!selected.length) { toast.error(t("Sélectionnez au moins un produit à importer.")); return; }
     setImporting(true);
     try {
       const res = await fetch("/api/magic-import", {
@@ -78,7 +80,7 @@ export default function MagicImportPage() {
       setImportedCount(data.created);
       setPhase("done");
     } catch (err: any) {
-      toast.error(t(err.message));
+      toast.error(t(err.message) || t("L'import n'a pas abouti. Vos produits n'ont pas été ajoutés ; réessayez dans un instant."));
     } finally {
       setImporting(false);
     }
@@ -93,72 +95,54 @@ export default function MagicImportPage() {
 
   const selectedCount = produits.filter(p => p.selected).length;
 
+  const libelleImport = selectedCount > 1 ? t("Importer {0} produits", selectedCount) : t("Importer {0} produit", selectedCount);
+
   return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-200">
-          <Wand2 size={22} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Magic Import")}</h1>
-          <p className="text-gray-400 text-sm">{t("Gemini + Flux.1 génère votre catalogue complet avec images ultra HD en quelques secondes")}</p>
-        </div>
-        {phase === "review" && (
-          <button onClick={reset}
-            className="ml-auto flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 border border-gray-200 px-3 py-1.5 rounded-xl transition-all">
-            <RefreshCw size={13} />{" "}{t("Nouveau")}
-          </button>
-        )}
-      </div>
+    <div className="space-y-section max-w-5xl">
+      <EnTetePage
+        className="mb-0"
+        titre={t("Magic Import")}
+        description={t("Gemini + Flux.1 génère votre catalogue complet avec images ultra HD en quelques secondes")}
+        actions={phase === "review" ? (
+          <Bouton variante="secondaire" onClick={reset} icone={<RefreshCw size={15} aria-hidden />}>{t("Recommencer")}</Bouton>
+        ) : undefined}
+      />
 
       {/* Phase input */}
       {phase === "input" && (
-        <div className="space-y-5">
-          {/* Info banner */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5">
-            <div className="flex items-start gap-3">
-              <Info size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-amber-800 mb-1">{t("Comment ça marche")}</p>
-                <p className="text-sm text-amber-700 leading-relaxed">
-                  {t("Décrivez votre boutique en quelques mots →")}{" "}<strong>{t("Gemini")}</strong>{" "}{t("génère un catalogue complet avec descriptions, prix adaptés au marché africain, tags SEO et prompts optimisés pour")}
-                  <strong>{" "}{t("Flux.1-dev")}</strong>{t(". Les images Flux.1 ultra HD se chargent automatiquement. Sélectionnez vos produits et importez en 1 clic.")}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="space-y-section">
+          <Alerte ton="info" titre={t("Comment ça marche")}>
+            {t("Décrivez votre boutique en quelques mots →")}{" "}<strong>{t("Gemini")}</strong>{" "}{t("génère un catalogue complet avec descriptions, prix adaptés au marché africain, tags SEO et prompts optimisés pour")}
+            <strong>{" "}{t("Flux.1-dev")}</strong>{t(". Les images Flux.1 ultra HD se chargent automatiquement. Sélectionnez vos produits et importez en 1 clic.")}
+          </Alerte>
 
-          {/* Input card */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5">
-            <div>
-              <label className="text-sm font-semibold text-gray-700 block mb-2">
-                {t("Décrivez votre boutique ou votre niche de produits")}
-              </label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value.slice(0, 600))}
-                placeholder={t("Ex: Je vends des robes africaines wax premium, des bazins brodés et des accessoires mode pour femmes au Sénégal. Gamme de prix 15 000 – 85 000 XOF.")}
-                className="w-full h-36 p-4 rounded-xl border border-gray-200 text-sm text-gray-800 resize-none focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 placeholder-gray-300 transition-all"
-              />
-              <p className="text-xs text-gray-300 mt-1 text-right">{description.length}/600</p>
-            </div>
+          <div className="bg-carte border border-bordure rounded-carte shadow-carte p-carte space-y-champs">
+            <ZoneTexte
+              label={t("Décrivez votre boutique ou votre niche de produits")}
+              required
+              rows={5}
+              value={description}
+              onChange={e => { setDescription(e.target.value.slice(0, 600)); setErreurDescription(""); }}
+              placeholder={t("Ex: Je vends des robes africaines wax premium, des bazins brodés et des accessoires mode pour femmes au Sénégal. Gamme de prix 15 000 – 85 000 XOF.")}
+              aide={`${description.length}/600`}
+              erreur={erreurDescription || undefined}
+            />
 
             {/* Nombre de produits */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-semibold text-gray-700">{t("Nombre de produits")}</label>
-                <span className="text-xl font-black text-amber-500">{t(nombreProduits)}</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="magic-nombre" className="ax-libelle">{t("Nombre de produits")}</label>
+                <span className="text-xl font-black text-attention" aria-hidden>{t(nombreProduits)}</span>
               </div>
-              <div className="flex items-center gap-4">
-                <input type="range" min={3} max={20} value={nombreProduits}
+              <div className="flex flex-wrap items-center gap-4">
+                <input id="magic-nombre" type="range" min={3} max={20} value={nombreProduits}
                   onChange={e => setNombreProduits(Number(e.target.value))}
-                  className="flex-1 accent-amber-500 h-2" />
-                <div className="flex gap-1.5 flex-shrink-0">
+                  className="flex-1 min-w-[10rem] accent-primaire h-2" />
+                <div className="flex gap-1.5 flex-shrink-0" role="group" aria-label={t("Choix rapide du nombre")}>
                   {[5, 8, 12, 20].map(n => (
-                    <button key={n} onClick={() => setNombreProduits(n)}
-                      className={`w-8 h-7 rounded-lg text-xs font-bold transition-all ${
-                        nombreProduits === n ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    <button key={n} type="button" onClick={() => setNombreProduits(n)} aria-pressed={nombreProduits === n}
+                      className={`size-10 sm:size-8 rounded-controle text-xs font-bold transition-all ${
+                        nombreProduits === n ? "bg-primaire text-sur-primaire" : "bg-carte-2 text-doux hover:text-encre"
                       }`}>
                       {n}
                     </button>
@@ -167,153 +151,112 @@ export default function MagicImportPage() {
               </div>
             </div>
 
-            {/* CTA */}
-            <button onClick={generer} disabled={generating || !description.trim()}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-[15px] flex items-center justify-center gap-3 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-amber-200/60">
-              {generating ? (
-                <><Loader2 size={19} className="animate-spin" />{" "}{t("Gemini génère votre catalogue...")}</>
-              ) : (
-                <><Wand2 size={19} />{" "}{t("Générer")}{" "}{t(nombreProduits)}{" "}{t("produits avec Flux.1-dev")}</>
-              )}
-            </button>
+            <Bouton taille="grand" large onClick={generer} charge={generating} texteCharge={t("Gemini génère votre catalogue...")} icone={<Wand2 size={18} aria-hidden />}>
+              {t("Générer")}{" "}{t(nombreProduits)}{" "}{t("produits avec Flux.1-dev")}
+            </Bouton>
           </div>
 
-          {/* Quick examples */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t("Exemples rapides")}</p>
+          {/* Exemples rapides */}
+          <section className="space-y-2">
+            <h2 className="ax-sous-titre">{t("Exemples rapides")}</h2>
+            <p className="ax-aide">{t("Touchez un exemple pour le reprendre comme description.")}</p>
             <div className="space-y-2">
               {EXEMPLES.map(ex => (
-                <button key={ex} onClick={() => setDescription(ex)}
-                  className="w-full text-left text-xs bg-white border border-gray-100 text-gray-500 px-4 py-2.5 rounded-xl hover:border-amber-300 hover:text-gray-800 hover:bg-amber-50 transition-all flex items-center gap-2">
-                  <Sparkles size={11} className="text-amber-400 flex-shrink-0" />
+                <button key={ex} type="button" onClick={() => { setDescription(ex); setErreurDescription(""); }}
+                  className="w-full text-left text-sm bg-carte border border-bordure text-doux px-4 min-h-10 py-2.5 rounded-controle hover:border-primaire hover:text-encre hover:bg-primaire-fond transition-all flex items-center gap-2">
+                  <Sparkles size={13} className="text-attention flex-shrink-0" aria-hidden />
                   {t(ex)}
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         </div>
       )}
 
       {/* Phase review */}
       {phase === "review" && produits.length > 0 && (
         <div className="space-y-4">
-          {/* Controls bar */}
-          <div className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl px-5 py-3 gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-gray-700">
-                <span className="text-amber-500 font-black">{selectedCount}</span> / {produits.length}{" "}{t("sélectionnés")}
+          <div className="flex items-center justify-between bg-carte border border-bordure rounded-carte px-5 py-3 gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-encre" aria-live="polite">
+                <span className="text-attention font-black">{selectedCount}</span> / {produits.length}{" "}{t("sélectionnés")}
               </span>
-              <button onClick={() => setProduits(p => p.map(x => ({ ...x, selected: true })))}
-                className="text-xs text-amber-500 hover:text-amber-600 font-semibold">{t("Tout")}</button>
-              <button onClick={() => setProduits(p => p.map(x => ({ ...x, selected: false })))}
-                className="text-xs text-gray-400 hover:text-gray-600 font-semibold">{t("Aucun")}</button>
+              <Bouton variante="fantome" taille="compact" onClick={() => setProduits(p => p.map(x => ({ ...x, selected: true })))}>{t("Tout sélectionner")}</Bouton>
+              <Bouton variante="fantome" taille="compact" onClick={() => setProduits(p => p.map(x => ({ ...x, selected: false })))}>{t("Tout désélectionner")}</Bouton>
             </div>
-            <button onClick={importer} disabled={importing || selectedCount === 0}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-sm hover:opacity-90 transition-all disabled:opacity-50 shadow-md shadow-amber-200">
-              {importing ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-              {t("Importer")}{" "}{selectedCount > 0 ? selectedCount : ""} produit{selectedCount > 1 ? "s" : ""}
-            </button>
+            <Bouton variante="secondaire" onClick={importer} disabled={selectedCount === 0} charge={importing} icone={<Download size={14} aria-hidden />}>
+              {libelleImport}
+            </Bouton>
           </div>
 
-          {/* Products grid */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <p className="ax-aide">{t("Touchez un produit pour le sélectionner ou le retirer de l'import.")}</p>
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4 lg:grid-cols-3">
             {produits.map((p, i) => (
-              <div key={i} onClick={() => toggleSelect(i)}
-                className={`bg-white border-2 rounded-2xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
-                  p.selected ? "border-amber-400 shadow-md shadow-amber-100" : "border-gray-100 hover:border-gray-200"
+              <button key={i} type="button" onClick={() => toggleSelect(i)} aria-pressed={p.selected}
+                className={`text-left bg-carte border-2 rounded-carte overflow-hidden transition-all focus-visible:outline-2 focus-visible:outline-focus ${
+                  p.selected ? "border-primaire shadow-carte" : "border-bordure hover:border-bordure-forte"
                 }`}>
-                {/* Image */}
-                <div className="relative aspect-square overflow-hidden bg-gray-50">
-                  <img src={p.imageUrl} alt={p.nom}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                    loading="lazy"
-                  />
-                  {/* Selection badge */}
-                  <div className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all shadow-sm ${
-                    p.selected ? "bg-amber-400 border-amber-400" : "bg-white/90 border-gray-300"
+                <span className="relative block aspect-square overflow-hidden bg-carte-2">
+                  <img src={p.imageUrl} alt={p.nom} className="w-full h-full object-cover" loading="lazy" />
+                  <span aria-hidden className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all shadow-sm ${
+                    p.selected ? "bg-primaire border-primaire" : "bg-carte/90 border-bordure-forte"
                   }`}>
-                    {p.selected && <Check size={13} className="text-white" />}
-                  </div>
-                  {/* Category badge */}
-                  <div className="absolute bottom-2 left-2">
-                    <span className="text-[10px] font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
-                      {t(p.categorie)}
-                    </span>
-                  </div>
-                  {/* Flux badge */}
-                  <div className="absolute bottom-2 right-2">
-                    <span className="text-[9px] font-bold bg-gradient-to-r from-amber-400 to-orange-500 text-white px-1.5 py-0.5 rounded-full">
-                      {t("FLUX.1")}
-                    </span>
-                  </div>
-                </div>
+                    {p.selected && <Check size={14} className="text-sur-primaire" />}
+                  </span>
+                  <span className="absolute bottom-2 left-2 text-xs font-semibold bg-black/55 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
+                    {t(p.categorie)}
+                  </span>
+                </span>
 
-                {/* Info */}
-                <div className="p-3.5">
-                  <p className="text-sm font-bold text-gray-900 line-clamp-1 mb-0.5">{t(p.nom)}</p>
-                  <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed">{t(p.description)}</p>
-
-                  {/* Price */}
-                  <div className="flex items-baseline gap-2 mt-2.5">
-                    <span className="text-[15px] font-black text-gray-900">{p.prix.toLocaleString()}</span>
-                    <span className="text-xs text-gray-400">{t(p.devise)}</span>
+                <span className="block p-3.5">
+                  <span className="block text-sm font-bold text-encre line-clamp-1 mb-0.5">{t(p.nom)}</span>
+                  <span className="block text-xs text-doux line-clamp-2 leading-relaxed">{t(p.description)}</span>
+                  <span className="flex items-baseline gap-2 mt-2.5">
+                    <span className="text-[15px] font-black text-encre">{p.prix.toLocaleString(t.loc)}</span>
+                    <span className="text-xs text-doux">{t(p.devise)}</span>
                     {p.prixCompare > p.prix && (
-                      <span className="text-xs text-gray-300 line-through ml-auto">{p.prixCompare.toLocaleString()}</span>
+                      <span className="text-xs text-doux line-through ml-auto">{p.prixCompare.toLocaleString(t.loc)}</span>
                     )}
-                  </div>
-
-                  {/* Tags */}
+                  </span>
                   {p.tags?.length > 0 && (
-                    <div className="flex gap-1 mt-2 flex-wrap">
+                    <span className="flex gap-1 mt-2 flex-wrap">
                       {p.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md font-medium">
+                        <span key={tag} className="text-xs bg-primaire-fond text-attention px-1.5 py-0.5 rounded-md font-medium">
                           #{t(tag)}
                         </span>
                       ))}
-                    </div>
+                    </span>
                   )}
-                </div>
-              </div>
+                </span>
+              </button>
             ))}
           </div>
 
-          {/* Sticky bottom CTA */}
-          <div className="sticky bottom-4 pt-2">
-            <button onClick={importer} disabled={importing || selectedCount === 0}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-[15px] flex items-center justify-center gap-3 hover:opacity-90 transition-all disabled:opacity-50 shadow-xl shadow-amber-300/40">
-              {importing ? (
-                <><Loader2 size={20} className="animate-spin" />{" "}{t("Importation en cours...")}</>
-              ) : (
-                <><Package size={20} />{" "}{t("Importer")}{" "}{selectedCount} produit{selectedCount > 1 ? "s" : ""}{" "}{t("dans ma boutique")}{" "}<ChevronRight size={17} /></>
-              )}
-            </button>
+          <div className="sticky bottom-20 md:bottom-4 pt-2">
+            <Bouton taille="grand" large className="shadow-flottante" onClick={importer} disabled={selectedCount === 0} charge={importing}
+              texteCharge={t("Importation en cours...")} icone={<Package size={18} aria-hidden />}>
+              {libelleImport}{" "}{t("dans ma boutique")}
+            </Bouton>
           </div>
         </div>
       )}
 
       {/* Phase done */}
       {phase === "done" && (
-        <div className="flex flex-col items-center py-20 text-center">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center mb-5 shadow-lg shadow-green-100">
-            <Check size={38} className="text-green-500" />
+        <div className="flex flex-col items-center py-16 text-center" role="status">
+          <div className="w-20 h-20 rounded-full bg-succes-fond flex items-center justify-center mb-5" aria-hidden>
+            <Check size={38} className="text-succes" />
           </div>
-          <h2 className="text-2xl font-black text-gray-900 mb-2">{t("Catalogue importé !")}</h2>
-          <p className="text-gray-400 text-sm mb-8 max-w-md">
+          <h2 className="ax-titre-page mb-2">{t("Catalogue importé !")}</h2>
+          <p className="ax-texte-secondaire mb-8 max-w-md">
             {importedCount} produit{importedCount > 1 ? "s" : ""}{" "}{t("ajouté")}{importedCount > 1 ? "s" : ""}{" "}{t("à votre boutique avec des images Flux.1 haute définition. Axia peut maintenant les enrichir et les promouvoir.")}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link href="/dashboard/produits"
-              className="px-6 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-all">
-              {t("Voir les produits")}
+            <Bouton variante="secondaire" onClick={reset}>{t("Nouveau catalogue")}</Bouton>
+            <Link href="/dashboard" className={classesBouton({ variante: "secondaire" })}>
+              <Sparkles size={14} aria-hidden />{t("Demander à Axia de promouvoir")}
             </Link>
-            <Link href="/dashboard"
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold text-sm hover:opacity-90 transition-all flex items-center gap-2">
-              <Sparkles size={14} />{" "}{t("Demander à Axia de promouvoir")}
-            </Link>
-            <button onClick={reset}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-semibold text-sm hover:opacity-90 transition-all">
-              {t("Nouveau catalogue")}
-            </button>
+            <Bouton href="/dashboard/produits">{t("Voir les produits")}</Bouton>
           </div>
         </div>
       )}

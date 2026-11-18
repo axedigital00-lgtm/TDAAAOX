@@ -10,6 +10,7 @@ import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/Mod
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
+import { Badge, Bouton, BoutonIcone, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation, type Ton } from "@/components/ui";
 const OBJECTIFS_TUTORIAL_STEPS = [
   { Icon: Target,     titre: "4 types d'objectifs", description: "Chiffre d'affaires, commandes, nouveaux clients ou panier moyen — choisis le type qui compte le plus pour ta boutique." },
   { Icon: Plus,       titre: "Fixe ta cible",        description: "Donne un titre, une valeur à atteindre et une date limite, puis clique \"Nouvel objectif\" pour te lancer." },
@@ -38,11 +39,11 @@ const TYPE_META: Record<TypeObjectif, { label: string; Icon: any; couleur: strin
   panier_moyen: { label: "Panier moyen",       Icon: TrendingUp,   couleur: "#10b981" },
 };
 
-const STATUT_META: Record<string, { label: string; couleur: string; Icon: any }> = {
-  actif:   { label: "En cours",  couleur: "#3b82f6", Icon: Clock },
-  atteint: { label: "Atteint",   couleur: "#10b981", Icon: CheckCircle2 },
-  echoue:  { label: "Échoué",    couleur: "#ef4444", Icon: XCircle },
-  pause:   { label: "En pause",  couleur: "#9ca3af", Icon: Pause },
+const STATUT_META: Record<string, { label: string; couleur: string; Icon: any; ton: Ton }> = {
+  actif:   { label: "En cours",  couleur: "#3b82f6", Icon: Clock,        ton: "info" },
+  atteint: { label: "Atteint",   couleur: "#10b981", Icon: CheckCircle2, ton: "succes" },
+  echoue:  { label: "Échoué",    couleur: "#ef4444", Icon: XCircle,      ton: "erreur" },
+  pause:   { label: "En pause",  couleur: "#9ca3af", Icon: Pause,        ton: "neutre" },
 };
 
 function formatValeur(v: number, type: TypeObjectif, devise: string) {
@@ -57,17 +58,20 @@ export default function ObjectifsPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ type: "ca" as TypeObjectif, titre: "", cible: "", devise, deadline: "" });
+  const [erreur, setErreur] = useState(false);
+  const [tente, setTente] = useState(false);
+  const { confirmer, dialogue } = useConfirmation();
 
   function charger() {
-    fetch("/api/objectifs").then(r => r.json()).then(d => setObjectifs(d.objectifs ?? []));
+    setErreur(false);
+    fetch("/api/objectifs").then(r => r.ok ? r.json() : Promise.reject()).then(d => setObjectifs(d.objectifs ?? [])).catch(() => setErreur(true));
   }
   useEffect(() => { charger(); }, []);
 
-  async function creer() {
-    if (!form.titre.trim() || !form.cible || !form.deadline) {
-      toast.error(tr("Remplissez tous les champs"));
-      return;
-    }
+  async function creer(e?: React.FormEvent) {
+    e?.preventDefault();
+    setTente(true);
+    if (!form.titre.trim() || !form.cible || !form.deadline) return;
     setSaving(true);
     try {
       const res = await fetch("/api/objectifs", {
@@ -76,116 +80,101 @@ export default function ObjectifsPage() {
         body: JSON.stringify({ ...form, cible: Number(form.cible) }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur");
-      toast.success(tr("Objectif créé"));
-      setShowForm(false);
+      if (!res.ok) throw new Error(data.error ?? "");
+      toast.success(tr("Objectif « {0} » créé.", form.titre));
+      setShowForm(false); setTente(false);
       setForm({ type: "ca", titre: "", cible: "", devise, deadline: "" });
       charger();
     } catch (e: any) {
-      toast.error(tr(e.message) ?? tr("Erreur lors de la création"));
+      toast.error(e?.message ? tr(e.message) : tr("L'objectif n'a pas été créé. Vérifie les champs et réessaie."));
     } finally {
       setSaving(false);
     }
   }
 
   async function changerStatut(id: string, statut: string) {
-    await fetch(`/api/objectifs/${id}`, {
+    const res = await fetch(`/api/objectifs/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ statut }),
-    });
+    }).catch(() => null);
+    if (!res?.ok) toast.error(tr("Le changement n'a pas été enregistré. Réessaie."));
     charger();
   }
 
-  async function supprimer(id: string) {
-    await fetch(`/api/objectifs/${id}`, { method: "DELETE" });
+  async function supprimer(o: Objectif) {
+    if (!(await confirmer({ titre: tr("Supprimer cet objectif ?"), objet: o.titre, description: tr("Sa progression ne sera plus suivie. Tes ventes ne sont pas touchées."), libelleConfirmer: tr("Supprimer l'objectif") }))) return;
+    const res = await fetch(`/api/objectifs/${o.id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) toast.error(tr("L'objectif n'a pas été supprimé. Réessaie."));
+    else toast.success(tr("Objectif « {0} » supprimé.", o.titre));
     charger();
   }
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-6">
+      {dialogue}
       <ModuleTutorial moduleKey="objectifs" titre={tr("Objectifs")} sousTitre={tr("Fixe et suis tes ambitions")} steps={OBJECTIFS_TUTORIAL_STEPS} />
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Target size={18} className="text-[#F5A623]" />
-            <h1 className="text-2xl font-bold text-gray-900">{tr("Objectifs")}</h1>
-            <BoutonRevoirTutoriel moduleKey="objectifs" />
-          </div>
-          <p className="text-gray-400 text-sm">{tr("Fixez des objectifs pour votre boutique et suivez votre progression en temps réel")}</p>
-        </div>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
-          style={{ background: "#F5A623", boxShadow: "0 4px 16px rgba(245,166,35,0.3)" }}>
-          <Plus size={15} />{" "}{tr("Nouvel objectif")}
-        </button>
-      </div>
+      <EnTetePage className="mb-0"
+        titre={<span className="inline-flex items-center gap-2"><Target className="size-5 text-attention" aria-hidden />{tr("Objectifs")}</span>}
+        indicateurs={<BoutonRevoirTutoriel moduleKey="objectifs" />}
+        description={tr("Fixez des objectifs pour votre boutique et suivez votre progression en temps réel")}
+        actions={!showForm && <Bouton onClick={() => setShowForm(true)} icone={<Plus className="size-4" aria-hidden />}>{tr("Nouvel objectif")}</Bouton>} />
 
       {/* Formulaire de création */}
       {showForm && (
-        <div className="ax-card p-6 space-y-4">
+        <form onSubmit={creer} noValidate className="ax-card p-6 space-y-champs">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-gray-900">{tr("Nouvel objectif")}</h2>
-            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+            <h2 className="ax-sous-titre">{tr("Nouvel objectif")}</h2>
+            <BoutonIcone label={tr("Fermer le formulaire")} onClick={() => setShowForm(false)}><X className="size-5" aria-hidden /></BoutonIcone>
           </div>
 
-          <div>
-            <label className="ax-label block mb-2">{tr("Type d'objectif")}</label>
+          <fieldset>
+            <legend className="ax-libelle mb-2">{tr("Type d'objectif")}</legend>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {(Object.keys(TYPE_META) as TypeObjectif[]).map(t => {
                 const meta = TYPE_META[t];
                 const active = form.type === t;
                 return (
-                  <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all"
-                    style={active ? { borderColor: meta.couleur, background: `${meta.couleur}10` } : { borderColor: "#e5e7eb" }}>
-                    <meta.Icon size={16} style={{ color: active ? meta.couleur : "#9ca3af" }} />
-                    <span className="text-[11px] font-semibold text-center" style={{ color: active ? meta.couleur : "#6b7280" }}>{tr(meta.label)}</span>
+                  <button key={t} type="button" aria-pressed={active} onClick={() => setForm(f => ({ ...f, type: t }))}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-controle border-2 transition-colors ${active ? "border-primaire bg-primaire-fond" : "border-bordure hover:border-bordure-forte"}`}>
+                    <meta.Icon size={16} aria-hidden style={{ color: active ? meta.couleur : undefined }} className={active ? "" : "text-doux"} />
+                    <span className={`text-xs font-semibold text-center ${active ? "text-encre" : "text-doux"}`}>{tr(meta.label)}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
+          </fieldset>
 
-          <div>
-            <label className="ax-label block mb-1.5">{tr("Titre")}</label>
-            <input value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
-              placeholder={tr("Ex : Atteindre 1 000 000 {0} ce mois-ci", devise)}
-              className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#F5A623]" />
-          </div>
+          <Saisie label={tr("Titre")} required value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
+            placeholder={tr("Ex : Atteindre 1 000 000 {0} ce mois-ci", devise)}
+            erreur={tente && !form.titre.trim() ? tr("Donne un titre à ton objectif.") : undefined} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="ax-label block mb-1.5">{tr("Cible")}</label>
-              <input type="number" min="0" value={form.cible} onChange={e => setForm(f => ({ ...f, cible: e.target.value }))}
-                placeholder="1000000"
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#F5A623]" />
-            </div>
-            <div>
-              <label className="ax-label block mb-1.5">{tr("Date limite")}</label>
-              <input type="date" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
-                min={new Date().toISOString().slice(0, 10)}
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#F5A623]" />
-            </div>
+            <Saisie label={tr("Cible")} required type="number" min="0" value={form.cible} onChange={e => setForm(f => ({ ...f, cible: e.target.value }))}
+              placeholder="1000000" suffixe={form.type === "ca" || form.type === "panier_moyen" ? devise : undefined}
+              erreur={tente && !form.cible ? tr("Indique la valeur à atteindre.") : undefined} />
+            <Saisie label={tr("Date limite")} required type="date" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
+              min={new Date().toISOString().slice(0, 10)}
+              erreur={tente && !form.deadline ? tr("Choisis la date limite.") : undefined} />
           </div>
 
-          <button onClick={creer} disabled={saving}
-            className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
-            style={{ background: "#F5A623" }}>
-            {saving && <Loader2 size={14} className="animate-spin" />}
-            {tr("Créer l'objectif")}
-          </button>
-        </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Bouton variante="secondaire" onClick={() => setShowForm(false)} disabled={saving}>{tr("Annuler")}</Bouton>
+            <Bouton type="submit" charge={saving} texteCharge={tr("Création…")}>{tr("Créer l'objectif")}</Bouton>
+          </div>
+        </form>
       )}
 
       {/* Liste */}
-      {objectifs === null ? (
-        <div className="flex justify-center py-20"><Loader2 size={22} className="animate-spin text-gray-300" /></div>
+      {erreur ? (
+        <EtatErreur titre={tr("Tes objectifs n'ont pas pu être chargés")} texte={tr("Vérifie ta connexion et réessaie.")} onReessayer={charger} />
+      ) : objectifs === null ? (
+        <SqueletteListe lignes={3} libelle={tr("Chargement des objectifs…")} />
       ) : objectifs.length === 0 ? (
-        <div className="ax-card p-10 text-center">
-          <Target size={32} className="mx-auto mb-3 text-gray-200" />
-          <p className="text-sm text-gray-400">{tr("Aucun objectif pour le moment — créez-en un pour commencer à suivre votre progression.")}</p>
-        </div>
+        <EtatVide icone={<Target />} titre={tr("Aucun objectif pour le moment")}
+          texte={tr("Créez-en un pour commencer à suivre votre progression.")}>
+          {!showForm && <Bouton onClick={() => setShowForm(true)} icone={<Plus className="size-4" aria-hidden />}>{tr("Nouvel objectif")}</Bouton>}
+        </EtatVide>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {objectifs.map(o => {
@@ -200,44 +189,38 @@ export default function ObjectifsPage() {
                       <meta.Icon size={16} style={{ color: meta.couleur }} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{tr(o.titre)}</p>
-                      <p className="text-[11px] text-gray-400">{tr(meta.label)}{" "}{tr("· échéance")}{" "}{new Date(o.deadline).toLocaleDateString(tr.loc)}</p>
+                      <p className="text-sm font-bold text-encre truncate">{tr(o.titre)}</p>
+                      <p className="ax-aide">{tr(meta.label)}{" "}{tr("· échéance")}{" "}{new Date(o.deadline).toLocaleDateString(tr.loc)}</p>
                     </div>
                   </div>
-                  <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0"
-                    style={{ color: sMeta.couleur, background: `${sMeta.couleur}15` }}>
-                    <sMeta.Icon size={10} /> {tr(sMeta.label)}
-                  </span>
+                  <Badge ton={sMeta.ton} icone={<sMeta.Icon aria-hidden />} className="flex-shrink-0">{tr(sMeta.label)}</Badge>
                 </div>
 
                 <div>
                   <div className="flex items-baseline justify-between mb-1.5">
-                    <span className="text-sm font-black text-gray-900">{formatValeur(o.actuel, o.type, o.devise)}</span>
-                    <span className="text-[11px] text-gray-400">sur {formatValeur(o.cible, o.type, o.devise)}</span>
+                    <span className="text-sm font-black text-encre">{formatValeur(o.actuel, o.type, o.devise)}</span>
+                    <span className="ax-aide">{tr("sur")} {formatValeur(o.cible, o.type, o.devise)}</span>
                   </div>
-                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-2 rounded-full bg-carte-2 overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: sMeta.couleur }} />
                   </div>
-                  <p className="text-[10.5px] text-gray-400 mt-1">{pct}{tr("% atteint")}</p>
+                  <p className="ax-aide mt-1">{pct}{tr("% atteint")}</p>
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">
                   {o.statut === "actif" && (
-                    <button onClick={() => changerStatut(o.id, "pause")}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-gray-800 px-2.5 py-1.5 rounded-lg hover:bg-gray-50">
-                      <Pause size={11} />{" "}{tr("Mettre en pause")}
-                    </button>
+                    <Bouton variante="fantome" taille="compact" onClick={() => changerStatut(o.id, "pause")} icone={<Pause className="size-3.5" aria-hidden />}>
+                      {tr("Mettre en pause")}
+                    </Bouton>
                   )}
                   {o.statut === "pause" && (
-                    <button onClick={() => changerStatut(o.id, "actif")}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-gray-800 px-2.5 py-1.5 rounded-lg hover:bg-gray-50">
-                      <Play size={11} />{" "}{tr("Reprendre")}
-                    </button>
+                    <Bouton variante="fantome" taille="compact" onClick={() => changerStatut(o.id, "actif")} icone={<Play className="size-3.5" aria-hidden />}>
+                      {tr("Reprendre")}
+                    </Bouton>
                   )}
-                  <button onClick={() => supprimer(o.id)}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-red-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 ml-auto">
-                    <Trash2 size={11} />{" "}{tr("Supprimer")}
-                  </button>
+                  <Bouton variante="danger" taille="compact" className="ml-auto" onClick={() => supprimer(o)} icone={<Trash2 className="size-3.5" aria-hidden />}>
+                    {tr("Supprimer")}
+                  </Bouton>
                 </div>
               </div>
             );

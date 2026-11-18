@@ -42,41 +42,39 @@ export function AxiaConversationSidebar({
   }
 
   return (
-    <div className="w-full h-full flex flex-col" style={{ background: "rgba(10,16,30,0.98)" }}>
+    <div className="w-full h-full flex flex-col bg-carte">
       <div className="flex-shrink-0 p-3 flex items-center gap-2">
         <button onClick={onNew}
-          className="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:bg-white/10"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+          className="flex-1 flex items-center gap-2 min-h-10 px-3.5 py-2 rounded-controle text-sm font-semibold text-encre border border-bordure hover:bg-carte-2 transition-colors">
           <Plus size={15} />{" "}{t("Nouvelle conversation")}
         </button>
         {onClose && (
-          <button onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-white/10 transition-colors lg:hidden">
-            <X size={15} className="text-white/60" />
+          <button onClick={onClose} aria-label={t("Fermer l'historique")} title={t("Fermer l'historique")}
+            className="w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 text-doux hover:bg-carte-2 hover:text-encre transition-colors">
+            <X size={16} />
           </button>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 min-h-0">
         {loading ? (
-          <p className="text-white/25 text-xs text-center px-4 py-6">{t("Chargement…")}</p>
+          <p className="ax-aide text-center px-4 py-6">{t("Chargement…")}</p>
         ) : conversations.length === 0 ? (
-          <p className="text-white/25 text-xs text-center px-4 py-6 leading-relaxed">
+          <p className="ax-aide text-center px-4 py-6 leading-relaxed">
             {t("Aucune conversation pour le moment — écris à AXIA pour en démarrer une.")}
           </p>
         ) : (
           grouperParPeriode(conversations).map(([label, items]) => (
             <div key={label}>
-              <p className="text-[10px] font-bold text-white/25 uppercase tracking-wider px-2.5 mb-1.5">{t(label)}</p>
+              <p className="text-[10px] font-bold text-doux uppercase tracking-wider px-2.5 mb-1.5">{t(label)}</p>
               <div className="space-y-0.5">
                 {items.map(c => {
                   const active = activeId === c.id;
                   return (
                     <div key={c.id}
                       onClick={() => editingId !== c.id && onSelect(c.id)}
-                      className="group flex items-center gap-2 px-2.5 py-2 rounded-xl cursor-pointer transition-colors"
-                      style={{ background: active ? "rgba(245,166,35,0.16)" : "transparent" }}>
-                      <MessageSquare size={13} className="flex-shrink-0" style={{ color: active ? "#F5A623" : "rgba(255,255,255,0.3)" }} />
+                      className={`group flex items-center gap-2 min-h-10 px-2.5 py-1.5 rounded-controle cursor-pointer transition-colors ${active ? "bg-primaire-fond" : "hover:bg-carte-2"}`}>
+                      <MessageSquare size={13} className={`flex-shrink-0 ${active ? "text-encre" : "text-discret"}`} />
                       {editingId === c.id ? (
                         <input
                           autoFocus
@@ -88,24 +86,24 @@ export function AxiaConversationSidebar({
                             if (e.key === "Enter") confirmerRenommage(c.id);
                             if (e.key === "Escape") setEditingId(null);
                           }}
-                          className="flex-1 min-w-0 bg-transparent text-[13px] text-white outline-none border-b border-white/25"
+                          className="flex-1 min-w-0 bg-transparent text-base lg:text-[13px] text-encre outline-none border-b border-bordure-forte"
                         />
                       ) : (
-                        <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: active ? "white" : "rgba(255,255,255,0.6)" }}>
+                        <span className={`flex-1 min-w-0 truncate text-[13px] ${active ? "text-encre font-semibold" : "text-doux"}`}>
                           {t(c.titre)}
                         </span>
                       )}
                       {editingId !== c.id && (
-                        <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+                        <div className="flex lg:hidden lg:group-hover:flex items-center gap-0.5 flex-shrink-0">
                           <button
                             onClick={e => { e.stopPropagation(); setEditingId(c.id); setEditValue(c.titre); }}
-                            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10" title={t("Renommer")}>
-                            <Pencil size={11} className="text-white/45" />
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-doux hover:bg-carte" title={t("Renommer")} aria-label={t("Renommer")}>
+                            <Pencil size={12} />
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); onDelete(c.id); }}
-                            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10" title={t("Supprimer")}>
-                            <Trash2 size={11} className="text-red-400/70" />
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-erreur hover:bg-erreur-fond" title={t("Supprimer")} aria-label={t("Supprimer")}>
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       )}

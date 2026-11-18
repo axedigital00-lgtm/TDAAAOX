@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Send, Wand2, Users, CheckCircle2, XCircle, Mail, RefreshCw, Sparkles, Eye, Gem, Moon, Flame, Crown, UserPlus } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { Alerte, Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatVide, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Stats {
@@ -68,6 +69,7 @@ export default function EmailMarketingPage() {
   const [erreur, setErreur] = useState("");
   const [onglet, setOnglet] = useState<"composer" | "historique">("composer");
   const [preview, setPreview] = useState(false);
+  const { confirmer, dialogue } = useConfirmation();
 
   const charger = useCallback(async () => {
     try {
@@ -78,7 +80,7 @@ export default function EmailMarketingPage() {
       setStats(s);
       setHistorique(Array.isArray(h) ? h : []);
     } catch {
-      setErreur("Erreur chargement");
+      setErreur("Les statistiques et l'historique n'ont pas pu être chargés. Actualise la page.");
     }
   }, []);
 
@@ -137,7 +139,7 @@ export default function EmailMarketingPage() {
         setCorps(content.slice(0, 2000));
       }
     } catch {
-      setErreur("Erreur de génération IA");
+      setErreur("Le brouillon n'a pas pu être généré. Réessaie ou écris ton message toi-même.");
     } finally {
       setGenerating(false);
     }
@@ -145,6 +147,15 @@ export default function EmailMarketingPage() {
 
   async function envoyer() {
     if (!sujet.trim() || !corps.trim()) { setErreur("Remplissez le sujet et le message"); return; }
+    // Envoi réel à des clients : impossible à annuler, on confirme en nommant le public.
+    const segLabel = tr(SEGMENTS.find(s => s.value === segment)?.label ?? segment);
+    if (!(await confirmer({
+      titre: tr("Envoyer cette campagne ?"),
+      objet: <>« {sujet} »<br /><span className="font-normal">{tr("{0} · {1} destinataire(s)", segLabel, nbDest)}</span></>,
+      description: tr("Les e-mails partent immédiatement et ne peuvent pas être rappelés. Les clients désinscrits ne sont pas contactés."),
+      libelleConfirmer: tr("Envoyer à {0} client(s)", nbDest),
+      destructive: false,
+    }))) return;
     setSending(true);
     setErreur("");
     setResult(null);
@@ -155,43 +166,35 @@ export default function EmailMarketingPage() {
         body: JSON.stringify({ sujet, corps, segment, provider }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur lors de l'envoi");
+      if (!res.ok) throw new Error(data.error ?? "La campagne n'a pas été envoyée. Vérifie la connexion de ton service d'envoi (Connecteurs) et réessaie.");
       setResult({ envoyes: data.envoyes, total: data.total, source: data.source });
       charger();
     } catch (e: any) {
-      setErreur(e.message ?? "Erreur lors de l'envoi");
+      setErreur(e.message || "La campagne n'a pas été envoyée. Vérifie ta connexion et réessaie.");
     } finally {
       setSending(false);
     }
   }
 
-  const nbDest = stats?.segments?.[segment as keyof typeof stats.segments] ?? "...";
+  const nbDest = stats?.segments?.[segment as keyof typeof stats.segments] ?? "…";
 
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{tr("Email Marketing")}</h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{tr("Envoyez des campagnes directement depuis Axso")}</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setOnglet("composer")}
-            className="px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all"
-            style={onglet === "composer"
-              ? { background: "#111111", color: "#FFFFFF", border: "1px solid #111111" }
-              : { background: "#FFFFFF", color: "#888888", border: "1px solid #E8E8E8" }}>
-            {tr("Composer")}
+      {dialogue}
+      <EnTetePage className="mb-0"
+        retour={{ href: "/dashboard/marketing", libelle: tr("Marketing") }}
+        titre={tr("Email Marketing")}
+        description={tr("Envoyez des campagnes directement depuis Axso")} />
+
+      <div className="flex gap-1 bg-carte-2 border border-bordure rounded-controle p-1 w-full sm:w-fit" role="tablist" aria-label={tr("Email Marketing")}>
+        {([["composer", tr("Composer")], ["historique", <>{tr("Historique (")}{historique.length})</>]] as const).map(([cle, libelle]) => (
+          <button key={cle} type="button" role="tab" aria-selected={onglet === cle}
+            onClick={() => { setOnglet(cle); if (cle === "historique") charger(); }}
+            className={`flex-1 sm:flex-none min-h-10 px-4 rounded-controle text-sm font-semibold transition-colors ${onglet === cle ? "bg-carte text-encre shadow-sm" : "text-doux hover:text-encre"}`}>
+            {libelle}
           </button>
-          <button onClick={() => { setOnglet("historique"); charger(); }}
-            className="px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all"
-            style={onglet === "historique"
-              ? { background: "#111111", color: "#FFFFFF", border: "1px solid #111111" }
-              : { background: "#FFFFFF", color: "#888888", border: "1px solid #E8E8E8" }}>
-            {tr("Historique (")}{historique.length})
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* Providers connectés */}
@@ -200,21 +203,30 @@ export default function EmailMarketingPage() {
           { key: "resend", label: "Resend",      Icon: Send, actif: stats?.providers.resend, desc: "Jusqu'à 2 000 destinataires par campagne" },
           { key: "gmail",  label: "Gmail OAuth", Icon: Mail, actif: stats?.providers.gmail,  desc: "Votre compte Gmail · 200 destinataires par campagne" },
         ].map((p) => (
+          p.actif ? (
           <button
-            key={p.key}
-            onClick={() => p.actif && setProvider(p.key as "resend" | "gmail")}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${provider === p.key && p.actif ? "border-[#F5A623] bg-amber-50" : "border-gray-100 bg-white"} ${!p.actif ? "opacity-50 cursor-not-allowed" : "hover:border-[#F5A623]/40"}`}
+            key={p.key} type="button" aria-pressed={provider === p.key}
+            onClick={() => setProvider(p.key as "resend" | "gmail")}
+            className={`p-4 rounded-carte border-2 text-left transition-colors ${provider === p.key ? "border-primaire bg-primaire-fond" : "border-bordure bg-carte hover:border-bordure-forte"}`}
           >
             <div className="flex items-center gap-2 mb-1">
-              <p.Icon size={18} className="text-gray-600 flex-shrink-0" />
-              <span className="font-semibold text-gray-900 text-sm">{tr(p.label)}</span>
-              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${p.actif ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                {p.actif ? tr("Connecté") : tr("Non connecté")}
-              </span>
+              <p.Icon className="size-4 text-doux flex-shrink-0" aria-hidden />
+              <span className="font-semibold text-encre text-sm">{tr(p.label)}</span>
+              <Badge ton="succes" className="ml-auto">{tr("Connecté")}</Badge>
             </div>
-            <p className="text-xs text-gray-400">{tr(p.desc)}</p>
-            {!p.actif && <p className="text-xs text-[#F5A623] mt-1">{tr("→ Connecter dans Connecteurs")}</p>}
+            <p className="ax-aide">{tr(p.desc)}</p>
           </button>
+          ) : (
+          <div key={p.key} className="p-4 rounded-carte border-2 border-bordure bg-carte-2">
+            <div className="flex items-center gap-2 mb-1">
+              <p.Icon className="size-4 text-doux flex-shrink-0" aria-hidden />
+              <span className="font-semibold text-doux text-sm">{tr(p.label)}</span>
+              <Badge className="ml-auto">{tr("Non connecté")}</Badge>
+            </div>
+            <p className="ax-aide">{tr(p.desc)}</p>
+            <Bouton variante="fantome" taille="compact" href="/dashboard/connecteurs" className="mt-1 -ml-3">{tr("Connecter dans Connecteurs")}</Bouton>
+          </div>
+          )
         ))}
       </div>
 
@@ -224,19 +236,19 @@ export default function EmailMarketingPage() {
           <div className="space-y-5">
             {/* Segment */}
             <div className="ax-card p-5">
-              <label className="text-sm font-bold text-gray-700 mb-3 block">{tr("Destinataires")}</label>
-              <div className="space-y-2">
+              <h2 className="ax-sous-titre mb-3">{tr("Destinataires")}</h2>
+              <div className="space-y-2" role="radiogroup" aria-label={tr("Destinataires")}>
                 {SEGMENTS.map((s) => (
                   <button
-                    key={s.value}
+                    key={s.value} type="button" role="radio" aria-checked={segment === s.value}
                     onClick={() => setSegment(s.value)}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 text-sm transition-all ${segment === s.value ? "border-[#F5A623] bg-amber-50" : "border-gray-100 hover:border-gray-200"}`}
+                    className={`w-full min-h-11 flex items-center justify-between gap-2 px-4 py-2.5 rounded-controle border-2 text-sm text-left transition-colors ${segment === s.value ? "border-primaire bg-primaire-fond" : "border-bordure hover:border-bordure-forte"}`}
                   >
                     <span className="flex items-center gap-2">
-                      <s.Icon size={15} className={segment === s.value ? "text-[#F5A623]" : "text-gray-400"} />
-                      <span className={segment === s.value ? "font-semibold text-gray-900" : "text-gray-600"}>{tr(s.label)}</span>
+                      <s.Icon className={`size-4 flex-shrink-0 ${segment === s.value ? "text-attention" : "text-doux"}`} aria-hidden />
+                      <span className={segment === s.value ? "font-semibold text-encre" : "text-doux"}>{tr(s.label)}</span>
                     </span>
-                    <span className="text-xs font-bold text-gray-400">{tr(stats?.segments?.[s.value as keyof typeof stats.segments]) ?? "..."}</span>
+                    <span className="text-xs font-bold text-doux tabular-nums">{stats?.segments?.[s.value as keyof typeof stats.segments] ?? "…"}</span>
                   </button>
                 ))}
               </div>
@@ -244,81 +256,63 @@ export default function EmailMarketingPage() {
 
             {/* Templates */}
             <div className="ax-card p-5">
-              <label className="text-sm font-bold text-gray-700 mb-3 block">{tr("Template")}</label>
+              <h2 className="ax-sous-titre mb-3">{tr("Modèle de message")}</h2>
               <div className="grid grid-cols-2 gap-2">
                 {TEMPLATES.map((t) => (
                   <button
-                    key={t.id}
+                    key={t.id} type="button" aria-pressed={templateId === t.id}
                     onClick={() => appliquerTemplate(t.id)}
-                    className={`p-3 rounded-xl border-2 text-left text-sm transition-all flex items-center gap-2 ${templateId === t.id ? "border-[#F5A623] bg-amber-50" : "border-gray-100 hover:border-gray-200"}`}
+                    className={`min-h-11 p-3 rounded-controle border-2 text-left text-sm transition-colors flex items-center gap-2 ${templateId === t.id ? "border-primaire bg-primaire-fond" : "border-bordure hover:border-bordure-forte"}`}
                   >
-                    <t.Icon size={15} className={templateId === t.id ? "text-[#F5A623] flex-shrink-0" : "text-gray-400 flex-shrink-0"} />
-                    <span className={`font-medium ${templateId === t.id ? "text-gray-900" : "text-gray-600"}`}>{tr(t.label)}</span>
+                    <t.Icon className={`size-4 flex-shrink-0 ${templateId === t.id ? "text-attention" : "text-doux"}`} aria-hidden />
+                    <span className={`font-medium ${templateId === t.id ? "text-encre" : "text-doux"}`}>{tr(t.label)}</span>
                   </button>
                 ))}
               </div>
-              <label className="text-xs text-gray-400 mt-3 mb-1 block">{tr("Code promo à inclure (facultatif)")}</label>
-              <select
-                value={codeId}
-                onChange={(e) => { setCodeId(e.target.value); if (TEMPLATES.find(t => t.id === templateId)?.corps.includes("{offre}")) appliquerTemplate(templateId, e.target.value); }}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white"
-              >
-                <option value="">{codes.length ? tr("Aucun code") : tr("Aucun code promo actif — créez-en un dans Codes promo")}</option>
-                {codes.map(c => <option key={c.id} value={c.id}>{c.code}{c.type === "pourcentage" ? ` (-${c.valeur}%)` : ` (-${c.valeur})`}</option>)}
-              </select>
+              <Champ className="mt-4" label={tr("Code promo à inclure")} mention="facultatif"
+                aide={codes.length ? undefined : tr("Aucun code promo actif — créez-en un dans Codes promo")}>
+                {(a) => (
+                  <select {...a}
+                    value={codeId}
+                    onChange={(e) => { setCodeId(e.target.value); if (TEMPLATES.find(t => t.id === templateId)?.corps.includes("{offre}")) appliquerTemplate(templateId, e.target.value); }}
+                    className={CLASSE_SAISIE}
+                  >
+                    <option value="">{tr("Aucun code")}</option>
+                    {codes.map(c => <option key={c.id} value={c.id}>{c.code}{c.type === "pourcentage" ? ` (-${c.valeur}%)` : ` (-${c.valeur})`}</option>)}
+                  </select>
+                )}
+              </Champ>
             </div>
           </div>
 
           {/* Panneau droit — éditeur */}
           <div className="space-y-4">
             <div className="ax-card p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-gray-700">{tr("Contenu de la campagne")}</h2>
-                <button
-                  onClick={genererAvecIA}
-                  disabled={generating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-all disabled:opacity-60"
-                >
-                  {generating ? <RefreshCw size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                  {generating ? tr("Génération IA...") : tr("Générer avec IA")}
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="ax-sous-titre">{tr("Contenu de la campagne")}</h2>
+                <Bouton variante="secondaire" taille="compact" onClick={genererAvecIA} charge={generating} texteCharge={tr("Rédaction…")}
+                  icone={<Wand2 className="size-3.5" aria-hidden />}>
+                  {tr("Rédiger un brouillon avec l'IA")}
+                </Bouton>
               </div>
 
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">{tr("Sujet *")}</label>
-                <input
-                  value={sujet}
-                  onChange={(e) => setSujet(e.target.value)}
-                  aria-label={tr("Sujet")}
-                  placeholder={tr("Ex: 🔥 Offre spéciale pour vous !")}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-2.5 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">{tr("Corps du message * (variables:")}{" "}{tr("{prenom}")} {tr("{boutique}")})</label>
-                <textarea
-                  value={corps}
-                  onChange={(e) => setCorps(e.target.value)}
-                  aria-label={tr("Message")}
-                  placeholder={tr("Bonjour {prenom},\n\nVotre message ici...")}
-                  rows={8}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-2.5 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all resize-none"
-                />
-              </div>
+              <Saisie label={tr("Sujet")} required value={sujet} onChange={(e) => setSujet(e.target.value)}
+                placeholder={tr("Ex: 🔥 Offre spéciale pour vous !")} />
+              <ZoneTexte label={tr("Message")} required rows={8} value={corps} onChange={(e) => setCorps(e.target.value)}
+                aide={<>{tr("Variables :")}{" "}{"{prenom}"} {"{boutique}"}</>}
+                placeholder={tr("Bonjour {prenom},\n\nVotre message ici...")} />
 
               {/* Preview toggle */}
               {corps && (
-                <button onClick={() => setPreview(!preview)} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors">
-                  <Eye size={12} />
-                  {preview ? tr("Masquer") : tr("Prévisualiser")} l'email
-                </button>
+                <Bouton variante="fantome" taille="compact" onClick={() => setPreview(!preview)} aria-expanded={preview} icone={<Eye className="size-3.5" aria-hidden />}>
+                  {preview ? tr("Masquer l'aperçu") : tr("Prévisualiser l'email")}
+                </Bouton>
               )}
 
               {preview && corps && (
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 text-xs text-gray-500">
-                    {tr("Aperçu —")}{" "}{tr(sujet) || tr("(sans sujet)")}
+                <div className="border border-bordure rounded-controle overflow-hidden">
+                  <div className="bg-carte-2 px-4 py-2 border-b border-bordure text-xs text-doux">
+                    {tr("Aperçu —")}{" "}{tr(sujet) || tr("(sans sujet)")}{" · "}{tr("exemple avec un prénom fictif")}
                   </div>
                   <div className="p-4 bg-white max-h-60 overflow-y-auto">
                     <div className="bg-[#F5A623] text-white px-6 py-4 rounded-t-xl font-bold text-base">{tr("Votre Boutique")}</div>
@@ -332,33 +326,19 @@ export default function EmailMarketingPage() {
 
             {/* Résultats */}
             {result && (
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-green-50 border border-green-200">
-                <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-green-800">{tr("Campagne envoyée !")}</p>
-                  <p className="text-xs text-green-600">{tr(result.envoyes)}/{result.total}{" "}{tr("emails via")}{" "}{tr(result.source)}</p>
-                </div>
-              </div>
+              <Alerte ton="succes" titre={tr("Campagne envoyée")}>
+                {tr(result.envoyes)}/{result.total}{" "}{tr("emails via")}{" "}{tr(result.source)}
+              </Alerte>
             )}
             {erreur && (
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-50 border border-red-200">
-                <XCircle size={18} className="text-red-500 flex-shrink-0" />
-                <p className="text-sm text-red-700">{tr(erreur)}</p>
-              </div>
+              <Alerte ton="erreur" titre={tr(erreur)} />
             )}
 
-            <div className="flex gap-2">
-              <button
-                onClick={envoyer}
-                disabled={sending || !sujet || !corps}
-                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-40"
-                style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)" }}
-              >
-                {sending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
-                {sending ? tr("Envoi...") : tr("Envoyer ({0})", nbDest)}
-              </button>
-            </div>
-            <p className="text-[11.5px] text-[#AAAAAA] text-center">
+            <Bouton taille="grand" large onClick={envoyer} disabled={!sujet || !corps} charge={sending} texteCharge={tr("Envoi…")}
+              icone={<Send className="size-4" aria-hidden />}>
+              {tr("Envoyer la campagne ({0})", nbDest)}
+            </Bouton>
+            <p className="ax-aide text-center">
               {tr("Chaque e-mail contient un lien de désinscription. Les clients désinscrits ne sont jamais comptés ni contactés.")}
             </p>
           </div>
@@ -366,36 +346,32 @@ export default function EmailMarketingPage() {
       )}
 
       {onglet === "historique" && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-900">{tr("Campagnes envoyées")}</h2>
-            <button onClick={charger} className="p-2 rounded-xl hover:bg-gray-50 transition-all text-gray-400">
-              <RefreshCw size={16} />
-            </button>
+        <div className="ax-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-bordure flex items-center justify-between">
+            <h2 className="ax-sous-titre">{tr("Campagnes envoyées")}</h2>
+            <BoutonIcone label={tr("Actualiser l'historique")} onClick={charger}><RefreshCw className="size-4" aria-hidden /></BoutonIcone>
           </div>
           {historique.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <Mail size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">{tr("Aucune campagne envoyée")}</p>
-            </div>
+            <EtatVide className="m-4" icone={<Mail />} titre={tr("Aucune campagne envoyée")}
+              texte={tr("Tes campagnes apparaîtront ici avec le nombre d'e-mails envoyés.")}>
+              <Bouton variante="secondaire" onClick={() => setOnglet("composer")}>{tr("Composer une campagne")}</Bouton>
+            </EtatVide>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-bordure">
               {historique.map((c) => (
                 <div key={c.id} className="px-5 py-4 flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${c.statut === "envoye" ? "bg-green-50" : "bg-red-50"}`}>
-                    {c.statut === "envoye" ? <CheckCircle2 size={18} className="text-green-600" /> : <XCircle size={18} className="text-red-500" />}
+                  <div className={`w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 ${c.statut === "envoye" ? "bg-succes-fond text-succes" : "bg-erreur-fond text-erreur"}`} aria-hidden>
+                    {c.statut === "envoye" ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{tr(c.sujet)}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="font-semibold text-encre text-sm truncate">{tr(c.sujet)}</p>
+                    <p className="ax-aide">
                       {tr(SEGMENTS.find(s => s.value === c.segment)?.label) ?? tr(c.segment)} · {tr(c.nbEnvoyes)}{" "}{tr("envoyé")}{c.nbEnvoyes > 1 ? "s" : ""} · {tr(c.source)}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.statut === "envoye" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {c.statut === "envoye" ? tr("Envoyé") : tr("Échec")}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <Badge ton={c.statut === "envoye" ? "succes" : "erreur"}>{c.statut === "envoye" ? tr("Envoyé") : tr("Échec")}</Badge>
+                    <p className="ax-aide mt-1">
                       {new Date(c.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>

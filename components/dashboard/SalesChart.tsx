@@ -3,9 +3,15 @@ import { useState } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { BarChart3 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { EtatVide } from "@/components/ui";
 
 interface DonneeVente { date: string; montant: number; commandes: number; }
-interface SalesChartProps { donnees: DonneeVente[]; devise?: string; }
+interface SalesChartProps {
+  donnees: DonneeVente[]; devise?: string;
+  /** Période déjà choisie par la page (ex. « Aujourd'hui ») : toute la série est affichée,
+   *  sans les onglets 7/14/30 j qui la contrediraient. */
+  libellePeriode?: string;
+}
 
 const PERIODS = [
   { key: 7,  label: "7 j" },
@@ -37,7 +43,7 @@ function TooltipCustom({ active, payload, label, devise }: any) {
         <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "5px" }}>
           <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#111111" }} />
           <p style={{ fontSize: "12px", color: "#888", fontWeight: 500, margin: 0 }}>
-            {t(payload[1].value)} commande{payload[1].value > 1 ? "s" : ""}
+            {t("{0} commande(s)", payload[1].value)}
           </p>
         </div>
       )}
@@ -45,25 +51,24 @@ function TooltipCustom({ active, payload, label, devise }: any) {
   );
 }
 
-export function SalesChart({ donnees, devise = "XOF" }: SalesChartProps) {
+export function SalesChart({ donnees, devise = "XOF", libellePeriode }: SalesChartProps) {
   const t = useT();
   const [period, setPeriod] = useState<7 | 14 | 30>(30);
 
-  const data    = donnees.slice(-period);
+  const data    = libellePeriode ? donnees : donnees.slice(-period);
   const total   = data.reduce((s, d) => s + d.montant, 0);
   const avgLine = total / Math.max(data.length, 1);
   const bestDay = data.reduce((best, d) => d.montant > best.montant ? d : best, data[0] ?? { date: "", montant: 0, commandes: 0 });
   const totalCmds = data.reduce((s, d) => s + d.commandes, 0);
 
-  if (!donnees?.length) {
+  if (!donnees?.length || (total === 0 && totalCmds === 0 && libellePeriode)) {
     return (
-      <div className="ax-card p-6 h-72 flex flex-col items-center justify-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-[#F5F5F7] flex items-center justify-center">
-          <BarChart3 size={22} className="text-[#AAAAAA]" />
-        </div>
-        <p className="text-[13px] text-[#AAAAAA] font-medium">{t("Aucune donnée disponible")}</p>
-        <p className="text-[11.5px] text-[#CCCCCC]">{t("Les ventes apparaîtront ici")}</p>
-      </div>
+      <section className="ax-card p-5" aria-labelledby="evolution-ventes">
+        <h2 id="evolution-ventes" className="ax-titre-section">{t("Évolution des ventes")}</h2>
+        {libellePeriode && <p className="ax-aide mt-0.5">{t(libellePeriode)}</p>}
+        <EtatVide compact className="mt-4" icone={<BarChart3 />} titre={t("Aucune vente sur cette période")}
+          texte={t("La courbe se remplira dès ta première commande.")} />
+      </section>
     );
   }
 
@@ -72,48 +77,47 @@ export function SalesChart({ donnees, devise = "XOF" }: SalesChartProps) {
       {/* Header */}
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
-          <h3 className="text-[14px] font-bold text-[#111111] tracking-tight">{t("Évolution des ventes")}</h3>
-          <p className="text-[11.5px] text-[#AAAAAA] mt-0.5">{t("Chiffre d'affaires journalier")}</p>
+          <h2 className="ax-titre-section">{t("Évolution des ventes")}</h2>
+          <p className="ax-aide mt-0.5">
+            {libellePeriode ? <>{t(libellePeriode)}{" · "}{t("chiffre d'affaires des commandes payées")}</> : t("Chiffre d'affaires journalier")}
+          </p>
         </div>
-        {/* Period tabs */}
-        <div className="flex items-center gap-1 bg-[#F5F5F7] rounded-xl p-1 flex-shrink-0">
-          {PERIODS.map(p => (
-            <button key={p.key}
-              onClick={() => setPeriod(p.key as 7 | 14 | 30)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-              style={{
-                background: period === p.key ? "#fff" : "transparent",
-                color: period === p.key ? "#111111" : "#AAAAAA",
-                boxShadow: period === p.key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-              }}>
-              {t(p.label)}
-            </button>
-          ))}
-        </div>
+        {/* Onglets de période (seulement si la page n'en a pas déjà choisi une) */}
+        {!libellePeriode && (
+          <div className="flex items-center gap-1 bg-carte-2 border border-bordure rounded-controle p-1 flex-shrink-0" role="group" aria-label={t("Période")}>
+            {PERIODS.map(p => (
+              <button key={p.key} type="button" aria-pressed={period === p.key}
+                onClick={() => setPeriod(p.key as 7 | 14 | 30)}
+                className={`min-h-10 sm:min-h-8 px-3 rounded-controle text-xs font-semibold transition-colors ${period === p.key ? "bg-carte text-encre shadow-sm" : "text-doux hover:text-encre"}`}>
+                {t(p.label)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-5 mb-5 pb-4 border-b border-[#F5F5F7]">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mb-5 pb-4 border-b border-bordure">
         <div>
-          <p className="text-[11px] text-[#AAAAAA] font-medium uppercase tracking-wide">{t("Total période")}</p>
-          <p className="text-[20px] font-bold text-[#111111] tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <p className="ax-label">{t("Total période")}</p>
+          <p className="text-[20px] font-bold text-encre tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>
             {total.toLocaleString(t.loc)}
-            <span className="text-[13px] text-[#AAAAAA] font-normal ml-1">{t(devise)}</span>
+            <span className="text-[13px] text-doux font-normal ml-1">{t(devise)}</span>
           </p>
         </div>
-        <div className="w-px h-8 bg-[#F0F0F0]" />
+        <div className="w-px h-8 bg-bordure" />
         <div>
-          <p className="text-[11px] text-[#AAAAAA] font-medium uppercase tracking-wide">{t("Commandes")}</p>
-          <p className="text-[20px] font-bold text-[#111111] tabular-nums">{t(totalCmds)}</p>
+          <p className="ax-label">{t("Commandes")}</p>
+          <p className="text-[20px] font-bold text-encre tabular-nums">{t(totalCmds)}</p>
         </div>
         {bestDay.montant > 0 && (
           <>
-            <div className="w-px h-8 bg-[#F0F0F0]" />
+            <div className="w-px h-8 bg-bordure" />
             <div>
-              <p className="text-[11px] text-[#AAAAAA] font-medium uppercase tracking-wide">{t("Meilleur jour")}</p>
-              <p className="text-[13px] font-bold text-[#F5A623]">
+              <p className="ax-label">{t("Meilleur jour")}</p>
+              <p className="text-[13px] font-bold text-attention">
                 {bestDay.date}
-                <span className="text-[11px] text-[#AAAAAA] font-normal ml-1.5">
+                <span className="text-[11px] text-doux font-normal ml-1.5">
                   {bestDay.montant.toLocaleString(t.loc)} {t(devise)}
                 </span>
               </p>
@@ -142,7 +146,7 @@ export function SalesChart({ donnees, devise = "XOF" }: SalesChartProps) {
             tick={{ fill: "#C8C8C8", fontSize: 10.5, fontFamily: "'Poppins',sans-serif", fontWeight: 500 }}
             tickLine={false}
             axisLine={false}
-            interval={period === 7 ? 0 : period === 14 ? 1 : 4}
+            interval={libellePeriode ? "preserveStartEnd" : period === 7 ? 0 : period === 14 ? 1 : 4}
           />
           <YAxis
             stroke="transparent"
@@ -177,18 +181,18 @@ export function SalesChart({ donnees, devise = "XOF" }: SalesChartProps) {
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="flex items-center gap-5 mt-3 pt-3 border-t border-[#F5F5F7]">
+      <div className="flex items-center gap-5 mt-3 pt-3 border-t border-bordure">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-1.5 rounded-full" style={{ background: "#F5A623" }} />
-          <span className="text-[11px] text-[#AAAAAA] font-medium">{t("CA (")}{t(devise)})</span>
+          <span className="text-[11px] text-doux font-medium">{t("CA (")}{t(devise)})</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-1.5 rounded-full" style={{ background: "#111111", opacity: 0.6 }} />
-          <span className="text-[11px] text-[#AAAAAA] font-medium">{t("Commandes")}</span>
+          <span className="text-[11px] text-doux font-medium">{t("Commandes")}</span>
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
           <div className="w-3 h-px" style={{ borderTop: "1.5px dashed #EBEBEB" }} />
-          <span className="text-[11px] text-[#CCCCCC]">{t("Moyenne")}</span>
+          <span className="text-[11px] text-doux">{t("Moyenne")}</span>
         </div>
       </div>
     </div>

@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, X, CreditCard, HelpCircle, Globe } from "lucide-react";
+import { Check, X, HelpCircle, Globe } from "lucide-react";
 import { PlanBadge } from "@/components/dashboard/PlanBadge";
 import AbonnementActions from "@/app/(dashboard)/dashboard/abonnement/AbonnementActions";
 import { PLANS_CATALOGUE, ABONNEMENT_FAQ } from "@/lib/plans-catalogue";
 import { convertirDepuisXAF } from "@/lib/devise-convert";
 import { useT } from "@/components/I18nProvider";
 import { BoutonEssai, useTempsRestant } from "@/components/dashboard/EssaiIllimite";
+import { Badge, EnTetePage } from "@/components/ui";
 
 // Essai Illimité du compte (lib/essai.ts) : `planActuel` reste le plan PAYÉ, pour pouvoir s'abonner pendant l'essai.
 export interface EssaiGrille { phase: "disponible" | "en_cours" | "termine"; finLe: string | null }
@@ -26,33 +27,22 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }
   const afficherXAF = devise === "XAF" || devise === "XOF";
 
   return (
-    <div className={compact ? "space-y-6" : "space-y-8 max-w-4xl"} style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className={compact ? "space-y-6" : "space-y-8 max-w-4xl"}>
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <CreditCard size={18} className="text-[#F5A623]" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              {t("Abonnement ·")}{" "}<span style={{ color: "#F5A623" }}>{t(nomPlan)}</span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-gray-400 text-sm">{t("Choisissez votre palier Axso")}</p>
-            {devise !== "XAF" && devise !== "XOF" && (
-              <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#F5A623]/10 text-[#111111] border border-[#F5A623]/25">
-                <Globe size={9} />{" "}{t("Prix en")}{" "}{t(devise)}
-              </span>
-            )}
-          </div>
-        </div>
-        <PlanBadge plan={planActuel} />
-      </div>
+      <EnTetePage
+        className="mb-0"
+        titre={t("Abonnement")}
+        indicateurs={<>
+          <PlanBadge plan={planActuel} />
+          {devise !== "XAF" && devise !== "XOF" && <Badge ton="neutre" icone={<Globe aria-hidden />}>{t("Prix en")} {t(devise)}</Badge>}
+        </>}
+        description={<>{t("Votre plan actuel :")} <strong className="text-encre">{t(nomPlan)}</strong>. {t("Comparez les paliers ci-dessous : ce qui est inclus est coché, ce qui ne l'est pas est barré.")}</>}
+      />
 
       {!promo && essai && essai.phase !== "termine" && planActuel === "palier0" && <CarteEssai essai={essai} />}
 
       {/* ── Cards plans ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
         {PLANS_CATALOGUE.map((plan) => {
           const estActuel = plan.id === planActuel;
           const ferme = !!promo && plan.prixXAF > 0;
@@ -61,45 +51,43 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }
 
           return (
             <div key={plan.id}
-              className={`relative flex flex-col rounded-3xl bg-white border transition-all ${ferme ? "grayscale opacity-55" : ""}`}
+              className={`relative flex flex-col rounded-carte bg-carte border transition-all ${ferme ? "grayscale opacity-60" : ""}`}
               aria-disabled={ferme || undefined}
               style={{
-                borderColor: plan.recommande ? plan.border : estActuel ? plan.border : "#e5e7eb",
+                borderColor: plan.recommande || estActuel ? plan.border : "var(--ax-bordure)",
+                borderWidth: estActuel ? 2 : 1,
                 boxShadow: plan.recommande
                   ? `0 12px 40px ${plan.couleur}18`
                   : estActuel ? `0 4px 20px ${plan.couleur}15` : "0 1px 6px #0000000a",
-                transform: plan.recommande ? "scale(1.02)" : "none",
+
               }}>
 
               {plan.recommande && !ferme && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap"
-                  style={{ background: `linear-gradient(135deg, ${plan.couleur}, #c97a10)` }}>
-                  {t("⚡ Recommandé")}
-                </div>
-              )}
-              {estActuel && !plan.recommande && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-white text-[10px] font-bold px-3 py-1 rounded-full whitespace-nowrap"
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm whitespace-nowrap"
                   style={{ background: plan.couleur }}>
-                  {t("Plan actuel")}
+                  {t("Recommandé")}
                 </div>
               )}
 
               <div className="p-6 flex-1 flex flex-col">
                 {/* Label palier */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[9px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full"
-                    style={{ background: plan.bg, color: plan.couleur, border: `1px solid ${plan.border}` }}>
-                    {t(plan.palier)}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full"
+                      style={{ background: plan.bg, color: plan.couleur, border: `1px solid ${plan.border}` }}>
+                      {t(plan.palier)}
+                    </span>
+                    {estActuel && <Badge ton="succes" icone={<Check aria-hidden />}>{t("Plan actuel")}</Badge>}
                   </span>
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center"
                     style={{ background: plan.bg, border: `1px solid ${plan.border}` }}>
-                    <Icone size={15} style={{ color: plan.couleur }} />
+                    <Icone size={15} style={{ color: plan.couleur }} aria-hidden />
                   </div>
                 </div>
 
                 {/* Nom + description */}
-                <h3 className="text-xl font-black text-gray-900 mb-0.5">{t(plan.nom)}</h3>
-                <p className="text-gray-400 text-xs mb-4 leading-snug">{t(plan.description)}</p>
+                <h2 className="text-xl font-black text-encre mb-0.5">{t(plan.nom)}</h2>
+                <p className="ax-texte-secondaire mb-4">{t(plan.description)}</p>
 
                 {/* Prix */}
                 <div className="mb-5">
@@ -114,13 +102,13 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }
                           ? plan.prixXAF.toLocaleString(t.loc)
                           : prixLocal.toLocaleString(t.loc)}
                       </p>
-                      <span className="text-gray-400 text-sm font-semibold">
-                        {afficherXAF ? "FCFA" : t(devise)}/mois
+                      <span className="text-doux text-sm font-semibold">
+                        {afficherXAF ? "FCFA" : t(devise)} {t("/ mois")}
                       </span>
                     </div>
                   )}
                   {plan.prixXAF !== 0 && !afficherXAF && (
-                    <p className="text-[10px] text-gray-400 mt-0.5">
+                    <p className="text-xs text-doux mt-0.5">
                       ≈ {plan.prixXAF.toLocaleString(t.loc)}{" "}{t("FCFA/mois")}
                     </p>
                   )}
@@ -131,16 +119,16 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }
                   {plan.features.map((f, i) => (
                     <li key={i} className="flex items-start gap-2">
                       {f.ok ? (
-                        <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                        <span className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
                           style={{ background: plan.bg, border: `1px solid ${plan.border}` }}>
-                          <Check size={9} style={{ color: plan.couleur }} />
-                        </div>
+                          <Check size={10} style={{ color: plan.couleur }} aria-label={t("Inclus")} />
+                        </span>
                       ) : (
-                        <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-gray-50 border border-gray-100">
-                          <X size={9} className="text-gray-300" />
-                        </div>
+                        <span className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-carte-2 border border-bordure">
+                          <X size={10} className="text-doux" aria-label={t("Non inclus")} />
+                        </span>
                       )}
-                      <span className={`text-xs leading-tight ${f.ok ? "text-gray-700 font-medium" : "text-gray-400"}`}>
+                      <span className={`text-sm leading-snug ${f.ok ? "text-encre" : "text-doux line-through decoration-bordure-forte"}`}>
                         {t(f.label)}
                       </span>
                     </li>
@@ -148,7 +136,7 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }
                 </ul>
 
                 {ferme ? (
-                  <p className="w-full text-center text-[12px] font-semibold text-gray-500 bg-gray-100 rounded-xl py-3">{t("Fermé pendant la promo : déjà inclus")}</p>
+                  <p className="w-full text-center text-sm font-semibold text-doux bg-carte-2 rounded-controle py-2.5">{t("Fermé pendant la promo : déjà inclus")}</p>
                 ) : (
                   <AbonnementActions planId={plan.id} planActuel={planActuel} couleur={plan.couleur} />
                 )}
@@ -159,20 +147,19 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }
       </div>
 
       {/* ── FAQ ─────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <HelpCircle size={16} className="text-[#F5A623]" />
-          <h2 className="font-bold text-gray-900">{t("Questions fréquentes")}</h2>
-        </div>
+      <section className="rounded-carte border border-bordure bg-carte shadow-carte p-carte">
+        <h2 className="ax-titre-section flex items-center gap-2 mb-4">
+          <HelpCircle size={16} className="text-attention" aria-hidden />{t("Questions fréquentes")}
+        </h2>
         <div className="space-y-4">
           {ABONNEMENT_FAQ.map((item, i) => (
-            <div key={i} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
-              <p className="font-semibold text-gray-800 text-sm mb-1">{t(item.q)}</p>
-              <p className="text-gray-500 text-sm leading-relaxed">{t(item.r)}</p>
+            <div key={i} className="border-b border-bordure last:border-0 pb-4 last:pb-0">
+              <h3 className="ax-libelle mb-1">{t(item.q)}</h3>
+              <p className="ax-texte-secondaire">{t(item.r)}</p>
             </div>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -181,16 +168,16 @@ function CarteEssai({ essai }: { essai: EssaiGrille }) {
   const t = useT();
   const reste = useTempsRestant(essai.phase === "en_cours" ? essai.finLe : null);
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[#F5A623]/40 bg-[#FFF8EB] px-5 py-4">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-carte border border-attention-bordure bg-primaire-fond px-5 py-4">
       {reste ? (
-        <p className="text-[14px] text-[#111111]">
+        <p className="ax-texte">
           <strong>{t("Essai Illimité en cours")}</strong>{" "}— {t("{0} restants", reste.texte)}.{" "}
           {t("Abonne-toi avant la fin pour garder tes avantages, sinon ta boutique repassera en Essentiel.")}{" "}
           {t("Tes 30 jours payés ne commencent qu'à la fin de l'essai : tu ne perds aucun jour.")}
         </p>
       ) : (
         <>
-          <p className="text-[14px] text-[#111111]"><strong>{t("7 jours d'Illimité offerts")}</strong>{" "}— {t("sans carte, une seule fois par compte. À la fin, tu choisis un plan ou tu restes en Essentiel.")}</p>
+          <p className="ax-texte"><strong>{t("7 jours d'Illimité offerts")}</strong>{" "}— {t("sans carte, une seule fois par compte. À la fin, tu choisis un plan ou tu restes en Essentiel.")}</p>
           <BoutonEssai />
         </>
       )}

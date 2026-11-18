@@ -84,7 +84,7 @@ export function ReglagesMagasins({ peutGerer }: { peutGerer: boolean }) {
       <Modale ouverte={!!saisie} onFermer={() => setSaisie(null)} taille="sm"
         titre={saisie?.quoi === "magasin" ? (saisie.id ? "Modifier le magasin" : "Nouveau magasin") : saisie?.id ? "Renommer la caisse" : "Nouvelle caisse"}
         description={saisie?.quoi === "magasin" && !saisie.id ? "Le magasin reçoit son propre lieu de stock et une première caisse." : undefined}
-        actions={<><Bouton variante="secondaire" onClick={() => setSaisie(null)}>{t("Annuler")}</Bouton><Bouton onClick={() => void valider()} charge={envoi === "saisie"} disabled={!nomValide}>{t("Enregistrer")}</Bouton></>}>
+        actions={<><Bouton variante="secondaire" onClick={() => setSaisie(null)}>{t("Annuler")}</Bouton><Bouton onClick={() => void valider()} charge={envoi === "saisie"} disabled={!nomValide}>{t(saisie?.quoi === "magasin" ? (saisie.id ? "Enregistrer le magasin" : "Créer le magasin") : saisie?.id ? "Renommer la caisse" : "Créer la caisse")}</Bouton></>}>
         {saisie && (
           <form onSubmit={(e) => { e.preventDefault(); if (nomValide) void valider(); }} className="space-y-3">
             <Saisie label="Nom" autoFocus maxLength={saisie.quoi === "magasin" ? 80 : 60} value={saisie.nom} onChange={(e) => setSaisie({ ...saisie, nom: e.target.value })} />

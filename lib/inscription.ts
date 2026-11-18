@@ -17,7 +17,8 @@ export function lireParametresInscription(params: URLSearchParams) {
 }
 
 // ─── Écrans, dans l'ordre ───────────────────────────────────────────────────
-export const ETAPES = ["type", "vente", "nom", "pays", "analyse", "design", "identite", "acces", "decollage", "code", "revelation"] as const;
+// « charte » : identité visuelle (logo, couleurs, polices), entre le design et le prénom/WhatsApp.
+export const ETAPES = ["type", "vente", "nom", "pays", "analyse", "design", "charte", "identite", "acces", "decollage", "code", "revelation"] as const;
 export type Etape = (typeof ETAPES)[number];
 
 /** Poussée de la jauge (0 à 1) : monte à chaque écran, 1 au décollage. */
@@ -47,6 +48,17 @@ const produit = z.object({
   imageUrl: z.string().optional(), type: z.enum(["physique", "digital"]).optional(),
 }).passthrough();
 
+// Identité visuelle (écran « charte ») : tout est facultatif. Couleurs et polices absentes = celles du design.
+const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
+export const schemaCharte = z.object({
+  logoUrl: z.string().max(500).default(""),
+  sansLogo: z.boolean().default(false),
+  couleurs: z.object({ principale: hex, secondaire: hex }).nullable().default(null),
+  polices: z.object({ titre: z.string().max(40), corps: z.string().max(40) }).nullable().default(null),
+});
+export type Charte = z.infer<typeof schemaCharte>;
+export const CHARTE_VIDE: Charte = { logoUrl: "", sansLogo: false, couleurs: null, polices: null };
+
 const schemaProgression = z.object({
   etape: z.enum(ETAPES),
   typeBoutique: z.enum(["physique", "digital", ""]).default(""),
@@ -64,6 +76,7 @@ const schemaProgression = z.object({
   whatsapp: z.string().max(30).default(""),
   email: z.string().max(200).default(""),
   planParam: z.string().max(20).default(""),
+  charte: schemaCharte.default(CHARTE_VIDE),
   // Boutique déjà créée (rechargement après la création) : il ne reste qu'à se connecter.
   creee: z.object({ email: z.string(), slug: z.string() }).nullable().default(null),
   le: z.number(),
@@ -94,6 +107,6 @@ export function lireProgression(brut: string | null, maintenant = Date.now()): P
   // Sans mot de passe sauvegardé, le décollage reprend à l'écran des accès.
   if (p.etape === "decollage" || p.etape === "code" || p.etape === "revelation") return { ...p, etape: "acces" };
   // Écrans qui demandent le plan d'Axia : sans lui, retour au pays.
-  if (["design", "identite", "acces"].includes(p.etape) && !p.plan) return { ...p, etape: "pays" };
+  if (["design", "charte", "identite", "acces"].includes(p.etape) && !p.plan) return { ...p, etape: "pays" };
   return p;
 }

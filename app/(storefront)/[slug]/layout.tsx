@@ -28,6 +28,8 @@ import { deviseVisiteur, paysVisiteur } from "@/lib/devise-visiteur";
 import { tauxDuJour } from "@/lib/taux-change";
 import { ratioConversion } from "@/lib/devise-convert";
 import { I18nProvider } from "@/components/I18nProvider";
+import { PanierVitrine } from "@/components/storefront/Panier";
+import { panierActif } from "@/lib/mode-achat";
 import { getLangue, dico } from "@/lib/i18n/serveur";
 
 interface Props {
@@ -50,7 +52,7 @@ async function ContenuVitrine({ children, params }: Props) {
     where: { slug },
     select: {
       id: true, nomBoutique: true, themeId: true, themeConfig: true, statut: true, devise: true,
-      metaPixelId: true, tiktokPixelId: true, snapPixelId: true, gtmId: true, trackingScripts: true,
+      metaPixelId: true, tiktokPixelId: true, snapPixelId: true, gtmId: true, trackingScripts: true, parametresCommande: true,
     },
   });
 
@@ -90,7 +92,9 @@ async function ContenuVitrine({ children, params }: Props) {
       <StorefrontCustomCss css={cfg.customCss} />
       <ElementsPagesVitrine slug={slug} elementsPages={cfg.elementsPages} />
       <div className="axs-store" style={{ display: "contents" }}>
-        <MenuVitrineProvider menu={navigation.principal ?? []}>{children}</MenuVitrineProvider>
+        <PanierVitrine slug={slug} devise={tenant.devise} actif={panierActif(tenant.parametresCommande, cfg.modeBoutique === "digital")} accent={accent} fond={cfg.colors.fond} texte={cfg.colors.texte}>
+          <MenuVitrineProvider menu={navigation.principal ?? []}>{children}</MenuVitrineProvider>
+        </PanierVitrine>
         {piedMenu.length > 0 && <PiedMenuVitrine slug={slug} colonnes={piedMenu} accent={accent} fond={cfg.colors.fond} texte={cfg.colors.texte} />}
       </div>
       <Suspense fallback={null}>

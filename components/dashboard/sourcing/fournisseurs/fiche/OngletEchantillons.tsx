@@ -128,7 +128,7 @@ export function OngletEchantillons({ fiche, recharger }: PropsOnglet) {
                     <Champ label="Reçu le"><input type="date" value={dateChamp(e.recuLe)} disabled={enCours} onChange={(ev) => modifier(e.id, { recuLe: ev.target.value })} className={CLASSE_CHAMP} /></Champ>
                   </div>
                 </div>
-                <BoutonSupprimer disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${e.id}`, "DELETE"))} />
+                <BoutonSupprimer objet={t("Échantillon : {0}", e.nomProduit)} disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${e.id}`, "DELETE"))} />
               </div>
               {(e.statut === "recu" || e.statut === "controle") && (
                 <details className="mt-3" open={e.statut === "recu"}>

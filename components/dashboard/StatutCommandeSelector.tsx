@@ -1,41 +1,21 @@
 "use client";
 import { useState } from "react";
-import { Loader2, MessageCircle, CheckCircle2, Truck, Check, XCircle } from "lucide-react";
+import { MessageCircle, CheckCircle2, Truck, Check, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, useConfirmation } from "@/components/ui";
+import { statutCommande } from "@/app/(dashboard)/dashboard/commandes/statuts";
 
-// ── Pipeline linéaire simplifié ──────────────────────────────────────────────
-// en_attente → confirmee → expediee → livree  (avec annulee comme sortie à tout moment)
-// En interne on mappe "en_preparation" sur "expediee" pour ne pas casser les données.
-
-const STATUT_LABEL: Record<string, string> = {
-  en_attente:     "En attente",
-  confirmee:      "Confirmée",
-  en_preparation: "En préparation",
-  expediee:       "En livraison",
-  livree:         "Livrée",
-  annulee:        "Annulée",
+// Prochaine étape proposée pour chaque statut (les transitions autorisées restent
+// vérifiées par l'API : lib/commandes.ts TRANSITIONS_VALIDES). Annuler reste possible à tout moment.
+const NEXT_ACTION: Record<string, { label: string; nextStatut: string; icon: typeof Check }> = {
+  en_attente:     { label: "Confirmer la commande",  nextStatut: "confirmee", icon: Check },
+  confirmee:      { label: "Passer en livraison",    nextStatut: "expediee",  icon: Truck },
+  en_preparation: { label: "Passer en livraison",    nextStatut: "expediee",  icon: Truck },
+  expediee:       { label: "Marquer comme livrée",   nextStatut: "livree",    icon: CheckCircle2 },
 };
 
-const STATUT_COLOR: Record<string, { dot: string; text: string; bg: string }> = {
-  en_attente:     { dot: "#F5A623", text: "#111111", bg: "rgba(245,166,35,0.12)" },
-  confirmee:      { dot: "#D4911A", text: "#111111", bg: "rgba(212,145,26,0.12)" },
-  en_preparation: { dot: "#999999", text: "#111111", bg: "rgba(153,153,153,0.12)" },
-  expediee:       { dot: "#666666", text: "#111111", bg: "rgba(102,102,102,0.10)" },
-  livree:         { dot: "#34d399", text: "#064e3b", bg: "rgba(52,211,153,0.1)" },
-  annulee:        { dot: "#f87171", text: "#7f1d1d", bg: "rgba(248,113,113,0.1)" },
-};
-
-// Prochaine action principale pour chaque statut
-const NEXT_ACTION: Record<string, { label: string; nextStatut: string; icon: any }> = {
-  en_attente:     { label: "Confirmer",      nextStatut: "confirmee", icon: Check },
-  confirmee:      { label: "En livraison",   nextStatut: "expediee",  icon: Truck },
-  en_preparation: { label: "En livraison",   nextStatut: "expediee",  icon: Truck },
-  expediee:       { label: "Marquer livré",  nextStatut: "livree",    icon: CheckCircle2 },
-};
-
-const TERMINAL = new Set(["livree", "annulee"]);
 const ANNULABLE = new Set(["en_attente", "confirmee", "en_preparation", "expediee", "tentative_echouee"]);
 
 interface Props {
@@ -43,23 +23,23 @@ interface Props {
   statutActuel: string;
   /** Payée en ligne : l'annulation rembourse le client et reprend la vente au portefeuille. */
   payeeEnLigne?: boolean;
+  /** Numéro affiché dans la confirmation d'annulation. */
+  numero?: string;
 }
 
-export function StatutCommandeSelector({ commandeId, statutActuel, payeeEnLigne = false }: Props) {
+export function StatutCommandeSelector({ commandeId, statutActuel, payeeEnLigne = false, numero }: Props) {
   const t = useT();
   const router = useRouter();
   const [statut, setStatut] = useState(statutActuel);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
   const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [notifEnvoyee, setNotifEnvoyee] = useState(false);
-  const [confirmerAnnulation, setConfirmerAnnulation] = useState(false);
-
-  const colors = STATUT_COLOR[statut] ?? STATUT_COLOR.en_attente;
+  const { confirmer, dialogue } = useConfirmation();
   const nextAction = NEXT_ACTION[statut];
 
   async function changerStatut(nouveau: string) {
     if (nouveau === statut) return;
-    setLoading(true);
+    setLoading(nouveau);
     setWhatsappUrl(null);
     setNotifEnvoyee(false);
     try {
@@ -68,86 +48,72 @@ export function StatutCommandeSelector({ commandeId, statutActuel, payeeEnLigne 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ statut: nouveau }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || t("Le statut n'a pas pu être changé. Rechargez la page puis réessayez."));
       setStatut(nouveau);
+      const label = t(statutCommande(nouveau).label);
       if (data.envoyeAuto) {
         setNotifEnvoyee(true);
-        toast.success(t("{0} · Client notifié WhatsApp ✅", STATUT_LABEL[nouveau]));
-      } else if (data.whatsappUrl) {
-        setWhatsappUrl(data.whatsappUrl);
-        toast.success(t("Statut → {0}", STATUT_LABEL[nouveau]));
+        toast.success(t("Commande passée à « {0} ». Le client a été prévenu sur WhatsApp.", label));
       } else {
-        toast.success(t("Statut → {0}", STATUT_LABEL[nouveau]));
+        if (data.whatsappUrl) setWhatsappUrl(data.whatsappUrl);
+        toast.success(t("Commande passée à « {0} ».", label));
       }
       router.refresh();
     } catch (err: any) {
       toast.error(t(err.message));
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
+  }
+
+  async function annuler() {
+    const ok = await confirmer({
+      titre: t("Annuler cette commande ?"),
+      objet: numero ? t("Commande {0}", numero) : t("Cette commande"),
+      description: payeeEnLigne
+        ? t("Le client sera remboursé et la vente reprise sur votre portefeuille. Cette action est définitive.")
+        : t("Le stock sera remis en vente. Cette action est définitive."),
+      libelleConfirmer: t("Annuler la commande"),
+    });
+    if (ok) await changerStatut("annulee");
   }
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {/* Badge statut actuel */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-        style={{ color: colors.text, backgroundColor: colors.bg, border: `1px solid ${colors.dot}30` }}>
-        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.dot }} />
-        {t(STATUT_LABEL[statut]) ?? t(statut)}
-      </div>
-
-      {/* Bouton action principale (prochaine étape) */}
-      {!TERMINAL.has(statut) && nextAction && (
-        <button
-          onClick={() => changerStatut(nextAction.nextStatut)}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 shadow-sm"
-          style={{ background: "linear-gradient(135deg, #F5A623, #d4880d)", color: "#080808" }}
-        >
-          {loading
-            ? <Loader2 size={13} className="animate-spin" />
-            : <nextAction.icon size={13} />}
+      {nextAction && (
+        <Bouton variante="primaire" onClick={() => changerStatut(nextAction.nextStatut)} disabled={loading !== null}
+          charge={loading === nextAction.nextStatut} icone={<nextAction.icon className="size-4" aria-hidden />}>
           {t(nextAction.label)}
-        </button>
+        </Bouton>
       )}
 
-      {/* Bouton annuler */}
-      {ANNULABLE.has(statut) && confirmerAnnulation && (
-        <span className="text-xs text-red-500">
-          {payeeEnLigne ? t("Le client sera remboursé et la vente reprise sur ton portefeuille.") : t("Le stock sera remis en vente.")}
-        </span>
-      )}
       {ANNULABLE.has(statut) && (
-        <button
-          onClick={() => (confirmerAnnulation ? (setConfirmerAnnulation(false), changerStatut("annulee")) : setConfirmerAnnulation(true))}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all hover:bg-red-50 disabled:opacity-40"
-          style={{ border: "1px solid rgba(248,113,113,0.35)", color: "#f87171" }}
-        >
-          <XCircle size={12} />{" "}{confirmerAnnulation ? t("Confirmer l'annulation") : t("Annuler")}
-        </button>
+        <Bouton variante="danger" onClick={annuler} disabled={loading !== null} charge={loading === "annulee"}
+          icone={<XCircle className="size-4" aria-hidden />}>
+          {t("Annuler la commande")}
+        </Bouton>
       )}
 
-      {/* Notification WhatsApp fallback */}
       {notifEnvoyee && (
-        <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded-xl">
-          <CheckCircle2 size={13} />{" "}{t("Client notifié WhatsApp")}
-        </div>
+        <span role="status" className="flex items-center gap-1.5 text-xs font-medium text-succes bg-succes-fond border border-succes-bordure px-3 py-2 rounded-controle">
+          <CheckCircle2 className="size-4" aria-hidden />{t("Client prévenu sur WhatsApp")}
+        </span>
       )}
       {whatsappUrl && !notifEnvoyee && (
         <a
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 shadow-sm"
-          style={{ background: "#25D366", boxShadow: "0 2px 10px rgba(37,211,102,0.35)" }}
+          className="flex items-center gap-1.5 min-h-10 px-4 rounded-controle text-sm font-semibold text-white transition-opacity hover:opacity-90 shadow-sm"
+          style={{ background: "#25D366" }}
           onClick={() => setWhatsappUrl(null)}
         >
-          <MessageCircle size={14} />
-          {t("Notifier le client")}
+          <MessageCircle className="size-4" aria-hidden />
+          {t("Prévenir le client sur WhatsApp")}
         </a>
       )}
+      {dialogue}
     </div>
   );
 }

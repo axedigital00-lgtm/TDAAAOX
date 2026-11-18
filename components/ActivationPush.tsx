@@ -47,7 +47,7 @@ export const ouvrirReglagePush = () => window.dispatchEvent(new Event("axso:push
 
 // Jamais par-dessus la navigation : au-dessus de la barre du bas sur mobile (tableau de bord), à droite
 // de la barre latérale sur ordinateur — sinon l'encart couvrait le menu, le profil et la langue.
-const DECALAGE: Record<Espace, string> = { dashboard: "bottom-24 md:bottom-4 md:left-[268px]", admin: "bottom-4 lg:left-[256px]", livreur: "bottom-4" };
+const DECALAGE: Record<Espace, string> = { dashboard: "top-[calc(env(safe-area-inset-top)+4.5rem)] md:top-auto md:bottom-4 md:left-[268px]", admin: "bottom-4 lg:left-[256px]", livreur: "bottom-4" };
 
 export function ActivationPush({ espace }: { espace: Espace }) {
   const t = useT();

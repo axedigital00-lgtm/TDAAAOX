@@ -10,6 +10,8 @@ import { mergeThemeConfig, appliquerNouveauTheme } from "@/lib/theme-config";
 import { resolveThemeConfigAsync } from "@/lib/theme-config-server";
 import { FORMAT_PIXEL } from "@/lib/pixels";
 import { requireNiveau } from "@/lib/permissions-server";
+import { marquerUneFois } from "@/lib/demarrage";
+import { lireReglagesLivraison } from "@/lib/livraison-reglages";
 import type { ModuleKey } from "@/lib/permissions";
 
 // Champs fournis par le Theme du design (lib/axso-design-library.ts), jamais édités dans le Constructeur.
@@ -42,7 +44,7 @@ export async function PATCH(request: Request) {
     const champs: Record<string, any> = {};
     const autorises = [
       "themeId", "logoUrl", "bannerUrl", "description", "metaTitle", "metaDescription",
-      "whatsapp", "nomBoutique", "telephone", "adresse", "email", "categorie", "pays", "devise",
+      "whatsapp", "nomBoutique", "telephone", "adresse", "email", "horaires", "categorie", "pays", "devise",
       "socialLinks", "parametresLivraison", "parametresPaiement", "themeConfig",
       "parametresCommande", "metaPixelId", "tiktokPixelId", "snapPixelId", "gtmId", "trackingScripts",
     ];
@@ -57,13 +59,24 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: `Identifiant ${cle} invalide : un seul pixel par plateforme.` }, { status: 400 });
       }
     }
+    // Horaires (page Contact) : texte libre court.
+    if (champs.horaires !== undefined) {
+      if (champs.horaires !== null && typeof champs.horaires !== "string") return NextResponse.json({ error: "Horaires invalides." }, { status: 400 });
+      if (typeof champs.horaires === "string" && champs.horaires.trim().length > 200) return NextResponse.json({ error: "Horaires trop longs (200 caractères maximum)." }, { status: 400 });
+      champs.horaires = champs.horaires?.trim() || null;
+    }
     // Pays changé → devise alignée d'office (vitrine, dashboard et AXIA lisent tenant.devise).
     if (champs.pays) champs.devise = deviseDuPays(champs.pays, champs.devise ?? body.devise ?? "XOF");
 
     const actuel = await prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { statut: true, themeId: true, themeConfig: true, devise: true },
+      select: { statut: true, themeId: true, themeConfig: true, devise: true, parametresCommande: true },
     });
+    // Chaque écran n'envoie que ses réglages (Paramètres › Formulaire de commande, Constructeur › Mode d'achat) : fusion.
+    if (champs.parametresCommande && typeof champs.parametresCommande === "object" && !Array.isArray(champs.parametresCommande)) {
+      const pc = actuel?.parametresCommande;
+      champs.parametresCommande = { ...(pc && typeof pc === "object" && !Array.isArray(pc) ? pc : {}), ...champs.parametresCommande };
+    }
 
     // Le marchand ne peut basculer sa boutique qu'entre "active" et "pause" —
     // jamais écraser un statut administratif (ex: suspendu par Axso). Une
@@ -78,6 +91,7 @@ export async function PATCH(request: Request) {
             {
               error: "Boutique incomplète — impossible de publier",
               manquants: evaluation.criteres.filter(c => !c.ok).map(c => c.label),
+              criteres: evaluation.criteres.filter(c => !c.ok), // avec href : où corriger (BoutonPublier)
             },
             { status: 400 }
           );
@@ -131,6 +145,14 @@ export async function PATCH(request: Request) {
     if (actuel?.statut === "brouillon" && champs.statut === "active") {
       await oublierRappelsBrouillon(tenantId);
       await declarerSousDomaine(tenant.slug);
+      await marquerUneFois(tenantId, "publieeLe"); // départ des relances de complétude (lib/demarrage-relances.ts)
+    }
+    // Suivi du démarrage (lib/demarrage.ts), posé une seule fois : enregistrement depuis le Constructeur
+    // (seul à envoyer themeConfig sans themeId) ; zones de livraison enregistrées par le marchand
+    // depuis Ma boutique › Livraison (confirmerLivraison), au moins une zone.
+    if (body.themeConfig !== undefined && body.themeId === undefined) await marquerUneFois(tenantId, "constructeurEnregistreLe");
+    if (body.confirmerLivraison === true && lireReglagesLivraison(champs.parametresLivraison).zones.length > 0) {
+      await marquerUneFois(tenantId, "livraisonConfirmeeLe");
     }
 
     // Invalider le cache de toutes les pages storefront de cette boutique

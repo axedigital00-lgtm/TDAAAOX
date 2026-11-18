@@ -2,5 +2,5 @@
 import { SessionCaisse } from "@/components/pos/finance/SessionCaisse";
 
 export default function Page() {
-  return <SessionCaisse />;
+  return <SessionCaisse lienCaisse />;
 }

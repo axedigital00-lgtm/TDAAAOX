@@ -1,7 +1,7 @@
 // Multi-boutique (Palier 2) — liste et création de boutiques supplémentaires
 // pour un compte déjà propriétaire d'au moins une boutique.
 import { deviseDuPays } from "@/lib/ai-agent";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { planActif } from "@/lib/abonnement";
@@ -12,6 +12,7 @@ import { generateStoreConfig } from "@/lib/generate-store-config";
 import { MANIFESTE_LIBRAIRIE, provisionerThemeInitial } from "@/lib/axso-design-library";
 import { notifierMarchand } from "@/lib/notifications-marchand";
 import { boutiquesDuCompte } from "@/lib/tenant";
+import { redigerPolitiques } from "@/lib/politiques-axia";
 
 const schemaCreation = z.object({
   nomBoutique: z.string().min(2),
@@ -102,6 +103,8 @@ export async function POST(req: Request) {
     nomBoutique: data.nomBoutique,
     pays: data.pays,
     devise: data.devise,
+    whatsapp: data.whatsapp,
+    email: userEmail,
   });
 
   const tenant = await prisma.$transaction(async (tx) => {
@@ -127,6 +130,9 @@ export async function POST(req: Request) {
     });
     return t;
   });
+
+  // Politiques rédigées par Axia en brouillon, après la réponse (ne lève jamais).
+  after(() => redigerPolitiques(tenant.id));
 
   await notifierMarchand({
     tenantId: tenant.id,

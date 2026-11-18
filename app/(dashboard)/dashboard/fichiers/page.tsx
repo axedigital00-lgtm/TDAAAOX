@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FolderOpen, Upload, Loader2, Copy, Check, Trash2, Search, Film, FileText } from "lucide-react";
+import { FolderOpen, Upload, Copy, Check, Trash2, Film, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { televerser } from "@/lib/televerser";
 import { TYPES_FICHIERS } from "@/lib/types-fichiers";
 import { useT } from "@/components/I18nProvider";
+import { Alerte, Bouton, BoutonIcone, Confirmation, EnTetePage, EtatChargement, EtatVide, Saisie } from "@/components/ui";
 
 // externe : image d'un produit hébergée ailleurs (IA, lien collé) — affichée, jamais supprimée d'ici.
 interface Fichier { url: string; nom: string; type: "image" | "video" | "document"; taille: number | null; date: string; externe?: boolean; produitId?: string }
@@ -75,26 +76,21 @@ export default function FichiersPage() {
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setSurvolDepot(false); }}
       onDrop={(e) => { e.preventDefault(); setSurvolDepot(false); importer(e.dataTransfer.files); }}
     >
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="w-12 h-12 rounded-2xl bg-[#F5A623] flex items-center justify-center">
-          <FolderOpen size={22} className="text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Fichiers")}</h1>
-          <p className="text-gray-400 text-sm">{t("Les images, vidéos et documents de votre boutique, réutilisables partout (constructeur, pages, liens…).")}</p>
-        </div>
-        <input ref={champ} type="file" multiple accept={ACCEPTES.join(",")} className="hidden" onChange={(e) => e.target.files && importer(e.target.files)} />
-        <button onClick={() => champ.current?.click()} disabled={!!envoi || indisponible}
-          className="h-10 flex items-center gap-2 px-4 rounded-lg text-[14px] font-semibold bg-[#F5A623] text-[#111111] hover:bg-[#E8990F] disabled:opacity-50 transition-colors">
-          {envoi ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-          {envoi ? `${t("Import…")} ${envoi.fait}/${envoi.total}` : t("Importer des fichiers")}
-        </button>
-      </div>
+      <input ref={champ} type="file" multiple accept={ACCEPTES.join(",")} className="hidden" onChange={(e) => e.target.files && importer(e.target.files)} />
+      <EnTetePage
+        className="mb-0"
+        titre={t("Fichiers")}
+        description={t("Les images, vidéos et documents de votre boutique, réutilisables partout (constructeur, pages, liens…).")}
+        actions={
+          <Bouton onClick={() => champ.current?.click()} disabled={indisponible} charge={!!envoi}
+            texteCharge={envoi ? `${t("Import…")} ${envoi.fait}/${envoi.total}` : undefined} icone={<Upload className="size-4" aria-hidden />}>
+            {t("Importer des fichiers")}
+          </Bouton>
+        }
+      />
 
       {indisponible ? (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          {t("Le stockage des fichiers n'est pas configuré sur ce serveur : la bibliothèque est indisponible.")}
-        </p>
+        <Alerte ton="attention" titre={t("Le stockage des fichiers n'est pas configuré sur ce serveur : la bibliothèque est indisponible.")} />
       ) : (
         <>
           <div className="flex items-center gap-3 flex-wrap">
@@ -106,20 +102,20 @@ export default function FichiersPage() {
                 </button>
               ))}
             </div>
-            <label className="flex-1 min-w-[200px] flex items-center gap-2 h-10 px-3 rounded-lg border border-gray-200 bg-white focus-within:border-[#F5A623]">
-              <Search size={15} className="text-gray-400" />
-              <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={t("Rechercher un fichier")} className="flex-1 min-w-0 text-[14px] outline-none bg-transparent" />
-            </label>
+            <Saisie type="search" label={t("Rechercher un fichier")} labelMasque className="flex-1 min-w-[200px] space-y-0"
+              value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={t("Rechercher un fichier")} />
           </div>
 
           <div className={`rounded-2xl border-2 border-dashed p-4 transition-colors ${survolDepot ? "border-[#F5A623] bg-[#FFF7EA]" : "border-transparent"}`}>
             {chargement && !fichiers.length ? (
-              <div className="py-16 flex justify-center"><Loader2 size={22} className="animate-spin text-gray-300" /></div>
+              <EtatChargement />
             ) : !visibles.length ? (
-              <button onClick={() => champ.current?.click()} className="w-full py-16 rounded-xl border border-dashed border-gray-300 text-gray-400 hover:border-[#F5A623] hover:text-[#C77C0A] transition-colors">
-                <Upload size={22} className="mx-auto mb-2" />
-                <span className="text-sm">{recherche ? t("Aucun fichier ne correspond.") : t("Aucun fichier pour l'instant — importez-en ou glissez-les ici.")}</span>
-              </button>
+              <EtatVide icone={<FolderOpen />}
+                titre={recherche ? t("Aucun fichier ne correspond.") : t("Aucun fichier pour l'instant — importez-en ou glissez-les ici.")}>
+                <Bouton variante="secondaire" onClick={() => champ.current?.click()} disabled={!!envoi} icone={<Upload className="size-4" aria-hidden />}>
+                  {t("Importer des fichiers")}
+                </Bouton>
+              </EtatVide>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {visibles.map((f) => <Carte key={f.url} fichier={f} onSupprime={() => setFichiers((l) => l.filter((x) => x.url !== f.url))} />)}
@@ -127,9 +123,9 @@ export default function FichiersPage() {
             )}
           </div>
           {suite && (
-            <button onClick={() => charger(suite)} disabled={chargement} className="mx-auto block h-10 px-5 rounded-lg border border-gray-200 bg-white text-[14px] font-medium text-gray-600 hover:border-gray-300 disabled:opacity-50">
-              {chargement ? t("Chargement…") : t("Afficher plus")}
-            </button>
+            <div className="flex justify-center">
+              <Bouton variante="secondaire" onClick={() => charger(suite)} charge={chargement} texteCharge={t("Chargement…")}>{t("Afficher plus")}</Bouton>
+            </div>
           )}
         </>
       )}
@@ -141,14 +137,13 @@ function Carte({ fichier: f, onSupprime }: { fichier: Fichier; onSupprime: () =>
   const t = useT();
   const [copie, setCopie] = useState(false);
   const [confirmer, setConfirmer] = useState(false);
-  const [suppression, setSuppression] = useState(false);
 
   const copier = () => { navigator.clipboard.writeText(f.url); setCopie(true); setTimeout(() => setCopie(false), 1500); };
+  // Lève en cas d'échec : la fenêtre de confirmation reste ouverte.
   const supprimer = async () => {
-    setSuppression(true);
     const r = await fetch("/api/fichiers", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: f.url }) }).catch(() => null);
-    setSuppression(false);
-    if (r?.ok) { onSupprime(); toast.success(t("Fichier supprimé")); } else toast.error(t("Suppression impossible"));
+    if (!r?.ok) { toast.error(t("Suppression impossible")); throw new Error("suppression"); }
+    onSupprime(); toast.success(t("Fichier supprimé"));
   };
 
   return (
@@ -163,27 +158,21 @@ function Carte({ fichier: f, onSupprime }: { fichier: Fichier; onSupprime: () =>
       <div className="p-2.5">
         <p className="text-[13px] font-medium text-gray-800 truncate" title={nomLisible(f.nom)}>{nomLisible(f.nom)}</p>
         <p className="text-[12px] text-gray-400">{f.externe ? t("Lien externe · image produit") : `${taille(f.taille ?? 0)} · ${new Date(f.date).toLocaleDateString()}`}</p>
-        {confirmer ? (
-          <div className="mt-2 space-y-1.5">
-            <p className="text-[12px] text-red-600 leading-snug">{t("Supprimer ? Il disparaîtra aussi des pages qui l'utilisent.")}</p>
-            <div className="flex gap-1.5">
-              <button onClick={supprimer} disabled={suppression} className="flex-1 h-8 rounded-md bg-red-500 text-white text-[12.5px] font-semibold hover:bg-red-600 disabled:opacity-50">
-                {suppression ? <Loader2 size={13} className="animate-spin mx-auto" /> : t("Supprimer")}
-              </button>
-              <button onClick={() => setConfirmer(false)} className="flex-1 h-8 rounded-md border border-gray-200 text-[12.5px] text-gray-600">{t("Annuler")}</button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-2 flex gap-1.5">
-            <button onClick={copier} className="flex-1 h-8 flex items-center justify-center gap-1 rounded-md border border-gray-200 text-[12.5px] text-gray-600 hover:border-gray-300">
-              {copie ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}{" "}{copie ? t("Copié") : t("Copier le lien")}
-            </button>
-            {!f.externe && (
-              <button onClick={() => setConfirmer(true)} title={t("Supprimer")} aria-label={t("Supprimer")} className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200">
-                <Trash2 size={13} />
-              </button>
-            )}
-          </div>
+        <div className="mt-2 flex gap-1.5">
+          <Bouton variante="secondaire" taille="compact" className="flex-1 min-w-0" onClick={copier}
+            icone={copie ? <Check className="size-3.5 text-succes" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}>
+            {copie ? t("Copié") : t("Copier le lien")}
+          </Bouton>
+          {!f.externe && (
+            <BoutonIcone variante="danger" label={t("Supprimer")} onClick={() => setConfirmer(true)} className="sm:size-8 sm:min-h-8">
+              <Trash2 className="size-3.5" aria-hidden />
+            </BoutonIcone>
+          )}
+        </div>
+        {!f.externe && (
+          <Confirmation ouverte={confirmer} onFermer={() => setConfirmer(false)} onConfirmer={supprimer}
+            titre={t("Supprimer ce fichier ?")} objet={nomLisible(f.nom)}
+            description={t("Il disparaîtra aussi des pages qui l'utilisent.")} libelleConfirmer={t("Supprimer le fichier")} />
         )}
       </div>
     </div>

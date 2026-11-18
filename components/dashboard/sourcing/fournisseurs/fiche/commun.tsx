@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink, Mail, MessageCircle, Trash2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { BoutonIcone, useConfirmation } from "@/components/ui";
 import { televerser } from "@/lib/televerser";
 import { Bouton, Champ, CLASSE_CHAMP } from "@/components/dashboard/sourcing/ui";
 import type { Candidat } from "@/lib/sourcing/fournisseurs/classement";
@@ -55,12 +56,20 @@ export function Note({ valeur, onChange }: { valeur: number | undefined; onChang
   );
 }
 
-export function BoutonSupprimer({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+/** Suppression d'une ligne de la fiche, confirmée en nommant l'élément (`objet`). */
+export function BoutonSupprimer({ onClick, disabled, objet }: { onClick: () => void; disabled?: boolean; objet: string }) {
   const t = useT();
+  const { confirmer, dialogue } = useConfirmation();
   return (
-    <button type="button" disabled={disabled} title={t("Supprimer")} aria-label={t("Supprimer")}
-      onClick={() => { if (window.confirm(t("Supprimer définitivement cet élément ?"))) onClick(); }}
-      className="p-1.5 rounded-lg text-[#AAAAAA] hover:text-[#B91C1C] hover:bg-[#FEF2F2] disabled:opacity-50 shrink-0"><Trash2 size={14} /></button>
+    <>
+      {dialogue}
+      <BoutonIcone label={t("Supprimer {0}", objet)} disabled={disabled} className="text-doux hover:text-erreur hover:bg-erreur-fond"
+        onClick={async () => {
+          if (await confirmer({ titre: t("Supprimer cet élément ?"), objet, description: t("Il est retiré de la fiche du fournisseur. Ce n'est pas annulable."), libelleConfirmer: t("Supprimer") })) onClick();
+        }}>
+        <Trash2 className="size-4" aria-hidden />
+      </BoutonIcone>
+    </>
   );
 }
 

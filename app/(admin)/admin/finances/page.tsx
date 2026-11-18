@@ -8,6 +8,8 @@ import { AdminWalletPanel } from "@/components/admin/AdminWalletPanel";
 import { AdminRetraitsManuels } from "@/components/admin/AdminRetraitsManuels";
 import { getPlatformTenantId } from "@/lib/wallet";
 import { getT } from "@/lib/i18n/serveur";
+import Link from "next/link";
+import { EnTetePage, Carte, Badge, EtatVide, Progression, type Ton } from "@/components/command-center/ui";
 
 export default async function AdminFinancesPage() {
   const tx = await getT();
@@ -46,138 +48,130 @@ export default async function AdminFinancesPage() {
   const fraisTotal = Math.abs(fraisPasserelle._sum.montant || 0);
   const revenuNetReel = Math.max(0, revenuCapture - fraisTotal);
 
-  const kpiCard = "rounded-2xl p-5 border";
-  const kpiStyle = { background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" };
+  const STATUT_COMMISSION: Record<string, { nom: string; ton: Ton }> = {
+    captured: { nom: "Capturée", ton: "good" },
+    remboursee: { nom: "Remboursée", ton: "bad" },
+  };
+  const badge = (statut: string) => { const s = STATUT_COMMISSION[statut] ?? { nom: "En attente", ton: "warn" as Ton }; return <Badge ton={s.ton}>{tx(s.nom)}</Badge>; };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--cc-text)" }}>{tx("Finances Axso")}</h1>
-        <p className="text-sm mt-1" style={{ color: "#AAAAAA" }}>{tx("Revenus de commission, abonnements et frais de paiement")}</p>
-      </div>
+    <div className="space-y-5">
+      <EnTetePage titre={tx("Finances Axso")} sousTitre={tx("Revenus de commission, abonnements et frais de paiement")} />
 
-      {/* Wallet plateforme + retrait */}
+      {/* Actions : wallet plateforme et retraits à valider à la main */}
       <AdminWalletPanel peutRetirer={estAdminComplet(session)} />
-
       <AdminRetraitsManuels peutTraiter={estAdminComplet(session)} />
       <AdminRetraitsManuels peutTraiter={estAdminComplet(session)} livreurs />
 
-      {/* Commission brute vs frais de paiement vs net réel */}
-      <div className="rounded-2xl p-6 border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
-        <h2 className="font-semibold mb-1 flex items-center gap-2" style={{ color: "#ffffff" }}>
-          <Receipt size={15} style={{ color: "#F5A623" }} />
-          {tx("Ce qu'Axso garde réellement")}
-        </h2>
-        <p className="text-xs mb-5" style={{ color: "#AAAAAA" }}>{tx("Le prestataire de paiement prélève son frais de traitement sur chaque paiement — jamais sur le vendeur, toujours sur la commission Axso.")}</p>
-        <div className="grid sm:grid-cols-3 gap-4">
+      {/* Supervision (lecture seule) */}
+      <Carte titre={<span className="flex items-center gap-2"><Receipt size={15} className="cc-warn" aria-hidden />{tx("Ce qu'Axso garde réellement")}</span>}
+        sousTitre={tx("Le prestataire de paiement prélève son frais de traitement sur chaque paiement — jamais sur le vendeur, toujours sur la commission Axso.")}>
+        <dl className="grid sm:grid-cols-3 gap-4">
           <div>
-            <p className="text-lg font-bold" style={{ color: "#ffffff" }}>{formatMontant(revenuCapture, "XAF")}</p>
-            <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx("Commission brute (7 % physique, 10 % numérique)")}</p>
+            <dd className="text-lg font-semibold cc-num">{formatMontant(revenuCapture, "XAF")}</dd>
+            <dt className="text-[12px] cc-muted mt-1">{tx("Commission brute (7 % physique, 10 % numérique)")}</dt>
           </div>
           <div>
-            <p className="text-lg font-bold" style={{ color: "#DC2626" }}>−{formatMontant(fraisTotal, "XAF")}</p>
-            <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx("Frais de paiement prélevés")}</p>
+            <dd className="text-lg font-semibold cc-num cc-bad">−{formatMontant(fraisTotal, "XAF")}</dd>
+            <dt className="text-[12px] cc-muted mt-1">{tx("Frais de paiement prélevés")}</dt>
           </div>
           <div>
-            <p className="text-lg font-bold" style={{ color: "#16A34A" }}>{formatMontant(revenuNetReel, "XAF")}</p>
-            <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx("Commission nette réelle (dans le wallet)")}</p>
+            <dd className="text-lg font-semibold cc-num cc-good">{formatMontant(revenuNetReel, "XAF")}</dd>
+            <dt className="text-[12px] cc-muted mt-1">{tx("Commission nette réelle (dans le wallet)")}</dt>
           </div>
-        </div>
-      </div>
+        </dl>
+      </Carte>
 
-      {/* KPIs financiers */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
-          { label: "Revenus capturés", value: formatMontant(revenuCapture, "XAF"), icon: TrendingUp, color: "#16A34A", desc: "Commissions libérées" },
-          { label: "En attente", value: formatMontant(revenuPending, "XAF"), icon: AlertCircle, color: "#D97706", desc: "Après livraison" },
-        ].map((k, i) => {
+          { label: "Revenus capturés", value: formatMontant(revenuCapture, "XAF"), icon: TrendingUp, cls: "cc-good", desc: "Commissions libérées" },
+          { label: "En attente", value: formatMontant(revenuPending, "XAF"), icon: AlertCircle, cls: "cc-warn", desc: "Libérées après livraison" },
+        ].map((k) => {
           const Icon = k.icon;
           return (
-            <div key={i} className={kpiCard} style={kpiStyle}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${k.color}15`, border: `1px solid ${k.color}25` }}>
-                  <Icon size={16} style={{ color: k.color }} />
-                </div>
-                <span className="text-xs" style={{ color: "#AAAAAA" }}>{tx(k.label)}</span>
-              </div>
-              <p className="text-xl font-bold" style={{ color: "#ffffff" }}>{tx(k.value)}</p>
-              <p className="text-xs mt-1" style={{ color: "#666666" }}>{tx(k.desc)}</p>
-            </div>
+            <section key={k.label} className="cc-card p-4">
+              <p className="flex items-center gap-2 text-[12px] cc-muted"><Icon size={14} className={k.cls} aria-hidden />{tx(k.label)}</p>
+              <p className="text-xl font-semibold cc-num mt-1.5">{k.value}</p>
+              <p className="text-[12px] cc-faint mt-1">{tx(k.desc)}</p>
+            </section>
           );
         })}
       </div>
 
-      {/* Top boutiques par commission */}
-      <div className="rounded-2xl p-6 border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
-        <h2 className="font-semibold mb-4 flex items-center gap-2" style={{ color: "#ffffff" }}>
-          <DollarSign size={15} style={{ color: "#F5A623" }} />
-          {tx("Top boutiques par revenus générés")}
-        </h2>
-        <div className="space-y-3">
-          {!topBoutiques.length && <p className="text-xs" style={{ color: "#666666" }}>{tx("Aucune commission capturée pour l'instant")}</p>}
-          {topBoutiques.map((t, i) => {
-            const tenant = tenantMap[t.tenantId];
-            const comm = t.commission;
-            const marchand = t.marchand;
-            const maxComm = topBoutiques[0].commissionXAF || 1;
-            return (
-              <div key={t.tenantId} className="flex items-center gap-4">
-                <span className="text-sm w-5 text-right" style={{ color: "#666666" }}>{i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between gap-2 mb-1">
-                    <span className="text-sm truncate" style={{ color: "#ffffff" }}>{tx(tenant?.nomBoutique) || tx(t.tenantId)}</span>
-                    <span className="text-sm font-bold shrink-0" style={{ color: "#16A34A" }}>{formatMontant(comm, t.devise)}</span>
+      <Carte titre={<span className="flex items-center gap-2"><DollarSign size={15} className="cc-warn" aria-hidden />{tx("Top boutiques par revenus générés")}</span>}>
+        {!topBoutiques.length ? <EtatVide titre={tx("Aucune commission capturée pour l'instant.")} explication={tx("Les commissions sont capturées une fois la commande livrée.")} /> : (
+          <ol className="space-y-3">
+            {topBoutiques.map((t, i) => {
+              const tenant = tenantMap[t.tenantId];
+              const maxComm = topBoutiques[0].commissionXAF || 1;
+              return (
+                <li key={t.tenantId} className="flex items-center gap-3">
+                  <span className="text-[13px] w-5 text-right cc-faint cc-num">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between gap-2 mb-1">
+                      <Link href={`/admin/boutiques/${t.tenantId}`} className="text-[13px] truncate hover:underline">{tenant?.nomBoutique ?? t.tenantId}</Link>
+                      <span className="text-[13px] font-semibold shrink-0 cc-good cc-num">{formatMontant(t.commission, t.devise)}</span>
+                    </div>
+                    <Progression valeur={t.commissionXAF / maxComm} />
+                    <p className="text-[11.5px] mt-0.5 cc-faint">{tx("Versé au marchand :")} {formatMontant(t.marchand, t.devise)}</p>
                   </div>
-                  <div className="w-full rounded-full h-1.5" style={{ background: "rgba(255,255,255,0.08)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${(t.commissionXAF / maxComm) * 100}%`, background: "linear-gradient(90deg,#F5A623,#D4911A)" }} />
-                  </div>
-                  <p className="text-[10px] mt-0.5" style={{ color: "#666666" }}>{tx("Versé au marchand :")}{" "}{formatMontant(marchand, t.devise)}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </Carte>
 
-      {/* Historique commissions */}
-      <div className="rounded-2xl overflow-hidden border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
-        <div className="px-6 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          <h2 className="font-semibold" style={{ color: "#ffffff" }}>{tx("Historique des commissions")}</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-                {["Commande", "Boutique", "Client", "Montant commande", "Commission", "Marchand", "Statut", "Date"].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-medium" style={{ color: "#AAAAAA" }}>{tx(h)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+      <Carte titre={tx("Historique des commissions")} sousTitre={tx("Les 20 plus récentes")} pad={false}>
+        {!dernieresCommissions.length ? <EtatVide titre={tx("Aucune commission pour l'instant.")} explication={tx("Chaque commande payée en ligne crée une commission ici.")} /> : (
+          <>
+            <ul className="md:hidden divide-y cc-sep border-t cc-sep">
               {dernieresCommissions.map(c => (
-                <tr key={c.id} className="transition-colors hover:bg-white/[0.02]">
-                  <td className="px-5 py-3 font-mono text-xs" style={{ color: "#F5A623" }}>{c.commande.numero}</td>
-                  <td className="px-5 py-3 text-xs" style={{ color: "#ffffff" }}>{tx(c.tenant.nomBoutique)}</td>
-                  <td className="px-5 py-3 text-xs" style={{ color: "#AAAAAA" }}>{tx(c.commande.clientNom)}</td>
-                  <td className="px-5 py-3" style={{ color: "#ffffff" }}>{formatMontant(c.montantCommande, c.devise)}</td>
-                  <td className="px-5 py-3 font-medium" style={{ color: "#16A34A" }}>+{formatMontant(c.montantCommission, c.devise)}</td>
-                  <td className="px-5 py-3" style={{ color: "#AAAAAA" }}>{formatMontant(c.montantMarchand, c.devise)}</td>
-                  <td className="px-5 py-3">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full"
-                      style={c.statut === "captured" ? { background: "rgba(22,163,74,0.15)", color: "#16A34A" } : c.statut === "remboursee" ? { background: "rgba(220,38,38,0.15)", color: "#DC2626" } : { background: "rgba(245,166,35,0.15)", color: "#F5A623" }}>
-                      {c.statut === "captured" ? tx("Capturée") : c.statut === "remboursee" ? tx("Remboursée") : tx("En attente")}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-xs" style={{ color: "#666666" }}>{formatDate(c.createdAt)}</td>
-                </tr>
+                <li key={c.id} className="p-4 space-y-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-[12px]" style={{ color: "var(--cc-accent-text)" }}>{c.commande.numero}</p>
+                      <p className="text-[13px] font-medium [overflow-wrap:anywhere]">{c.tenant.nomBoutique}</p>
+                    </div>
+                    {badge(c.statut)}
+                  </div>
+                  <dl className="grid grid-cols-3 gap-2 text-[12px]">
+                    <div><dt className="cc-faint">{tx("Commande")}</dt><dd className="cc-num">{formatMontant(c.montantCommande, c.devise)}</dd></div>
+                    <div><dt className="cc-faint">{tx("Commission")}</dt><dd className="cc-num cc-good">+{formatMontant(c.montantCommission, c.devise)}</dd></div>
+                    <div><dt className="cc-faint">{tx("Marchand")}</dt><dd className="cc-num">{formatMontant(c.montantMarchand, c.devise)}</dd></div>
+                  </dl>
+                  <p className="text-[11.5px] cc-faint">{c.commande.clientNom} · {formatDate(c.createdAt)}</p>
+                </li>
               ))}
-              {!dernieresCommissions.length && (
-                <tr><td colSpan={8} className="px-5 py-8 text-center text-xs" style={{ color: "#666666" }}>{tx("Aucune commission")}</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </ul>
+            <div className="hidden md:block overflow-x-auto border-t cc-sep">
+              <table className="cc-table">
+                <thead>
+                  <tr>
+                    {["Commande", "Boutique", "Client", "Montant commande", "Commission", "Marchand", "Statut", "Date"].map((h, i) => (
+                      <th key={h} className={i >= 3 && i <= 5 ? "r" : ""}>{tx(h)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dernieresCommissions.map(c => (
+                    <tr key={c.id}>
+                      <td className="font-mono text-[12px]" style={{ color: "var(--cc-accent-text)" }}>{c.commande.numero}</td>
+                      <td><Link href={`/admin/boutiques/${c.tenantId}`} className="hover:underline">{c.tenant.nomBoutique}</Link></td>
+                      <td className="cc-muted">{c.commande.clientNom}</td>
+                      <td className="r cc-num">{formatMontant(c.montantCommande, c.devise)}</td>
+                      <td className="r cc-num cc-good">+{formatMontant(c.montantCommission, c.devise)}</td>
+                      <td className="r cc-num cc-muted">{formatMontant(c.montantMarchand, c.devise)}</td>
+                      <td>{badge(c.statut)}</td>
+                      <td className="cc-faint">{formatDate(c.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Carte>
     </div>
   );
 }

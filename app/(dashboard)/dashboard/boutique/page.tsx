@@ -23,6 +23,10 @@ import { useT } from "@/components/I18nProvider";
 import { lireReglagesLivraison, normaliserZone, type ZoneLivraison } from "@/lib/livraison-reglages";
 import { BannierePub } from "@/components/dashboard/BannierePub";
 import { CarteAffilies } from "@/components/dashboard/CarteAffilies";
+import { Badge, Bouton, BoutonIcone, classesBouton, Champ, Confirmation, EtatErreur, SqueletteListe, Saisie, ZoneTexte, CLASSE_SAISIE } from "@/components/ui";
+
+const CARTE = "rounded-carte border border-bordure bg-carte shadow-carte p-carte space-y-champs";
+const classesBoutonSombre = classesBouton({ variante: "sombre" });
 
 const BOUTIQUE_TUTORIAL_STEPS = [
   { Icon: Store,   titre: "Complétez votre profil",        description: "Nom, description, contacts, pays... Chaque champ rempli fait grimper votre score de complétion vers 100%." },
@@ -32,8 +36,6 @@ const BOUTIQUE_TUTORIAL_STEPS = [
 ];
 
 
-const inputCls = "w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] leading-normal outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all placeholder:text-[#CCCCCC]";
-const labelCls = "flex items-center gap-1.5 mb-1.5 ax-label leading-none";
 
 type Section = "infos" | "apparence" | "seo" | "reseaux" | "livraison" | "boutiques" | "avance";
 
@@ -62,7 +64,7 @@ function palierDe(planType: string): Palier {
 }
 
 const CHAMPS_INFOS = [
-  { key: "nomBoutique", label: "Nom de la boutique *", placeholder: "Mode Aminata",           Icon: Store },
+  { key: "nomBoutique", label: "Nom de la boutique", placeholder: "Mode Aminata",           Icon: Store },
   { key: "email",       label: "Email professionnel",  placeholder: "contact@maboutique.com", type: "email", Icon: Mail },
   { key: "whatsapp",    label: "WhatsApp Business",    placeholder: "",      Icon: MessageCircle },
   { key: "telephone",   label: "Téléphone",            placeholder: "",      Icon: Phone },
@@ -70,10 +72,10 @@ const CHAMPS_INFOS = [
 ];
 
 const CHAMPS_RESEAUX = [
-  { key: "instagram", label: "Instagram",   placeholder: "https://instagram.com/votre_boutique", Icon: Camera,        color: "#E1306C" },
-  { key: "facebook",  label: "Facebook",    placeholder: "https://facebook.com/votre_boutique",  Icon: Users,         color: "#111111" },
-  { key: "tiktok",    label: "TikTok",      placeholder: "https://tiktok.com/@votre_boutique",   Icon: Music,         color: "#111111" },
-  { key: "twitter",   label: "X / Twitter", placeholder: "https://twitter.com/votre_boutique",   Icon: MessageCircle, color: "#0F1419" },
+  { key: "instagram", label: "Instagram",   placeholder: "https://instagram.com/votre_boutique", Icon: Camera },
+  { key: "facebook",  label: "Facebook",    placeholder: "https://facebook.com/votre_boutique",  Icon: Users },
+  { key: "tiktok",    label: "TikTok",      placeholder: "https://tiktok.com/@votre_boutique",   Icon: Music },
+  { key: "twitter",   label: "X / Twitter", placeholder: "https://twitter.com/votre_boutique",   Icon: MessageCircle },
 ];
 
 export default function BoutiquePage() {
@@ -85,6 +87,11 @@ export default function BoutiquePage() {
   // Hôte lu côté client (évite un décalage d'hydratation) : la vitrine est servie en /<slug>.
   const [hote, setHote] = useState("");
   useEffect(() => setHote(window.location.host), []);
+  // Lien direct vers une section (?section=livraison : étape « zones de livraison » du démarrage).
+  useEffect(() => {
+    const s = new URLSearchParams(window.location.search).get("section");
+    if (s && SECTIONS.some(x => x.id === s)) setSection(s as Section);
+  }, []);
   const [tenant, setTenant] = useState<any>(null);
   const [statutLocal, setStatutLocal] = useState<string>("active");
   const [savingStatut, setSavingStatut] = useState(false);
@@ -103,8 +110,11 @@ export default function BoutiquePage() {
   const [regles, setRegles] = useState<{ zone: string; actif: boolean }[]>([]);
   const [savedForm, setSavedForm] = useState<typeof form | null>(null);
 
-  useEffect(() => {
-    fetch("/api/tenants/moi").then(r => r.json()).then(d => {
+  const [erreurChargement, setErreurChargement] = useState(false);
+  const [erreurNom, setErreurNom] = useState("");
+  function chargerTenant() {
+    setErreurChargement(false);
+    fetch("/api/tenants/moi").then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => {
       if (d.tenant) {
         const t = d.tenant;
         setTenant(t);
@@ -126,7 +136,10 @@ export default function BoutiquePage() {
         setForm(loaded);
         setSavedForm(loaded);
       }
-    });
+    }).catch(() => setErreurChargement(true));
+  }
+  useEffect(() => {
+    chargerTenant();
     chargerBoutiques();
     fetch("/api/livraison/regles").then(r => r.json()).then(d => setRegles(d.regles ?? [])).catch(() => {});
   }, []);
@@ -151,7 +164,7 @@ export default function BoutiquePage() {
       if (!res.ok) throw new Error();
       window.location.assign("/dashboard/boutique");
     } catch {
-      toast.error(tr("Impossible de changer de boutique — réessayez"));
+      toast.error(tr("Le changement de boutique n'a pas abouti. Vérifiez votre connexion et réessayez."));
       setSwitchingId(null);
     }
   }
@@ -159,6 +172,12 @@ export default function BoutiquePage() {
   function set(field: string, value: any) { setForm(f => ({ ...f, [field]: value })); }
 
   async function sauvegarder() {
+    if (!form.nomBoutique.trim()) {
+      setErreurNom(tr("Indiquez le nom de votre boutique : il s'affiche en haut de votre vitrine."));
+      setSection("infos");
+      setTimeout(() => document.querySelector<HTMLInputElement>('[data-champ="nomBoutique"]')?.focus(), 50);
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/tenants", {
@@ -180,13 +199,15 @@ export default function BoutiquePage() {
             delai: form.delaiLivraison.trim(),
             zones: lireReglagesLivraison({ zones: form.zones }).zones,
           },
+          // Zones enregistrées depuis l'onglet Livraison : le marchand les a vues (étape du démarrage, lib/demarrage.ts).
+          ...(section === "livraison" ? { confirmerLivraison: true } : {}),
         }),
       });
       if (!res.ok) throw new Error();
-      toast.success(tr("Boutique mise à jour !"));
+      toast.success(tr("Modifications de la boutique enregistrées."));
       setSavedForm(form);
       router.refresh();
-    } catch { toast.error(tr("Erreur lors de la sauvegarde")); }
+    } catch { toast.error(tr("Les modifications n'ont pas pu être enregistrées. Vérifiez votre connexion et réessayez.")); }
     finally { setSaving(false); }
   }
 
@@ -200,9 +221,9 @@ export default function BoutiquePage() {
       });
       if (!res.ok) throw new Error();
       setStatutLocal(next);
-      toast.success(next === "active" ? tr("Boutique réactivée !") : tr("Boutique mise en pause"));
+      toast.success(next === "active" ? tr("Boutique réactivée : elle est de nouveau visible.") : tr("Boutique mise en pause : elle n'est plus visible pour vos clients."));
       router.refresh();
-    } catch { toast.error(tr("Erreur lors du changement de statut")); }
+    } catch { toast.error(tr("Le statut de la boutique n'a pas pu être changé. Réessayez dans un instant.")); }
     finally { setSavingStatut(false); }
   }
 
@@ -253,8 +274,11 @@ export default function BoutiquePage() {
   const peutCreerBoutique = autresBoutiques.some(b => aAcces(palierDe(b.planType), "multi_boutique"));
 
   return (
-    <div className="space-y-5 pb-24" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-section pb-24">
       <ModuleTutorial moduleKey="boutique" titre={tr("Ma boutique")} sousTitre={tr("Vue d'ensemble du module Boutique")} steps={BOUTIQUE_TUTORIAL_STEPS} />
+      {erreurChargement && (
+        <EtatErreur titre={tr("Les informations de votre boutique n'ont pas pu être chargées.")} texte={tr("Vérifiez votre connexion puis réessayez. Rien n'a été modifié.")} onReessayer={chargerTenant} />
+      )}
 
       {/* ── Hero identité ── */}
       <div className="ax-card overflow-hidden">
@@ -264,24 +288,25 @@ export default function BoutiquePage() {
           {tenant && (
             <div className="absolute top-3 right-3 flex items-center gap-2">
               <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[11.5px] font-semibold leading-none text-white bg-black/35 backdrop-blur-md border border-white/20 px-3 py-2 rounded-full hover:bg-black/50 transition-all">
-                <ExternalLink size={11} /> <span className="hidden sm:inline">{tr("Voir la boutique")}</span>
+                aria-label={tr("Voir la boutique")}
+                className="flex items-center gap-1.5 text-xs font-semibold leading-none text-white bg-black/35 backdrop-blur-md border border-white/20 px-3 h-10 rounded-full hover:bg-black/50 transition-all">
+                <ExternalLink size={13} aria-hidden /> <span className="hidden sm:inline">{tr("Voir la boutique")}</span>
               </a>
               {/* Nouvelle boutique : multi-boutique réservé au Palier 2 (même règle que l'onglet « Mes boutiques »). */}
               {!loadingBoutiques && (peutCreerBoutique ? (
-                <button onClick={() => setModalNouvelleBoutique(true)} title={tr("Créer une nouvelle boutique")}
-                  className="flex items-center gap-1.5 text-[11.5px] font-semibold leading-none text-[#111111] bg-[#F5A623] border border-[#F5A623] px-3 h-8 rounded-full hover:bg-[#E8990F] transition-all">
-                  <Plus size={13} /> <span className="hidden sm:inline">{tr("Nouvelle boutique")}</span>
+                <button onClick={() => setModalNouvelleBoutique(true)} title={tr("Créer une nouvelle boutique")} aria-label={tr("Créer une nouvelle boutique")}
+                  className="flex items-center gap-1.5 text-xs font-semibold leading-none text-sur-primaire bg-primaire border border-primaire px-3 h-10 rounded-full hover:bg-primaire-hover transition-all">
+                  <Plus size={13} aria-hidden /> <span className="hidden sm:inline">{tr("Nouvelle boutique")}</span>
                 </button>
               ) : (
-                <Link href="/dashboard/abonnement" title={tr("Plusieurs boutiques : disponible au Palier 2")}
-                  className="flex items-center gap-1.5 text-[11.5px] font-semibold leading-none text-white bg-black/35 backdrop-blur-md border border-white/20 px-3 h-8 rounded-full hover:bg-black/50 transition-all">
-                  <Lock size={11} /> <span className="hidden sm:inline">{tr("Nouvelle boutique · Palier 2")}</span>
+                <Link href="/dashboard/abonnement" title={tr("Plusieurs boutiques : disponible au Palier 2")} aria-label={tr("Plusieurs boutiques : disponible au Palier 2")}
+                  className="flex items-center gap-1.5 text-xs font-semibold leading-none text-white bg-black/35 backdrop-blur-md border border-white/20 px-3 h-10 rounded-full hover:bg-black/50 transition-all">
+                  <Lock size={12} aria-hidden /> <span className="hidden sm:inline">{tr("Nouvelle boutique · Palier 2")}</span>
                 </Link>
               ))}
-              <button onClick={partager}
-                className="flex items-center gap-1.5 text-[11.5px] font-semibold leading-none text-white bg-black/35 backdrop-blur-md border border-white/20 w-8 h-8 justify-center rounded-full hover:bg-black/50 transition-all">
-                {copied ? <Check size={12} className="text-[#4ade80]" /> : <Share2 size={12} />}
+              <button onClick={partager} aria-label={tr("Partager le lien de la boutique")} title={tr("Partager le lien de la boutique")}
+                className="flex items-center text-white bg-black/35 backdrop-blur-md border border-white/20 size-10 justify-center rounded-full hover:bg-black/50 transition-all">
+                {copied ? <Check size={14} className="text-green-300" aria-hidden /> : <Share2 size={14} aria-hidden />}
               </button>
             </div>
           )}
@@ -299,35 +324,32 @@ export default function BoutiquePage() {
           {/* Nom, statut & complétion — en flux normal, jamais superposés à la bannière */}
           <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
+              <p className="ax-aide">{tr("Ma boutique")}</p>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-[19px] sm:text-[21px] font-bold text-[#111111] tracking-tight leading-tight truncate max-w-full">
+                <h1 className="ax-titre-page truncate max-w-full">
                   {tr(form.nomBoutique) || tr("Ma Boutique")}
                 </h1>
                 <BoutonRevoirTutoriel moduleKey="boutique" />
-                <button onClick={() => setSection("avance")}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none flex-shrink-0 transition-all"
-                  style={enLigne ? { background: "#ECFDF5", color: "#16A34A" } : { background: "#FFFBEB", color: "#D97706" }}>
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: enLigne ? "#16A34A" : "#D97706" }} />
-                  {enLigne ? tr("En ligne") : tr("En pause")}
+                <button onClick={() => setSection("avance")} title={tr("Changer le statut de la boutique")} className="rounded-full focus-visible:outline-2 focus-visible:outline-focus">
+                  <Badge ton={enLigne ? "succes" : "attention"} icone={enLigne ? <Power aria-hidden /> : <Pause aria-hidden />}>{enLigne ? tr("En ligne") : tr("En pause")}</Badge>
                 </button>
                 {tenant && <PlanBadge plan={tenant.planType} size="sm" />}
               </div>
-              <div className="flex items-center gap-1.5 mt-1.5 text-[12px] leading-tight text-[#AAAAAA]">
-                <Globe size={11} className="flex-shrink-0" />
+              <div className="flex items-center gap-1 mt-1 text-xs leading-tight text-doux">
+                <Globe size={12} className="flex-shrink-0" aria-hidden />
                 <span className="truncate">{tr(urlProd) || "votre-boutique.axsoafrica.com"}</span>
                 {tenant && (
-                  <button onClick={copierLien}
-                    className="text-[#CCCCCC] hover:text-[#888888] transition-colors flex-shrink-0">
-                    <Copy size={10} />
-                  </button>
+                  <BoutonIcone label={copied ? tr("Lien copié") : tr("Copier le lien de la boutique")} onClick={copierLien} className="-my-2">
+                    {copied ? <Check className="size-3.5 text-succes" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
+                  </BoutonIcone>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2.5 flex-shrink-0">
               <ProgressRing pct={completion} />
               <div className="leading-tight">
-                <p className="text-[11.5px] font-bold text-[#111111] leading-tight">{tr("Profil")}{" "}{tr(completion)}%</p>
-                <p className="text-[10.5px] text-[#AAAAAA] leading-tight">{completion === 100 ? tr("Boutique complète") : tr("à compléter")}</p>
+                <p className="text-xs font-bold text-encre leading-tight">{tr("Profil")}{" "}{tr(completion)}%</p>
+                <p className="text-xs text-doux leading-tight">{completion === 100 ? tr("Boutique complète") : tr("à compléter")}</p>
               </div>
             </div>
           </div>
@@ -345,18 +367,18 @@ export default function BoutiquePage() {
 
       {/* Rappel : téléphone et adresse affichés aux clients (pied de page, page Contact). */}
       {savedForm && (!savedForm.telephone.trim() || !savedForm.adresse.trim()) && (
-        <div className="ax-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 border border-amber-200 bg-amber-50">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0"><MapPin size={18} className="text-amber-700" /></div>
+        <div className="rounded-carte p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 border border-attention-bordure bg-attention-fond">
+          <div className="w-10 h-10 rounded-controle bg-carte flex items-center justify-center flex-shrink-0" aria-hidden><MapPin size={18} className="text-attention" /></div>
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-bold text-[#111111]">{tr("Complète tes coordonnées")}</p>
-            <p className="text-[13px] text-[#555555]">
+            <p className="ax-sous-titre">{tr("Complète tes coordonnées")}</p>
+            <p className="ax-texte-secondaire">
               {tr("Ajoute ton {0} : il s'affiche en bas de ta boutique et sur ta page Contact. Les clients font plus confiance à une boutique qu'ils peuvent appeler ou trouver.",
                 [!savedForm.telephone.trim() && tr("numéro de téléphone"), !savedForm.adresse.trim() && tr("adresse physique")].filter(Boolean).join(tr(" et ")))}
             </p>
           </div>
-          <button onClick={() => { const champ = "champ-" + (!savedForm.telephone.trim() ? "telephone" : "adresse"); setSection("infos"); setTimeout(() => { const el = document.getElementById(champ); el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus({ preventScroll: true }); }, 50); }}
-            className="self-start sm:self-center flex-shrink-0 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-[#111111] hover:opacity-90">
-            {tr("Compléter")}
+          <button onClick={() => { const champ = !savedForm.telephone.trim() ? "telephone" : "adresse"; setSection("infos"); setTimeout(() => { const el = document.querySelector<HTMLInputElement>(`[data-champ="${champ}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus({ preventScroll: true }); }, 50); }}
+            className={"self-start sm:self-center flex-shrink-0 " + (classesBoutonSombre)}>
+            {tr("Compléter mes coordonnées")}
           </button>
         </div>
       )}
@@ -369,26 +391,24 @@ export default function BoutiquePage() {
       <div className="grid lg:grid-cols-[220px_1fr] xl:grid-cols-[220px_1fr_340px] gap-5 items-start">
 
         {/* Nav rail */}
-        <nav className="ax-card p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible lg:sticky lg:top-5" style={{ scrollbarWidth: "none" }}>
+        <nav aria-label={tr("Sections de la boutique")} className="rounded-carte border border-bordure bg-carte shadow-carte p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible lg:sticky lg:top-5" style={{ scrollbarWidth: "none" }}>
           {SECTIONS.map(s => {
             const Icon = s.Icon;
             const active = section === s.id;
             const done = sectionDone[s.id];
             return (
-              <button key={s.id} onClick={() => setSection(s.id)} title={s.label}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl transition-all text-left flex-shrink-0"
-                style={active ? { background: "#111111" } : { background: "transparent" }}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={active ? { background: "rgba(245,166,35,0.18)" } : { background: "#F5F5F5" }}>
-                  <Icon size={14} style={{ color: active ? "#F5A623" : "#888888" }} />
-                </div>
-                <div className="min-w-0 hidden lg:block">
-                  <p className="text-[12.5px] font-semibold leading-tight truncate" style={{ color: active ? "#FFFFFF" : "#111111" }}>{tr(s.label)}</p>
-                  <p className="text-[10.5px] leading-tight truncate mt-0.5" style={{ color: active ? "rgba(255,255,255,0.5)" : "#AAAAAA" }}>{tr(s.desc)}</p>
-                </div>
+              <button key={s.id} onClick={() => setSection(s.id)} aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-2.5 px-3 py-2 min-h-10 rounded-controle transition-all text-left flex-shrink-0 ${active ? "bg-secondaire text-carte" : "text-encre hover:bg-carte-2"}`}>
+                <span className={`w-8 h-8 rounded-controle flex items-center justify-center flex-shrink-0 ${active ? "bg-primaire/20 text-primaire" : "bg-carte-2 text-doux"}`} aria-hidden>
+                  <Icon size={14} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight truncate">{tr(s.label)}</span>
+                  <span className={`hidden lg:block text-xs leading-tight truncate mt-0.5 ${active ? "text-carte/60" : "text-doux"}`}>{tr(s.desc)}</span>
+                </span>
                 {done
-                  ? <CheckCircle2 size={13} className="ml-auto flex-shrink-0 hidden lg:block" style={{ color: active ? "#4ade80" : "#16A34A" }} />
-                  : <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 hidden lg:block" style={{ background: active ? "rgba(255,255,255,0.25)" : "#E8E8E8" }} />}
+                  ? <CheckCircle2 size={14} className={`ml-auto flex-shrink-0 hidden lg:block ${active ? "text-green-300" : "text-succes"}`} aria-label={tr("Complété")} />
+                  : <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 hidden lg:block bg-bordure" aria-hidden />}
               </button>
             );
           })}
@@ -397,43 +417,44 @@ export default function BoutiquePage() {
         {/* Contenu de la section */}
         <div className="min-w-0 space-y-4">
           {section === "infos" && (
-            <div className="ax-card p-6 space-y-5">
+            <div className={CARTE}>
               <div>
-                <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Informations générales")}</h2>
-                <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("L'identité et les coordonnées de votre boutique")}</p>
+                <h2 className="ax-titre-section">{tr("Informations générales")}</h2>
+                <p className="ax-texte-secondaire mt-0.5">{tr("L'identité et les coordonnées de votre boutique")}</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 {CHAMPS_INFOS.map(f => (
-                  <div key={f.key}>
-                    <label className={labelCls}><f.Icon size={11} /> {tr(f.label)}</label>
-                    <input id={`champ-${f.key}`} type={f.type || "text"} value={(form as any)[f.key]} placeholder={f.key === "whatsapp" || f.key === "telephone" ? exempleTelephone(form.pays) : f.placeholder}
-                      onChange={e => set(f.key, e.target.value)} className={inputCls} />
-                  </div>
+                  // data-champ : visé par le bouton « Compléter mes coordonnées » et la vérification du nom.
+                  <Champ key={f.key} label={tr(f.label)} mention={f.key === "nomBoutique" ? "obligatoire" : undefined}
+                    erreur={f.key === "nomBoutique" && erreurNom ? erreurNom : undefined}>
+                    {(a) => (
+                      <input {...a} data-champ={f.key} type={f.type || (f.key === "whatsapp" || f.key === "telephone" ? "tel" : "text")}
+                        value={(form as any)[f.key]} className={CLASSE_SAISIE}
+                        placeholder={f.key === "whatsapp" || f.key === "telephone" ? exempleTelephone(form.pays) : f.placeholder}
+                        onChange={e => { set(f.key, e.target.value); if (f.key === "nomBoutique") setErreurNom(""); }} />
+                    )}
+                  </Champ>
                 ))}
-                <div>
-                  <label className={labelCls}><Globe size={11} />{" "}{tr("Pays")}</label>
-                  <SelectPays value={form.pays} onChange={code => set("pays", code)} />
+                <div className="space-y-1.5">
+                  <span className="ax-libelle block">{tr("Pays")}</span>
+                  <SelectPays ariaLabel={tr("Pays")} value={form.pays} onChange={code => set("pays", code)} />
                   {form.pays && PAYS_DEVISES[form.pays] && (
-                    <p className="text-[11px] text-[#999999] mt-1">{tr("Devise de la boutique :")}{" "}<strong>{tr(PAYS_DEVISES[form.pays])}</strong>{" "}{tr("(définie par le pays)")}</p>
+                    <p className="ax-aide">{tr("Devise de la boutique :")}{" "}<strong>{tr(PAYS_DEVISES[form.pays])}</strong>{" "}{tr("(définie par le pays)")}</p>
                   )}
                 </div>
               </div>
-              <div>
-                <label className={labelCls}>{tr("Description de la boutique")}</label>
-                <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={4}
-                  placeholder={tr("Décrivez votre boutique, vos produits, votre histoire…")}
-                  className={`${inputCls} resize-none`} />
-                <p className="text-[10.5px] text-[#CCCCCC] mt-1 leading-tight">{form.description.length}{" "}{tr("caractères — visible sur votre page d'accueil")}</p>
-              </div>
+              <ZoneTexte label={tr("Description de la boutique")} value={form.description} onChange={e => set("description", e.target.value)} rows={4}
+                placeholder={tr("Décrivez votre boutique, vos produits, votre histoire…")}
+                aide={`${form.description.length} ${tr("caractères — visible sur votre page d'accueil")}`} />
             </div>
           )}
 
           {section === "apparence" && (
             <div className="space-y-4">
-              <div className="ax-card p-6 space-y-4">
+              <div className={CARTE}>
                 <div>
-                  <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Médias de la boutique")}</h2>
-                  <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("Le logo et la bannière apparaissent sur votre vitrine")}</p>
+                  <h2 className="ax-titre-section">{tr("Médias de la boutique")}</h2>
+                  <p className="ax-texte-secondaire mt-0.5">{tr("Le logo et la bannière apparaissent sur votre vitrine")}</p>
                 </div>
                 <div className="grid sm:grid-cols-[160px_1fr] gap-6">
                   <ImageUpload label={tr("Logo")} value={form.logoUrl} aspectRatio="circle"
@@ -441,80 +462,61 @@ export default function BoutiquePage() {
                     hint={tr("Carré, PNG transparent")} />
                   <ImageUpload label={tr("Bannière d'accueil")} value={form.bannerUrl} aspectRatio="banner"
                     onChange={url => set("bannerUrl", url)} onRemove={() => set("bannerUrl", "")}
-                    hint="Format large — 1200×400px recommandé" />
+                    hint={tr("Format large — 1200×400px recommandé")} />
                 </div>
               </div>
-              <button type="button" onClick={() => router.push("/dashboard/themes")}
-                className="w-full ax-card p-5 flex items-center justify-between gap-3 text-left hover:border-[#F5A623]/40 transition-all group">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles size={13} className="text-[#F5A623]" />
-                    <h2 className="text-[13px] font-bold text-[#111111] leading-tight">{tr("Thème visuel — Theme Studio")}</h2>
-                  </div>
-                  <p className="text-[11.5px] text-[#AAAAAA] mt-1 leading-tight">{tr("15 designs prêts à l'emploi, vos vrais produits déjà branchés, ou importez le vôtre")}</p>
-                </div>
-                <ArrowUpRight size={16} className="text-[#CCCCCC] group-hover:text-[#F5A623] transition-colors flex-shrink-0" />
-              </button>
+              <Link href="/dashboard/themes"
+                className="w-full rounded-carte border border-bordure bg-carte shadow-carte p-carte flex items-center justify-between gap-3 text-left hover:border-bordure-forte transition-all group">
+                <span>
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-attention" aria-hidden />
+                    <span className="ax-sous-titre">{tr("Changer de thème visuel")}</span>
+                  </span>
+                  <span className="block ax-texte-secondaire mt-1">{tr("Des designs prêts à l'emploi, vos vrais produits déjà branchés, ou importez le vôtre")}</span>
+                </span>
+                <ArrowUpRight size={16} className="text-doux group-hover:text-encre transition-colors flex-shrink-0" aria-hidden />
+              </Link>
             </div>
           )}
 
           {section === "seo" && (
-            <div className="ax-card p-6 space-y-4">
+            <div className={CARTE}>
               <div>
-                <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Référencement naturel (SEO)")}</h2>
-                <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("Comment votre boutique apparaît sur Google")}</p>
+                <h2 className="ax-titre-section">{tr("Référencement naturel (SEO)")}</h2>
+                <p className="ax-texte-secondaire mt-0.5">{tr("Comment votre boutique apparaît sur Google")}</p>
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="ax-label leading-none">{tr("Titre méta")}</label>
-                  <LongueurBadge n={form.metaTitle.length} min={30} max={60} />
-                </div>
-                <input value={form.metaTitle} onChange={e => set("metaTitle", e.target.value)} maxLength={70}
-                  placeholder={tr("Ex: Mode Aminata - Prêt-à-porter africain")} className={inputCls} />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="ax-label leading-none">{tr("Description méta")}</label>
-                  <LongueurBadge n={form.metaDescription.length} min={120} max={160} />
-                </div>
-                <textarea value={form.metaDescription} onChange={e => set("metaDescription", e.target.value)} rows={3} maxLength={180}
-                  placeholder={tr("Description visible dans les résultats Google…")}
-                  className={`${inputCls} resize-none`} />
-              </div>
-              <div className="border border-[#E8E8E8] rounded-2xl p-4 bg-[#FAFAFA] space-y-1.5">
-                <p className="ax-label mb-2 flex items-center gap-1.5 leading-none"><Sparkles size={10} />{" "}{tr("Aperçu Google")}</p>
-                <p className="text-[15px] font-semibold text-[#111111] leading-tight">{tr(form.metaTitle) || tr(form.nomBoutique) || tr("Ma Boutique")}</p>
-                <p className="text-green-700 text-[11.5px] leading-tight">{tr(urlProd) || "votre-boutique.axsoafrica.com"}</p>
-                <p className="text-[#666666] text-[12px] leading-relaxed">{tr(form.metaDescription) || form.description?.slice(0, 160) || tr("Ajoutez une description pour améliorer votre visibilité sur Google.")}</p>
+              <Saisie label={<span className="flex flex-wrap items-center justify-between gap-2">{tr("Titre affiché sur Google")}<LongueurBadge n={form.metaTitle.length} min={30} max={60} /></span>}
+                aide={tr("Idéal : 30 à 60 caractères.")} value={form.metaTitle} onChange={e => set("metaTitle", e.target.value)} maxLength={70}
+                placeholder={tr("Ex: Mode Aminata - Prêt-à-porter africain")} />
+              <ZoneTexte label={<span className="flex flex-wrap items-center justify-between gap-2">{tr("Description affichée sur Google")}<LongueurBadge n={form.metaDescription.length} min={120} max={160} /></span>}
+                aide={tr("Idéal : 120 à 160 caractères.")} value={form.metaDescription} onChange={e => set("metaDescription", e.target.value)} rows={3} maxLength={180}
+                placeholder={tr("Description visible dans les résultats Google…")} />
+              <div className="border border-bordure rounded-controle p-4 bg-carte-2 space-y-1.5">
+                <p className="ax-aide mb-2 flex items-center gap-1.5"><Sparkles size={12} aria-hidden />{" "}{tr("Aperçu Google")}</p>
+                <p className="text-[15px] font-semibold text-encre leading-tight">{tr(form.metaTitle) || tr(form.nomBoutique) || tr("Ma Boutique")}</p>
+                <p className="text-succes text-xs leading-tight">{tr(urlProd) || "votre-boutique.axsoafrica.com"}</p>
+                <p className="text-doux text-xs leading-relaxed">{tr(form.metaDescription) || form.description?.slice(0, 160) || tr("Ajoutez une description pour améliorer votre visibilité sur Google.")}</p>
               </div>
             </div>
           )}
 
           {section === "reseaux" && (
-            <div className="ax-card p-6 space-y-4">
+            <div className={CARTE}>
               <div>
-                <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Vos liens sociaux")}</h2>
-                <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("Affichés dans le pied de page de votre boutique")}</p>
+                <h2 className="ax-titre-section">{tr("Vos liens sociaux")}</h2>
+                <p className="ax-texte-secondaire mt-0.5">{tr("Affichés dans le pied de page de votre boutique. Collez l'adresse complète de chaque page.")}</p>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-champs">
                 {CHAMPS_RESEAUX.map(s => {
-                  const filled = !!(form as any)[s.key];
+                  const valeur = (form as any)[s.key] as string;
                   return (
-                    <div key={s.key} className="flex items-center gap-3 p-2.5 rounded-2xl border transition-all"
-                      style={filled ? { borderColor: `${s.color}30`, background: `${s.color}06` } : { borderColor: "#F0F0F0" }}>
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: filled ? `${s.color}14` : "#F5F5F5" }}>
-                        <s.Icon size={14} style={{ color: filled ? s.color : "#AAAAAA" }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <input value={(form as any)[s.key]} onChange={e => set(s.key, e.target.value)}
-                          placeholder={`${s.label} — ${s.placeholder}`}
-                          className="w-full bg-transparent outline-none text-[13px] leading-normal text-[#111111] placeholder:text-[#CCCCCC]" />
-                      </div>
-                      {filled && (
-                        <a href={(form as any)[s.key]} target="_blank" rel="noopener noreferrer"
-                          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 hover:bg-white transition-all">
-                          <ExternalLink size={12} style={{ color: s.color }} />
+                    <div key={s.key} className="flex items-end gap-2">
+                      <Saisie type="url" className="flex-1 min-w-0" label={<span className="inline-flex items-center gap-1.5"><s.Icon size={14} aria-hidden />{s.label}</span>}
+                        value={valeur} onChange={e => set(s.key, e.target.value)} placeholder={s.placeholder} />
+                      {valeur && (
+                        <a href={valeur} target="_blank" rel="noopener noreferrer" aria-label={`${tr("Ouvrir")} ${s.label}`} title={`${tr("Ouvrir")} ${s.label}`}
+                          className={classesBouton({ variante: "secondaire", className: "size-10 px-0 shrink-0" })}>
+                          <ExternalLink size={14} aria-hidden />
                         </a>
                       )}
                     </div>
@@ -525,51 +527,42 @@ export default function BoutiquePage() {
           )}
 
           {section === "livraison" && (
-            <div className="ax-card p-6 space-y-5">
+            <div className={CARTE}>
               <div>
-                <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Paramètres de livraison")}</h2>
-                <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("Frais et zones desservies par votre boutique")}</p>
+                <h2 className="ax-titre-section">{tr("Paramètres de livraison")}</h2>
+                <p className="ax-texte-secondaire mt-0.5">{tr("Frais et zones desservies par votre boutique")}</p>
               </div>
-              <div className="flex items-center justify-between p-4 bg-[#FAFAFA] border border-[#F0F0F0] rounded-2xl gap-3">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-[#111111] leading-tight">{tr("Livraison gratuite pour tous")}</p>
-                  <p className="text-[11.5px] text-[#AAAAAA] leading-tight mt-0.5">{tr("Offrir la livraison à tous vos clients")}</p>
-                </div>
-                <button onClick={() => set("livraisonGratuite", !form.livraisonGratuite)}
-                  className="w-11 h-6 rounded-full transition-all relative flex-shrink-0"
-                  style={{ background: form.livraisonGratuite ? "#F5A623" : "#E8E8E8" }}>
-                  <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all"
+              <label className="flex items-center justify-between p-4 bg-carte-2 border border-bordure rounded-controle gap-3 cursor-pointer">
+                <span className="min-w-0">
+                  <span className="block ax-libelle">{tr("Livraison gratuite pour tous")}</span>
+                  <span className="block ax-aide mt-0.5">{tr("Offrir la livraison à tous vos clients")}</span>
+                </span>
+                <button type="button" role="switch" aria-checked={form.livraisonGratuite} aria-label={tr("Livraison gratuite pour tous")}
+                  onClick={() => set("livraisonGratuite", !form.livraisonGratuite)}
+                  className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 focus-visible:outline-2 focus-visible:outline-focus ${form.livraisonGratuite ? "bg-primaire" : "bg-bordure-forte"}`}>
+                  <span className="absolute top-0.5 w-5 h-5 bg-carte rounded-full shadow-sm transition-all"
                     style={{ left: form.livraisonGratuite ? "calc(100% - 22px)" : "2px" }} />
                 </button>
-              </div>
+              </label>
               {!form.livraisonGratuite && (
                 <div className="grid sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelCls}>{tr("Tarif standard")}</label>
-                    <input type="number" value={form.fraisLivraison} onChange={e => set("fraisLivraison", e.target.value)}
-                      min="0" className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>{tr("Délai standard")}</label>
-                    <input value={form.delaiLivraison} onChange={e => set("delaiLivraison", e.target.value)}
-                      placeholder={tr("Ex : 24 à 48 h")} maxLength={40} className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>{tr("Gratuite dès (0 = jamais)")}</label>
-                    <input type="number" value={form.livraisonMin} onChange={e => set("livraisonMin", e.target.value)}
-                      min="0" className={inputCls} />
-                  </div>
+                  <Saisie type="number" label={tr("Tarif standard")} suffixe={tenant?.devise || undefined}
+                    value={form.fraisLivraison} onChange={e => set("fraisLivraison", e.target.value)} min="0" inputMode="decimal" />
+                  <Saisie label={tr("Délai standard")} value={form.delaiLivraison} onChange={e => set("delaiLivraison", e.target.value)}
+                    placeholder={tr("Ex : 24 à 48 h")} maxLength={40} />
+                  <Saisie type="number" label={tr("Gratuite à partir de")} aide={tr("Montant de commande ; 0 = jamais gratuite.")} suffixe={tenant?.devise || undefined}
+                    value={form.livraisonMin} onChange={e => set("livraisonMin", e.target.value)} min="0" inputMode="decimal" />
                 </div>
               )}
-              <div>
-                <label className={labelCls}>{tr("Zones de livraison")}</label>
-                <p className="text-[11.5px] text-[#AAAAAA] leading-snug mb-2">
+              <div className="space-y-1.5">
+                <h3 className="ax-libelle">{tr("Zones de livraison")}</h3>
+                <p className="ax-aide">
                   {tr("Le client choisit sa zone au moment de commander (livraisons dans votre pays). Frais vides = tarif standard.")}
                 </p>
                 <ZonesEditor zones={form.zones} onChange={v => set("zones", v)} gratuite={form.livraisonGratuite}
                   zonesAvancees={new Set(regles.filter(r => r.actif && r.zone.trim()).map(r => normaliserZone(r.zone)))} />
               </div>
-              <div className="text-[11.5px] text-[#888888] bg-[#FAFAFA] border border-[#F0F0F0] rounded-2xl p-3.5 leading-relaxed space-y-1">
+              <div className="ax-texte-secondaire bg-carte-2 border border-bordure rounded-controle p-3.5 space-y-1">
                 <p>
                   {form.livraisonGratuite
                     ? tr("Livraison gratuite pour tous vos clients, quelles que soient la zone et les règles avancées.")
@@ -578,7 +571,7 @@ export default function BoutiquePage() {
                 {!form.livraisonGratuite && regles.some(r => r.actif && !r.zone.trim()) && (
                   <p>
                     {tr("Vos règles avancées par pays, poids ou montant remplacent le tarif standard quand elles s'appliquent.")}{" "}
-                    <Link href="/dashboard/logistique?tab=livraison" className="font-semibold text-[#111111] underline underline-offset-2">{tr("Voir les règles")}</Link>
+                    <Link href="/dashboard/logistique?tab=livraison" className="font-semibold text-encre underline underline-offset-2">{tr("Voir les règles")}</Link>
                   </p>
                 )}
               </div>
@@ -586,54 +579,43 @@ export default function BoutiquePage() {
           )}
 
           {section === "boutiques" && (
-            <div className="ax-card p-6 space-y-4">
+            <div className={CARTE}>
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Mes boutiques")}</h2>
-                  <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("Gérez toutes vos boutiques Axso et basculez entre elles")}</p>
+                  <h2 className="ax-titre-section">{tr("Mes boutiques")}</h2>
+                  <p className="ax-texte-secondaire mt-0.5">{tr("Gérez toutes vos boutiques Axso. Touchez une boutique pour passer dessus.")}</p>
                 </div>
                 {peutCreerBoutique && (
-                  <button onClick={() => setModalNouvelleBoutique(true)}
-                    className="flex items-center gap-1.5 text-[12px] font-bold text-white px-3.5 py-2 rounded-full hover:opacity-90 transition-all flex-shrink-0"
-                    style={{ background: "#111111" }}>
-                    <Plus size={13} />{" "}{tr("Nouvelle boutique")}
-                  </button>
+                  <Bouton variante="sombre" taille="compact" onClick={() => setModalNouvelleBoutique(true)} icone={<Plus size={14} aria-hidden />}>
+                    {tr("Créer une boutique")}
+                  </Bouton>
                 )}
               </div>
 
               {loadingBoutiques ? (
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {[0, 1].map(i => <div key={i} className="h-[104px] rounded-2xl bg-[#FAFAFA] border border-[#F0F0F0] animate-pulse" />)}
-                </div>
+                <SqueletteListe lignes={2} libelle={tr("Chargement de vos boutiques…")} />
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
                   {autresBoutiques.map(b => {
                     const busy = switchingId === b.id;
                     return (
-                      <button key={b.id} onClick={() => switchBoutique(b.id)} disabled={busy}
-                        className="relative flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all"
-                        style={{
-                          borderColor: b.active ? "#F5A62360" : "#F0F0F0",
-                          background: b.active ? "#FFFBF3" : "#FAFAFA",
-                          cursor: b.active ? "default" : "pointer",
-                        }}>
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden text-[13px] font-black text-white"
-                          style={{ background: b.logoUrl ? "#F4F4F4" : "linear-gradient(135deg,#111111,#333333)" }}>
+                      <button key={b.id} onClick={() => switchBoutique(b.id)} disabled={busy} aria-current={b.active ? "true" : undefined}
+                        aria-label={b.active ? `${b.nomBoutique} — ${tr("boutique actuelle")}` : `${tr("Passer sur la boutique")} ${b.nomBoutique}`}
+                        className={`relative flex items-center gap-3 p-3.5 rounded-controle border text-left transition-all ${b.active ? "border-attention-bordure bg-primaire-fond cursor-default" : "border-bordure bg-carte-2 hover:border-bordure-forte"}`}>
+                        <div className="w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 overflow-hidden text-sm font-black text-carte bg-secondaire">
                           {b.logoUrl ? <img src={b.logoUrl} alt="" className="w-full h-full object-cover" /> : b.nomBoutique.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-semibold text-[#111111] leading-tight truncate">{tr(b.nomBoutique)}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full leading-none" style={{ background: "#F5A6231F", color: "#111111" }}>
-                              {tr(NOMS_PALIERS[palierDe(b.planType)])}
-                            </span>
-                            <span className="text-[10.5px] text-[#AAAAAA] leading-none">{tr(b._count.produits)} produits</span>
+                          <p className="text-sm font-semibold text-encre leading-tight truncate">{tr(b.nomBoutique)}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <Badge ton="accent">{tr(NOMS_PALIERS[palierDe(b.planType)])}</Badge>
+                            <span className="text-xs text-doux">{b._count.produits} {tr("produits")}</span>
                           </div>
                         </div>
                         {busy ? (
-                          <Loader2 size={14} className="animate-spin text-[#F5A623] flex-shrink-0" />
+                          <Loader2 size={16} className="animate-spin text-attention flex-shrink-0" aria-label={tr("Changement de boutique…")} />
                         ) : b.active ? (
-                          <span className="text-[9px] font-bold px-2 py-1 rounded-full flex-shrink-0" style={{ background: "#F5A623", color: "#fff" }}>{tr("Active")}</span>
+                          <Badge ton="succes">{tr("Boutique actuelle")}</Badge>
                         ) : null}
                       </button>
                     );
@@ -641,19 +623,15 @@ export default function BoutiquePage() {
 
                   {peutCreerBoutique ? (
                     <button onClick={() => setModalNouvelleBoutique(true)}
-                      className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-3.5 min-h-[76px] transition-all"
-                      style={{ borderColor: "#E8E8E8" }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = "#F5A623"; e.currentTarget.style.background = "rgba(245,166,35,.03)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = "#E8E8E8"; e.currentTarget.style.background = "transparent"; }}>
-                      <Plus size={15} className="text-[#F5A623]" />
-                      <span className="text-[12.5px] font-bold text-[#666666]">{tr("Nouvelle boutique")}</span>
+                      className="flex items-center justify-center gap-2 rounded-controle border-2 border-dashed border-bordure p-3.5 min-h-[76px] transition-all hover:border-primaire hover:bg-primaire-fond">
+                      <Plus size={16} className="text-attention" aria-hidden />
+                      <span className="text-sm font-semibold text-doux">{tr("Créer une boutique")}</span>
                     </button>
                   ) : (
                     <Link href="/dashboard/abonnement"
-                      className="flex items-center justify-center gap-2 rounded-2xl border p-3.5 min-h-[76px] text-center transition-all hover:opacity-90"
-                      style={{ borderColor: "#F0F0F0", background: "#FAFAFA" }}>
-                      <Lock size={14} className="text-[#F5A623]" />
-                      <span className="text-[12px] font-bold text-[#666666]">{tr("Multi-boutique — Palier 2")}</span>
+                      className="flex flex-col items-center justify-center gap-1 rounded-controle border border-bordure bg-carte-2 p-3.5 min-h-[76px] text-center transition-all hover:border-bordure-forte">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-encre"><Lock size={14} className="text-attention" aria-hidden />{tr("Plusieurs boutiques — Palier 2")}</span>
+                      <span className="text-xs text-doux">{tr("Voir les abonnements")}</span>
                     </Link>
                   )}
                 </div>
@@ -663,68 +641,62 @@ export default function BoutiquePage() {
 
           {section === "avance" && (
             <div className="space-y-4">
-              <div className="ax-card p-6 space-y-4">
+              <div className={CARTE}>
                 <div>
-                  <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Statut de la boutique")}</h2>
-                  <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("Mettez votre boutique en pause pendant vos fermetures")}</p>
+                  <h2 className="ax-titre-section">{tr("Statut de la boutique")}</h2>
+                  <p className="ax-texte-secondaire mt-0.5">{tr("Mettez votre boutique en pause pendant vos fermetures")}</p>
                 </div>
-                <div className="flex items-center justify-between gap-3 p-4 rounded-2xl border flex-wrap"
-                  style={enLigne ? { borderColor: "#86EFAC50", background: "#ECFDF540" } : { borderColor: "#FDE68A", background: "#FFFBEB" }}>
+                <div className={`flex items-center justify-between gap-3 p-4 rounded-controle border flex-wrap ${enLigne ? "border-succes-bordure bg-succes-fond" : "border-attention-bordure bg-attention-fond"}`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: enLigne ? "#16A34A18" : "#D9770618" }}>
-                      {enLigne ? <Power size={16} style={{ color: "#16A34A" }} /> : <Pause size={16} style={{ color: "#D97706" }} />}
+                    <div className="w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 bg-carte" aria-hidden>
+                      {enLigne ? <Power size={16} className="text-succes" /> : <Pause size={16} className="text-attention" />}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-[#111111] leading-tight">{enLigne ? tr("Boutique en ligne") : tr("Boutique en pause")}</p>
-                      <p className="text-[11.5px] text-[#888888] leading-tight mt-0.5">
+                      <p className="ax-libelle">{enLigne ? tr("Boutique en ligne") : tr("Boutique en pause")}</p>
+                      <p className="ax-aide mt-0.5">
                         {enLigne ? tr("Visible et accessible par tous vos clients") : tr("Page indisponible pour vos clients")}
                       </p>
                     </div>
                   </div>
-                  <StatutToggle actif={enLigne} onConfirm={toggleStatut} loading={savingStatut} />
+                  <StatutToggle actif={enLigne} nom={form.nomBoutique || tr("Ma boutique")} onConfirm={toggleStatut} loading={savingStatut} />
                 </div>
               </div>
 
-              <div className="ax-card p-6 space-y-3">
-                <div className="flex items-center justify-between gap-3">
+              <div className={CARTE}>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
-                    <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Domaine personnalisé")}</h2>
-                    <p className="text-[11.5px] text-[#AAAAAA] mt-0.5 leading-tight">{tr("Connectez votre propre nom de domaine")}</p>
+                    <h2 className="ax-titre-section">{tr("Domaine personnalisé")}</h2>
+                    <p className="ax-texte-secondaire mt-0.5">{tr("Connectez votre propre nom de domaine")}</p>
                   </div>
-                  <Link href="/dashboard/parametres/domaine"
-                    className="flex items-center gap-1 text-[11.5px] font-semibold text-[#111111] border border-[#E8E8E8] px-3 py-1.5 rounded-full hover:border-[#F5A623]/50 transition-all flex-shrink-0">
-                    {tr("Configurer")}{" "}<ArrowUpRight size={11} />
-                  </Link>
+                  <Bouton variante="secondaire" taille="compact" href="/dashboard/parametres/domaine" icone={<ArrowUpRight size={14} aria-hidden />}>
+                    {tr("Configurer le domaine")}
+                  </Bouton>
                 </div>
-                <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-[#FAFAFA] border border-[#F0F0F0] flex-wrap">
+                <div className="flex items-center justify-between gap-3 p-4 rounded-controle bg-carte-2 border border-bordure flex-wrap">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Globe size={13} className="text-[#AAAAAA] flex-shrink-0" />
-                    <span className="text-[12.5px] font-medium text-[#111111] truncate">{tr(tenant?.customDomain) || tr(urlProd) || "votre-boutique.axsoafrica.com"}</span>
+                    <Globe size={14} className="text-doux flex-shrink-0" aria-hidden />
+                    <span className="text-sm font-medium text-encre truncate">{tr(tenant?.customDomain) || tr(urlProd) || "votre-boutique.axsoafrica.com"}</span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full leading-none flex-shrink-0"
-                    style={tenant?.customDomain ? { background: "#ECFDF5", color: "#16A34A" } : { background: "#F5F5F5", color: "#AAAAAA" }}>
-                    {tenant?.customDomain ? tr("Domaine personnalisé") : tr("Adresse AXSO")}
-                  </span>
+                  <Badge ton={tenant?.customDomain ? "succes" : "neutre"}>{tenant?.customDomain ? tr("Domaine personnalisé") : tr("Adresse AXSO")}</Badge>
                 </div>
               </div>
 
-              <div className="ax-card p-6 space-y-3">
-                <h2 className="text-[14px] font-bold text-[#111111] leading-tight">{tr("Informations du compte")}</h2>
+              <div className={CARTE}>
+                <h2 className="ax-titre-section">{tr("Informations du compte")}</h2>
                 <div className="grid sm:grid-cols-3 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-[#FAFAFA] border border-[#F0F0F0]">
-                    <p className="ax-label leading-none mb-1.5">{tr("Plan actuel")}</p>
+                  <div className="p-3.5 rounded-controle bg-carte-2 border border-bordure">
+                    <p className="ax-aide mb-1.5">{tr("Plan actuel")}</p>
                     {tenant && <PlanBadge plan={tenant.planType} size="sm" />}
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-[#FAFAFA] border border-[#F0F0F0]">
-                    <p className="ax-label leading-none mb-1.5 flex items-center gap-1"><Calendar size={9} />{" "}{tr("Membre depuis")}</p>
-                    <p className="text-[12.5px] font-semibold text-[#111111] leading-tight">
+                  <div className="p-3.5 rounded-controle bg-carte-2 border border-bordure">
+                    <p className="ax-aide mb-1.5 flex items-center gap-1"><Calendar size={12} aria-hidden />{" "}{tr("Membre depuis")}</p>
+                    <p className="text-sm font-semibold text-encre leading-tight">
                       {tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString(tr.loc, { month: "long", year: "numeric" }) : "—"}
                     </p>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-[#FAFAFA] border border-[#F0F0F0]">
-                    <p className="ax-label leading-none mb-1.5">{tr("Identifiant boutique")}</p>
-                    <p className="text-[12.5px] font-semibold text-[#111111] leading-tight font-mono truncate">{tenant?.id ? `${tenant.id.slice(0, 10)}…` : "—"}</p>
+                  <div className="p-3.5 rounded-controle bg-carte-2 border border-bordure">
+                    <p className="ax-aide mb-1.5">{tr("Identifiant boutique")}</p>
+                    <p className="text-sm font-semibold text-encre leading-tight font-mono truncate">{tenant?.id ? `${tenant.id.slice(0, 10)}…` : "—"}</p>
                   </div>
                 </div>
               </div>
@@ -740,16 +712,13 @@ export default function BoutiquePage() {
 
       {/* ── Barre de sauvegarde flottante ── */}
       {dirty && (
-        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 bg-[#111111] text-white pl-4 pr-2 py-2 rounded-full shadow-2xl">
-          <span className="text-[12px] font-medium leading-none flex items-center gap-1.5 whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#F5A623] animate-pulse" />{" "}{tr("Modifications non enregistrées")}
+        <div role="status" className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-2rem)] max-w-md flex items-center justify-between gap-3 bg-secondaire text-carte pl-4 pr-2 py-2 rounded-carte shadow-flottante">
+          <span className="text-sm font-medium flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primaire animate-pulse shrink-0" aria-hidden />{tr("Modifications non enregistrées")}
           </span>
-          <button onClick={sauvegarder} disabled={saving}
-            className="flex items-center gap-1.5 font-bold text-[12px] leading-none px-4 py-2 rounded-full hover:opacity-90 disabled:opacity-50 transition-all flex-shrink-0"
-            style={{ background: "#F5A623", color: "#111111" }}>
-            {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-            {saving ? tr("Sauvegarde…") : tr("Enregistrer")}
-          </button>
+          <Bouton onClick={sauvegarder} charge={saving} texteCharge={tr("Enregistrement…")} icone={<Save size={14} aria-hidden />} className="shrink-0">
+            {tr("Enregistrer")}
+          </Bouton>
         </div>
       )}
 
@@ -767,14 +736,14 @@ export default function BoutiquePage() {
 function ProgressRing({ pct }: { pct: number }) {
   const r = 20, c = 2 * Math.PI * r;
   return (
-    <div className="relative w-12 h-12 flex-shrink-0">
+    <div className="relative w-12 h-12 flex-shrink-0" aria-hidden>
       <svg viewBox="0 0 48 48" className="w-12 h-12 -rotate-90">
         <circle cx="24" cy="24" r={r} fill="none" stroke="#EFEFEF" strokeWidth="4" />
         <circle cx="24" cy="24" r={r} fill="none" stroke="#F5A623" strokeWidth="4" strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={c - (pct / 100) * c} style={{ transition: "stroke-dashoffset .6s ease" }} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-bold leading-none text-[#111111]">{pct}%</span>
+        <span className="text-xs font-bold leading-none text-encre">{pct}%</span>
       </div>
     </div>
   );
@@ -784,47 +753,35 @@ function ProgressRing({ pct }: { pct: number }) {
 function StatCard({ Icon, label, value }: { Icon: any; label: string; value: number }) {
   const tr = useT();
   return (
-    <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#FAFAFA] border border-[#F0F0F0]">
-      <div className="w-8 h-8 rounded-xl bg-white border border-[#EFEFEF] hidden sm:flex items-center justify-center flex-shrink-0">
-        <Icon size={13} className="text-[#F5A623]" />
+    <div className="flex items-center gap-2.5 p-3 rounded-controle bg-carte-2 border border-bordure">
+      <div className="w-8 h-8 rounded-controle bg-carte border border-bordure hidden sm:flex items-center justify-center flex-shrink-0" aria-hidden>
+        <Icon size={14} className="text-attention" />
       </div>
       <div className="min-w-0 leading-tight">
-        <p className="text-[14px] font-bold text-[#111111] leading-tight">{tr(value)}</p>
-        <p className="text-[10px] text-[#AAAAAA] leading-tight truncate">{tr(label)}</p>
+        <p className="text-sm font-bold text-encre leading-tight">{tr(value)}</p>
+        <p className="text-xs text-doux leading-tight truncate">{tr(label)}</p>
       </div>
     </div>
   );
 }
 
 // ─── Bascule statut avec confirmation ────────────────────────────────────────
-function StatutToggle({ actif, onConfirm, loading }: { actif: boolean; onConfirm: () => void; loading: boolean }) {
+function StatutToggle({ actif, nom, onConfirm, loading }: { actif: boolean; nom: string; onConfirm: () => Promise<void>; loading: boolean }) {
   const tr = useT();
-  const [confirming, setConfirming] = useState(false);
-
-  useEffect(() => {
-    if (!confirming) return;
-    const t = setTimeout(() => setConfirming(false), 4500);
-    return () => clearTimeout(t);
-  }, [confirming]);
-
-  if (confirming) {
-    return (
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button onClick={() => { setConfirming(false); onConfirm(); }} disabled={loading}
-          className="text-[11.5px] font-bold leading-none px-3 py-2 rounded-xl disabled:opacity-60 transition-all"
-          style={{ background: actif ? "#DC2626" : "#16A34A", color: "#fff" }}>
-          {loading ? <Loader2 size={11} className="animate-spin" /> : actif ? tr("Confirmer la pause") : tr("Confirmer la réactivation")}
-        </button>
-        <button onClick={() => setConfirming(false)} className="text-[11.5px] leading-none text-[#AAAAAA] hover:text-[#888888] px-2">{tr("Annuler")}</button>
-      </div>
-    );
-  }
+  const [ouverte, setOuverte] = useState(false);
   return (
-    <button onClick={() => setConfirming(true)}
-      className="text-[11.5px] font-bold leading-none px-4 py-2.5 rounded-xl flex-shrink-0 transition-all"
-      style={actif ? { background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5" } : { background: "#ECFDF5", color: "#16A34A", border: "1px solid #86EFAC" }}>
-      {actif ? tr("Mettre en pause") : tr("Réactiver la boutique")}
-    </button>
+    <>
+      {actif
+        ? <Bouton variante="danger" onClick={() => setOuverte(true)} charge={loading} icone={<Pause size={14} aria-hidden />}>{tr("Mettre en pause")}</Bouton>
+        : <Bouton onClick={() => setOuverte(true)} charge={loading} icone={<Power size={14} aria-hidden />}>{tr("Réactiver la boutique")}</Bouton>}
+      <Confirmation ouverte={ouverte} onFermer={() => setOuverte(false)} onConfirmer={onConfirm} objet={nom}
+        destructive={actif}
+        titre={actif ? tr("Mettre la boutique en pause ?") : tr("Réactiver la boutique ?")}
+        description={actif
+          ? tr("Vos clients ne pourront plus voir ni commander dans votre boutique. Produits, commandes et réglages sont conservés ; vous pouvez la réactiver à tout moment.")
+          : tr("Votre boutique redevient visible et vos clients peuvent de nouveau commander.")}
+        libelleConfirmer={actif ? tr("Mettre en pause") : tr("Réactiver la boutique")} />
+    </>
   );
 }
 
@@ -833,12 +790,8 @@ function LongueurBadge({ n, min, max }: { n: number; min: number; max: number })
   const tr = useT();
   const ok = n >= min && n <= max;
   const empty = n === 0;
-  const color = empty ? "#AAAAAA" : ok ? "#16A34A" : "#D97706";
-  const bg = empty ? "#F5F5F5" : ok ? "#ECFDF5" : "#FFFBEB";
   return (
-    <span className="text-[10px] font-bold leading-none px-2 py-1 rounded-full" style={{ color, background: bg }}>
-      {n} / {tr(max)} car.
-    </span>
+    <Badge ton={empty ? "neutre" : ok ? "succes" : "attention"}>{n} / {tr(max)} car.</Badge>
   );
 }
 
@@ -857,39 +810,36 @@ function ZonesEditor({ zones, onChange, gratuite, zonesAvancees }: { zones: Zone
   return (
     <div className="space-y-2">
       {zones.map((z, i) => (
-        <div key={i} className="flex items-center gap-2 p-2 rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA]">
-          <div className="flex-1 min-w-0 pl-2">
-            <p className="text-[13px] font-semibold text-[#111111] truncate leading-tight">{z.nom}</p>
+        <div key={i} className="flex flex-wrap items-center gap-2 p-2 rounded-controle border border-bordure bg-carte-2">
+          <div className="flex-1 min-w-[8rem] pl-2">
+            <p className="text-sm font-semibold text-encre truncate leading-tight">{z.nom}</p>
             {zonesAvancees.has(normaliserZone(z.nom)) && (
-              <p className="text-[10.5px] text-[#D4911A] leading-tight mt-0.5">{tr("Tarif fixé par une règle avancée (Logistique)")}</p>
+              <p className="text-xs text-attention leading-tight mt-0.5">{tr("Tarif fixé par une règle avancée (Logistique)")}</p>
             )}
           </div>
           {!gratuite && (
             <>
               <input type="number" min="0" value={z.frais ?? ""} aria-label={tr("Frais de la zone")}
                 onChange={e => modifier(i, { frais: e.target.value === "" ? null : Math.max(0, parseFloat(e.target.value) || 0) })}
-                placeholder={tr("Standard")} className="w-24 bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12.5px] outline-none focus:border-[#F5A623]/50 placeholder:text-[#CCCCCC]" />
+                placeholder={tr("Frais standard")} title={tr("Frais de la zone")} className={CLASSE_SAISIE + " w-28"} />
               <input value={z.delai} maxLength={40} aria-label={tr("Délai de la zone")}
                 onChange={e => modifier(i, { delai: e.target.value })}
-                placeholder={tr("Délai")} className="w-24 bg-white border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12.5px] outline-none focus:border-[#F5A623]/50 placeholder:text-[#CCCCCC]" />
+                placeholder={tr("Délai")} title={tr("Délai de la zone")} className={CLASSE_SAISIE + " w-28"} />
             </>
           )}
-          <button type="button" onClick={() => onChange(zones.filter((_, j) => j !== i))} aria-label={tr("Retirer la zone")}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#999999] hover:bg-[#FDE68A] hover:text-[#111111] transition-colors flex-shrink-0">
-            <X size={13} />
-          </button>
+          <BoutonIcone label={`${tr("Retirer la zone")} ${z.nom}`} onClick={() => onChange(zones.filter((_, j) => j !== i))}>
+            <X size={15} aria-hidden />
+          </BoutonIcone>
         </div>
       ))}
-      {!zones.length && <p className="text-[11.5px] text-[#CCCCCC] leading-tight py-1">{tr("Aucune zone : le client tape simplement sa ville")}</p>}
+      {!zones.length && <p className="ax-aide py-1">{tr("Aucune zone : le client tape simplement sa ville")}</p>}
       <div className="flex gap-2">
         <input value={draft} onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); ajouter(); } }}
-          placeholder={tr("Ajouter une zone : Akwa, Bonapriso…")} maxLength={60} className={inputCls} />
-        <button type="button" onClick={ajouter} aria-label={tr("Ajouter la zone")}
-          className="px-4 rounded-2xl flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-all"
-          style={{ background: "#111111", color: "#fff" }}>
-          <Plus size={14} />
-        </button>
+          aria-label={tr("Nom de la zone à ajouter")} placeholder={tr("Ajouter une zone : Akwa, Bonapriso…")} maxLength={60} className={CLASSE_SAISIE} />
+        <Bouton variante="sombre" onClick={ajouter} disabled={!draft.trim()} icone={<Plus size={14} aria-hidden />} className="shrink-0">
+          {tr("Ajouter")}
+        </Bouton>
       </div>
     </div>
   );
@@ -942,7 +892,7 @@ function LivePreview({ form, theme, url }: { form: any; theme: { fond: string; a
       </div>
       <div className="px-4 py-2.5 border-t border-[#F0F0F0] flex items-center gap-1.5">
         <Sparkles size={10} className="text-[#F5A623] flex-shrink-0" />
-        <p className="text-[10px] leading-tight text-[#AAAAAA]">{tr("Aperçu mis à jour en direct")}</p>
+        <p className="text-xs leading-tight text-doux">{tr("Aperçu mis à jour en direct")}</p>
       </div>
     </div>
   );

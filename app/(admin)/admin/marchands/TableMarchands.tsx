@@ -64,8 +64,9 @@ export function TableMarchands({ lignes, revenu, source, peutAgir, lienPage }: {
         <form className="p-4 space-y-3" onSubmit={async (e) => { e.preventDefault(); setCharge(true); const ok = await envoyerAction({ type: "notifier", ids: cibles, titre: "Message de l'équipe Axso", message }, t); setCharge(false); if (ok) dlg.current?.close(); }}>
           <div className="flex items-center justify-between"><h3 className="cc-h2">{t(cibles.length > 1 ? "Notifier {0} marchands" : "Notifier {0} marchand", cibles.length)}</h3><button type="button" onClick={() => dlg.current?.close()} className="cc-btn cc-btn-ghost cc-btn-sm" aria-label={t("Fermer")}><X size={14} /></button></div>
           <p className="cc-faint text-[12px]">{t("Le message apparaîtra dans les notifications de leur tableau de bord Axso. L'envoi est journalisé.")}</p>
-          <textarea className="cc-input w-full h-28 py-2" required minLength={10} maxLength={500} value={message} onChange={(e) => setMessage(e.target.value)} aria-label={t("Message")} />
-          <div className="flex justify-end gap-2"><button type="button" className="cc-btn" onClick={() => dlg.current?.close()}>{t("Annuler")}</button><button className="cc-btn cc-btn-primary" disabled={charge}>{charge ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{t("Envoyer")}</button></div>
+          <label className="block text-[12px] cc-muted space-y-1"><span>{t("Message (10 à 500 caractères)")}</span>
+          <textarea className="cc-input w-full h-28 py-2" required minLength={10} maxLength={500} value={message} onChange={(e) => setMessage(e.target.value)} /></label>
+          <div className="flex justify-end gap-2"><button type="button" className="cc-btn" onClick={() => dlg.current?.close()}>{t("Annuler")}</button><button className="cc-btn cc-btn-primary" disabled={charge}>{charge ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{t(charge ? "Envoi…" : "Envoyer la notification")}</button></div>
         </form>
       </dialog>
     </>

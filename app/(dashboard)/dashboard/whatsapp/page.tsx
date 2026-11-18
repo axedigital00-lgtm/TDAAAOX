@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, Send, Search, CheckCircle2, Clock, Truck, Package, XCircle, Phone, Settings, Wifi, WifiOff, Loader2, ShoppingBag, ArrowLeft, CheckCheck, Check, Zap, MapPin, FileText, RefreshCw, Bell, Lightbulb, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
@@ -108,28 +108,28 @@ function ConfigPanel({ tenantId, onClose, onConnecte }: { tenantId: string; onCl
   const genukaWebhookUrl = tenantId ? `${APP_URL}/api/webhooks/genuka/${tenantId}` : "";
 
   async function connecter() {
-    if (!form.phone_number_id || !form.access_token) { toast.error(tr("Remplissez tous les champs")); return; }
+    if (!form.phone_number_id || !form.access_token) { toast.error(tr("Renseigne le Phone Number ID et le token d'accès.")); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/connecteurs/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(tr("✅ WhatsApp connecté — {0} ({1})", data.numero ?? "", data.nom ?? ""));
+      toast.success(tr("WhatsApp connecté — {0} ({1})", data.numero ?? "", data.nom ?? ""));
       onConnecte({ statut: "actif", via: "meta", config: { phone_number_id: form.phone_number_id, numero_affiche: data.numero, verified_name: data.nom } });
-    } catch (e: any) { toast.error(tr(e.message)); }
+    } catch (e: any) { toast.error(e?.message ? tr(e.message) : tr("La connexion à WhatsApp a échoué. Vérifie tes clés et réessaie.")); }
     finally { setLoading(false); }
   }
 
   async function connecterGenuka() {
-    if (!proxyToken.trim() && !webhookSecret.trim()) { toast.error(tr("Renseignez le proxy token et/ou le secret du webhook")); return; }
+    if (!proxyToken.trim() && !webhookSecret.trim()) { toast.error(tr("Renseigne au moins le proxy token ou le secret du webhook.")); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/connecteurs/whatsapp-genuka", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proxyToken: proxyToken.trim() || undefined, webhookSecret: webhookSecret.trim() || undefined }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(proxyToken.trim() ? tr("✅ WhatsApp connecté via Genuka !") : tr("✅ Réception activée — ajoutez le proxy token plus tard pour activer l'envoi"));
+      toast.success(proxyToken.trim() ? tr("WhatsApp connecté via Genuka.") : tr("Réception activée — ajoutez le proxy token plus tard pour activer l'envoi"));
       onConnecte({ statut: "actif", via: "genuka", config: null });
-    } catch (e: any) { toast.error(tr(e.message)); }
+    } catch (e: any) { toast.error(e?.message ? tr(e.message) : tr("La connexion via Genuka a échoué. Vérifie le token et réessaie.")); }
     finally { setLoading(false); }
   }
 
@@ -156,7 +156,7 @@ function ConfigPanel({ tenantId, onClose, onConnecte }: { tenantId: string; onCl
               {mode === "genuka" ? tr("Connexion simplifiée via Genuka · recommandé") : tr("Configuration guidée en 3 étapes · API officielle Meta")}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors text-xl leading-none mt-1">{tr("×")}</button>
+          <button type="button" onClick={onClose} aria-label={tr("Fermer")} className="-mr-2 -mt-1 w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/8 transition-colors text-xl leading-none">×</button>
         </div>
 
         {/* Choix du mode */}
@@ -184,14 +184,15 @@ function ConfigPanel({ tenantId, onClose, onConnecte }: { tenantId: string; onCl
             </div>
 
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">{tr("Proxy Token Genuka")}</label>
+              <label htmlFor="wa-proxy-token" className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">{tr("Proxy Token Genuka")}</label>
               <div className="relative">
-                <input value={proxyToken} onChange={e => setProxyToken(e.target.value)}
+                <input id="wa-proxy-token" value={proxyToken} onChange={e => setProxyToken(e.target.value)}
                   type={showToken ? "text" : "password"}
                   placeholder="gwa_xxxxxxxxxxxxxxxxxxxx"
                   className="w-full rounded-xl px-4 py-3 text-white text-sm font-mono focus:outline-none transition-all pr-10"
                   style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${proxyToken ? "rgba(37,211,102,0.4)" : "rgba(255,255,255,0.1)"}` }} />
-                <button type="button" onClick={() => setShowToken(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                <button type="button" onClick={() => setShowToken(v => !v)} aria-label={showToken ? tr("Masquer le token") : tr("Afficher le token")} aria-pressed={showToken}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white">
                   <Lock size={14} />
                 </button>
               </div>
@@ -204,8 +205,8 @@ function ConfigPanel({ tenantId, onClose, onConnecte }: { tenantId: string; onCl
               <Step n="6" text="Genuka affichera un" bold="secret de signature" text2="— collez-le ci-dessous (recommandé)" />
               <div>
                 <input value={webhookSecret} onChange={e => setWebhookSecret(e.target.value)}
-                  type="password"
-                  placeholder={tr("Secret de signature (optionnel)")}
+                  type="password" aria-label={tr("Secret de signature du webhook (facultatif)")}
+                  placeholder={tr("Secret de signature (facultatif)")}
                   className="w-full rounded-xl px-4 py-3 text-white text-sm font-mono focus:outline-none transition-all"
                   style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${webhookSecret ? "rgba(37,211,102,0.4)" : "rgba(255,255,255,0.1)"}` }} />
               </div>
@@ -406,6 +407,9 @@ export default function WhatsAppPage() {
   const [commandes, setCommandes] = useState<Commande[]>([]);
   const [input, setInput] = useState("");
   const [recherche, setRecherche] = useState("");
+  // Lien « messages non lus » du Tableau de bord : ?filtre=non_lus.
+  const params = useSearchParams();
+  const [nonLusSeuls, setNonLusSeuls] = useState(params.get("filtre") === "non_lus");
   const [loading, setLoading] = useState(true);
   const [envoi, setEnvoi] = useState(false);
   const [waConfig, setWaConfig] = useState<WaConfig | null>(null);
@@ -508,7 +512,7 @@ export default function WhatsAppPage() {
       setConversations(prev => prev.map(c =>
         c.de === contactActif ? { ...c, dernier: corps, updatedAt: new Date().toISOString() } : c
       ));
-    } catch (e: any) { toast.error(tr(e.message) || tr("Erreur envoi")); }
+    } catch (e: any) { toast.error(e?.message ? tr(e.message) : tr("Le message n'a pas été envoyé. Vérifie ta connexion WhatsApp et réessaie.")); }
     finally { setEnvoi(false); }
   }
 
@@ -517,7 +521,7 @@ export default function WhatsAppPage() {
     const url = urlBoutique(boutique ?? { slug: "" }, `/tracking/${cmd.trackingToken}`, window.location.origin);
     const msg = `🚚 Suivez votre commande #${cmd.numero} en temps réel :\n${url}`;
     await envoyer(msg);
-    toast.success(tr("Lien de tracking envoyé !"));
+    toast.success(tr("Lien de suivi de la commande #{0} envoyé.", cmd.numero));
   }
 
   async function envoyerFacture(cmd: Commande) {
@@ -525,7 +529,7 @@ export default function WhatsAppPage() {
     const url = urlBoutique(boutique ?? { slug: "" }, `/facture/${cmd.trackingToken}`, window.location.origin);
     const msg = `📄 Voici votre facture pour la commande #${cmd.numero} :\n${url}`;
     await envoyer(msg);
-    toast.success(tr("Facture envoyée !"));
+    toast.success(tr("Facture de la commande #{0} envoyée.", cmd.numero));
   }
 
   async function confirmerCommande(commandeId: string, numero: string) {
@@ -535,14 +539,15 @@ export default function WhatsAppPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      toast.success(tr("Commande #{0} confirmée ✅", numero));
+      toast.success(tr("Commande #{0} confirmée.", numero));
       setCommandes(prev => prev.map(c => c.id === commandeId ? { ...c, statut: "confirmee" } : c));
       if (data.whatsappUrl) window.open(data.whatsappUrl, "_blank");
-    } else { toast.error(tr(data.error) || tr("Erreur")); }
+    } else { toast.error(data.error ? tr(data.error) : tr("La commande #{0} n'a pas été confirmée. Réessaie.", numero)); }
   }
 
   const convsFiltrees = conversations.filter(c =>
-    !recherche || (c.nom ?? c.de).toLowerCase().includes(recherche.toLowerCase()) || c.de.includes(recherche)
+    (!nonLusSeuls || c.nonLus > 0 || c.de === contactActif) // la conversation ouverte reste visible une fois lue
+    && (!recherche || (c.nom ?? c.de).toLowerCase().includes(recherche.toLowerCase()) || c.de.includes(recherche))
   );
   const convActuelle = conversations.find(c => c.de === contactActif);
 
@@ -593,16 +598,23 @@ export default function WhatsAppPage() {
                 {connecte ? <Wifi size={9} /> : <WifiOff size={9} />}
                 {connecte ? tr("Actif") : tr("Hors ligne")}
               </div>
-              <button onClick={() => setShowConfig(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-all">
-                <Settings size={13} />
+              <button onClick={() => setShowConfig(true)} aria-label={tr("Réglages de la connexion WhatsApp")} title={tr("Réglages de la connexion WhatsApp")}
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/8 transition-all">
+                <Settings size={15} aria-hidden />
               </button>
             </div>
           </div>
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
-            <input value={recherche} onChange={e => setRecherche(e.target.value)} placeholder={tr("Rechercher…")}
+            <input value={recherche} onChange={e => setRecherche(e.target.value)} placeholder={tr("Rechercher un nom ou un numéro…")} aria-label={tr("Rechercher une conversation")} type="search"
               className="w-full bg-white/5 border border-white/8 rounded-xl pl-8 pr-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-[#25D366]/40" />
           </div>
+          {nonLusSeuls && (
+            <button onClick={() => setNonLusSeuls(false)} aria-label={tr("Retirer le filtre « non lus »")}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366]/10">
+              {tr("Filtre : non lus seulement")} <span aria-hidden>×</span>
+            </button>
+          )}
         </div>
 
         {/* Liste */}
@@ -616,7 +628,8 @@ export default function WhatsAppPage() {
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto" style={{ background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.2)" }}>
                 <MessageCircle size={24} style={{ color: "#25D366" }} />
               </div>
-              <p className="text-gray-500 text-sm font-medium">{tr("Aucune conversation")}</p>
+              <p className="text-gray-300 text-sm font-medium">{recherche || nonLusSeuls ? tr("Aucune conversation ne correspond") : tr("Aucune conversation")}</p>
+              <p className="text-gray-500 text-xs">{recherche || nonLusSeuls ? tr("Modifie la recherche ou retire le filtre.") : connecte ? tr("Les messages de tes clients arriveront ici.") : tr("Connecte ton numéro WhatsApp Business pour recevoir les messages de tes clients ici.")}</p>
               {!connecte && (
                 <button onClick={() => setShowConfig(true)} className="text-xs hover:underline" style={{ color: "#25D366" }}>
                   {tr("Connecter WhatsApp Business →")}
@@ -660,7 +673,7 @@ export default function WhatsAppPage() {
           <>
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/8 flex items-center gap-3" style={{ background: "rgba(17,24,39,0.7)" }}>
-              <button onClick={() => setMobileThread(false)} className="lg:hidden w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-white">
+              <button onClick={() => setMobileThread(false)} aria-label={tr("Retour aux conversations")} className="lg:hidden w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white">
                 <ArrowLeft size={16} />
               </button>
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
@@ -674,13 +687,13 @@ export default function WhatsAppPage() {
               <div className="flex items-center gap-2">
                 {commandes.length > 0 && (
                   <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1" style={{ color: "#F5A623", background: "rgba(245,166,35,0.12)" }}>
-                    <ShoppingBag size={10} /> {commandes.length} cmd
+                    <ShoppingBag size={10} aria-hidden /> {tr("{0} commande(s)", commandes.length)}
                   </span>
                 )}
-                <a href={`tel:${contactActif}`} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-all">
+                <a href={`tel:${contactActif}`} aria-label={tr("Appeler ce contact")} title={tr("Appeler ce contact")} className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-all">
                   <Phone size={13} />
                 </a>
-                <button onClick={() => chargerThread(contactActif)} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-all">
+                <button onClick={() => chargerThread(contactActif)} aria-label={tr("Actualiser la conversation")} title={tr("Actualiser la conversation")} className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/8 transition-all">
                   <RefreshCw size={13} />
                 </button>
               </div>
@@ -752,21 +765,22 @@ export default function WhatsAppPage() {
                 </div>
               ) : (
                 <div className="flex items-end gap-2">
-                  <button onClick={() => setShowTemplates(s => !s)}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0"
+                  <button onClick={() => setShowTemplates(s => !s)} aria-label={tr("Réponses rapides")} title={tr("Réponses rapides")} aria-expanded={showTemplates}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0"
                     style={{ background: showTemplates ? "rgba(245,166,35,0.2)" : "rgba(255,255,255,0.06)", color: showTemplates ? "#F5A623" : "#6b7280" }}>
                     <Zap size={14} />
                   </button>
                   <textarea value={input} onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
                     placeholder={tr("Tapez votre message… (Entrée pour envoyer)")}
+                    aria-label={tr("Message à envoyer")}
                     rows={1}
                     className="flex-1 min-w-0 border rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none resize-none"
                     style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)", maxHeight: 120 }}
                     onFocus={e => (e.target.style.borderColor = "rgba(37,211,102,0.4)")}
                     onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
                   />
-                  <button onClick={() => envoyer()} disabled={!input.trim() || envoi}
+                  <button onClick={() => envoyer()} disabled={!input.trim() || envoi} aria-label={tr("Envoyer le message")}
                     className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-40 flex-shrink-0"
                     style={{ background: "#25D366", boxShadow: "0 3px 12px rgba(37,211,102,0.3)" }}>
                     {envoi ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} className="text-white" />}

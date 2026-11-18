@@ -1,23 +1,30 @@
 "use client";
-
-import { useCallback, useEffect, useState } from "react";
+// Charges d'exploitation du magasin : liste, totaux, saisie, « payée », suppression.
+// Même socle que les autres écrans « Finance du magasin » (components/pos/finance/commun
+// et le kit components/pos/ui). Les dépenses sorties d'une caisse (sessionCaisseId)
+// ne se suppriment pas ici : le serveur le refuse, l'écran le dit d'avance.
+import { useState } from "react";
 import { toast } from "sonner";
-import { Receipt, Plus, Trash2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Plus, Receipt, Trash2, Wallet } from "lucide-react";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
-import { EtatErreur, EtatNonAutorise } from "@/components/pos/ui";
+import { Badge, Bouton, BoutonIcone, CLASSE_SAISIE, Champ, EtatChargement, EtatPos, EtatVide, Modale, Saisie, type Ton } from "@/components/pos/ui";
+import { Carte, Chiffre, EnTete, Page, appelPos, lireMontant, useLecture } from "@/components/pos/finance/commun";
 
 const CHARGES_TUTORIAL_STEPS = [
   { Icon: Plus,          titre: "Enregistrer une charge", description: "Loyer, salaires, électricité, fournitures... Choisis une catégorie, un montant et une fréquence (ponctuelle ou récurrente)." },
-  { Icon: Clock,         titre: "Suivi du paiement",       description: "Marque une charge \"En attente\" tant qu'elle n'est pas réglée, puis clique \"Payer\" une fois le paiement effectué." },
+  { Icon: Clock,         titre: "Suivi du paiement",       description: "Marque une charge \"En attente\" tant qu'elle n'est pas réglée, puis clique \"Marquer comme payée\" une fois le paiement effectué." },
   { Icon: CheckCircle2,  titre: "Impact sur la rentabilité", description: "Toutes tes charges alimentent automatiquement le module Comptabilité pour calculer ton vrai bénéfice net." },
 ];
 
 interface Charge {
   id: string; categorie: string; description: string; montant: number; devise: string;
   frequence: string; dateEnregistrement: string; statut: string; fournisseur: string | null;
+  /** Dépense sortie d'une caisse : elle fait partie du comptage de la session. */
+  sessionCaisseId?: string | null;
 }
+type Donnees = { charges: Charge[]; stats: { total: number; enAttente: number } | null };
 
 const CATEGORIES = [
   { v: "loyer", l: "Loyer" }, { v: "electricite", l: "Électricité" }, { v: "eau", l: "Eau" },
@@ -28,179 +35,170 @@ const FREQUENCES = [
   { v: "ponctuelle", l: "Ponctuelle" }, { v: "hebdomadaire", l: "Hebdomadaire" },
   { v: "mensuelle", l: "Mensuelle" }, { v: "annuelle", l: "Annuelle" },
 ];
-const STATUT_CFG: Record<string, { label: string; cls: string; Icon: any }> = {
-  payee:      { label: "Payée",      cls: "bg-green-100 text-green-700", Icon: CheckCircle2 },
-  en_attente: { label: "En attente", cls: "bg-amber-100 text-amber-700", Icon: Clock },
-  en_retard:  { label: "En retard",  cls: "bg-red-100 text-red-600",     Icon: AlertCircle },
+const STATUTS: Record<string, { label: string; ton: Ton; Icon: typeof Clock }> = {
+  payee:      { label: "Payée",      ton: "positif",   Icon: CheckCircle2 },
+  en_attente: { label: "En attente", ton: "attention", Icon: Clock },
+  en_retard:  { label: "En retard",  ton: "danger",    Icon: AlertCircle },
 };
-const EMPTY = { categorie: "loyer", description: "", montant: "", frequence: "ponctuelle", statut: "payee", fournisseur: "" };
+const VIDE = { categorie: "loyer", description: "", montant: "", frequence: "ponctuelle", statut: "payee", fournisseur: "" };
 
 export default function ChargesPage() {
   const t = useT();
   const { fmt, devise } = useDevise();
-  const [charges, setCharges] = useState<Charge[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ ...EMPTY });
-  const [saving, setSaving] = useState(false);
-  // Échec du chargement : 403 (droit voir_couts / rapprochement manquant) ou autre, avec la phrase du serveur.
-  const [echec, setEchec] = useState<{ interdit: boolean; message: string } | null>(null);
-
-  const charger = useCallback(() => {
-    fetch("/api/pos/charges").then(async r => {
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) setEchec({ interdit: r.status === 403, message: d.error ?? "Les charges n'ont pas pu être chargées. Réessayez dans un instant." });
-      else { setEchec(null); setCharges(d.charges ?? []); setStats(d.stats ?? null); }
-      setLoading(false);
-    }).catch(() => { setEchec({ interdit: false, message: "Connexion interrompue. Vérifiez le réseau puis réessayez." }); setLoading(false); });
-  }, []);
-  useEffect(() => { charger(); }, [charger]);
+  const { donnees, erreur, charge, recharger } = useLecture<Donnees>("/api/pos/charges");
+  const [formulaire, setFormulaire] = useState(false);
+  const [form, setForm] = useState({ ...VIDE });
+  const [erreursChamps, setErreursChamps] = useState<{ description?: string; montant?: string }>({});
+  const [envoi, setEnvoi] = useState(false);
+  const [enCours, setEnCours] = useState<string | null>(null);
+  const [aSupprimer, setASupprimer] = useState<Charge | null>(null);
 
   async function creer() {
-    if (!form.description || !form.montant) { toast.error(t("Description et montant requis")); return; }
-    setSaving(true);
+    const montant = lireMontant(form.montant);
+    const erreurs = {
+      description: form.description.trim() ? undefined : "Indique ce que représente cette charge (ex. : loyer de janvier).",
+      montant: montant > 0 ? undefined : "Indique un montant supérieur à zéro.",
+    };
+    setErreursChamps(erreurs);
+    if (erreurs.description || erreurs.montant) return;
+    setEnvoi(true);
+    const r = await appelPos("/api/pos/charges", { method: "POST", corps: { ...form, description: form.description.trim(), montant } });
+    setEnvoi(false);
+    if (!r.ok) { toast.error(t(r.message)); return; }
+    toast.success(t("Charge « {0} » enregistrée.", form.description.trim()));
+    setForm({ ...VIDE }); setFormulaire(false); void recharger();
+  }
+
+  async function marquerPayee(c: Charge) {
+    setEnCours(c.id);
+    const r = await appelPos(`/api/pos/charges/${c.id}`, { method: "PATCH", corps: { statut: "payee" } });
+    setEnCours(null);
+    if (!r.ok) toast.error(t(r.message));
+    else toast.success(t("Charge « {0} » marquée comme payée.", c.description));
+    void recharger();
+  }
+
+  async function supprimer(c: Charge) {
+    setEnCours(c.id);
+    let message: string | null = null;
     try {
-      const res = await fetch("/api/pos/charges", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "La charge n'a pas pu être enregistrée. Réessayez dans un instant.");
-      toast.success(t("Charge enregistrée"));
-      setForm({ ...EMPTY }); setShowForm(false); charger();
-    } catch (e: any) {
-      toast.error(t(e instanceof TypeError ? "Connexion interrompue. Vérifiez le réseau puis réessayez." : e.message));
-    } finally {
-      setSaving(false);
-    }
+      const res = await fetch(`/api/pos/charges/${c.id}`, { method: "DELETE" });
+      if (!res.ok) message = (await res.json().catch(() => ({}))).error ?? "Un problème est survenu. Réessayez dans un instant.";
+    } catch { message = "Connexion interrompue. Vérifiez le réseau puis réessayez."; }
+    setEnCours(null);
+    setASupprimer(null);
+    if (message) toast.error(t(message));
+    else toast.success(t("Charge « {0} » supprimée.", c.description));
+    void recharger();
   }
 
-  // Le serveur peut refuser (dépense sortie d'une caisse, droit manquant) : sa phrase est affichée.
-  async function modifier(appel: Promise<Response>) {
-    try {
-      const res = await appel;
-      if (!res.ok) toast.error(t((await res.json().catch(() => ({}))).error ?? "Un problème est survenu. Réessayez dans un instant."));
-    } catch { toast.error(t("Connexion interrompue. Vérifiez le réseau puis réessayez.")); }
-    charger();
-  }
+  const champ = (cle: keyof typeof VIDE) => ({
+    value: form[cle],
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { const v = e.target.value; setForm((f) => ({ ...f, [cle]: v })); },
+    disabled: envoi,
+  });
 
-  async function marquerPayee(id: string) {
-    await modifier(fetch(`/api/pos/charges/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut: "payee" }) }));
-  }
-
-  async function supprimer(id: string) {
-    if (!confirm(t("Supprimer cette charge ?"))) return;
-    await modifier(fetch(`/api/pos/charges/${id}`, { method: "DELETE" }));
-  }
-
-  const inp = "mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#F5A623]/60";
+  const stats = donnees?.stats;
+  const charges = donnees?.charges ?? [];
 
   return (
-    <div className="p-5 max-w-5xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <Page>
       <ModuleTutorial moduleKey="pos-charges" titre={t("Charges d'exploitation")} sousTitre={t("Module Point de vente")} steps={CHARGES_TUTORIAL_STEPS} />
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-[18px] font-bold text-[#111]">{t("Charges d'exploitation")}</h1>
-            <BoutonRevoirTutoriel moduleKey="pos-charges" />
-          </div>
-          <p className="text-[12px] text-gray-500">{t("Loyer, salaires, énergie... les coûts fixes de votre boutique physique")}</p>
-        </div>
-        {!echec && <button onClick={() => setShowForm(v => !v)} className="px-4 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-bold flex items-center gap-1.5">
-          <Plus size={13} />{" "}{t("Nouvelle charge")}
-        </button>}
-      </div>
+      <EnTete titre="Charges d'exploitation" sousTitre="Loyer, salaires, énergie… les coûts de ton magasin. Ils sont déduits dans la Comptabilité pour calculer le bénéfice net.">
+        <BoutonRevoirTutoriel moduleKey="pos-charges" />
+        {donnees && !formulaire && <Bouton icone={<Plus size={15} aria-hidden />} onClick={() => setFormulaire(true)}>{t("Nouvelle charge")}</Bouton>}
+      </EnTete>
 
-      {stats && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="min-w-0 bg-white border border-gray-100 rounded-2xl p-4">
-            <p className="text-[17px] sm:text-[20px] [overflow-wrap:anywhere] font-bold text-[#111]">{fmt(stats.total)}</p>
-            <p className="text-[10.5px] text-gray-400 mt-0.5">{t("Total enregistré")}</p>
-          </div>
-          <div className="min-w-0 bg-white border border-gray-100 rounded-2xl p-4">
-            <p className="text-[17px] sm:text-[20px] [overflow-wrap:anywhere] font-bold text-amber-500">{fmt(stats.enAttente)}</p>
-            <p className="text-[10.5px] text-gray-400 mt-0.5">{t("En attente de paiement")}</p>
-          </div>
-        </div>
-      )}
-
-      {showForm && !echec && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Catégorie")}</label>
-              <select aria-label={t("Catégorie")} value={form.categorie} onChange={e => setForm(v => ({ ...v, categorie: e.target.value }))} className={`${inp} bg-white`}>
-                {CATEGORIES.map(c => <option key={c.v} value={c.v}>{t(c.l)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Montant")} ({devise})</label>
-              <input type="number" aria-label={t("Montant")} value={form.montant} onChange={e => setForm(v => ({ ...v, montant: e.target.value }))} className={inp} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Description")}</label>
-              <input aria-label={t("Description")} value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} placeholder={t("Ex: Loyer boutique — Janvier")} className={inp} />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Fréquence")}</label>
-              <select aria-label={t("Fréquence")} value={form.frequence} onChange={e => setForm(v => ({ ...v, frequence: e.target.value }))} className={`${inp} bg-white`}>
-                {FREQUENCES.map(f => <option key={f.v} value={f.v}>{t(f.l)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Statut")}</label>
-              <select aria-label={t("Statut")} value={form.statut} onChange={e => setForm(v => ({ ...v, statut: e.target.value }))} className={`${inp} bg-white`}>
-                {Object.entries(STATUT_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Fournisseur (optionnel)")}</label>
-              <input aria-label={t("Fournisseur (optionnel)")} value={form.fournisseur} onChange={e => setForm(v => ({ ...v, fournisseur: e.target.value }))} className={inp} />
-            </div>
-          </div>
-          <button onClick={creer} disabled={saving} className="px-5 py-2.5 bg-[#F5A623] text-white rounded-xl text-[12.5px] font-bold disabled:opacity-50">
-            {saving ? "…" : t("Enregistrer")}
-          </button>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="py-12 text-center text-sm text-gray-400">{t("Chargement…")}</div>
-      ) : echec ? (
-        echec.interdit ? <EtatNonAutorise texte={echec.message} /> : <EtatErreur texte={echec.message} onReessayer={() => { setLoading(true); charger(); }} />
-      ) : charges.length === 0 ? (
-        <div className="py-10 text-center border-2 border-dashed border-gray-200 rounded-2xl">
-          <Receipt size={28} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-[13px] font-semibold text-[#111]">{t("Aucune charge enregistrée")}</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {charges.map(c => {
-            const cfg = STATUT_CFG[c.statut] ?? STATUT_CFG.payee;
-            return (
-              <div key={c.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-wrap items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#F5A62312" }}>
-                  <Receipt size={14} className="text-[#F5A623]" />
-                </div>
-                <div className="flex-1 min-w-[10rem]">
-                  <p className="text-[13px] font-semibold text-[#111] truncate">{c.description}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {t(CATEGORIES.find(x => x.v === c.categorie)?.l)} · {t(FREQUENCES.find(x => x.v === c.frequence)?.l)} · {new Date(c.dateEnregistrement).toLocaleDateString(t.loc)}
-                    {c.fournisseur && ` · ${c.fournisseur}`}
-                  </p>
-                </div>
-                <p className="text-[13px] font-bold text-[#111] flex-shrink-0">{fmt(c.montant)}</p>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1 ${cfg.cls}`}>
-                  <cfg.Icon size={9} /> {t(cfg.label)}
-                </span>
-                {c.statut !== "payee" && (
-                  <button onClick={() => marquerPayee(c.id)} className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-green-500 text-white flex-shrink-0">{t("Payer")}</button>
-                )}
-                <button onClick={() => supprimer(c.id)} aria-label={t("Supprimer cette charge")} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0">
-                  <Trash2 size={12} className="text-gray-300" />
-                </button>
+      {erreur && !donnees ? <EtatPos code={erreur.code} message={erreur.message} onReessayer={() => void recharger()} />
+        : !donnees ? <EtatChargement texte="Chargement des charges…" />
+        : (
+          <>
+            {stats && (
+              <div className="grid grid-cols-2 gap-3">
+                <Chiffre label="Total enregistré" valeur={fmt(stats.total)} aide={t("{0} charge(s)", charges.length)} />
+                <Chiffre label="En attente de paiement" valeur={fmt(stats.enAttente)} ton={stats.enAttente > 0 ? "danger" : undefined} />
               </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+            )}
+
+            {formulaire && (
+              <Carte titre="Nouvelle charge">
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void creer(); }} noValidate>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Saisie label="Description" autoFocus maxLength={300} placeholder={t("Ex. : loyer du magasin — janvier")} erreur={erreursChamps.description} {...champ("description")} />
+                    <Saisie label="Montant" inputMode="decimal" suffixe={devise} erreur={erreursChamps.montant} {...champ("montant")} />
+                    <Champ label="Catégorie">
+                      {(a) => <select {...a} className={CLASSE_SAISIE} {...champ("categorie")}>{CATEGORIES.map((c) => <option key={c.v} value={c.v}>{t(c.l)}</option>)}</select>}
+                    </Champ>
+                    <Champ label="Fréquence">
+                      {(a) => <select {...a} className={CLASSE_SAISIE} {...champ("frequence")}>{FREQUENCES.map((f) => <option key={f.v} value={f.v}>{t(f.l)}</option>)}</select>}
+                    </Champ>
+                    <Champ label="Statut du paiement">
+                      {(a) => <select {...a} className={CLASSE_SAISIE} {...champ("statut")}>{Object.entries(STATUTS).map(([v, s]) => <option key={v} value={v}>{t(s.label)}</option>)}</select>}
+                    </Champ>
+                    <Saisie label="Fournisseur (facultatif)" maxLength={120} {...champ("fournisseur")} />
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Bouton variante="secondaire" onClick={() => { setFormulaire(false); setErreursChamps({}); }} disabled={envoi}>{t("Annuler")}</Bouton>
+                    <Bouton type="submit" charge={envoi}>{t("Enregistrer la charge")}</Bouton>
+                  </div>
+                </form>
+              </Carte>
+            )}
+
+            {erreur && <EtatPos compact code={erreur.code} message={erreur.message} onReessayer={() => void recharger()} />}
+
+            {charges.length === 0 ? (
+              <EtatVide titre="Aucune charge enregistrée" texte="Ajoute ton loyer, tes salaires ou tes factures d'énergie : la Comptabilité pourra alors calculer ton bénéfice net. Les dépenses payées avec l'argent d'une caisse apparaissent aussi ici.">
+                {!formulaire && <Bouton icone={<Plus size={15} aria-hidden />} onClick={() => setFormulaire(true)}>{t("Ajouter une charge")}</Bouton>}
+              </EtatVide>
+            ) : (
+              <ul className={`space-y-2 ${charge ? "opacity-60" : ""}`} aria-busy={charge}>
+                {charges.map((c) => {
+                  const s = STATUTS[c.statut] ?? STATUTS.payee;
+                  const deCaisse = !!c.sessionCaisseId;
+                  return (
+                    <li key={c.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#E8E8E8] bg-white p-3 sm:p-4">
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF7ED] text-[#B45309]" aria-hidden>
+                        {deCaisse ? <Wallet size={16} /> : <Receipt size={16} />}
+                      </span>
+                      <div className="min-w-[10rem] flex-1">
+                        <p className="truncate text-[13px] font-semibold text-[#111111]">{c.description}</p>
+                        <p className="text-[11.5px] text-[#666666]">
+                          {t(CATEGORIES.find((x) => x.v === c.categorie)?.l ?? c.categorie)} · {t(FREQUENCES.find((x) => x.v === c.frequence)?.l ?? c.frequence)} · {new Date(c.dateEnregistrement).toLocaleDateString(t.loc)}
+                          {c.fournisseur && ` · ${c.fournisseur}`}
+                          {deCaisse && ` · ${t("Sortie de caisse")}`}
+                        </p>
+                      </div>
+                      <p className="flex-shrink-0 text-[14px] font-bold tabular-nums text-[#111111]">{fmt(c.montant)}</p>
+                      <Badge ton={s.ton} icone={<s.Icon size={11} aria-hidden />}>{t(s.label)}</Badge>
+                      <div className="flex flex-shrink-0 items-center gap-1.5">
+                        {c.statut !== "payee" && (
+                          <Bouton variante="secondaire" taille="compact" onClick={() => void marquerPayee(c)} charge={enCours === c.id} disabled={!!enCours}>{t("Marquer comme payée")}</Bouton>
+                        )}
+                        {deCaisse
+                          ? <span className="sr-only">{t("Dépense sortie d'une caisse : elle se corrige depuis la session de caisse.")}</span>
+                          : <BoutonIcone label={t("Supprimer la charge {0}", c.description)} variante="danger" onClick={() => setASupprimer(c)} disabled={!!enCours}><Trash2 size={15} aria-hidden /></BoutonIcone>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {charges.some((c) => c.sessionCaisseId) && (
+              <p className="text-[11.5px] leading-relaxed text-[#666666]">{t("Les dépenses « Sortie de caisse » font partie du comptage d'une session : elles ne se suppriment pas ici, elles se corrigent par un mouvement de caisse « Correction ».")}</p>
+            )}
+          </>
+        )}
+
+      <Modale ouverte={!!aSupprimer} onFermer={() => setASupprimer(null)} taille="sm" verrouillee={!!enCours}
+        titre={t("Supprimer la charge « {0} » ?", aSupprimer?.description ?? "")}
+        description="Elle disparaîtra de la liste et ne sera plus déduite dans la Comptabilité. La suppression est tracée dans le journal d'audit."
+        actions={<>
+          <Bouton variante="secondaire" onClick={() => setASupprimer(null)} disabled={!!enCours}>{t("Garder la charge")}</Bouton>
+          <Bouton variante="danger" onClick={() => aSupprimer && void supprimer(aSupprimer)} charge={!!enCours}>{t("Supprimer la charge")}</Bouton>
+        </>}>
+        {aSupprimer && <p className="text-[13px] text-[#555555]">{fmt(aSupprimer.montant)} · {new Date(aSupprimer.dateEnregistrement).toLocaleDateString(t.loc)}</p>}
+      </Modale>
+    </Page>
   );
 }

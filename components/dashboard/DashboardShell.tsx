@@ -16,6 +16,7 @@ import type { Palier } from "@/lib/plans";
 import type { ModuleKey, Niveau } from "@/lib/permissions";
 import { useT } from "@/components/I18nProvider";
 import { CompteurPromoDashboard } from "@/components/promo/CompteurPromo";
+import { AxiaPanneau } from "@/components/dashboard/AxiaPanneau";
 
 const FULLBLEED_PREFIXES: string[] = ["/dashboard/builder", "/dashboard/themes"];
 
@@ -25,7 +26,7 @@ const FULLBLEED_PREFIXES: string[] = ["/dashboard/builder", "/dashboard/themes"]
 // visité. Les tutoriels par module restent disponibles à la demande via
 // leur bouton "?", mais ne s'auto-affichent plus jamais (voir ModuleTutorial.tsx).
 const BIENVENUE_STEPS = [
-  { Icon: Sparkles,      titre: "AXIA, ton assistant boutique", description: "Pose-lui n'importe quelle question ou demande-lui d'agir directement : créer un produit, lancer une promo, relancer un client." },
+  { Icon: Sparkles,      titre: "AXIA, ton assistant boutique", description: "AXIA vit dans le panneau à droite : ouvre-le avec le bouton AXIA en haut de l'écran (ou le bouton du milieu en bas sur téléphone). Pose-lui une question ou demande-lui d'agir : créer un produit, lancer une promo, relancer un client." },
   { Icon: ShoppingCart,  titre: "Commandes & Produits",          description: "Gère tes ventes et ton catalogue depuis la sidebar — chaque module a son propre bouton \"?\" pour revoir son mode d'emploi à tout moment." },
   { Icon: Store,         titre: "Ma boutique & Point de vente",  description: "Personnalise ta boutique en ligne, ou bascule vers le module Point de vente pour encaisser directement en magasin." },
   { Icon: Users,         titre: "Ton équipe",                     description: "Invite des collaborateurs (gérant, caissier, comptable...) avec des accès précis depuis Paramètres > Équipe." },
@@ -39,7 +40,7 @@ const BIENVENUE_STEPS = [
 // tout premier chargement. usePathname() côté client, lui, se met à jour de
 // façon fiable à chaque navigation.
 export function DashboardShell({
-  children, session, boutique, quotaAtteint, palier, permissions, modeCaisse, modePos, promo,
+  children, session, boutique, quotaAtteint, palier, permissions, modeCaisse, modePos, promo, demarrage,
 }: {
   children: React.ReactNode;
   /** Promo de lancement en cours (lib/promo.ts) : compteur en haut de chaque page. */
@@ -57,11 +58,14 @@ export function DashboardShell({
   modeCaisse?: boolean;
   /** Mode de la caisse (ReglagesPos.mode), lu dans layout.tsx : "simple" allège le menu « Caisse & magasin ». */
   modePos?: "simple" | "pro";
+  /** Parcours de démarrage, lu dans layout.tsx : pastilles du menu (étapes restantes, entrées à compléter). */
+  demarrage?: { restantes: number; hrefs: string[] } | null;
 }) {
   const t = useT();
   const pathname = usePathname();
-  const estAccueilAxia = pathname === "/dashboard";
-  const fullBleed = estAccueilAxia || FULLBLEED_PREFIXES.some(r => pathname.startsWith(r));
+  // Un seul nom pour tous les avatars (en-tête, menu mobile, barre latérale) : mêmes initiales partout.
+  const nomCompte: string = session?.user?.name || session?.user?.email || "";
+  const fullBleed = FULLBLEED_PREFIXES.some(r => pathname.startsWith(r));
 
   // Mode Caisse : un caissier pur n'a jamais accès au chrome du dashboard
   // (sidebar/header/bottom nav) — écran plein écran dédié à la place, sur
@@ -100,41 +104,34 @@ export function DashboardShell({
           calculé sur la hauteur de viewport barre d'adresse masquée — plus
           grand que ce qui est réellement visible au chargement. */}
       <div className="flex flex-col md:flex-row h-dvh md:h-screen bg-[#F5F5F5] text-gray-900 overflow-hidden" style={{ fontFamily: "'Poppins', 'Century Gothic', system-ui, sans-serif" }}>
-        {/* Écran d'accueil AXIA = plein écran réel, la sidebar AXSO ne doit
-            pas rester visible à côté — le retour au dashboard classique se
-            fait via le bouton dédié dans la barre supérieure d'AXIA. */}
-        {!estAccueilAxia && (
-          <div className="hidden md:block">
-            <Sidebar boutiqueNom={boutique?.nomBoutique} boutiqueSlug={boutique?.slug} boutiqueUrl={boutique?.url} palier={palier} permissions={permissions} modePos={modePos} />
+        <div className="hidden md:block">
+          <Sidebar boutiqueNom={boutique?.nomBoutique} boutiqueSlug={boutique?.slug} boutiqueUrl={boutique?.url} palier={palier} permissions={permissions} modePos={modePos} nomCompte={nomCompte} demarrage={demarrage} />
+        </div>
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <div className="md:hidden flex-shrink-0">
+            <MobileHeader boutiqueNom={boutique?.nomBoutique} permissions={permissions} nom={nomCompte} />
           </div>
-        )}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {!estAccueilAxia && (
-            <div className="md:hidden flex-shrink-0">
-              <MobileHeader boutiqueNom={boutique?.nomBoutique} permissions={permissions} nom={session.user?.name ?? session.user?.email ?? ""} />
-            </div>
-          )}
-          {!fullBleed && !estAccueilAxia && (
+          {!fullBleed && (
             <div className="hidden md:block flex-shrink-0">
               <Header session={session} boutiqueSlug={boutique?.slug} boutiqueUrl={boutique?.url} boutiqueNom={boutique?.nomBoutique} permissions={permissions}/>
             </div>
           )}
-          {promo && estAccueilAxia && <CompteurPromoDashboard finLe={promo.finLe} maintenant={promo.maintenant} compact />}
-          <main className={fullBleed || estAccueilAxia ? "flex-1 overflow-hidden flex flex-col" : "flex-1 overflow-y-auto pb-32 md:pb-0"}>
-            {fullBleed || estAccueilAxia ? children : (
-              <div key={pathname} className="ax-page-enter px-3 pt-3 md:px-6 md:pt-0 md:pb-8 max-w-lg md:max-w-7xl mx-auto w-full space-y-4 md:space-y-0">
+          <main className={fullBleed ? "flex-1 overflow-hidden flex flex-col" : "flex-1 overflow-y-auto pb-32 md:pb-0"}>
+            {fullBleed ? children : (
+              <div key={pathname} className="ax-page-enter px-3 pt-3 md:px-6 md:pt-6 md:pb-8 max-w-lg md:max-w-7xl mx-auto w-full space-y-4 md:space-y-0">
                 {promo && <CompteurPromoDashboard finLe={promo.finLe} maintenant={promo.maintenant} />}
                 {quotaAtteint && !promo && <QuotaBanner />}
                 {children}
               </div>
             )}
           </main>
-          {!estAccueilAxia && (
-            <div className="md:hidden flex-shrink-0">
-              <MobileBottomNav permissions={permissions} />
-            </div>
-          )}
+          <div className="md:hidden flex-shrink-0">
+            <MobileBottomNav permissions={permissions} modePos={modePos} demarrage={demarrage} />
+          </div>
         </div>
+        {/* AXIA : colonne de droite qui pousse le contenu (≥ lg), feuille plein écran en dessous.
+            Monté une seule fois ici : la conversation suit le marchand d'une page à l'autre. */}
+        <AxiaPanneau />
       </div>
     </>
   );
@@ -147,7 +144,10 @@ function MobileHeader({ boutiqueNom, permissions, nom }: { boutiqueNom?: string;
     <header className="sticky top-0 z-40 bg-white/96 backdrop-blur-xl border-b border-gray-100"
       style={{ boxShadow: "0 1px 12px rgba(0,0,0,0.04)" }}>
       <div className="flex items-center justify-between gap-2 px-4 h-14">
-        <img src="/logo.png" alt="axso" style={{ height: "32px", width: "auto", objectFit: "contain" }}/>
+        {/* Même destination que le logo de l'en-tête ordinateur (voir Header.tsx). */}
+        <Link href="/dashboard/accueil" aria-label={t("Axso — revenir au tableau de bord")} className="flex-shrink-0">
+          <img src="/logo.png" alt="" style={{ height: "32px", width: "auto", objectFit: "contain" }}/>
+        </Link>
         {boutiqueNom && (
           <div className="flex items-center gap-1.5 bg-[#F5A623]/8 border border-[#F5A623]/20 rounded-full px-3 py-1 min-w-0 max-w-[150px]">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse flex-shrink-0"/>

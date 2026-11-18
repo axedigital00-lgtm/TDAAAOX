@@ -130,14 +130,14 @@ export async function demanderRetraitAffilie(p: { userId: string; devise: string
   const minimum = minimumRetrait(p.devise, await tauxDuJour());
   if (montant < minimum) throw new Error(`Minimum de retrait : ${minimum.toLocaleString("fr-FR")} ${p.devise} disponibles`);
   const tel = normaliserTelephone(p.telephone, dispo[0]?.pays);
-  if (!tel) throw new Error("Numéro Mobile Money invalide : vérifie-le, avec l'indicatif de ton pays.");
+  if (!tel) throw new Error("Numéro Mobile Money invalide : vérifiez-le, avec l'indicatif de votre pays.");
   const ids = dispo.map((c) => c.id);
 
   const retrait = await prisma.$transaction(async (tx) => {
     const r = await tx.retraitAffilie.create({ data: { userId: p.userId, montant, devise: p.devise, destinataire: tel, operateur: operateurCameroun(tel) } });
     // Conditionnel : deux demandes simultanées ne retirent pas deux fois les mêmes commissions.
     const pris = await tx.commissionAffilie.updateMany({ where: { id: { in: ids }, statut: "pending", retraitId: null }, data: { retraitId: r.id, statut: "payee" } });
-    if (pris.count !== ids.length) throw new Error("Un retrait est déjà en cours — recharge la page");
+    if (pris.count !== ids.length) throw new Error("Un retrait est déjà en cours : rechargez la page pour voir son état.");
     return r;
   });
   await signalerRetraitAffilie(retrait.id).catch((e) => console.error("[affiliation] alerte retrait", retrait.id, e?.message));

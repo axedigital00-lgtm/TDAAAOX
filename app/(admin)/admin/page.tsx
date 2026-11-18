@@ -14,6 +14,7 @@ import { JOUR } from "@/lib/command-center/contexte";
 import { EnTetePage, Carte, Kpi, GrilleKpi, Jauge, Badge, Delta, Sparkline, Progression, EtatVide, Note, Fraicheur, tonScore } from "@/components/command-center/ui";
 import { ActionsInsight, BoutonPDF } from "@/components/command-center/client";
 import { TacheCase } from "./TacheCase";
+import { AccueilDirect } from "./AccueilDirect";
 import { Projection } from "@/components/command-center/graphiques";
 
 const KPIS = ["mrr", "arr", "revenu", "gmv", "marchands_actifs", "nouveaux_marchands", "commandes", "arpu", "ltv", "cac", "churn", "nrr"];
@@ -54,12 +55,15 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
       <EnTetePage
         eyebrow={`Axso Command Center${titrePays}`}
         titre={ceo ? tx("Où en est Axso ?") : "Command Center"}
-        sousTitre={<>Real-time intelligence for the Axso ecosystem · {dateLongue(t)} · <span className="cc-faint">{tx(f.libelle)} {tx(f.libelleComp)}</span></>}
-        actions={<><Fraicheur genereA={c.ds.genereA} source={c.ds.source} erreur={c.erreur} /><Link href={L("/admin/rapports/quotidien")} className="cc-btn cc-btn-sm">Daily brief</Link><BoutonPDF /></>}
+        sousTitre={<>{tx("Vue d'ensemble de l'écosystème Axso")} · {dateLongue(t)} · <span className="cc-faint">{tx(f.libelle)} {tx(f.libelleComp)}</span></>}
+        actions={<><Fraicheur genereA={c.ds.genereA} source={c.ds.source} erreur={c.erreur} /><Link href={L("/admin/rapports/quotidien")} className="cc-btn cc-btn-sm">{tx("Rapport du jour")}</Link><BoutonPDF /></>}
       />
       <Suspense fallback={null}><RefusAcces /></Suspense>
       {c.erreur && <Note ton="warn">{tx(c.erreur)}</Note>}
       {!v.marchands.length && <Note>{c.ds.source === "reel" ? tx("Aucun marchand dans ce périmètre. Élargissez les filtres ou consultez les données de démonstration.") : tx("Aucun marchand dans ce périmètre. Élargissez les filtres.")}</Note>}
+
+      {/* Inscriptions · nouveaux marchands · chiffre d'affaires : visibles dès l'arrivée */}
+      <AccueilDirect c={c} tx={tx} sp={await searchParams} />
 
       {/* North Star · Santé · Brief */}
       <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[1fr_1fr_1.35fr]">

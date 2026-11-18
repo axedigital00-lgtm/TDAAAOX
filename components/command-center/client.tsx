@@ -10,6 +10,7 @@ import { formats, T_FR } from "@/lib/command-center/format";
 import { useT } from "@/components/I18nProvider";
 import type { T } from "@/lib/i18n";
 import type { Format } from "@/lib/command-center/moteur";
+import { EtatVide } from "./ui-texte";
 
 type Cellule = string | number | null | undefined;
 export type Ligne = Record<string, Cellule> & { _id: string; _href?: string };
@@ -94,24 +95,42 @@ export function TableauInteractif({ colonnes, lignes, nomExport, recherche = tru
     return v;
   };
 
+  const filtresActifs = Object.entries(filtres).filter(([, v]) => v);
+  const filtre = q.trim() !== "" || filtresActifs.length > 0;
+  const effacer = () => { setQ(""); setFiltres({}); setPage(0); };
+  const basculer = (id: string) => { const s = new Set(choisis); if (s.has(id)) s.delete(id); else s.add(id); setChoisis(s); };
+  const titreLigne = (l: Ligne) => (l._href ? <Link href={l._href} className="font-medium hover:underline [overflow-wrap:anywhere]" style={{ color: "var(--cc-text)" }}>{cellule(colonnes[0], l[colonnes[0].cle])}</Link> : <span className="font-medium [overflow-wrap:anywhere]">{cellule(colonnes[0], l[colonnes[0].cle])}</span>);
+
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2 mb-3 cc-no-print">
         {recherche && (
           <label className="relative flex-1 min-w-[180px] max-w-xs">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 cc-faint" aria-hidden />
-            <input className="cc-input w-full pl-8" placeholder={t("Rechercher…")} value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} aria-label={t("Rechercher dans le tableau")} />
+            <input className="cc-input w-full pl-8 h-10 sm:h-8" placeholder={t("Rechercher…")} value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} aria-label={t("Rechercher dans le tableau")} />
           </label>
         )}
         {filtrables.map((c) => (
-          <select key={c.cle} className="cc-select" value={filtres[c.cle] ?? ""} onChange={(e) => { setFiltres({ ...filtres, [c.cle]: e.target.value }); setPage(0); }} aria-label={t("Filtrer par {0}", c.nom)}>
+          <select key={c.cle} className="cc-select h-10 sm:h-8" value={filtres[c.cle] ?? ""} onChange={(e) => { setFiltres({ ...filtres, [c.cle]: e.target.value }); setPage(0); }} aria-label={t("Filtrer par {0}", c.nom)}>
             <option value="">{t("{0} : tous", c.nom)}</option>
             {options[c.cle].map((o) => <option key={o} value={o}>{c.format === "badge" ? t(o) : o}</option>)}
           </select>
         ))}
-        <span className="cc-faint text-[12px] ml-auto">{t(visibles.length > 1 ? "{0} lignes" : "{0} ligne", visibles.length.toLocaleString(t.loc))}</span>
+        <span className="cc-faint text-[12px] ml-auto" aria-live="polite">{t(visibles.length > 1 ? "{0} lignes" : "{0} ligne", visibles.length.toLocaleString(t.loc))}</span>
         {nomExport && <BoutonsExport nom={nomExport} colonnes={colonnes} lignes={visibles} pdf={false} />}
       </div>
+      {filtre && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 text-[12.5px] cc-no-print">
+          <span className="cc-faint">{t("Filtré :")}</span>
+          {q.trim() && <button className="cc-badge cc-badge-accent" onClick={() => { setQ(""); setPage(0); }} aria-label={t("Retirer la recherche « {0} »", q.trim())}>« {q.trim()} » <X size={11} aria-hidden /></button>}
+          {filtresActifs.map(([k, v]) => {
+            const c = colonnes.find((x) => x.cle === k);
+            const nom = c?.format === "badge" ? t(v) : v;
+            return <button key={k} className="cc-badge cc-badge-accent" onClick={() => { setFiltres({ ...filtres, [k]: "" }); setPage(0); }} aria-label={t("Retirer le filtre {0}", nom)}>{c?.nom} : {nom} <X size={11} aria-hidden /></button>;
+          })}
+          <button className="underline cc-muted" onClick={effacer}>{t("Tout effacer")}</button>
+        </div>
+      )}
       {selection && choisis.size > 0 && actionsGroupees && (
         <div className="flex flex-wrap items-center gap-2 mb-2 px-3 py-2 rounded-lg cc-no-print" style={{ background: "var(--cc-accent-bg)" }}>
           <span className="text-[12.5px] font-medium">{t(choisis.size > 1 ? "{0} sélectionnés" : "{0} sélectionné", choisis.size)}</span>
@@ -119,42 +138,71 @@ export function TableauInteractif({ colonnes, lignes, nomExport, recherche = tru
           <button className="cc-btn cc-btn-ghost cc-btn-sm ml-auto" onClick={() => setChoisis(new Set())}>{t("Désélectionner")}</button>
         </div>
       )}
-      {!visibles.length ? <p className="cc-faint text-[13px] text-center py-8">{t(vide)}</p> : (
-        <div className="overflow-auto max-h-[70vh] -mx-4 border-t cc-sep">
-          <table className="cc-table">
-            <thead>
-              <tr>
-                {selection && <th className="w-8"><input type="checkbox" checked={tous} aria-label={t("Tout sélectionner")} onChange={() => { const s = new Set(choisis); tranche.forEach((l) => (tous ? s.delete(l._id) : s.add(l._id))); setChoisis(s); }} /></th>}
-                {colonnes.map((c) => (
-                  <th key={c.cle} className={c.droite ? "r" : ""} aria-sort={tri?.cle === c.cle ? (tri.asc ? "ascending" : "descending") : undefined}>
-                    <button className="inline-flex items-center gap-1 hover:text-[var(--cc-text)]" onClick={() => setTri(tri?.cle === c.cle ? { cle: c.cle, asc: !tri.asc } : { cle: c.cle, asc: false })}>
-                      {c.nom}{tri?.cle === c.cle && (tri.asc ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tranche.map((l) => (
-                <tr key={l._id}>
-                  {selection && <td><input type="checkbox" checked={choisis.has(l._id)} aria-label={t("Sélectionner")} onChange={() => { const s = new Set(choisis); if (s.has(l._id)) s.delete(l._id); else s.add(l._id); setChoisis(s); }} /></td>}
-                  {colonnes.map((c, i) => (
-                    <td key={c.cle} className={c.droite ? "r cc-num" : ""}>
-                      {i === 0 && l._href ? <Link href={l._href} className="font-medium hover:underline" style={{ color: "var(--cc-text)" }}>{cellule(c, l[c.cle])}</Link> : cellule(c, l[c.cle])}
-                    </td>
+      {!visibles.length ? (
+        <EtatVide
+          titre={filtre ? t("Aucune ligne ne correspond à ces filtres.") : t(vide)}
+          explication={filtre ? t("Vérifiez l'orthographe ou retirez un filtre.") : undefined}
+          action={filtre ? <button className="cc-btn cc-btn-sm h-10 sm:h-8" onClick={effacer}>{t("Effacer les filtres")}</button> : undefined}
+        />
+      ) : (
+        <>
+          {/* Téléphone : une carte par ligne (1re colonne en titre), rien n'est masqué */}
+          <ul className="md:hidden -mx-4 border-t cc-sep divide-y cc-sep">
+            {tranche.map((l) => (
+              <li key={l._id} className="px-4 py-3 space-y-2">
+                <div className="flex items-start gap-2.5">
+                  {selection && <input type="checkbox" className="mt-1 w-5 h-5 shrink-0" checked={choisis.has(l._id)} aria-label={t("Sélectionner")} onChange={() => basculer(l._id)} />}
+                  <div className="min-w-0 text-[13px]">{titreLigne(l)}</div>
+                </div>
+                {colonnes.length > 1 && (
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]">
+                    {colonnes.slice(1).map((c) => (
+                      <div key={c.cle} className="min-w-0">
+                        <dt className="cc-faint truncate">{c.nom}</dt>
+                        <dd className={c.droite ? "cc-num" : "[overflow-wrap:anywhere]"}>{cellule(c, l[c.cle])}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block overflow-auto max-h-[70vh] -mx-4 border-t cc-sep">
+            <table className="cc-table">
+              <thead>
+                <tr>
+                  {selection && <th className="w-8"><input type="checkbox" checked={tous} aria-label={t("Tout sélectionner")} onChange={() => { const s = new Set(choisis); tranche.forEach((l) => (tous ? s.delete(l._id) : s.add(l._id))); setChoisis(s); }} /></th>}
+                  {colonnes.map((c) => (
+                    <th key={c.cle} className={c.droite ? "r" : ""} aria-sort={tri?.cle === c.cle ? (tri.asc ? "ascending" : "descending") : undefined}>
+                      <button className="inline-flex items-center gap-1 hover:text-[var(--cc-text)]" onClick={() => setTri(tri?.cle === c.cle ? { cle: c.cle, asc: !tri.asc } : { cle: c.cle, asc: false })}>
+                        {c.nom}{tri?.cle === c.cle && (tri.asc ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}
+                      </button>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {tranche.map((l) => (
+                  <tr key={l._id}>
+                    {selection && <td><input type="checkbox" checked={choisis.has(l._id)} aria-label={t("Sélectionner")} onChange={() => basculer(l._id)} /></td>}
+                    {colonnes.map((c, i) => (
+                      <td key={c.cle} className={c.droite ? "r cc-num" : ""}>
+                        {i === 0 ? titreLigne(l) : cellule(c, l[c.cle])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       {pages > 1 && (
-        <div className="flex items-center justify-end gap-2 mt-3 text-[12px] cc-no-print">
-          <button className="cc-btn cc-btn-sm" disabled={p === 0} onClick={() => setPage(p - 1)}>{t("Précédent")}</button>
+        <nav className="flex items-center justify-end gap-2 mt-3 text-[12px] cc-no-print" aria-label={t("Pagination")}>
+          <button className="cc-btn cc-btn-sm h-10 sm:h-8" disabled={p === 0} onClick={() => setPage(p - 1)}>{t("Précédent")}</button>
           <span className="cc-faint">{t("Page {0} / {1}", p + 1, pages)}</span>
-          <button className="cc-btn cc-btn-sm" disabled={p >= pages - 1} onClick={() => setPage(p + 1)}>{t("Suivant")}</button>
-        </div>
+          <button className="cc-btn cc-btn-sm h-10 sm:h-8" disabled={p >= pages - 1} onClick={() => setPage(p + 1)}>{t("Suivant")}</button>
+        </nav>
       )}
     </div>
   );
@@ -212,8 +260,9 @@ export function ActionsInsight({ insightId, titre, lienMarchands, ids, source, p
         <form method="dialog" className="p-4 space-y-3" onSubmit={async (e) => { e.preventDefault(); if (await go("notifier", { type: "notifier", ids, titre, message, insightId })) dlg.current?.close(); }}>
           <div className="flex items-center justify-between"><h3 className="cc-h2">{t((ids?.length ?? 0) > 1 ? "Notifier {0} marchands" : "Notifier {0} marchand", ids?.length ?? 0)}</h3><button type="button" onClick={() => dlg.current?.close()} className="cc-btn cc-btn-ghost cc-btn-sm" aria-label={t("Fermer")}><X size={14} /></button></div>
           <p className="cc-faint text-[12px]">{t("Le message apparaîtra dans les notifications de leur tableau de bord Axso. L'envoi est journalisé.")}</p>
-          <textarea className="cc-input w-full h-28 py-2" required minLength={10} maxLength={500} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("Ex. : Votre boutique dépasse la limite du plan Essentiel. Passez au Pro pour des commandes illimitées.")} />
-          <div className="flex justify-end gap-2"><button type="button" className="cc-btn" onClick={() => dlg.current?.close()}>{t("Annuler")}</button><button className="cc-btn cc-btn-primary" disabled={charge === "notifier"}>{charge === "notifier" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{t("Envoyer")}</button></div>
+          <label className="block text-[12px] cc-muted space-y-1"><span>{t("Message (10 à 500 caractères)")}</span>
+          <textarea className="cc-input w-full h-28 py-2" required minLength={10} maxLength={500} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("Ex. : Votre boutique dépasse la limite du plan Essentiel. Passez au Pro pour des commandes illimitées.")} /></label>
+          <div className="flex justify-end gap-2"><button type="button" className="cc-btn" onClick={() => dlg.current?.close()}>{t("Annuler")}</button><button className="cc-btn cc-btn-primary" disabled={charge === "notifier"}>{charge === "notifier" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{t(charge === "notifier" ? "Envoi…" : "Envoyer la notification")}</button></div>
         </form>
       </dialog>
     </div>

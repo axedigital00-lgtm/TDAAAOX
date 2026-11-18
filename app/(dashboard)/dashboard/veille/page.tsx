@@ -4,6 +4,7 @@ import { Search, Plus, Loader2, X, Sparkles, Globe, Zap, Trash2, Eye, BarChart2 
 import { toast } from "sonner";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, BoutonIcone, EnTetePage, useConfirmation } from "@/components/ui";
 
 interface VeilleItem {
   id: string;
@@ -18,6 +19,7 @@ interface VeilleItem {
 
 export default function VeillePage() {
   const t = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const [items, setItems] = useState<VeilleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -49,7 +51,7 @@ export default function VeillePage() {
   }
 
   async function analyserAvecIA() {
-    if (!form.promptAnalyse.trim()) { toast.error(t("Entrez un concurrent à analyser")); return; }
+    if (!form.promptAnalyse.trim()) { toast.error(t("Indique le nom ou le site du concurrent à analyser.")); return; }
     setAnalysing(true);
     setRapport("");
     try {
@@ -77,12 +79,12 @@ Format: liste claire. Adapté marché africain.`,
       });
       const data = await res.json();
       setRapport(res.ok && data.reponse ? `Hypothèses IA à vérifier (non basées sur des données réelles du concurrent)\n\n${data.reponse}` : "");
-    } catch { toast.error(t("Erreur analyse")); }
+    } catch { toast.error(t("L'analyse n'a pas pu être faite. Réessaie dans un instant.")); }
     finally { setAnalysing(false); }
   }
 
   async function sauvegarder() {
-    if (!form.nomConcurrent) { toast.error(t("Nom du concurrent requis")); return; }
+    if (!form.nomConcurrent) { toast.error(t("Renseigne le nom du concurrent.")); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/veille", {
@@ -97,36 +99,32 @@ Format: liste claire. Adapté marché africain.`,
           descriptionNote: rapport || form.descriptionNote || undefined,
         }),
       });
-      if (!res.ok) throw new Error("Erreur");
-      toast.success(t("Concurrent ajouté au radar !"));
+      if (!res.ok) throw new Error();
+      toast.success(t("{0} ajouté au radar.", form.nomConcurrent));
       setShowModal(false);
       setForm({ nomConcurrent: "", urlConcurrent: "", categorie: "", produitNom: "", prixDetecte: "", descriptionNote: "", promptAnalyse: "" });
       setRapport("");
       charger();
-    } catch { toast.error(t("Erreur")); }
+    } catch { toast.error(t("Le concurrent n'a pas été ajouté. Réessaie.")); }
     finally { setSaving(false); }
   }
 
   async function supprimer(id: string) {
-    await fetch(`/api/veille?id=${id}`, { method: "DELETE" });
+    const nom = items.find(x => x.id === id)?.nomConcurrent ?? t("Concurrent");
+    if (!(await confirmer({ titre: t("Retirer ce concurrent du radar ?"), objet: nom, description: t("Son suivi et ses analyses seront supprimés."), libelleConfirmer: t("Retirer du radar") }))) return;
+    const res = await fetch(`/api/veille?id=${id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) { toast.error(t("{0} n'a pas été retiré. Réessaie.", nom)); return; }
     setItems(i => i.filter(x => x.id !== id));
-    toast.success(t("Supprimé du radar"));
+    toast.success(t("{0} retiré du radar.", nom));
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight inline-flex items-center gap-2">{t("Veille Concurrentielle")}{" "}<AgentActiveIndicator label={t("Agent Veille actif")} /></h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{t("Surveillez vos concurrents, détectez les opportunités")}</p>
-        </div>
-        <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white"
-          style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>
-          <Plus size={16} />{" "}{t("Ajouter un concurrent")}
-        </button>
-      </div>
+      {dialogue}
+      <EnTetePage className="mb-0"
+        titre={<span className="inline-flex items-center gap-2">{t("Veille Concurrentielle")}{" "}<AgentActiveIndicator label={t("Agent Veille actif")} /></span>}
+        description={t("Surveillez vos concurrents, détectez les opportunités")}
+        actions={<Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{t("Ajouter un concurrent")}</Bouton>} />
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -176,9 +174,9 @@ Format: liste claire. Adapté marché africain.`,
                     {item.categorie && <p className="text-[11.5px] text-[#AAAAAA]">{t(item.categorie)}</p>}
                   </div>
                 </div>
-                <button onClick={() => supprimer(item.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                  <Trash2 size={14} />
-                </button>
+                <BoutonIcone label={t("Retirer {0} du radar", item.nomConcurrent)} onClick={() => supprimer(item.id)} className="text-erreur">
+                  <Trash2 className="size-4" aria-hidden />
+                </BoutonIcone>
               </div>
               {item.produitNom && (
                 <div className="flex items-center justify-between mb-3 bg-[#F9F9F9] rounded-xl px-3 py-2 border border-[#F3F3F3]">

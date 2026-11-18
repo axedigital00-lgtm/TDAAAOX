@@ -6,6 +6,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, Copy, Mail, MessageCircle, Send, Trash2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { useConfirmation } from "@/components/ui";
 import {
   Bouton, Carte, Champ, ChampNombre, Chargement, CLASSE_CHAMP, Entete, Erreur, EtatVide, Page, Pastille, envoyer, useApi, type Ton,
 } from "@/components/dashboard/sourcing/ui";
@@ -232,6 +233,7 @@ function Destinataire({ demande, r, recharger }: { demande: Demande; r: Reponse;
 /** Une demande ouverte : texte standardisé, destinataires, comparaison automatique. */
 function DetailDemande({ id, onChange, onFermer }: { id: string; onChange: () => void; onFermer: () => void }) {
   const t = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const { data, erreur, recharger } = useApi<Detail>(`${API}/${id}`);
   const [occupe, setOccupe] = useState<string | null>(null);
   const [erreurAction, setErreurAction] = useState<string | null>(null);
@@ -248,7 +250,12 @@ function DetailDemande({ id, onChange, onFermer }: { id: string; onChange: () =>
     finally { setOccupe(null); }
   };
   const supprimer = async () => {
-    if (!window.confirm(t("Supprimer cette demande de devis et les réponses enregistrées ?"))) return;
+    if (!(await confirmer({
+      titre: t("Supprimer cette demande de devis ?"),
+      objet: `${demande.reference} — ${demande.nomProduit}`,
+      description: t("La demande et les réponses enregistrées des fournisseurs sont effacées. Ce n'est pas annulable."),
+      libelleConfirmer: t("Supprimer la demande"),
+    }))) return;
     setOccupe("supprimer"); setErreurAction(null);
     try { await envoyer(`${API}/${id}`, "DELETE"); onChange(); onFermer(); }
     catch (e) { setErreurAction((e as Error).message); setOccupe(null); }
@@ -261,11 +268,12 @@ function DetailDemande({ id, onChange, onFermer }: { id: string; onChange: () =>
 
   return (
     <div className="space-y-4">
+      {dialogue}
       <Carte titre={`${demande.reference} — ${demande.nomProduit}`} actions={
         <div className="flex gap-2 flex-wrap justify-end">
           <BoutonCopier texte={demande.contenu} />
-          {demande.statut !== "clos" && <Bouton petit variante="secondaire" charge={occupe === "clore"} onClick={clore}>{t("Clore")}</Bouton>}
-          <Bouton petit variante="secondaire" charge={occupe === "supprimer"} onClick={supprimer}><Trash2 size={12} />{t("Supprimer")}</Bouton>
+          {demande.statut !== "clos" && <Bouton petit variante="secondaire" charge={occupe === "clore"} onClick={clore}>{t("Clore la demande")}</Bouton>}
+          <Bouton petit variante="secondaire" charge={occupe === "supprimer"} onClick={supprimer}><Trash2 size={12} />{t("Supprimer la demande")}</Bouton>
         </div>
       }>
         <pre className="text-[12px] text-[#111111] bg-[#FAFAFA] border border-[#E8E8E8] rounded-xl p-3 whitespace-pre-wrap break-words max-h-80 overflow-y-auto font-sans leading-relaxed">{demande.contenu}</pre>

@@ -14,6 +14,7 @@ import type { ModuleKey, Niveau } from "@/lib/permissions";
 import { RechercheDashboard } from "@/components/dashboard/RechercheDashboard";
 import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
 import { useT } from "@/components/I18nProvider";
+import { basculerAxia, useEtatAxia } from "@/components/dashboard/AxiaPanneau";
 
 interface HeaderProps {
   session:     Session;
@@ -66,9 +67,11 @@ export function Header({ session, boutiqueSlug, boutiqueUrl, boutiqueNom, permis
     try { await fetch("/api/notifications-marchand", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toutMarquer: true }) }); } catch {}
   };
 
-  const nom      = session.user?.name  || "Marchand";
+  const nom      = session.user?.name || session.user?.email || "";
   const email    = session.user?.email || "";
   const urlLocale = boutiqueUrl ?? (boutiqueSlug ? `/${boutiqueSlug}` : null);
+  // Panneau AXIA ouvert : l'en-tête rétrécit, le lien boutique laisse la place.
+  const { ouvert: axiaOuvert } = useEtatAxia();
 
   /* ── Ferme les menus au clic extérieur ── */
   useEffect(() => {
@@ -107,52 +110,21 @@ export function Header({ session, boutiqueSlug, boutiqueUrl, boutiqueNom, permis
         .hdr-shop:hover { background:rgba(245,166,35,.14) !important; }
       `}</style>
 
+      {/* Barre du haut intégrée à la page (modèle : administration Shopify) : pleine largeur de la zone
+          de contenu, fond carte, simple bordure basse, sans ombre. Le logo est en haut de la barre latérale. */}
       <div
-        style={{
-          position: "sticky", top: 0, zIndex: 40,
-          display: "flex", justifyContent: "center",
-          padding: "10px 16px 8px",
-          fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif",
-        }}
+        ref={pillRef}
+        className="sticky top-0 z-40 flex items-center gap-2 h-14 px-4 lg:px-6 bg-carte border-b border-bordure"
+        style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}
       >
-        {/* ── The island ─────────────────────────────────────────────── */}
-        <div
-          ref={pillRef}
-          style={{
-            display: "flex", alignItems: "center",
-            width: "100%",
-            background: "rgba(255,255,255,.97)",
-            backdropFilter: "blur(28px) saturate(1.4)",
-            WebkitBackdropFilter: "blur(28px) saturate(1.4)",
-            borderRadius: "999px",
-            padding: "6px 8px 6px 14px",
-            border: "1px solid rgba(0,0,0,.07)",
-            boxShadow: "0 8px 40px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04), inset 0 1px 0 rgba(255,255,255,.9)",
-            gap: "8px",
-            transition: "box-shadow .35s ease",
-          }}
-        >
           {/* ── Recherche (Ctrl+K) ────────────────────────────────────── */}
           <RechercheDashboard permissions={permissions} />
 
-          {/* ── Logo — centre absolu ───────────────────────────────────── */}
-          <div style={{ position:"absolute", left:"50%", transform:"translateX(-50%)", pointerEvents:"auto" }}>
-            <Link href="/dashboard" style={{ display:"flex", alignItems:"center", textDecoration:"none" }}>
-              <img
-                src="/logo.png" alt="axso"
-                style={{
-                  height: "44px", width: "auto", objectFit: "contain",
-                  filter: "drop-shadow(0 2px 6px rgba(0,0,0,.07))",
-                  transition: "transform .3s cubic-bezier(.34,1.56,.64,1)",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.04)")}
-                onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
-              />
-            </Link>
-          </div>
-
           {/* ── Actions droite ─────────────────────────────────────────── */}
           <div style={{ display:"flex", alignItems:"center", gap:"6px", marginLeft:"auto" }}>
+
+            {/* ── AXIA : ouvre / ferme le panneau de droite (Ctrl/⌘+J) ── */}
+            <BoutonAxiaEntete />
 
             <LangueSelecteur ouvrirVers="bas" />
 
@@ -160,7 +132,7 @@ export function Header({ session, boutiqueSlug, boutiqueUrl, boutiqueNom, permis
             {urlLocale && (
               <a
                 href={urlLocale} target="_blank" rel="noopener noreferrer"
-                className="hdr-shop hidden lg:flex"
+                className={`hdr-shop hidden ${axiaOuvert ? "" : "lg:flex"}`}
                 style={{
                   alignItems: "center", gap: "6px",
                   background: "rgba(245,166,35,.07)",
@@ -290,7 +262,7 @@ export function Header({ session, boutiqueSlug, boutiqueUrl, boutiqueNom, permis
                   fontSize:"10px", fontWeight:800, color:"#fff",
                 }} />
                 <span className="hidden sm:block" style={{ fontSize:"12.5px", fontWeight:600, color:"#333", maxWidth:"80px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {t(nom.split(" ")[0])}
+                  {nom.split(" ")[0]}
                 </span>
                 <ChevronDown size={12} style={{ color:"#aaa", transform: profileOpen ? "rotate(180deg)" : "none", transition:"transform .25s cubic-bezier(.34,1.56,.64,1)" }} />
               </button>
@@ -342,8 +314,25 @@ export function Header({ session, boutiqueSlug, boutiqueUrl, boutiqueNom, permis
               )}
             </div>
           </div>
-        </div>
       </div>
     </>
+  );
+}
+
+/** Bouton AXIA de l'en-tête : ouvre ou ferme le panneau, pastille = propositions en attente. */
+function BoutonAxiaEntete() {
+  const t = useT();
+  const { ouvert, compte } = useEtatAxia();
+  return (
+    <button type="button" onClick={basculerAxia} aria-expanded={ouvert}
+      title={ouvert ? t("Fermer AXIA (Ctrl+J)") : t("Ouvrir AXIA (Ctrl+J)")}
+      aria-label={compte > 0 ? t("AXIA : {0} propositions en attente", String(compte)) : ouvert ? t("Fermer AXIA") : t("Ouvrir AXIA")}
+      className={`relative flex items-center gap-1.5 h-10 pl-1 pr-3.5 rounded-full text-[13px] font-bold flex-shrink-0 transition-colors ${ouvert ? "bg-secondaire text-white hover:bg-secondaire-hover" : "bg-primaire text-sur-primaire hover:bg-primaire-hover"}`}>
+      <img src="/axia-icon.png" alt="" className="w-8 h-8 rounded-full border-2 border-white" />
+      AXIA
+      {compte > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-erreur text-white text-[11px] font-bold flex items-center justify-center border-2 border-white">{compte > 9 ? "9+" : compte}</span>
+      )}
+    </button>
   );
 }

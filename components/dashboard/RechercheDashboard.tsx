@@ -5,11 +5,13 @@
 // mobile : loupe qui ouvre la recherche en plein écran.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, Loader2, Package, ShoppingBag, User, Settings, CornerDownLeft } from "lucide-react";
+import { Search, X, Loader2, Package, ShoppingBag, User, Settings, CornerDownLeft, Sparkles } from "lucide-react";
+import { chercher, textesPage, SECTIONS_INDEX } from "@/lib/recherche-dashboard";
 import { formatMontant } from "@/lib/utils";
 import { pagesDashboard } from "@/components/dashboard/Sidebar";
 import type { ModuleKey, Niveau } from "@/lib/permissions";
 import { useT } from "@/components/I18nProvider";
+import { ouvrirAxia } from "@/components/dashboard/AxiaPanneau";
 
 type Resultats = {
   devise: string;
@@ -19,8 +21,7 @@ type Resultats = {
 };
 type Ligne = { cle: string; groupe: string; titre: string; detail?: string; href: string; Icone: React.ComponentType<{ size?: number; className?: string }>; image?: string | null };
 
-const sansAccents = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const STATUTS: Record<string, string> = { en_attente: "En attente", confirmee: "Confirmée", en_preparation: "En préparation", expediee: "Expédiée", livree: "Livrée", annulee: "Annulée", tentative_echouee: "Tentative échouée" };
+const STATUTS: Record<string, string> = { en_attente: "En attente", confirmee: "Confirmée", en_preparation: "En préparation", expediee: "En livraison", livree: "Livrée", annulee: "Annulée", tentative_echouee: "Livraison échouée" };
 
 export function RechercheDashboard({ permissions, mobile = false }: { permissions?: Record<ModuleKey, Niveau>; mobile?: boolean }) {
   const tr = useT();
@@ -39,8 +40,14 @@ export function RechercheDashboard({ permissions, mobile = false }: { permission
       if (mobile !== window.matchMedia("(max-width: 767px)").matches) return; // seule la version visible répond
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setOuvert(true); setTimeout(() => champ.current?.focus(), 0); }
     };
+    // « Chercher “…” partout » depuis le champ de la barre latérale.
+    const onOuvrir = (e: Event) => {
+      if (mobile !== window.matchMedia("(max-width: 767px)").matches) return;
+      setQ((e as CustomEvent<string>).detail ?? ""); setOuvert(true); setTimeout(() => champ.current?.focus(), 0);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("recherche:ouvrir", onOuvrir);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("recherche:ouvrir", onOuvrir); };
   }, [mobile]);
 
   // Clic à l'extérieur (desktop)
@@ -66,22 +73,23 @@ export function RechercheDashboard({ permissions, mobile = false }: { permission
   }, [q]);
 
   const pages = useMemo(() => pagesDashboard(permissions), [permissions]);
+  // Sections des pages Réglages (ex. « horaires » → Réglages › Coordonnées), filtrées par permissions.
+  const sections = useMemo(() => SECTIONS_INDEX.filter((s) => !s.moduleKey || !permissions || permissions[s.moduleKey] !== "aucun"), [permissions]);
   const lignes: Ligne[] = useMemo(() => {
-    const terme = sansAccents(q.trim());
-    if (!terme) return [];
-    const l: Ligne[] = pages
-      .filter((p) => sansAccents(`${p.label} ${p.groupe}`).includes(terme))
+    if (!q.trim()) return [];
+    const l: Ligne[] = chercher(pages, q, (p) => textesPage(p, tr))
       .slice(0, 5)
       .map((p) => ({ cle: `page-${p.href}`, groupe: "Pages", titre: p.label, detail: p.groupe || undefined, href: p.href, Icone: p.Icon as Ligne["Icone"] }));
-    for (const x of [{ label: "Paramètres", href: "/dashboard/parametres", Icone: Settings }, { label: "Mon profil", href: "/dashboard/profil", Icone: User }])
-      if (sansAccents(x.label).includes(terme)) l.push({ cle: `page-${x.href}`, groupe: "Pages", titre: x.label, href: x.href, Icone: x.Icone });
+    l.push(...chercher(sections, q, (s) => ({ principal: `${s.label} ${tr(s.label)}`, secondaires: [s.groupe, tr(s.groupe), s.mots] }))
+      .slice(0, 4)
+      .map((s) => ({ cle: `section-${s.groupe}-${s.label}`, groupe: "Sections", titre: s.label, detail: s.groupe, href: s.href, Icone: s.href === "/dashboard/profil" ? User : Settings })));
     if (res) {
       l.push(...res.produits.map((p) => ({ cle: `p-${p.id}`, groupe: "Produits", titre: p.nom, detail: `${formatMontant(p.prix, res.devise)}${p.actif ? "" : " · masqué"}`, href: `/dashboard/produits/${p.id}`, Icone: Package, image: p.image })));
       l.push(...res.commandes.map((c) => ({ cle: `c-${c.id}`, groupe: "Commandes", titre: `#${c.numero} · ${c.clientNom}`, detail: `${formatMontant(c.montantTotal, c.devise)} · ${STATUTS[c.statut] ?? c.statut}`, href: `/dashboard/commandes/${c.id}`, Icone: ShoppingBag })));
       l.push(...res.clients.map((c) => ({ cle: `cl-${c.id}`, groupe: "Clients", titre: c.nom, detail: [c.telephone, c.email].filter(Boolean).join(" · ") || undefined, href: `/dashboard/clients?q=${encodeURIComponent(c.nom)}`, Icone: User })));
     }
     return l;
-  }, [q, res, pages]);
+  }, [q, res, pages, sections, tr]);
 
   useEffect(() => setActif(0), [q, res]);
 
@@ -96,7 +104,16 @@ export function RechercheDashboard({ permissions, mobile = false }: { permission
   const liste = q.trim().length > 0 && (
     <div role="listbox" id="resultats-recherche" className="py-1.5 max-h-[min(70vh,460px)] overflow-y-auto overscroll-contain">
       {lignes.length === 0 && !chargement && (
-        <p className="px-4 py-6 text-center text-[13px] text-[#999999]">{q.trim().length < 2 ? tr("Tapez au moins 2 caractères…") : tr("Aucun résultat pour « {0} »", q.trim())}</p>
+        <div className="px-4 py-6 text-center">
+          <p className="text-[13px] text-[#999999]">{q.trim().length < 2 ? tr("Tapez au moins 2 caractères…") : tr("Aucun résultat pour « {0} »", q.trim())}</p>
+          {q.trim().length >= 2 && (
+            <button type="button" onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { const question = tr("Où trouver « {0} » dans mon tableau de bord ?", q.trim()); setOuvert(false); setQ(""); champ.current?.blur(); ouvrirAxia(question); }}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold text-[#92400E] bg-[#FFF7ED] hover:bg-[#FFEFD5]">
+              <Sparkles size={13} />{tr("Demander à Axia")}
+            </button>
+          )}
+        </div>
       )}
       {lignes.map((l, i) => (
         <div key={l.cle}>

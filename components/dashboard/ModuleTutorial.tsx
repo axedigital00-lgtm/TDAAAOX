@@ -61,8 +61,16 @@ export function ModuleTutorial({ moduleKey, titre, sousTitre, steps, offrePalier
     if (!autoOpen) return;
     try {
       if (!window.localStorage.getItem(cleVue(key))) {
-        const t = setTimeout(() => setOuvert(true), 450);
-        return () => clearTimeout(t);
+        // Attendre qu'aucune autre fenêtre ne soit ouverte (ex. l'offre d'essai juste après
+        // l'inscription) : un <dialog> modal rend le reste de la page inerte, la visite
+        // apparaîtrait par-dessus mais figée, ses boutons ne répondant plus.
+        // ponytail: sondage toutes les 450 ms, à remplacer par un évènement si d'autres fenêtres s'empilent.
+        const t = setInterval(() => {
+          if (document.querySelector("dialog[open]")) return;
+          clearInterval(t);
+          setOuvert(true);
+        }, 450);
+        return () => clearInterval(t);
       }
     } catch { /* localStorage indisponible — pas de tutoriel plutôt que planter */ }
   }, [autoOpen, key]);

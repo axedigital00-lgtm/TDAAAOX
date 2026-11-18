@@ -2,5 +2,5 @@
 import { Retours } from "@/components/pos/finance/Retours";
 
 export default function Page() {
-  return <Retours />;
+  return <Retours lienCaisse />;
 }

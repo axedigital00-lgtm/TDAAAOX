@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Truck, Plus, Trash2, Save, Package, CheckCircle, Clock, MapPin, Bus, LayoutGrid, TableProperties } from "lucide-react";
+import { toast } from "sonner";
+import { Truck, Plus, Trash2, Package, CheckCircle, Clock, MapPin, Bus, LayoutGrid, TableProperties } from "lucide-react";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
 import { FulfillmentKanban } from "@/components/dashboard/logistique/FulfillmentKanban";
 import { useT } from "@/components/I18nProvider";
 import { PAYS_OPTIONS, GROUPES_PAYS } from "@/lib/devise-convert";
 import { lireReglagesLivraison, trouverZone } from "@/lib/livraison-reglages";
+import { formatMontant, cn } from "@/lib/utils";
+import {
+  Badge, BoutonIcone, Bouton, Champ, CLASSE_SAISIE, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation, type Ton,
+} from "@/components/ui";
 
 interface ReglePort {
   id: string;
@@ -46,47 +51,57 @@ interface Commande {
   createdAt: string;
 }
 
-const STATUT_COLORS: Record<string, string> = {
-  non_expediee: "#6b7280",
-  en_preparation: "#111111",
-  expediee: "#3b82f6",
-  livree: "#10b981",
-  retour: "#ef4444",
+// Mêmes libellés que la page Commandes.
+const STATUTS_LIVRAISON: Record<string, { label: string; ton: Ton }> = {
+  non_expediee: { label: "Non expédiée", ton: "neutre" },
+  en_preparation: { label: "En préparation", ton: "attention" },
+  expediee: { label: "En livraison", ton: "info" },
+  tentative_echouee: { label: "Échec livraison", ton: "erreur" },
+  livree: { label: "Livrée", ton: "succes" },
+  retour: { label: "Retour", ton: "erreur" },
 };
 
 const NOM_PAYS = Object.fromEntries(PAYS_OPTIONS.map((p) => [p.code, p.nom]));
 
+const FORM_VIDE = {
+  nom: "", pays: [] as string[], zone: "", poidsMin: 0, poidsMax: "", montantMin: "",
+  frais: 0, fraisKg: 0, delai: "3-5 jours", transporteur: "", gratuit: false,
+  modeLivraison: "livreur_local",
+};
+
 export function LivraisonPanel() {
   const tx = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const [tab, setTab] = useState<"commandes" | "regles">("commandes");
   const [vue, setVue] = useState<"kanban" | "table">("kanban");
   const [regles, setRegles] = useState<ReglePort[]>([]);
   const [commandes, setCommandes] = useState<Commande[]>([]);
   const [loading, setLoading] = useState(true);
+  const [echecChargement, setEchecChargement] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    nom: "", pays: [] as string[], zone: "", poidsMin: 0, poidsMax: "", montantMin: "",
-    frais: 0, fraisKg: 0, delai: "3-5 jours", transporteur: "", gratuit: false,
-    modeLivraison: "livreur_local",
-  });
+  const [erreurNom, setErreurNom] = useState<string | null>(null);
+  const [form, setForm] = useState(FORM_VIDE);
   const [zonesConfigurees, setZonesConfigurees] = useState<string[]>([]);
   const [paysBoutique, setPaysBoutique] = useState("");
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/livraison/regles").then((r) => r.json()),
-      fetch("/api/commandes").then((r) => r.json()),
-      fetch("/api/tenants/moi").then((r) => r.json()),
-    ]).then(([{ regles }, data, tenantData]) => {
-      setRegles(regles ?? []);
-      setCommandes(data?.commandes ?? []);
-      setZonesConfigurees(lireReglagesLivraison(tenantData?.tenant?.parametresLivraison).zones.map((z) => z.nom));
-      const paysT = tenantData?.tenant?.pays ?? "";
-      setPaysBoutique(paysT);
-      if (paysT) setForm((f) => ({ ...f, pays: [paysT] }));
-    }).finally(() => setLoading(false));
-  }, []);
+  function charger() {
+    setLoading(true);
+    setEchecChargement(false);
+    const lire = (url: string) => fetch(url).then((r) => { if (!r.ok) throw new Error(); return r.json(); });
+    Promise.all([lire("/api/livraison/regles"), lire("/api/commandes"), lire("/api/tenants/moi")])
+      .then(([{ regles }, data, tenantData]) => {
+        setRegles(regles ?? []);
+        setCommandes(data?.commandes ?? []);
+        setZonesConfigurees(lireReglagesLivraison(tenantData?.tenant?.parametresLivraison).zones.map((z) => z.nom));
+        const paysT = tenantData?.tenant?.pays ?? "";
+        setPaysBoutique(paysT);
+        if (paysT) setForm((f) => ({ ...f, pays: [paysT] }));
+      })
+      .catch(() => setEchecChargement(true))
+      .finally(() => setLoading(false));
+  }
+  useEffect(() => { charger(); }, []);
 
   const ajouterPays = (codes: string[]) => setForm((f) => ({ ...f, pays: [...new Set([...f.pays, ...codes])] }));
   const resumePays = (codes: string[]) => !codes.length ? tx("Tous les pays")
@@ -94,30 +109,46 @@ export function LivraisonPanel() {
     : codes.map((c) => tx(NOM_PAYS[c] ?? c)).join(", ");
 
   async function saveRegle() {
+    if (!form.nom.trim()) { setErreurNom(tx("Donne un nom à la règle, par exemple « Standard Douala »."));  return; }
+    setErreurNom(null);
     setSaving(true);
-    const res = await fetch("/api/livraison/regles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        poidsMax: form.poidsMax ? Number(form.poidsMax) : null,
-        montantMin: form.montantMin ? Number(form.montantMin) : null,
-        frais: Number(form.frais),
-        fraisKg: Number(form.fraisKg),
-      }),
-    });
-    const data = await res.json();
-    if (data.regle) {
+    try {
+      const res = await fetch("/api/livraison/regles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          poidsMax: form.poidsMax ? Number(form.poidsMax) : null,
+          montantMin: form.montantMin ? Number(form.montantMin) : null,
+          frais: Number(form.frais),
+          fraisKg: Number(form.fraisKg),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.regle) throw new Error(data.error);
       setRegles((prev) => [data.regle, ...prev]);
-      setForm({ nom: "", pays: paysBoutique ? [paysBoutique] : [], zone: "", poidsMin: 0, poidsMax: "", montantMin: "", frais: 0, fraisKg: 0, delai: "3-5 jours", transporteur: "", gratuit: false, modeLivraison: "livreur_local" });
+      setForm({ ...FORM_VIDE, pays: paysBoutique ? [paysBoutique] : [] });
       setShowForm(false);
+      toast.success(tx("Règle « {0} » ajoutée : elle s'applique aux prochaines commandes.", data.regle.nom));
+    } catch (e: any) {
+      toast.error(e?.message ? tx(e.message) : tx("La règle n'a pas pu être enregistrée. Vérifie ta connexion puis réessaie."));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
-  async function deleteRegle(id: string) {
-    await fetch(`/api/livraison/regles?id=${id}`, { method: "DELETE" });
-    setRegles((prev) => prev.filter((r) => r.id !== id));
+  async function deleteRegle(r: ReglePort) {
+    const ok = await confirmer({
+      titre: tx("Supprimer cette règle de livraison ?"),
+      objet: r.nom,
+      description: tx("Les clients concernés ne verront plus ce tarif. Les commandes déjà passées gardent leurs frais."),
+      libelleConfirmer: tx("Supprimer la règle"),
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/livraison/regles?id=${r.id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) { toast.error(tx("La règle n'a pas pu être supprimée. Réessaie.")); return; }
+    setRegles((prev) => prev.filter((x) => x.id !== r.id));
+    toast.success(tx("Règle « {0} » supprimée.", r.nom));
   }
 
   async function toggleRegle(regle: ReglePort) {
@@ -125,9 +156,12 @@ export function LivraisonPanel() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: regle.id, actif: !regle.actif }),
-    });
-    const data = await res.json();
-    if (data.regle) setRegles((prev) => prev.map((r) => r.id === regle.id ? data.regle : r));
+    }).catch(() => null);
+    const data = await res?.json().catch(() => ({}));
+    if (data?.regle) {
+      setRegles((prev) => prev.map((r) => r.id === regle.id ? data.regle : r));
+      toast.success(data.regle.actif ? tx("Règle « {0} » activée.", regle.nom) : tx("Règle « {0} » désactivée : elle n'est plus proposée.", regle.nom));
+    } else toast.error(tx("Le changement n'a pas pu être enregistré. Réessaie."));
   }
 
   const stats = {
@@ -137,197 +171,180 @@ export function LivraisonPanel() {
     nonExpediees: commandes.filter((c) => c.livraisonStatut === "non_expediee").length,
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-    </div>
+  if (loading) return <SqueletteListe lignes={4} libelle={tx("Chargement des livraisons…")} />;
+  if (echecChargement) return (
+    <EtatErreur titre={tx("Les livraisons n'ont pas pu être chargées")} texte={tx("Vérifie ta connexion puis réessaie.")} onReessayer={charger} />
+  );
+
+  const ongletClasse = (actif: boolean) => cn(
+    "flex min-h-10 items-center gap-1.5 rounded-controle px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-focus",
+    actif ? "bg-carte text-encre shadow-carte" : "text-doux hover:text-encre",
   );
 
   return (
     <div className="space-y-5">
+      {dialogue}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <AgentActiveIndicator label={tx("Agent Livraison actif")} />
-        {tab === "regles" && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold ml-auto"
-            style={{ background: "#F5A623" }}
-          >
-            <Plus size={14} />{" "}{tx("Nouvelle règle")}
-          </button>
+        {tab === "regles" && !showForm && (
+          <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)} className="ml-auto">{tx("Ajouter une règle")}</Bouton>
         )}
       </div>
 
-      {/* Stats */}
+      {/* Compteurs (statut de livraison des commandes chargées) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Non expédiées", value: stats.nonExpediees, color: "#6b7280", icon: Clock },
-          { label: "En préparation", value: stats.enPrep, color: "#111111", icon: Package },
-          { label: "Expédiées", value: stats.expediees, color: "#3b82f6", icon: Truck },
-          { label: "Livrées", value: stats.livrees, color: "#10b981", icon: CheckCircle },
-        ].map(({ label, value, color, icon: Icon }) => (
-          <div key={label} className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Icon size={14} style={{ color }} />
-              <span className="text-[11px] text-[#888]">{tx(label)}</span>
-            </div>
-            <p className="text-2xl font-bold" style={{ color }}>{tx(value)}</p>
+          { label: "Non expédiées", value: stats.nonExpediees, icon: Clock },
+          { label: "En préparation", value: stats.enPrep, icon: Package },
+          { label: "En livraison", value: stats.expediees, icon: Truck },
+          { label: "Livrées", value: stats.livrees, icon: CheckCircle },
+        ].map(({ label, value, icon: Icon }) => (
+          <div key={label} className="rounded-carte border border-bordure bg-carte p-4">
+            <p className="flex items-center gap-2 ax-aide"><Icon className="size-4" aria-hidden />{tx(label)}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-encre">{value}</p>
           </div>
         ))}
       </div>
 
       {/* Sous-onglets */}
-      <div className="flex gap-1 bg-[#F5F5F5] p-1 rounded-xl w-fit">
+      <div role="tablist" aria-label={tx("Livraison")} className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-controle bg-carte-2 border border-bordure p-1">
         {(["commandes", "regles"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all"
-            style={tab === t ? { background: "white", color: "#111", boxShadow: "0 1px 3px rgba(0,0,0,.08)" } : { color: "#888" }}
-          >
-            {t === "commandes" ? tx("Commandes") : tx("Règles tarifaires")}
+          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={ongletClasse(tab === t)}>
+            {t === "commandes" ? tx("Commandes à livrer") : tx("Tarifs de livraison")}
           </button>
         ))}
       </div>
 
-      {/* Règles tarifaires */}
+      {/* Tarifs de livraison */}
       {tab === "regles" && (
         <div className="space-y-4">
+          <p className="ax-texte-secondaire">{tx("Chaque règle fixe le prix de livraison payé par le client selon le pays, le quartier et le montant de la commande.")}</p>
           {showForm && (
-            <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-              <h3 className="text-[14px] font-semibold text-[#111] mb-4">{tx("Nouvelle règle de port")}</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Nom de la règle")}</label>
-                  <input className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" placeholder={tx("ex: Standard Cameroun")} value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Pays desservis")}</label>
-                  <div className="flex flex-wrap items-center gap-1.5 border border-[#E5E5E5] rounded-lg px-2 py-1.5 min-h-[38px]">
-                    {form.pays.length === 0 && <span className="text-[12px] text-[#888] px-1">{tx("Tous les pays")}</span>}
-                    {form.pays.map((c) => (
-                      <span key={c} className="inline-flex items-center gap-1 text-[12px] bg-[#FFF8EC] text-[#111] rounded-full pl-2.5 pr-1 py-0.5">
-                        {tx(NOM_PAYS[c] ?? c)}
-                        <button type="button" aria-label={tx("Retirer")} onClick={() => setForm((f) => ({ ...f, pays: f.pays.filter((x) => x !== c) }))}
-                          className="w-4 h-4 rounded-full hover:bg-[#F5A623]/20 text-[11px] leading-none">×</button>
-                      </span>
-                    ))}
-                    <select value="" onChange={(e) => e.target.value && ajouterPays([e.target.value])}
-                      className="text-[12px] text-[#888] bg-transparent outline-none flex-1 min-w-[140px]">
-                      <option value="">{tx("+ Ajouter un pays…")}</option>
-                      {PAYS_OPTIONS.filter((p) => !form.pays.includes(p.code)).map((p) => <option key={p.code} value={p.code}>{tx(p.nom)}</option>)}
+            <form className="rounded-carte border border-bordure bg-carte p-carte space-y-champs" onSubmit={(e) => { e.preventDefault(); saveRegle(); }} noValidate>
+              <h3 className="ax-sous-titre">{tx("Nouvelle règle de livraison")}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Saisie label={tx("Nom de la règle")} mention="obligatoire" placeholder={tx("ex: Standard Cameroun")} value={form.nom}
+                  erreur={erreurNom} onChange={(e) => { setErreurNom(null); setForm((f) => ({ ...f, nom: e.target.value })); }} />
+                <Champ label={tx("Mode de livraison")}>
+                  {(a) => (
+                    <select {...a} className={CLASSE_SAISIE} value={form.modeLivraison} onChange={(e) => setForm((f) => ({ ...f, modeLivraison: e.target.value }))}>
+                      {MODES_LIVRAISON.map((m) => <option key={m.id} value={m.id}>{tx(m.label)}</option>)}
                     </select>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {Object.entries(GROUPES_PAYS).map(([nom, codes]) => (
-                      <button key={nom} type="button" onClick={() => ajouterPays(codes)} className="text-[11px] px-2.5 py-1 rounded-full border border-[#E5E5E5] text-[#444] hover:border-[#F5A623]">+ {nom}</button>
-                    ))}
-                    <button type="button" onClick={() => setForm((f) => ({ ...f, pays: [] }))} className="text-[11px] px-2.5 py-1 rounded-full border border-[#E5E5E5] text-[#444] hover:border-[#F5A623]">{tx("Tous les pays")}</button>
-                  </div>
-                </div>
+                  )}
+                </Champ>
+                <Champ className="sm:col-span-2" label={tx("Pays desservis")} aide={tx("Aucun pays choisi = la règle vaut pour tous les pays.")}>
+                  {(a) => (
+                    <div>
+                      <div className="flex flex-wrap items-center gap-1.5 rounded-controle border border-bordure bg-carte p-1.5 min-h-10">
+                        {form.pays.length === 0 && <span className="px-1.5 text-sm text-doux">{tx("Tous les pays")}</span>}
+                        {form.pays.map((c) => (
+                          <span key={c} className="inline-flex items-center gap-1 rounded-full bg-primaire-fond py-0.5 pl-2.5 pr-0.5 text-sm text-encre">
+                            {tx(NOM_PAYS[c] ?? c)}
+                            <button type="button" aria-label={tx("Retirer {0}", tx(NOM_PAYS[c] ?? c))} onClick={() => setForm((f) => ({ ...f, pays: f.pays.filter((x) => x !== c) }))}
+                              className="flex size-7 items-center justify-center rounded-full text-doux hover:bg-carte-2 hover:text-encre">×</button>
+                          </span>
+                        ))}
+                        <select {...a} value="" onChange={(e) => e.target.value && ajouterPays([e.target.value])}
+                          className="min-h-8 min-w-[140px] flex-1 bg-transparent text-sm text-doux outline-none">
+                          <option value="">{tx("+ Ajouter un pays…")}</option>
+                          {PAYS_OPTIONS.filter((p) => !form.pays.includes(p.code)).map((p) => <option key={p.code} value={p.code}>{tx(p.nom)}</option>)}
+                        </select>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {Object.entries(GROUPES_PAYS).map(([nom, codes]) => (
+                          <Bouton key={nom} variante="secondaire" taille="compact" onClick={() => ajouterPays(codes)}>+ {nom}</Bouton>
+                        ))}
+                        <Bouton variante="secondaire" taille="compact" onClick={() => setForm((f) => ({ ...f, pays: [] }))}>{tx("Tous les pays")}</Bouton>
+                      </div>
+                    </div>
+                  )}
+                </Champ>
                 <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Quartier / ville (facultatif)")}</label>
-                  <input list="zones-list" className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" placeholder={tx("Vide = tout le pays")} value={form.zone} onChange={(e) => setForm((f) => ({ ...f, zone: e.target.value }))} />
+                  <Saisie label={tx("Quartier / ville")} mention="facultatif" list="zones-list" placeholder={tx("Vide = tout le pays")} value={form.zone}
+                    aide={tx("Un tarif de quartier remplace le tarif du pays pour ce quartier. Les quartiers proposés aux clients se règlent dans Ma boutique → Livraison.")}
+                    onChange={(e) => setForm((f) => ({ ...f, zone: e.target.value }))} />
                   <datalist id="zones-list">{zonesConfigurees.map((z) => <option key={z} value={z} />)}</datalist>
-                  <p className="text-[10px] text-[#AAA] mt-1">{tx("Un tarif de quartier remplace le tarif du pays pour ce quartier. Les quartiers proposés aux clients se règlent dans Ma boutique → Livraison.")}</p>
                 </div>
                 <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Mode de livraison")}</label>
-                  <select className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.modeLivraison} onChange={(e) => setForm((f) => ({ ...f, modeLivraison: e.target.value }))}>
-                    {MODES_LIVRAISON.map((m) => <option key={m.id} value={m.id}>{tx(m.label)}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Frais (devise boutique)")}</label>
-                  <input type="number" className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.frais} onChange={(e) => setForm((f) => ({ ...f, frais: Number(e.target.value) }))} />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Frais/kg supplémentaire")}</label>
-                  <input type="number" className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.fraisKg} onChange={(e) => setForm((f) => ({ ...f, fraisKg: Number(e.target.value) }))} />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Délai estimé")}</label>
-                  <input className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.delai} onChange={(e) => setForm((f) => ({ ...f, delai: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{form.modeLivraison === "agence_voyage" ? tx("Agence de voyage") : tx("Transporteur (optionnel)")}</label>
-                  <input list={form.modeLivraison === "agence_voyage" ? "agences-list" : undefined}
-                    className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]"
+                  <Saisie label={form.modeLivraison === "agence_voyage" ? tx("Agence de voyage") : tx("Transporteur")} mention="facultatif"
+                    list={form.modeLivraison === "agence_voyage" ? "agences-list" : undefined}
                     placeholder={form.modeLivraison === "agence_voyage" ? tx("GEV, Touristique Express...") : tx("Campost, DHL, MTN...")}
                     value={form.transporteur} onChange={(e) => setForm((f) => ({ ...f, transporteur: e.target.value }))} />
                   {form.modeLivraison === "agence_voyage" && (
                     <datalist id="agences-list">{AGENCES_SUGGEST.map((a) => <option key={a} value={a} />)}</datalist>
                   )}
                 </div>
-                <div>
-                  <label className="block text-[11px] text-[#888] mb-1">{tx("Montant commande min (optionnel)")}</label>
-                  <input type="number" className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" placeholder="0" value={form.montantMin} onChange={(e) => setForm((f) => ({ ...f, montantMin: e.target.value }))} />
-                </div>
-                <div className="flex items-center gap-2 mt-4">
-                  <input type="checkbox" id="gratuit" checked={form.gratuit} onChange={(e) => setForm((f) => ({ ...f, gratuit: e.target.checked }))} />
-                  <label htmlFor="gratuit" className="text-[13px] text-[#444]">{tx("Livraison gratuite (ignorer les frais)")}</label>
-                </div>
+                <Saisie type="number" inputMode="decimal" min={0} label={tx("Frais de livraison")} aide={tx("Dans la devise de ta boutique.")} value={form.frais}
+                  onChange={(e) => setForm((f) => ({ ...f, frais: Number(e.target.value) }))} />
+                <Saisie type="number" inputMode="decimal" min={0} label={tx("Supplément par kg")} aide={tx("Ajouté pour chaque kilo du colis. 0 = pas de supplément.")} value={form.fraisKg}
+                  onChange={(e) => setForm((f) => ({ ...f, fraisKg: Number(e.target.value) }))} />
+                <Saisie label={tx("Délai estimé")} aide={tx("Affiché au client, par exemple « 24 h » ou « 3-5 jours ».")} value={form.delai}
+                  onChange={(e) => setForm((f) => ({ ...f, delai: e.target.value }))} />
+                <Saisie type="number" inputMode="decimal" min={0} label={tx("Montant minimum de commande")} mention="facultatif"
+                  aide={tx("La règle ne s'applique qu'à partir de ce montant.")} placeholder="0" value={form.montantMin}
+                  onChange={(e) => setForm((f) => ({ ...f, montantMin: e.target.value }))} />
+                <label className="flex min-h-10 items-center gap-2 sm:col-span-2 ax-texte">
+                  <input type="checkbox" className="size-5 accent-[var(--ax-primaire)]" checked={form.gratuit} onChange={(e) => setForm((f) => ({ ...f, gratuit: e.target.checked }))} />
+                  {tx("Livraison gratuite (ignorer les frais)")}
+                </label>
               </div>
-              <div className="flex gap-2 mt-4">
-                <button onClick={saveRegle} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-[13px] font-semibold" style={{ background: "#F5A623" }}>
-                  <Save size={14} /> {saving ? tx("Enregistrement...") : tx("Enregistrer")}
-                </button>
-                <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-[13px] text-[#666] border border-[#E5E5E5]">{tx("Annuler")}</button>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Bouton variante="secondaire" onClick={() => { setShowForm(false); setErreurNom(null); }}>{tx("Annuler")}</Bouton>
+                <Bouton type="submit" charge={saving} texteCharge={tx("Enregistrement…")}>{tx("Enregistrer la règle")}</Bouton>
               </div>
-            </div>
+            </form>
           )}
 
           {regles.length === 0 ? (
-            <div className="bg-white border border-dashed border-[#E5E5E5] rounded-xl p-10 text-center">
-              <MapPin size={32} className="mx-auto mb-3 text-[#DDD]" />
-              <p className="text-[13px] text-[#888]">{tx("Aucune règle de livraison. Crée ta première règle tarifaire.")}</p>
-              <button onClick={() => setShowForm(true)} className="mt-4 px-4 py-2 rounded-lg text-white text-[13px] font-semibold" style={{ background: "#F5A623" }}>
-                {tx("Créer une règle")}
-              </button>
-            </div>
+            !showForm && (
+              <EtatVide icone={<MapPin />} titre={tx("Aucun tarif de livraison")}
+                texte={tx("Sans règle, tes clients ne voient pas de frais de livraison au paiement. Crée ta première règle tarifaire.")}>
+                <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{tx("Ajouter une règle")}</Bouton>
+              </EtatVide>
+            )
           ) : (
-            <div className="space-y-2">
+            <ul className="space-y-2">
               {regles.map((r) => (
-                <div key={r.id} className={`bg-white border rounded-xl p-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 ${!r.actif ? "opacity-50" : ""}`} style={{ borderColor: "#F0F0F0" }}>
-                  <div className="flex items-center gap-3 flex-1 min-w-[10rem]">
-                    <div className="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center" style={{ background: "#FFF8EC" }}>
-                      <MapPin size={16} style={{ color: "#F5A623" }} />
-                    </div>
+                <li key={r.id} className={cn("rounded-carte border border-bordure bg-carte p-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3", !r.actif && "bg-carte-2")}>
+                  <div className="flex min-w-[10rem] flex-1 items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-controle bg-primaire-fond text-attention" aria-hidden>
+                      <MapPin className="size-4" />
+                    </span>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-[13px] font-semibold text-[#111] truncate">{tx(r.nom)}</p>
-                        {r.modeLivraison === "agence_voyage" && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#4338CA]"><Bus size={9} />{" "}{tx("Agence")}</span>
-                        )}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="truncate text-sm font-semibold text-encre">{tx(r.nom)}</p>
+                        {r.modeLivraison === "agence_voyage" && <Badge ton="info" icone={<Bus aria-hidden />}>{tx("Agence")}</Badge>}
+                        {!r.actif && <Badge>{tx("Désactivée")}</Badge>}
                       </div>
-                      <p className="text-[11px] text-[#888]">{resumePays(r.pays)}{r.zone ? ` · ${r.zone}` : ""} · {tx(r.delai)} {r.transporteur ? `· ${r.transporteur}` : ""}</p>
+                      <p className="ax-aide">{resumePays(r.pays)}{r.zone ? ` · ${r.zone}` : ""} · {tx(r.delai)} {r.transporteur ? `· ${r.transporteur}` : ""}</p>
                       {/* Dans le pays de la boutique, le client choisit sa zone dans la liste : un quartier absent n'est jamais choisi. */}
                       {r.zone.trim() && zonesConfigurees.length > 0 && (!r.pays.length || r.pays.includes(paysBoutique)) && !trouverZone(zonesConfigurees.map((nom) => ({ nom, frais: null, delai: "" })), r.zone) && (
-                        <p className="text-[10.5px] font-medium text-[#B45309] mt-0.5">{tx("« {0} » n'est pas dans vos zones (Ma boutique → Livraison) : vos clients ne peuvent pas la choisir.", r.zone)}</p>
+                        <p className="mt-0.5 text-xs font-medium text-attention">{tx("« {0} » n'est pas dans vos zones (Ma boutique → Livraison) : vos clients ne peuvent pas la choisir.", r.zone)}</p>
                       )}
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[13px] font-bold text-[#111]">
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-encre">
                       {r.gratuit ? tx("Gratuit") : `${r.frais.toLocaleString()} + ${r.fraisKg}/kg`}
                     </p>
-                    {r.montantMin && <p className="text-[10px] text-[#AAA]">{tx("dès")}{" "}{r.montantMin.toLocaleString()}</p>}
+                    {r.montantMin ? <p className="ax-aide">{tx("dès")}{" "}{r.montantMin.toLocaleString()}</p> : null}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => toggleRegle(r)}
-                      className="w-8 h-5 rounded-full relative transition-all"
-                      style={{ background: r.actif ? "#10b981" : "#E5E5E5" }}
-                    >
-                      <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all" style={{ left: r.actif ? "14px" : "2px" }} />
-                    </button>
-                    <button onClick={() => deleteRegle(r.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                      <Trash2 size={13} className="text-red-400" />
-                    </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <label className="flex min-h-10 cursor-pointer items-center gap-2 px-1 text-xs font-medium text-doux">
+                      <button type="button" role="switch" aria-checked={r.actif} onClick={() => toggleRegle(r)}
+                        aria-label={tx(r.actif ? "Désactiver la règle {0}" : "Activer la règle {0}", r.nom)}
+                        className={cn("relative h-6 w-10 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-focus", r.actif ? "bg-succes" : "bg-bordure-forte")}>
+                        <span className={cn("absolute top-0.5 size-5 rounded-full bg-carte shadow transition-all", r.actif ? "left-[18px]" : "left-0.5")} />
+                      </button>
+                      <span aria-hidden>{r.actif ? tx("Active") : tx("Désactivée")}</span>
+                    </label>
+                    <BoutonIcone label={tx("Supprimer la règle {0}", r.nom)} onClick={() => deleteRegle(r)} className="text-erreur">
+                      <Trash2 className="size-4" aria-hidden />
+                    </BoutonIcone>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
       )}
@@ -336,57 +353,52 @@ export function LivraisonPanel() {
       {tab === "commandes" && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <div className="flex gap-1 bg-[#F5F5F5] p-1 rounded-xl w-fit">
-              <button onClick={() => setVue("kanban")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
-                style={vue === "kanban" ? { background: "white", color: "#111", boxShadow: "0 1px 3px rgba(0,0,0,.08)" } : { color: "#888" }}>
-                <LayoutGrid size={12} />{" "}{tx("Kanban")}
+            <div role="group" aria-label={tx("Affichage")} className="flex gap-1 rounded-controle bg-carte-2 border border-bordure p-1">
+              <button type="button" aria-pressed={vue === "kanban"} onClick={() => setVue("kanban")} className={ongletClasse(vue === "kanban")}>
+                <LayoutGrid className="size-4" aria-hidden />{tx("Colonnes")}
               </button>
-              <button onClick={() => setVue("table")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
-                style={vue === "table" ? { background: "white", color: "#111", boxShadow: "0 1px 3px rgba(0,0,0,.08)" } : { color: "#888" }}>
-                <TableProperties size={12} />{" "}{tx("Tableau")}
+              <button type="button" aria-pressed={vue === "table"} onClick={() => setVue("table")} className={ongletClasse(vue === "table")}>
+                <TableProperties className="size-4" aria-hidden />{tx("Tableau")}
               </button>
             </div>
           </div>
 
           {vue === "kanban" && <FulfillmentKanban />}
-        </div>
-      )}
 
-      {tab === "commandes" && vue === "table" && (
-        <div className="bg-white border border-[#F0F0F0] rounded-xl overflow-hidden">
-          {commandes.length === 0 ? (
-            <div className="p-10 text-center">
-              <Truck size={32} className="mx-auto mb-3 text-[#DDD]" />
-              <p className="text-[13px] text-[#888]">{tx("Aucune commande à expédier pour l'instant.")}</p>
-            </div>
+          {vue === "table" && (commandes.length === 0 ? (
+            <EtatVide icone={<Truck />} titre={tx("Aucune commande à expédier pour l'instant.")}
+              texte={tx("Les commandes de ta boutique apparaîtront ici dès qu'un client commande.")} />
           ) : (
-            <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-[12.5px]">
-              <thead>
-                <tr className="border-b border-[#F0F0F0]">
-                  <th className="text-left px-4 py-3 font-semibold text-[#888]">{tx("Commande")}</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#888]">{tx("Client")}</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#888]">{tx("Montant")}</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#888]">{tx("Livraison")}</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#888]">{tx("Suivi")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {commandes.map((c) => (
-                  <tr key={c.id} className="border-b border-[#F8F8F8] hover:bg-[#FAFAFA] transition-colors">
-                    <td className="px-4 py-3 font-mono text-[#111]">{c.numero}</td>
-                    <td className="px-4 py-3 text-[#444]">{tx(c.clientNom)}</td>
-                    <td className="px-4 py-3 font-semibold text-[#111]">{c.montantTotal.toLocaleString()} {tx(c.devise)}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background: STATUT_COLORS[c.livraisonStatut] ?? "#999" }}>
-                        {c.livraisonStatut.replace(/_/g, " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[#888]">{tx(c.numeroSuivi) ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div>
-          )}
+            <div className="overflow-hidden rounded-carte border border-bordure bg-carte">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className="bg-carte-2">
+                    <tr className="border-b border-bordure text-left text-xs font-semibold text-doux">
+                      <th scope="col" className="px-4 py-3">{tx("Commande")}</th>
+                      <th scope="col" className="px-4 py-3">{tx("Client")}</th>
+                      <th scope="col" className="px-4 py-3 text-right">{tx("Montant")}</th>
+                      <th scope="col" className="px-4 py-3">{tx("Livraison")}</th>
+                      <th scope="col" className="px-4 py-3">{tx("N° de suivi")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commandes.map((c) => {
+                      const s = STATUTS_LIVRAISON[c.livraisonStatut];
+                      return (
+                        <tr key={c.id} className="border-b border-bordure last:border-0">
+                          <td className="px-4 py-3 font-mono text-encre">{c.numero}</td>
+                          <td className="px-4 py-3 text-encre">{tx(c.clientNom)}</td>
+                          <td className="px-4 py-3 text-right font-semibold tabular-nums text-encre">{formatMontant(c.montantTotal, c.devise)}</td>
+                          <td className="px-4 py-3"><Badge ton={s?.ton ?? "neutre"}>{s ? tx(s.label) : c.livraisonStatut.replace(/_/g, " ")}</Badge></td>
+                          <td className="px-4 py-3 text-doux">{c.numeroSuivi || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

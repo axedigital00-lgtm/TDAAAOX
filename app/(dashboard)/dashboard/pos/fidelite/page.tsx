@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { Badge, Bouton, EtatChargement, EtatPos, EtatVide, Modale, POLICE, Saisie, type Ton } from "@/components/pos/ui";
+import { EnTete, Page } from "@/components/pos/finance/commun";
 import { appelPos, nouvelleCle } from "@/components/pos/crm/appel";
 import { LIBELLES_NIVEAU, NIVEAUX, TON_NIVEAU } from "@/components/pos/crm/libelles";
 
@@ -66,21 +67,17 @@ export default function PageFidelite() {
     charger();
   }
 
-  if (erreur) return <div className="mx-auto max-w-5xl p-4 sm:p-5" style={POLICE}><EtatPos code={erreur.code} message={erreur.message} onReessayer={charger} /></div>;
-  if (!d) return <EtatChargement texte="Chargement du programme de fidélité…" />;
+  if (erreur) return <Page><EnTete titre="Fidélité" /><EtatPos code={erreur.code} message={erreur.message} onReessayer={charger} /></Page>;
+  if (!d) return <Page><EnTete titre="Fidélité" /><EtatChargement texte="Chargement du programme de fidélité…" /></Page>;
 
   const exemple = Number(form.montantParPoint) > 0 ? Math.floor(10000 / Number(form.montantParPoint)) : 0;
   const carte = "rounded-2xl border border-[#E8E8E8] bg-white p-4";
   const titre = "text-[14px] font-bold text-[#111111]";
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-5" style={POLICE}>
-      <header>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-[20px] font-bold text-[#111111]">{t("Fidélité")}</h1>
-          <Badge ton={d.regles.active ? "positif" : "neutre"}>{t(d.regles.active ? "Programme actif" : "Programme éteint")}</Badge>
-        </div>
-        <p className="mt-1 max-w-2xl text-[12.5px] leading-relaxed text-[#666666]">{t("Chaque vente associée à un client lui donne des points. Le niveau se gagne sur les points acquis : les dépenser ne fait pas redescendre.")}</p>
-      </header>
+      <EnTete titre="Fidélité" sousTitre="Chaque vente associée à un client lui donne des points. Le niveau se gagne sur les points acquis : les dépenser ne fait pas redescendre.">
+        <Badge ton={d.regles.active ? "positif" : "neutre"}>{t(d.regles.active ? "Programme actif" : "Programme éteint")}</Badge>
+      </EnTete>
 
       <section className={carte} aria-labelledby="regles">
         <h2 id="regles" className={titre}>{t("Règles")}</h2>
@@ -173,7 +170,7 @@ export default function PageFidelite() {
 
       <Modale ouverte={!!ajustement} onFermer={() => setAjustement(null)} taille="sm" verrouillee={ajustement?.enCours}
         titre="Ajuster les points" description="Geste commercial ou correction. L'ajustement est inscrit au journal d'audit avec son motif."
-        actions={<><Bouton variante="secondaire" onClick={() => setAjustement(null)}>{t("Annuler")}</Bouton><Bouton charge={ajustement?.enCours} onClick={ajuster} disabled={!Number(ajustement?.points) || (ajustement?.motif.trim().length ?? 0) < 3}>{t("Valider")}</Bouton></>}>
+        actions={<><Bouton variante="secondaire" onClick={() => setAjustement(null)}>{t("Annuler")}</Bouton><Bouton charge={ajustement?.enCours} onClick={ajuster} disabled={!Number(ajustement?.points) || (ajustement?.motif.trim().length ?? 0) < 3}>{t("Ajuster les points")}</Bouton></>}>
         {ajustement && (
           <div className="space-y-3">
             <p className="text-[13px]"><strong>{ajustement.membre.nom}</strong> · {ajustement.membre.points} {t("pts")}</p>

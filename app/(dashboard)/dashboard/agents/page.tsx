@@ -7,9 +7,11 @@ import {
   BarChart3, DollarSign, Megaphone, Package, Users, Truck, User,
 } from "lucide-react";
 import { AgentAvatar3D, AGENT_META } from "@/components/dashboard/AgentAvatar3D";
+import { ActionsAxia } from "@/components/dashboard/AxiaBulle";
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
+import { toast } from "sonner";
 const SUGGESTIONS = [
   { cat: "Analytics",  Icon: BarChart3,  items: ["Fais un rapport complet de mes ventes", "Quels sont mes produits les plus rentables ?", "Analyse mes clients VIP"] },
   { cat: "Revenus",    Icon: DollarSign, items: ["Optimise mes prix pour maximiser le CA", "Crée une offre flash 24h", "Relance les paniers abandonnés"] },
@@ -150,7 +152,7 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
       if (data.error) setErreur(data.error);
       else setActions(data.actions || []);
       await charger();
-    } catch { setErreur("Erreur réseau — réessayez."); }
+    } catch { setErreur(tr("Pas de connexion : les agents n'ont pas été lancés. Vérifie ton réseau puis réessaie.")); }
     finally { setLoading(false); }
   };
 
@@ -170,7 +172,7 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
       setObjectifForm(false); setObjectifOk(true);
       setTimeout(() => setObjectifOk(false), 3000);
       await charger();
-    } catch { setErreur("Erreur lors de la création."); }
+    } catch { setErreur(tr("L'objectif n'a pas été créé : vérifie ta connexion puis réessaie.")); }
   };
 
   const objectifs = etat?.objectifs ?? [];
@@ -205,14 +207,11 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
           {loading ? <><Loader2 size={14} className="animate-spin"/>{" "}{tr("Orchestration en cours…")}</> : <><Zap size={14}/>{" "}{tr("Activer tous les agents maintenant")}</>}
         </button>
 
+        {/* Résultat des agents : chaque action avec son état (faite, en attente de ton accord, non faite). */}
         {actions.length > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-2">
-            <p className="text-xs font-bold text-green-700">{actions.length}{" "}{tr("action(s) effectuée(s)")}</p>
-            {actions.map((a, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-green-700">
-                <CheckCircle2 size={11} className="mt-0.5 flex-shrink-0"/><span>{tr(a)}</span>
-              </div>
-            ))}
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-encre">{tr("Ce que les agents ont fait ou proposé")}</p>
+            <ActionsAxia actions={actions} />
           </div>
         )}
 
@@ -299,7 +298,7 @@ export default function AgentsPage() {
   // ── Voice input (Web Speech API) ─────────────────────────────────────────
   const toggleVoice = useCallback(() => {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-      alert(tr("La reconnaissance vocale n'est pas disponible sur ce navigateur."));
+      toast.error(tr("La dictée vocale n'est pas disponible sur ce navigateur. Écris ton message ou essaie avec Chrome."));
       return;
     }
     if (listening) {
@@ -410,7 +409,7 @@ export default function AgentsPage() {
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.streaming) {
-          return [...prev.slice(0, -1), { role: "assistant", content: "Une erreur s'est produite — réessayez." }];
+          return [...prev.slice(0, -1), { role: "assistant", content: tr("AXIA n'a pas pu répondre. Vérifie ta connexion puis renvoie ton message.") }];
         }
         return prev;
       });
@@ -438,7 +437,7 @@ export default function AgentsPage() {
             </span>
             <span className="flex items-center gap-1 text-[11px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>
-              {tr("En ligne · Streaming actif")}
+              {tr("En ligne")}
             </span>
           </div>
           <p className="text-[12px] text-[#AAAAAA] mt-0.5">{tr("Marketing · Stocks · Revenus · Analytics · Livraisons · Clients")}</p>
@@ -543,15 +542,7 @@ export default function AgentsPage() {
                         </>
                       ) : tr(m.content)}
                     </div>
-                    {(m.actions ?? []).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {(m.actions ?? []).map((a, j) => (
-                          <span key={j} className="inline-flex items-center gap-1 text-[10px] bg-green-50 border border-green-200 text-green-700 px-2.5 py-1 rounded-lg">
-                            <CheckCircle2 size={9}/>{tr(a)}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <ActionsAxia actions={m.actions} />
                   </div>
                 </div>
               );

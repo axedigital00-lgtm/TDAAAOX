@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
+import { scoreRecherche } from "@/lib/recherche-dashboard";
 import type { BlockNode } from "@/lib/theme-config";
 import { blocsDe, nomNoeud } from "./boutique/libelles";
 import { elementsPrincipaux } from "./elements-arbre";
@@ -18,6 +19,20 @@ const MOTS_FICHE: Record<string, string> = {
   sizeguide: "Guide des tailles", reviews: "Avis, étoiles", similar: "Produits similaires",
 };
 
+// Synonymes cherchés en plus des libellés (non affichés) : réglages du thème, pages, types de blocs, éléments.
+const SYNONYMES: Record<string, string> = {
+  logo: "logo marque identité", couleurs: "couleur couleurs palette teinte fond thème",
+  typo: "police polices font écriture typographie", layout: "mise en page largeur espacement grille colonnes cartes",
+  boutons: "boutons menu navigation en-tête header barre", animations: "animation effets apparition mouvement",
+  medias: "médias images photos vidéos bannière", "mode-achat": "panier mode d'achat commande directe commander acheter", avance: "css code personnalisé avancé",
+  accueil: "accueil home bannière", catalogue: "catalogue produits collection", produit: "fiche produit article",
+  commande: "panier mode d'achat checkout commander paiement formulaire", apropos: "à propos histoire présentation",
+  contact: "contact coordonnées adresse whatsapp horaires",
+  products: "produits grille catalogue", features: "avantages arguments", brands: "logos partenaires marques",
+  "cta-band": "bannière appel à l'action", "social-proof": "confiance avis notes", heading: "titre", button: "bouton lien",
+  "En-tête": "header menu navigation logo haut de page", "Pied de page": "footer bas de page liens", Menu: "navigation menu liens",
+};
+
 export type ResultatRecherche =
   | { kind: "noeud"; id: string }
   | { kind: "element"; embedId: string; index: number }
@@ -27,7 +42,6 @@ export type ResultatRecherche =
 
 interface Item { cle: string; label: string; sous?: string; r: ResultatRecherche }
 
-const normaliser = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const sansBalises = (html: unknown) => (typeof html === "string" ? html.replace(/<[^>]*>/g, " ") : "");
 const textesConfig = (n: BlockNode) => {
   const c = n.config ?? {};
@@ -59,22 +73,22 @@ export function RechercheConstructeur({ tree, reglages, onChoisir }: {
   }, []);
 
   const groupes = useMemo(() => {
-    const n = normaliser(q.trim());
-    if (!n) return [];
-    const ok = (...textes: (string | undefined)[]) => textes.some((t) => t && normaliser(t).includes(n));
+    if (!q.trim()) return [];
+    // Sans accents, synonymes, petites fautes (même correspondance que la recherche du tableau de bord).
+    const ok = (...textes: (string | undefined)[]) => scoreRecherche(q, textes.filter(Boolean).join(" ")) > 0;
     const sections: Item[] = [], blocs: Item[] = [], elements: Item[] = [];
     for (const s of tree) {
       const nomSection = tr(nomNoeud(s));
-      if (ok(nomSection, s.type, ...textesConfig(s))) sections.push({ cle: s.id, label: nomSection, r: { kind: "noeud", id: s.id } });
+      if (ok(nomSection, s.type, SYNONYMES[s.type], ...textesConfig(s))) sections.push({ cle: s.id, label: nomSection, r: { kind: "noeud", id: s.id } });
       for (const b of blocsDe(s)) {
         if (b.type === "embed-html") {
           for (const el of elementsPrincipaux(b.config?.html || "")) {
-            if (ok(tr(el.nom), el.texte)) elements.push({
+            if (ok(tr(el.nom), el.nom, SYNONYMES[el.nom], el.texte)) elements.push({
               cle: `${b.id}-${el.index}`, label: el.texte.slice(0, 60) || tr(el.nom), sous: `${tr(el.nom)} · ${nomSection}`,
               r: { kind: "element", embedId: b.id, index: el.index },
             });
           }
-        } else if (ok(tr(nomNoeud(b)), b.type, ...textesConfig(b))) {
+        } else if (ok(tr(nomNoeud(b)), b.type, SYNONYMES[b.type], ...textesConfig(b))) {
           blocs.push({ cle: b.id, label: tr(nomNoeud(b)), sous: nomSection, r: { kind: "noeud", id: b.id } });
         }
       }
@@ -83,10 +97,10 @@ export function RechercheConstructeur({ tree, reglages, onChoisir }: {
       { titre: tr("Sections"), items: sections },
       { titre: tr("Blocs"), items: blocs },
       { titre: tr("Éléments"), items: elements },
-      { titre: tr("Paramètres du thème"), items: reglages.filter((r) => ok(tr(r.label), tr(r.desc))).map((r): Item => ({ cle: r.id, label: tr(r.label), sous: tr(r.desc), r: { kind: "reglage", id: r.id } })) },
+      { titre: tr("Paramètres du thème"), items: reglages.filter((r) => ok(tr(r.label), tr(r.desc), r.label, SYNONYMES[r.id])).map((r): Item => ({ cle: r.id, label: tr(r.label), sous: tr(r.desc), r: { kind: "reglage", id: r.id } })) },
       { titre: tr("Fiche produit"), items: Object.entries(SECTIONS_FICHE).filter(([type, d]) => ok(tr(d.label), MOTS_FICHE[type] && tr(MOTS_FICHE[type])))
         .map(([type, d]): Item => ({ cle: `fiche-${type}`, label: tr(d.label), sous: MOTS_FICHE[type] ? tr(MOTS_FICHE[type]) : tr("Fiche produit"), r: { kind: "fiche", type } })) },
-      { titre: tr("Pages"), items: PAGES.filter((p) => ok(tr(p.label))).map((p): Item => ({ cle: p.id, label: tr(p.label), r: { kind: "page", page: p.id } })) },
+      { titre: tr("Pages"), items: PAGES.filter((p) => ok(tr(p.label), p.label, SYNONYMES[p.id])).map((p): Item => ({ cle: p.id, label: tr(p.label), r: { kind: "page", page: p.id } })) },
     ].map((g) => ({ ...g, items: g.items.slice(0, 8) })).filter((g) => g.items.length);
   }, [q, tree, reglages, tr]);
   const items = groupes.flatMap((g) => g.items);
@@ -140,7 +154,16 @@ export function RechercheConstructeur({ tree, reglages, onChoisir }: {
               })}
             </div>
           ))}
-          {!items.length && <p className="px-2 py-6 text-center text-[14px] text-[#888888]">{tr("Aucun résultat pour « {0} »", q.trim())}</p>}
+          {!items.length && (
+            <div className="px-2 py-6 text-center">
+              <p className="text-[14px] text-[#888888]">{tr("Aucun résultat pour « {0} »", q.trim())}</p>
+              {/* Nouvel onglet : le constructeur reste ouvert, rien n'est perdu. */}
+              <button type="button" onClick={() => window.open(`/dashboard?axia=${encodeURIComponent(tr("Dans le constructeur, où trouver « {0} » ?", q.trim()))}`, "_blank", "noopener")}
+                className="mt-3 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold text-[#92400E] bg-[#FFF1D6] hover:bg-[#FFE7B8]">
+                <Sparkles size={14} />{tr("Demander à Axia")}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

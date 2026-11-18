@@ -41,7 +41,7 @@ export function EspaceAffilieShell({ nom, children }: { nom: string; children: R
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {ONGLETS.map((o) => (
-            <Link key={o.href} href={o.href}
+            <Link key={o.href} href={o.href} aria-current={actif(o.href) ? "page" : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-colors ${actif(o.href) ? "bg-[#FFF6E6] text-[#111]" : "text-[#666] hover:bg-gray-50"}`}>
               <o.Icon size={16} className={actif(o.href) ? "text-[#F5A623]" : ""} />{t(o.label)}
             </Link>
@@ -67,8 +67,8 @@ export function EspaceAffilieShell({ nom, children }: { nom: string; children: R
       <nav className="md:hidden fixed z-40 left-2 right-2 flex items-center justify-between gap-1 p-1.5 rounded-[28px] bg-white/97 border border-gray-200/80"
         style={{ bottom: "max(14px, env(safe-area-inset-bottom))", boxShadow: "0 8px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)" }}>
         {ONGLETS.map((o) => (
-          <Link key={o.href} href={o.href}
-            className={`flex-1 flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-[22px] transition-colors ${actif(o.href) ? "bg-[#111] text-white" : "text-[#999]"}`}>
+          <Link key={o.href} href={o.href} aria-current={actif(o.href) ? "page" : undefined}
+            className={`flex-1 min-w-0 min-h-[44px] flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 rounded-[22px] transition-colors ${actif(o.href) ? "bg-[#111] text-white" : "text-[#999]"}`}>
             <o.Icon size={19} className={actif(o.href) ? "text-[#F5A623]" : ""} />
             <span className="text-[10px] font-bold leading-none truncate">{t(o.label)}</span>
           </Link>

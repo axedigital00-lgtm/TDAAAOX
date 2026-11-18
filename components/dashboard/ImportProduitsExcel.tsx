@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { Bouton } from "@/components/ui";
 
 type Resultat = { importes: number; erreurs: { ligne: number; message: string }[] };
 
@@ -37,10 +38,9 @@ export function ImportProduitsExcel() {
 
   return (
     <>
-      <button type="button" onClick={() => setOuvert(true)}
-        className="flex items-center justify-center gap-1.5 text-[12.5px] sm:text-[12px] font-semibold bg-white text-[#111111] border border-[#E8E8E8] rounded-2xl px-4 py-3 sm:py-2 hover:bg-[#F5F5F7] transition-all whitespace-nowrap w-full sm:w-auto flex-shrink-0">
-        <FileSpreadsheet size={14} />{" "}{t("Importer (Excel)")}
-      </button>
+      <Bouton variante="secondaire" onClick={() => setOuvert(true)} icone={<FileSpreadsheet className="size-4" aria-hidden />}>
+        {t("Importer depuis Excel")}
+      </Bouton>
 
       {ouvert && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={fermer}>

@@ -38,19 +38,20 @@ export function GainsLivreur() {
         body: JSON.stringify({ ...form, montant: Number(form.montant) }),
       });
       const r = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(r.error || "Erreur");
-      toast.success(t("Demande envoyée : Axso te prévient dès que l'argent est envoyé"));
+      if (!res.ok) throw new Error(r.error && r.error !== "Erreur" ? r.error : "Retrait impossible pour le moment. Vérifiez le montant et le numéro, puis réessayez.");
+      toast.success(t("Demande de retrait de {0} envoyée : Axso vous prévient dès que l'argent est envoyé.", formatMontant(Number(form.montant), form.devise)));
       setForm(null);
       charger();
-    } catch (err: any) { toast.error(t(err.message)); } finally { setEnvoi(false); }
+    } catch (err: any) { toast.error(err instanceof TypeError ? t("Connexion impossible. Vérifiez votre réseau et réessayez.") : t(err.message)); } finally { setEnvoi(false); }
   }
 
   if (!d || (!d.soldes.length && !d.gains.length && !d.retraits.length)) return null;
-  const champ = "w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#F5A623]/50";
+  const champ = "w-full min-h-11 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-base sm:text-sm text-white focus:outline-none focus:border-[#F5A623]/50";
+  const libelle = "block text-gray-300 text-xs mb-1";
 
   return (
     <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-[#141414] to-[#0d0d0d] p-5 space-y-4">
-      <p className="text-white font-semibold text-sm flex items-center gap-2"><Wallet size={15} className="text-[#F5A623]" />{" "}{t("Mes gains")}</p>
+      <p className="text-white font-semibold text-sm flex items-center gap-2"><Wallet size={15} className="text-[#F5A623]" aria-hidden />{t("Mes gains")}</p>
 
       {d.soldes.map(s => (
         <div key={s.devise} className="flex items-center justify-between gap-3">
@@ -60,24 +61,31 @@ export function GainsLivreur() {
           </div>
           <button type="button" disabled={s.solde < s.minimum}
             onClick={() => setForm({ devise: s.devise, montant: String(Math.floor(s.solde)), telephone: d.telephone, operateur: "MTN" })}
-            className="bg-[#F5A623] text-black font-semibold px-4 py-2 rounded-xl text-sm disabled:opacity-40">
-            {t("Retirer")}
+            className="bg-[#F5A623] text-black font-semibold px-4 min-h-11 rounded-xl text-sm disabled:opacity-40 whitespace-nowrap">
+            {t("Retirer mes gains")}
           </button>
         </div>
       ))}
 
       {form && (
         <form onSubmit={retirer} className="space-y-2 rounded-2xl border border-[#F5A623]/20 p-3">
-          <input className={champ} type="number" min={0} inputMode="decimal" required value={form.montant} onChange={e => setForm({ ...form, montant: e.target.value })} placeholder={t("Montant")} />
-          <input className={champ} required value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} placeholder={t("Numéro Mobile Money")} />
-          <select className={champ} value={form.operateur} onChange={e => setForm({ ...form, operateur: e.target.value })}>
+          <div>
+            <label htmlFor="retrait-montant" className={libelle}>{t("Montant à retirer ({0})", form.devise)}</label>
+            <input id="retrait-montant" className={champ} type="number" min={0} inputMode="decimal" required value={form.montant} onChange={e => setForm({ ...form, montant: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="retrait-tel" className={libelle}>{t("Numéro Mobile Money (avec l'indicatif du pays)")}</label>
+            <input id="retrait-tel" className={champ} type="tel" inputMode="tel" autoComplete="tel" required value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} placeholder="+237 6XX XX XX XX" />
+          </div>
+          <label htmlFor="retrait-op" className={libelle}>{t("Opérateur")}</label>
+          <select id="retrait-op" className={champ} value={form.operateur} onChange={e => setForm({ ...form, operateur: e.target.value })}>
             {["MTN", "Orange", "Wave", "Moov", "Airtel", "M-Pesa", "Autre"].map(o => <option key={o} value={o} className="text-black">{o}</option>)}
           </select>
           <div className="flex gap-2">
-            <button type="submit" disabled={envoi} className="flex-1 flex items-center justify-center gap-2 bg-[#F5A623] text-black font-semibold py-2 rounded-xl text-sm disabled:opacity-50">
-              {envoi && <Loader2 size={14} className="animate-spin" />}{t("Demander le retrait")}
+            <button type="submit" disabled={envoi} className="flex-1 flex items-center justify-center gap-2 min-h-11 bg-[#F5A623] text-black font-semibold rounded-xl text-sm disabled:opacity-50">
+              {envoi && <Loader2 size={14} className="animate-spin" aria-hidden />}{envoi ? t("Envoi en cours…") : t("Demander le retrait")}
             </button>
-            <button type="button" onClick={() => setForm(null)} className="px-4 py-2 rounded-xl text-sm text-gray-400 border border-white/10">{t("Annuler")}</button>
+            <button type="button" onClick={() => setForm(null)} disabled={envoi} className="px-4 min-h-11 rounded-xl text-sm text-gray-400 border border-white/10">{t("Annuler")}</button>
           </div>
           <p className="text-gray-500 text-[11px]">{t("Axso vérifie puis envoie l'argent sur ce numéro, en général sous 24 h.")}</p>
         </form>
@@ -89,7 +97,7 @@ export function GainsLivreur() {
           {d.gains.map(g => (
             <div key={g.id} className="flex items-center justify-between text-xs bg-white/[0.03] rounded-lg px-3 py-2">
               <span className="font-mono text-gray-400">#{g.numero}</span>
-              <span className="text-gray-500 flex-1 mx-3 truncate">{g.paiement === "en_ligne" ? t("Crédité sur ton solde") : t("Gardé sur les espèces")}</span>
+              <span className="text-gray-500 flex-1 mx-3 truncate">{g.paiement === "en_ligne" ? t("Crédité sur votre solde") : t("Gardé sur les espèces")}</span>
               <span className="font-semibold text-white">{formatMontant(g.montant, g.devise)}</span>
             </div>
           ))}

@@ -12,7 +12,7 @@ import { Badge, BadgePaiement, Bouton, CLASSE_SAISIE, Champ, EtatChargement, Eta
 import { appelPos, nouvelleCle } from "@/components/pos/crm/appel";
 import { SelecteurClient } from "@/components/pos/crm/SelecteurClient";
 import { dateCourte } from "@/components/pos/crm/libelles";
-import { useCaisse } from "@/components/pos/finance/commun";
+import { EnTete, Page, useCaisse } from "@/components/pos/finance/commun";
 import { cn } from "@/lib/utils";
 
 type Regles = { actif: boolean; plafondDefaut: number; echeanceJours: number };
@@ -105,8 +105,8 @@ export default function PageCredit() {
     charger(ouvert.id);
   }
 
-  if (erreur && !d) return <div className="mx-auto max-w-5xl p-4 sm:p-5" style={POLICE}><EtatPos code={erreur.code} message={erreur.message} onReessayer={() => charger(ouvert?.id)} /></div>;
-  if (!d) return <EtatChargement texte="Chargement du crédit client…" />;
+  if (erreur && !d) return <Page><EnTete titre="Crédit client" /><EtatPos code={erreur.code} message={erreur.message} onReessayer={() => charger(ouvert?.id)} /></Page>;
+  if (!d) return <Page><EnTete titre="Crédit client" /><EtatChargement texte="Chargement du crédit client…" /></Page>;
 
   const liste = d.clients.filter((c) => (filtre === "retard" ? c.enRetard > 0 : true));
   const client = ouvert ? d.clients.find((c) => c.id === ouvert.id) ?? null : null;
@@ -122,13 +122,9 @@ export default function PageCredit() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-5" style={POLICE}>
-      <header>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-[20px] font-bold text-[#111111]">{t("Crédit client")}</h1>
-          <Badge ton={d.regles.actif ? "positif" : "neutre"}>{t(d.regles.actif ? "Vente à crédit activée" : "Vente à crédit désactivée")}</Badge>
-        </div>
-        <p className="mt-1 max-w-2xl text-[12.5px] leading-relaxed text-[#666666]">{t("Ce que vos clients vous doivent. Un client en retard ne peut plus acheter à crédit tant qu'il n'a pas réglé son retard.")}</p>
-      </header>
+      <EnTete titre="Crédit client" sousTitre="Ce que vos clients vous doivent. Un client en retard ne peut plus acheter à crédit tant qu'il n'a pas réglé son retard.">
+        <Badge ton={d.regles.actif ? "positif" : "neutre"}>{t(d.regles.actif ? "Vente à crédit activée" : "Vente à crédit désactivée")}</Badge>
+      </EnTete>
 
       <dl className="grid gap-3 sm:grid-cols-3">
         <div className={carte}><dt className="text-[11px] font-semibold uppercase tracking-wide text-[#888888]">{t("Encours total")}</dt><dd className="mt-1 text-[22px] font-bold tabular-nums">{fmt(d.encours)}</dd></div>
@@ -210,7 +206,7 @@ export default function PageCredit() {
                 </div>
                 <label className="flex min-h-11 items-center gap-2"><input type="checkbox" className="accent-[#F5A623]" checked={compte.bloque} onChange={(e) => setCompte({ ...compte, bloque: e.target.checked })} />{t("Bloquer le crédit de ce client")}</label>
                 {envoiCompte.erreur && <p role="alert" className="text-[12.5px] text-[#B91C1C]">{t(envoiCompte.erreur)}</p>}
-                <Bouton type="submit" variante="secondaire" charge={envoiCompte.enCours}>{t("Enregistrer")}</Bouton>
+                <Bouton type="submit" variante="secondaire" charge={envoiCompte.enCours}>{t("Enregistrer le compte")}</Bouton>
               </form>
             )}
 
@@ -230,7 +226,7 @@ export default function PageCredit() {
                       {modeChoisi && modeChoisi.reference !== "aucune" && <Saisie label="Référence de la transaction" value={paiement.reference} maxLength={120} onChange={(e) => setPaiement({ ...paiement, reference: e.target.value })} />}
                       {envoiPaiement.erreur && <p role="alert" className="text-[12.5px] text-[#B91C1C]">{t(envoiPaiement.erreur)}</p>}
                       <div className="flex flex-wrap gap-2">
-                        <Bouton type="submit" charge={envoiPaiement.enCours} disabled={!(Number(paiement.montant) > 0)}>{t("Encaisser")}</Bouton>
+                        <Bouton type="submit" charge={envoiPaiement.enCours} disabled={!(Number(paiement.montant) > 0)}>{t("Encaisser le remboursement")}</Bouton>
                         <Bouton variante="secondaire" onClick={() => setPaiement({ ...paiement, montant: String(client.utilise) })}>{t("Tout régler")}</Bouton>
                       </div>
                     </>
@@ -244,7 +240,7 @@ export default function PageCredit() {
                 <p className="text-[11.5px] text-[#888888]">{t("AXSO n'envoie rien : copiez ce message ou ouvrez-le dans WhatsApp pour l'envoyer vous-même.")}</p>
                 <textarea readOnly value={relance} rows={4} aria-label={t("Message de relance")} className={CLASSE_SAISIE} />
                 <div className="flex flex-wrap gap-2">
-                  <Bouton variante="secondaire" icone={<Copy size={15} aria-hidden />} onClick={() => navigator.clipboard.writeText(relance).then(() => setConfirmation(t("Message copié.")), () => setConfirmation(t("Copie impossible : sélectionnez le texte à la main.")))}>{t("Copier")}</Bouton>
+                  <Bouton variante="secondaire" icone={<Copy size={15} aria-hidden />} onClick={() => navigator.clipboard.writeText(relance).then(() => setConfirmation(t("Message copié.")), () => setConfirmation(t("Copie impossible : sélectionnez le texte à la main.")))}>{t("Copier le message")}</Bouton>
                   {whatsapp.length >= 8 && <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(relance)}`} target="_blank" rel="noopener noreferrer" className={cn("inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-4 text-[13px] font-bold hover:border-[#F5A623]", FOCUS)}><MessageCircle size={15} aria-hidden />{t("Ouvrir dans WhatsApp")}</a>}
                 </div>
               </section>

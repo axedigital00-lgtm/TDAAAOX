@@ -9,14 +9,18 @@ export const COULEURS = {
   bordure: "#E8E8E8", fond: "#F5F5F5", surface: "#FFFFFF",
 } as const;
 
-/** Tons sémantiques : fond pâle, texte lisible (contraste AA), bordure assortie. */
+/**
+ * Tons sémantiques : fond pâle, texte lisible (contraste AA), bordure assortie.
+ * Branchés sur les jetons du design system (app/globals.css) : positif = succes,
+ * danger = erreur — mêmes couleurs que les badges et alertes du tableau de bord.
+ */
 export const TONS = {
-  neutre: { background: "#F5F5F5", color: "#555555", border: "1px solid #E8E8E8" },
-  accent: { background: "#FFF7ED", color: "#B45309", border: "1px solid #FDE68A" },
-  positif: { background: "#ECFDF5", color: "#15803D", border: "1px solid #BBF7D0" },
-  attention: { background: "#FFFBEB", color: "#B45309", border: "1px solid #FCD34D" },
-  danger: { background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA" },
-  info: { background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE" },
+  neutre: { background: "var(--ax-carte-2)", color: "var(--ax-doux)", border: "1px solid var(--ax-bordure)" },
+  accent: { background: "var(--ax-primaire-fond)", color: "var(--ax-attention)", border: "1px solid var(--ax-attention-bordure)" },
+  positif: { background: "var(--ax-succes-fond)", color: "var(--ax-succes)", border: "1px solid var(--ax-succes-bordure)" },
+  attention: { background: "var(--ax-attention-fond)", color: "var(--ax-attention)", border: "1px solid var(--ax-attention-bordure)" },
+  danger: { background: "var(--ax-erreur-fond)", color: "var(--ax-erreur)", border: "1px solid var(--ax-erreur-bordure)" },
+  info: { background: "var(--ax-info-fond)", color: "var(--ax-info)", border: "1px solid var(--ax-info-bordure)" },
 } as const;
 export type Ton = keyof typeof TONS;
 

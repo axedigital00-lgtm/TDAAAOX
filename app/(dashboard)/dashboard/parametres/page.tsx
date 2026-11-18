@@ -12,6 +12,7 @@ import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/Mod
 import { useT } from "@/components/I18nProvider";
 import { lireReglagesPaiement, type ReglagesPaiement } from "@/lib/paiement-pays";
 import { urlBoutique } from "@/lib/utils";
+import { Badge, Bouton, Champ, CLASSE_SAISIE, classesBouton, EnTetePage, EtatChargement, EtatErreur, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
 
 const PARAMETRES_TUTORIAL_STEPS = [
   { Icon: Settings,      titre: "Vos informations générales", description: "Nom, description, catégorie, pays et devise — la base de votre identité sur Axso." },
@@ -23,33 +24,36 @@ const PARAMETRES_TUTORIAL_STEPS = [
 
 const CATEGORIES = ["Mode & Vêtements", "Électronique", "Alimentation", "Beauté & Cosmétiques", "Maison & Décoration", "Sport & Loisirs", "Livres & Culture", "Artisanat", "Services", "Autre"];
 
-const inputCls = "w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all placeholder:text-[#CCCCCC]";
-const labelCls = "block mb-1.5 ax-label";
 
 export default function ParametresPage() {
   const t = useT();
   const [tenant, setTenant] = useState<any>(null);
   const [form, setForm] = useState({
-    nomBoutique: "", description: "", whatsapp: "", telephone: "", adresse: "", email: "",
+    nomBoutique: "", description: "", whatsapp: "", telephone: "", adresse: "", email: "", horaires: "",
     categorie: "", pays: "", devise: "XOF",
   });
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [whatsappNumero, setWhatsappNumero] = useState("");
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
+  const [erreurWhatsapp, setErreurWhatsapp] = useState("");
+  const { confirmer, dialogue } = useConfirmation();
   const [formCommande, setFormCommande] = useState({ demanderEmail: true, demanderGps: true, champActif: false, champLabel: "" });
   const [savingCommande, setSavingCommande] = useState(false);
   const [paiement, setPaiement] = useState<ReglagesPaiement>(lireReglagesPaiement({}));
   const [savingPaiement, setSavingPaiement] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/tenants/moi-complet").then(r => r.json()).then(data => {
+  const [etat, setEtat] = useState<"chargement" | "pret" | "erreur">("chargement");
+  const charger = () => {
+    setEtat("chargement");
+    fetch("/api/tenants/moi-complet").then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(data => {
+      setEtat("pret");
       if (data) {
         setTenant(data);
         setForm({
           nomBoutique: data.nomBoutique || "", description: data.description || "",
           whatsapp: data.whatsapp || "", telephone: data.telephone || "",
-          adresse: data.adresse || "", email: data.email || "",
+          adresse: data.adresse || "", email: data.email || "", horaires: data.horaires || "",
           // Anciennes boutiques : pays enregistré en toutes lettres ("Cameroun") → code ISO2.
           categorie: data.categorie || "", pays: PAYS_OPTIONS.find(p => p.nom === data.pays)?.code ?? data.pays ?? "", devise: data.devise || "XOF",
         });
@@ -63,8 +67,9 @@ export default function ParametresPage() {
           champLabel: pc.champPersonnalise?.label ?? "",
         });
       }
-    });
-  }, []);
+    }).catch(() => setEtat("erreur"));
+  };
+  useEffect(charger, []);
 
   async function sauvegarderCommande() {
     setSavingCommande(true);
@@ -82,12 +87,12 @@ export default function ParametresPage() {
       });
       if (!res.ok) throw new Error();
       toast.success(t("Formulaire de commande mis à jour !"));
-    } catch { toast.error(t("Erreur lors de la sauvegarde")); }
+    } catch { toast.error(t("Le formulaire de commande n'a pas pu être enregistré. Vérifiez votre connexion et réessayez.")); }
     finally { setSavingCommande(false); }
   }
 
   async function sauvegarderPaiement() {
-    if (!paiement.livraison && !paiement.whatsapp) { toast.error(t("Gardez au moins un moyen de paiement")); return; }
+    if (!paiement.livraison && !paiement.whatsapp) { toast.error(t("Gardez au moins un moyen de paiement activé avant d'enregistrer.")); return; }
     setSavingPaiement(true);
     try {
       const res = await fetch("/api/tenants", {
@@ -96,14 +101,14 @@ export default function ParametresPage() {
       });
       if (!res.ok) throw new Error();
       toast.success(t("Moyens de paiement mis à jour !"));
-    } catch { toast.error(t("Erreur lors de la sauvegarde")); }
+    } catch { toast.error(t("Les moyens de paiement n'ont pas pu être enregistrés. Vérifiez votre connexion et réessayez.")); }
     finally { setSavingPaiement(false); }
   }
 
   async function sauvegarderWhatsapp(e: React.FormEvent) {
     e.preventDefault();
     if (!whatsappNumero.startsWith("+") || !/^\+\d+$/.test(whatsappNumero)) {
-      toast.error(t("Le numéro doit commencer par + suivi de chiffres (ex: +22507XXXXXXXX)"));
+      setErreurWhatsapp(t("Le numéro doit commencer par + suivi de chiffres (ex: +22507XXXXXXXX)"));
       return;
     }
     setSavingWhatsapp(true);
@@ -115,14 +120,20 @@ export default function ParametresPage() {
       });
       if (!res.ok) throw new Error();
       toast.success(t("Numéro WhatsApp Business enregistré !"));
-    } catch { toast.error(t("Erreur lors de la sauvegarde du numéro WhatsApp")); }
+    } catch { toast.error(t("Le numéro WhatsApp n'a pas pu être enregistré. Vérifiez votre connexion et réessayez.")); }
     finally { setSavingWhatsapp(false); }
   }
 
   async function sauvegarder(e: React.FormEvent) {
     e.preventDefault();
     const changeDevise = !!tenant?.devise && form.devise !== tenant.devise;
-    if (changeDevise && !confirm(t("Votre devise va passer de {0} à {1}.\n\nTous les montants de la boutique seront convertis au taux du jour : prix des produits et variantes, frais de livraison, codes promo, commandes, commissions et solde du wallet (les factures déjà émises restent inchangées).\n\nContinuer ?", tenant.devise, form.devise))) return;
+    if (changeDevise && !(await confirmer({
+      titre: t("Changer la devise de la boutique ?"),
+      objet: `${tenant.devise} → ${form.devise}`,
+      description: t("Tous les montants de la boutique seront convertis au taux du jour : prix des produits et variantes, frais de livraison, codes promo, commandes, commissions et solde du wallet (les factures déjà émises restent inchangées)."),
+      libelleConfirmer: t("Convertir en {0}", form.devise),
+      destructive: false,
+    }))) return;
     setSaving(true);
     try {
       const res = await fetch("/api/tenants", {
@@ -133,7 +144,7 @@ export default function ParametresPage() {
       if (!res.ok) throw new Error();
       toast.success(changeDevise ? t("Devise changée : tous vos montants sont maintenant en {0}", form.devise) : t("Informations mises à jour !"));
       if (changeDevise) setTimeout(() => window.location.reload(), 900); // tout le dashboard passe dans la nouvelle devise
-    } catch { toast.error(t("Erreur lors de la sauvegarde")); }
+    } catch { toast.error(t("Les informations n'ont pas pu être enregistrées. Vérifiez votre connexion et réessayez.")); }
     finally { setSaving(false); }
   }
 
@@ -147,271 +158,224 @@ export default function ParametresPage() {
   useEffect(() => setOrigine(window.location.origin), []);
   const boutiquUrl = tenant && origine ? urlBoutique(tenant, "", origine) : "";
 
+  const SECTION = "rounded-carte border border-bordure bg-carte p-carte shadow-carte space-y-champs";
+  const CASE = "flex items-start justify-between gap-4 py-2 min-h-10 cursor-pointer";
+  const CASE_INPUT = "size-5 mt-0.5 shrink-0 accent-primaire";
+
   return (
-    <div className="space-y-5 max-w-2xl"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-section max-w-2xl">
       <ModuleTutorial moduleKey="parametres" titre={t("Réglages")} sousTitre={t("Configuration de ton compte")} steps={PARAMETRES_TUTORIAL_STEPS} />
+      {dialogue}
 
-      {/* ── Header ── */}
-      <div className="pt-1">
-        <div className="flex items-center gap-2">
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Paramètres")}</h1>
-          <BoutonRevoirTutoriel moduleKey="parametres" />
-        </div>
-        <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">
-          {t("Gérez votre boutique")}{" "}{t(tenant?.nomBoutique) || ""}
-        </p>
-      </div>
+      <EnTetePage
+        className="mb-0"
+        titre={t("Réglages")}
+        indicateurs={<BoutonRevoirTutoriel moduleKey="parametres" />}
+        description={tenant?.nomBoutique ? `${t("Informations, coordonnées, commandes et paiements de")} ${tenant.nomBoutique}` : t("Informations, coordonnées, commandes et paiements de votre boutique")}
+      />
 
+      {etat === "chargement" && <EtatChargement texte={t("Chargement de vos réglages…")} />}
+      {etat === "erreur" && (
+        <EtatErreur titre={t("Vos réglages n'ont pas pu être chargés.")} texte={t("Vérifiez votre connexion puis réessayez.")} onReessayer={charger} />
+      )}
+      {etat === "pret" && <>
       {/* ── URL boutique ── */}
       {tenant && (
-        <div className="ax-card p-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#FFF8EC] border border-[#FDE68A]/60 flex items-center justify-center flex-shrink-0">
-            <Globe size={15} className="text-[#F5A623]" />
-          </div>
+        <section className="rounded-carte border border-bordure bg-carte p-4 shadow-carte flex flex-wrap items-center gap-3">
+          <span className="size-10 rounded-controle bg-primaire-fond flex items-center justify-center shrink-0" aria-hidden>
+            <Globe className="size-4 text-attention" />
+          </span>
           <div className="flex-1 min-w-0">
-            <p className="ax-label mb-0.5">{t("Votre boutique en ligne")}</p>
-            <p className="text-[13px] font-mono font-semibold text-[#111111] truncate">{boutiquUrl}</p>
+            <h2 className="ax-aide">{t("Votre boutique en ligne")}</h2>
+            <p className="text-sm font-mono font-semibold text-encre truncate">{boutiquUrl}</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => copier(boutiquUrl)}
-              className="w-8 h-8 rounded-xl border border-[#EBEBEB] flex items-center justify-center text-[#888] hover:text-[#111] hover:border-[#CCC] transition-all">
-              {copied ? <Check size={13} className="text-[#16A34A]" /> : <Copy size={13} />}
-            </button>
-            <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer"
-              className="w-8 h-8 rounded-xl border border-[#EBEBEB] flex items-center justify-center text-[#888] hover:text-[#F5A623] hover:border-[#FDE68A] transition-all">
-              <ExternalLink size={13} />
+            <Bouton variante="secondaire" taille="compact" onClick={() => copier(boutiquUrl)}
+              icone={copied ? <Check className="size-3.5 text-succes" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}>
+              {copied ? t("Copié") : t("Copier le lien")}
+            </Bouton>
+            <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer" className={classesBouton({ variante: "secondaire", taille: "compact" })}>
+              <ExternalLink className="size-3.5" aria-hidden />{t("Voir ma boutique")}
             </a>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* ── Quick links ── */}
-      <div className="ax-card divide-y divide-[#F5F5F5]">
-        {[
-          { Icon: Globe,        label: "Domaine personnalisé",     desc: "Connectez votre propre nom de domaine",     href: "/dashboard/parametres/domaine",       iconBg: "#ECFDF5", iconColor: "#16A34A" },
-          { Icon: Bell,         label: "Notifications",             desc: "Alertes WhatsApp et email",                href: "/dashboard/parametres/notifications",  iconBg: "#FFFBEB", iconColor: "#D97706" },
-          { Icon: Users,        label: "Équipe",                    desc: "Gérez les accès de vos collaborateurs",    href: "/dashboard/parametres/equipe",         iconBg: "#FFF1F2", iconColor: "#E11D48" },
-        ].map((s, i) => {
-          const Icon = s.Icon;
-          return (
-            <Link key={i} href={s.href}
-              className="flex items-center gap-3 px-4 py-3.5 hover:bg-[#FAFAFA] transition-colors group">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: s.iconBg, border: `1px solid ${s.iconColor}20` }}>
-                <Icon size={15} style={{ color: s.iconColor }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-semibold text-[#111111] group-hover:text-[#F5A623] transition-colors">{t(s.label)}</p>
-                <p className="text-[11.5px] text-[#AAAAAA]">{t(s.desc)}</p>
-              </div>
-              <ChevronRight size={14} className="text-[#CCCCCC] group-hover:text-[#888] transition-colors" />
-            </Link>
-          );
-        })}
-      </div>
+      {/* ── Réglages avancés ── */}
+      <section className="rounded-carte border border-bordure bg-carte shadow-carte">
+        <h2 className="ax-sous-titre px-4 pt-4 pb-2">{t("Réglages avancés")}</h2>
+        <ul className="divide-y divide-bordure">
+          {[
+            { Icon: Globe, label: "Domaine personnalisé", desc: "Connectez votre propre nom de domaine", href: "/dashboard/parametres/domaine" },
+            { Icon: Bell, label: "Notifications", desc: "Alertes WhatsApp et email", href: "/dashboard/parametres/notifications" },
+            { Icon: Users, label: "Équipe", desc: "Gérez les accès de vos collaborateurs", href: "/dashboard/parametres/equipe" },
+          ].map((s) => {
+            const Icon = s.Icon;
+            return (
+              <li key={s.href}>
+                <Link href={s.href} className="flex items-center gap-3 px-4 py-3 min-h-14 hover:bg-carte-2 transition-colors group">
+                  <span className="size-10 rounded-controle bg-carte-2 border border-bordure flex items-center justify-center shrink-0" aria-hidden>
+                    <Icon className="size-4 text-doux" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block ax-libelle group-hover:text-attention transition-colors">{t(s.label)}</span>
+                    <span className="block ax-aide">{t(s.desc)}</span>
+                  </span>
+                  <ChevronRight className="size-4 text-doux" aria-hidden />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
-      {/* ── Informations générales ── */}
-      <form onSubmit={sauvegarder} className="ax-card p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Settings size={14} className="text-[#F5A623]" />
-          <h2 className="text-[13px] font-semibold text-[#111111]">{t("Informations générales")}</h2>
-        </div>
+      {/* ── Informations générales + coordonnées ── */}
+      <form onSubmit={sauvegarder} className={SECTION}>
+        <h2 className="ax-titre-section flex items-center gap-2"><Settings className="size-4 text-attention" aria-hidden />{t("Informations générales")}</h2>
 
-        <div>
-          <label className={labelCls}>{t("Nom de la boutique *")}</label>
-          <input value={form.nomBoutique} onChange={e => setForm({ ...form, nomBoutique: e.target.value })}
-            required className={inputCls} />
-        </div>
-
-        <div>
-          <label className={labelCls}>{t("Description")}</label>
-          <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-            rows={3} placeholder={t("Décrivez votre boutique en quelques mots…")}
-            className={`${inputCls} resize-none`} />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>{t("Email de contact")}</label>
-            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>{t("WhatsApp *")}</label>
-            <input value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })}
-              placeholder="+221700000000" className={inputCls} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>{t("Téléphone")}</label>
-            <input value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>{t("Adresse physique")}</label>
-            <input value={form.adresse} onChange={e => setForm({ ...form, adresse: e.target.value })} className={inputCls} />
-          </div>
-        </div>
+        <Saisie label={t("Nom de la boutique")} required value={form.nomBoutique} onChange={e => setForm({ ...form, nomBoutique: e.target.value })} />
+        <ZoneTexte label={t("Description")} mention="facultatif" rows={3} value={form.description}
+          onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t("Décrivez votre boutique en quelques mots…")} />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className={labelCls}>{t("Catégorie")}</label>
-            <select value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value })}
-              className={inputCls}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{t(c)}</option>)}
-            </select>
+          <Champ label={t("Catégorie")}>
+            {(a) => (
+              <select {...a} value={form.categorie} onChange={e => setForm({ ...form, categorie: e.target.value })} className={CLASSE_SAISIE}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{t(c)}</option>)}
+              </select>
+            )}
+          </Champ>
+          <div className="space-y-1.5">
+            <span className="ax-libelle block">{t("Pays")}</span>
+            <SelectPays ariaLabel={t("Pays")} value={form.pays} onChange={code => setForm({ ...form, pays: code, devise: PAYS_DEVISES[code] ?? form.devise })} />
           </div>
-          <div>
-            <label className={labelCls}>{t("Pays")}</label>
-            <SelectPays value={form.pays} onChange={code => setForm({ ...form, pays: code, devise: PAYS_DEVISES[code] ?? form.devise })} />
-          </div>
-          <div>
-            <label className={labelCls}>{t("Devise")}</label>
-            {/* Dérivée du pays (imposé aussi côté serveur, PATCH /api/tenants). */}
-            <input value={form.devise} readOnly className={inputCls + " bg-[#FAFAFA] text-[#777777] cursor-not-allowed"} />
-            {tenant?.devise && form.devise !== tenant.devise
-              ? <p className="text-[11px] text-[#B45309] mt-1">{t("Vos montants seront convertis de")}{" "}{t(tenant.devise)} en {t(form.devise)}{" "}{t("au taux du jour à l'enregistrement.")}</p>
-              : <p className="text-[11px] text-[#999999] mt-1">{t("Définie automatiquement par le pays.")}</p>}
-          </div>
+          {/* Dérivée du pays (imposé aussi côté serveur, PATCH /api/tenants). */}
+          <Saisie label={t("Devise")} value={form.devise} readOnly disabled
+            aide={tenant?.devise && form.devise !== tenant.devise
+              ? <span className="text-attention">{t("Vos montants seront convertis de")} {t(tenant.devise)} en {t(form.devise)} {t("au taux du jour à l'enregistrement.")}</span>
+              : t("Définie automatiquement par le pays.")} />
         </div>
 
-        <button type="submit" disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-[13px] text-white transition-all hover:scale-[1.01] disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)", boxShadow: "0 4px 16px rgba(245,166,35,0.25)" }}>
-          <Save size={14} />
-          {saving ? t("Enregistrement…") : t("Enregistrer")}
-        </button>
+        {/* Coordonnées (page Contact de la boutique) : étape « Compléter mes coordonnées » de Démarrer. */}
+        <div id="coordonnees" className="space-y-champs scroll-mt-24 border-t border-bordure pt-4">
+          <div>
+            <h3 className="ax-sous-titre">{t("Coordonnées")}</h3>
+            <p className="ax-aide">{t("Affichées sur la page Contact de votre boutique.")}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Saisie type="email" label={t("Email de contact")} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <Saisie type="tel" label={t("WhatsApp")} mention="obligatoire" value={form.whatsapp}
+              onChange={e => setForm({ ...form, whatsapp: e.target.value })} placeholder="+221700000000" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Saisie type="tel" label={t("Téléphone")} value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} />
+            <Saisie label={t("Adresse physique")} value={form.adresse} onChange={e => setForm({ ...form, adresse: e.target.value })} />
+          </div>
+          <Saisie label={t("Horaires")} value={form.horaires} onChange={e => setForm({ ...form, horaires: e.target.value })} maxLength={200}
+            placeholder={t("Lun–Sam, 8h–19h")} />
+        </div>
+
+        <Bouton type="submit" charge={saving} texteCharge={t("Enregistrement…")} icone={<Save className="size-4" aria-hidden />}>
+          {t("Enregistrer les informations")}
+        </Bouton>
       </form>
 
       {/* ── WhatsApp Business ── */}
-      <form onSubmit={sauvegarderWhatsapp} className="ax-card p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <MessageCircle size={14} className="text-[#25D366]" />
-          <h2 className="text-[13px] font-semibold text-[#111111]">{t("WhatsApp Business")}</h2>
-        </div>
-        <p className="text-[12px] text-[#AAAAAA]">
-          {t("Ce numéro recevra les confirmations de commandes pour vos produits physiques et dropshipping.")}
-        </p>
+      <form onSubmit={sauvegarderWhatsapp} className={SECTION}>
         <div>
-          <label className={labelCls}>{t("Numéro WhatsApp Business")}</label>
-          <input
-            type="tel"
-            value={whatsappNumero}
-            onChange={e => setWhatsappNumero(e.target.value)}
-            placeholder={t("+22507XXXXXXXX")}
-            className={`${inputCls} font-mono`}
-          />
-          <p className="text-[11px] text-[#CCCCCC] mt-1.5">
-            {t("Format international : +[indicatif pays][numéro]. Ex : +22507XXXXXXXX")}
-          </p>
+          <h2 className="ax-titre-section flex items-center gap-2"><MessageCircle className="size-4 text-succes" aria-hidden />{t("WhatsApp Business")}</h2>
+          <p className="ax-texte-secondaire">{t("Ce numéro recevra les confirmations de commandes pour vos produits physiques et dropshipping.")}</p>
         </div>
-        <button type="submit" disabled={savingWhatsapp}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-[13px] text-white transition-all hover:scale-[1.01] disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #25D366, #128C7E)", boxShadow: "0 4px 16px rgba(37,211,102,0.20)" }}>
-          <Save size={14} />
-          {savingWhatsapp ? t("Enregistrement…") : t("Enregistrer le numéro")}
-        </button>
+        <Saisie type="tel" label={t("Numéro WhatsApp Business")} value={whatsappNumero}
+          onChange={e => { setWhatsappNumero(e.target.value); setErreurWhatsapp(""); }}
+          placeholder={t("+22507XXXXXXXX")} classeChamp="font-mono" erreur={erreurWhatsapp || undefined}
+          aide={t("Format international : +[indicatif pays][numéro]. Ex : +22507XXXXXXXX")} />
+        <Bouton type="submit" variante="secondaire" charge={savingWhatsapp} texteCharge={t("Enregistrement…")} icone={<Save className="size-4" aria-hidden />}>
+          {t("Enregistrer le numéro")}
+        </Bouton>
       </form>
 
       {/* ── Formulaire de commande "Commander maintenant" ── */}
-      <div className="ax-card p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <ClipboardList size={14} className="text-[#F5A623]" />
-          <h2 className="text-[13px] font-semibold text-[#111111]">{t("Formulaire de commande")}</h2>
+      <section className={SECTION}>
+        <div>
+          <h2 className="ax-titre-section flex items-center gap-2"><ClipboardList className="size-4 text-attention" aria-hidden />{t("Formulaire de commande")}</h2>
+          <p className="ax-texte-secondaire">{t("Personnalisez les informations demandées à l'acheteur qui choisit \"Commander maintenant\" (sans passer par WhatsApp).")}</p>
         </div>
-        <p className="text-[12px] text-[#AAAAAA]">
-          {t("Personnalisez les informations demandées à l'acheteur qui choisit \"Commander maintenant\" (sans passer par WhatsApp).")}
-        </p>
-
-        <label className="flex items-center justify-between py-2 cursor-pointer">
-          <span className="text-[13px] text-[#333333]">{t("Demander l'adresse email")}</span>
-          <input type="checkbox" checked={formCommande.demanderEmail}
-            onChange={e => setFormCommande(f => ({ ...f, demanderEmail: e.target.checked }))}
-            className="w-4 h-4 accent-[#F5A623]" />
-        </label>
-        <label className="flex items-center justify-between py-2 cursor-pointer border-t border-[#F5F5F5]">
-          <span className="text-[13px] text-[#333333]">{t("Proposer le partage de la position GPS")}</span>
-          <input type="checkbox" checked={formCommande.demanderGps}
-            onChange={e => setFormCommande(f => ({ ...f, demanderGps: e.target.checked }))}
-            className="w-4 h-4 accent-[#F5A623]" />
-        </label>
-        <label className="flex items-center justify-between py-2 cursor-pointer border-t border-[#F5F5F5]">
-          <span className="text-[13px] text-[#333333]">{t("Ajouter un champ personnalisé")}</span>
-          <input type="checkbox" checked={formCommande.champActif}
-            onChange={e => setFormCommande(f => ({ ...f, champActif: e.target.checked }))}
-            className="w-4 h-4 accent-[#F5A623]" />
-        </label>
+        <div className="divide-y divide-bordure">
+          <label className={CASE}>
+            <span className="ax-texte">{t("Demander l'adresse email")}</span>
+            <input type="checkbox" checked={formCommande.demanderEmail}
+              onChange={e => setFormCommande(f => ({ ...f, demanderEmail: e.target.checked }))} className={CASE_INPUT} />
+          </label>
+          <label className={CASE}>
+            <span className="ax-texte">{t("Proposer le partage de la position GPS")}</span>
+            <input type="checkbox" checked={formCommande.demanderGps}
+              onChange={e => setFormCommande(f => ({ ...f, demanderGps: e.target.checked }))} className={CASE_INPUT} />
+          </label>
+          <label className={CASE}>
+            <span className="ax-texte">{t("Ajouter un champ personnalisé")}</span>
+            <input type="checkbox" checked={formCommande.champActif}
+              onChange={e => setFormCommande(f => ({ ...f, champActif: e.target.checked }))} className={CASE_INPUT} />
+          </label>
+        </div>
         {formCommande.champActif && (
-          <div>
-            <label className={labelCls}>{t("Libellé du champ")}</label>
-            <input value={formCommande.champLabel} onChange={e => setFormCommande(f => ({ ...f, champLabel: e.target.value }))}
-              placeholder={t("Ex : Précisions sur la commande, Code postal…")} className={inputCls} />
-          </div>
+          <Saisie label={t("Libellé du champ")} value={formCommande.champLabel} onChange={e => setFormCommande(f => ({ ...f, champLabel: e.target.value }))}
+            placeholder={t("Ex : Précisions sur la commande, Code postal…")} />
         )}
-
-        <button type="button" onClick={sauvegarderCommande} disabled={savingCommande}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-[13px] text-white transition-all hover:scale-[1.01] disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)", boxShadow: "0 4px 16px rgba(245,166,35,0.25)" }}>
-          <Save size={14} />
-          {savingCommande ? t("Enregistrement…") : t("Enregistrer")}
-        </button>
-      </div>
+        <Bouton variante="secondaire" onClick={sauvegarderCommande} charge={savingCommande} texteCharge={t("Enregistrement…")} icone={<Save className="size-4" aria-hidden />}>
+          {t("Enregistrer le formulaire")}
+        </Bouton>
+      </section>
 
       {/* ── Moyens de paiement ── */}
-      <div className="ax-card p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <CreditCard size={14} className="text-[#F5A623]" />
-          <h2 className="text-[13px] font-semibold text-[#111111]">{t("Moyens de paiement")}</h2>
+      <section className={SECTION}>
+        <div>
+          <h2 className="ax-titre-section flex items-center gap-2"><CreditCard className="size-4 text-attention" aria-hidden />{t("Moyens de paiement")}</h2>
+          <p className="ax-texte-secondaire">{t("Ce que vos clients peuvent choisir pour vos produits physiques.")}</p>
         </div>
-        <p className="text-[12px] text-[#AAAAAA]">
-          {t("Ce que vos clients peuvent choisir pour vos produits physiques.")}
-        </p>
-        {([
-          ["livraison", "Paiement à la livraison", "Le client paie le livreur en espèces ou par Mobile Money à la réception."],
-          ["whatsapp", "Commande via WhatsApp", "La commande arrive sur votre WhatsApp, payée à la livraison."],
-          ["livraisonHorsPays", "Paiement à la livraison hors de votre pays", "Désactivé : un client d'un autre pays ne peut pas commander. Évite les colis envoyés loin puis refusés."],
-        ] as const).map(([cle, titre, aide], i) => (
-          <label key={cle} className={`flex items-start justify-between gap-4 py-2 cursor-pointer ${i ? "border-t border-[#F5F5F5]" : ""}`}>
-            <span className="min-w-0">
-              <span className="block text-[13px] text-[#333333]">{t(titre)}</span>
-              <span className="block text-[11.5px] text-[#AAAAAA] leading-snug mt-0.5">{t(aide)}</span>
-            </span>
-            <input type="checkbox" checked={paiement[cle]} disabled={cle === "livraisonHorsPays" && !paiement.livraison && !paiement.whatsapp}
-              onChange={e => setPaiement(p => ({ ...p, [cle]: e.target.checked }))}
-              className="w-4 h-4 mt-0.5 accent-[#F5A623] flex-shrink-0" />
-          </label>
-        ))}
-        <button type="button" onClick={sauvegarderPaiement} disabled={savingPaiement}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-[13px] text-white transition-all hover:scale-[1.01] disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)", boxShadow: "0 4px 16px rgba(245,166,35,0.25)" }}>
-          <Save size={14} />
-          {savingPaiement ? t("Enregistrement…") : t("Enregistrer")}
-        </button>
-      </div>
+        <div className="divide-y divide-bordure">
+          {([
+            ["livraison", "Paiement à la livraison", "Le client paie le livreur en espèces ou par Mobile Money à la réception."],
+            ["whatsapp", "Commande via WhatsApp", "La commande arrive sur votre WhatsApp, payée à la livraison."],
+            ["livraisonHorsPays", "Paiement à la livraison hors de votre pays", "Désactivé : un client d'un autre pays ne peut pas commander. Évite les colis envoyés loin puis refusés."],
+          ] as const).map(([cle, titre, aide]) => (
+            <label key={cle} className={CASE}>
+              <span className="min-w-0">
+                <span className="block ax-texte">{t(titre)}</span>
+                <span className="block ax-aide mt-0.5">{t(aide)}</span>
+              </span>
+              <input type="checkbox" checked={paiement[cle]} disabled={cle === "livraisonHorsPays" && !paiement.livraison && !paiement.whatsapp}
+                onChange={e => setPaiement(p => ({ ...p, [cle]: e.target.checked }))} className={CASE_INPUT} />
+            </label>
+          ))}
+        </div>
+        <Bouton variante="secondaire" onClick={sauvegarderPaiement} charge={savingPaiement} texteCharge={t("Enregistrement…")} icone={<Save className="size-4" aria-hidden />}>
+          {t("Enregistrer les moyens de paiement")}
+        </Bouton>
+      </section>
 
       {/* ── Plan actuel ── */}
       {tenant && (
-        <div className="ax-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[13px] font-semibold text-[#111111]">{t("Plan actuel")}</h3>
-            <span className="text-[11px] font-bold text-[#D97706] bg-[#FFFBEB] border border-[#FDE68A] px-2.5 py-0.5 rounded-full">
-              {tenant.planType?.toUpperCase()}
-            </span>
+        <section className="rounded-carte border border-bordure bg-carte p-carte shadow-carte space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="ax-sous-titre">{t("Plan actuel")}</h2>
+            <Badge ton="accent">{tenant.planType?.toUpperCase()}</Badge>
           </div>
-          <div className="space-y-2.5">
+          <dl className="space-y-2">
             {[
               { label: "Commission Axso", value: "0 % (paiement à la livraison)" },
-              { label: "Actif depuis",   value: new Date(tenant.createdAt).toLocaleDateString(t.loc) },
+              { label: "Actif depuis", value: new Date(tenant.createdAt).toLocaleDateString(t.loc) },
             ].map(row => (
-              <div key={row.label} className="flex justify-between text-[12.5px]">
-                <span className="text-[#AAAAAA]">{t(row.label)}</span>
-                <span className="font-semibold text-[#444444]">{t(row.value)}</span>
+              <div key={row.label} className="flex justify-between gap-3 text-sm">
+                <dt className="text-doux">{t(row.label)}</dt>
+                <dd className="font-semibold text-encre text-right">{t(row.value)}</dd>
               </div>
             ))}
-          </div>
-        </div>
+          </dl>
+          <Bouton variante="fantome" taille="compact" href="/dashboard/abonnement">{t("Voir les abonnements")}</Bouton>
+        </section>
       )}
+      </>}
     </div>
   );
 }

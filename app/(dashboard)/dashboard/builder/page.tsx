@@ -3,12 +3,15 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
-import { Image as ImageIcon, BadgeCheck, Save, Monitor, LayoutGrid, Palette, Type, LayoutTemplate, MousePointer2, Code2, Sparkles, X, Undo2, AlertCircle } from "lucide-react";
+import { Image as ImageIcon, BadgeCheck, Save, Monitor, LayoutGrid, Palette, Type, LayoutTemplate, MousePointer2, Code2, Sparkles, ShoppingCart, X, Undo2, AlertCircle } from "lucide-react";
 import { resolveThemeConfig, mergeThemeConfig, type ThemeConfig, DEFAULT_PRODUCT_SECTIONS } from "@/lib/theme-config";
 import { BoutiqueBuilder } from "./boutique/BoutiqueBuilder";
-import { PanelLogo, PanelCouleurs, PanelTypo, PanelLayout, PanelMedias, PanelAnimations, PanelBoutons, PanelModeles, PanelAvance, PanelPageSections, PanelProduit } from "./panels";
+import { PanelLogo, PanelModeAchat, PanelCouleurs, PanelTypo, PanelLayout, PanelMedias, PanelAnimations, PanelBoutons, PanelModeles, PanelAvance, PanelPageSections, PanelProduit } from "./panels";
 import { corrigerLiensDesign } from "@/lib/liens-design";
 import { useT } from "@/components/I18nProvider";
+import { EtatChargement, EtatErreur, useConfirmation } from "@/components/ui";
+import { BandeauCompletudeVue } from "@/components/dashboard/BandeauCompletudeVue";
+import type { EtatCompletude } from "@/lib/demarrage";
 
 type Device = "desktop" | "tablet" | "mobile";
 
@@ -70,6 +73,7 @@ const DEFAULT_PRODUCT_PAGE = {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function BuilderPage() {
   const tr = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const [device, setDevice]           = useState<Device>("desktop");
   const [tenant, setTenant]           = useState<any>(null);
   const [config, setConfig]           = useState<ThemeConfig | null>(null);
@@ -84,8 +88,8 @@ export default function BuilderPage() {
   const debounce    = useRef<NodeJS.Timeout | null>(null);
 
   const refetchTenant = useCallback(async () => {
-    const data = await fetch("/api/tenants/moi-complet").then((r) => r.json());
-    if (data.error) return;
+    const data = await fetch("/api/tenants/moi-complet").then((r) => r.json()).catch(() => null);
+    if (!data || data.error) return false;
     setTenant(data);
     setInfosForm({
       nomBoutique: data.nomBoutique || "", whatsapp: data.whatsapp || "",
@@ -113,9 +117,20 @@ export default function BuilderPage() {
     resolved = corrigerLiensDesign(resolved, { slug: data.slug, digital: resolved.modeBoutique === "digital", nom: data.nomBoutique, logoUrl: data.logoUrl }); // mêmes liens, nom et logo d'en-tête / pied que la vitrine
     setConfig(resolved);
     setOriginalConfig(resolved);
+    return true;
   }, []);
 
-  useEffect(() => { refetchTenant(); }, [refetchTenant]);
+  // Échec du premier chargement : message + relance au lieu d'un chargement sans fin.
+  const [erreurChargement, setErreurChargement] = useState(false);
+  const chargerConstructeur = useCallback(() => { setErreurChargement(false); refetchTenant().then((ok) => setErreurChargement(!ok)); }, [refetchTenant]);
+  useEffect(chargerConstructeur, [chargerConstructeur]);
+
+  // Bandeau discret « Boutique complète à X % » (B10), rechargé après chaque enregistrement.
+  const [completude, setCompletude] = useState<EtatCompletude | null>(null);
+  useEffect(() => {
+    if (saved === false && completude) return;
+    fetch("/api/demarrage").then(r => (r.ok ? r.json() : null)).then(setCompletude).catch(() => {});
+  }, [saved]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cookie d'aperçu (voir proxy.ts et le layout de la vitrine) : les pages de
   // la boutique s'affichent dans le cadre d'aperçu, même en brouillon.
@@ -279,13 +294,18 @@ export default function BuilderPage() {
   // Dépublier : la boutique passe « en pause » (même statut que l'interrupteur
   // de Ma boutique) — invisible pour le public, republiable d'un clic.
   const depublierBoutique = useCallback(async () => {
-    if (!confirm(tr("Dépublier ta boutique ?\n\nElle ne sera plus visible en ligne tant que tu ne la republies pas. Tes produits, commandes et réglages sont conservés."))) return;
+    if (!(await confirmer({
+      titre: tr("Dépublier ta boutique ?"),
+      objet: tenant?.nomBoutique ?? tr("Ma boutique"),
+      description: tr("Elle ne sera plus visible en ligne tant que tu ne la republies pas. Tes produits, commandes et réglages sont conservés."),
+      libelleConfirmer: tr("Dépublier la boutique"),
+    }))) return;
     setPublishing(true);
     try {
       const res = await fetch("/api/tenants", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut: "pause" }) });
       if (res.ok) await refetchTenant();
     } finally { setPublishing(false); }
-  }, [refetchTenant]);
+  }, [refetchTenant, confirmer, tenant?.nomBoutique, tr]);
 
   const sauvegarderInfos = useCallback(async () => {
     setSavingInfos(true);
@@ -309,17 +329,17 @@ export default function BuilderPage() {
   };
 
   if (!config || !tenant) return (
-    <div className="h-screen bg-white flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">{tr("Chargement du constructeur")}</p>
-      </div>
+    <div className="h-screen bg-fond flex items-center justify-center px-page">
+      {erreurChargement
+        ? <EtatErreur className="max-w-md" titre={tr("Le constructeur n'a pas pu être chargé.")} texte={tr("Vérifie ta connexion puis réessaie. Tes réglages enregistrés ne sont pas touchés.")} onReessayer={chargerConstructeur} />
+        : <EtatChargement texte={tr("Chargement du constructeur…")} />}
     </div>
   );
 
 
   const bandeaux = (
     <>
+      {completude && <BandeauCompletudeVue etat={completude} discret />}
       {/* Bandeau "à compléter" — proactif (calculé au chargement), pas seulement
           après une tentative de publication ratée. Permet de tout corriger
           sans quitter le Constructeur. */}
@@ -377,6 +397,7 @@ export default function BuilderPage() {
 
   return (
       <>
+        {dialogue}
         <BoutiqueBuilder
           tenant={tenant}
           config={config}
@@ -399,7 +420,7 @@ export default function BuilderPage() {
           onSyncWithServer={syncWithServer}
           // Rendu après le chargement de la boutique, côté navigateur : l'adresse se lit directement.
           pageInitiale={(new URLSearchParams(window.location.search).get("page") as any) || undefined}
-          modeles={<PanelModeles tenant={tenant} onApplied={refetchTenant} />}
+          modeles={<PanelModeles tenant={tenant} onApplied={async () => { await refetchTenant(); }} />}
           panneauxPages={{
             produit: <PanelProduit config={config} setProductPage={setProductPage} set={set} boutiqueCreeLe={tenant?.createdAt ?? null} />,
             apropos: <PanelPageSections config={config} set={set} pageKey="aboutPage" titre={tr("À propos")} />,
@@ -413,6 +434,7 @@ export default function BuilderPage() {
             { id: "boutons", label: "Boutons et navigation", desc: "Style des boutons et du menu", Icon: MousePointer2, contenu: <PanelBoutons config={config} setBoutons={setBoutons} setNavStyle={setNavStyle} /> },
             { id: "animations", label: "Animations", desc: "Apparition des sections", Icon: Sparkles, contenu: <PanelAnimations config={config} setAnim={setAnim} /> },
             { id: "medias", label: "Médias", desc: "Images et vidéos", Icon: ImageIcon, contenu: <PanelMedias config={config} set={set} setSection={setSection} updateCustomSection={updateCustomSection} /> },
+            { id: "mode-achat", label: "Mode d'achat", desc: "Panier ou commande directe pour tes clients", Icon: ShoppingCart, contenu: <PanelModeAchat tenant={tenant} /> },
             { id: "avance", label: "CSS avancé", desc: "Code CSS personnalisé", Icon: Code2, contenu: <PanelAvance config={config} set={set} tenant={tenant} onReset={() => { setConfig({ ...resolveThemeConfig(tenant.themeId) }); }} /> },
           ]}
         />

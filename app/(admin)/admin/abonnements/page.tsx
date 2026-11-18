@@ -6,11 +6,14 @@ import { getAdminSessionPour } from "@/lib/admin-auth";
 import { PLATFORM_TENANT_SLUG, getPlatformTenantId } from "@/lib/wallet";
 import { getT } from "@/lib/i18n/serveur";
 import { lireRefAbonnement } from "@/lib/abonnement-paiement";
+import { EnTetePage, Carte, EtatVide } from "@/components/command-center/ui";
+import { TableauInteractif, type Colonne, type Ligne } from "@/components/command-center/client";
+import Link from "next/link";
 
 const PALIERS = [
-  { id: "palier0", nom: "Essentiel", prix: 0, icon: CreditCard, color: "#AAAAAA" },
-  { id: "palier1", nom: "Pro", prix: 6000, icon: Zap, color: "#F5A623" },
-  { id: "palier2", nom: "Illimité", prix: 20000, icon: Crown, color: "#F5A623" },
+  { id: "palier0", nom: "Essentiel", prix: 0, icon: CreditCard, cls: "cc-muted" },
+  { id: "palier1", nom: "Pro", prix: 6000, icon: Zap, cls: "cc-warn" },
+  { id: "palier2", nom: "Illimité", prix: 20000, icon: Crown, cls: "cc-warn" },
 ];
 
 export default async function AdminAbonnementsPage() {
@@ -70,111 +73,76 @@ export default async function AdminAbonnementsPage() {
   const compteParPalier = Object.fromEntries(repartition.map(r => [r.planType, r._count]));
   const totalBoutiques = repartition.reduce((s, r) => s + r._count, 0);
 
+  const tonsStatut = { [tx("Actif")]: "good", [tx("Expiré")]: "bad", [tx("Actif · sans paiement en ligne")]: "info", [tx("Expiré · sans paiement en ligne")]: "bad" };
+  const colonnes: Colonne[] = [
+    { cle: "boutique", nom: tx("Boutique"), format: "texte" },
+    { cle: "palier", nom: tx("Palier"), format: "texte", filtrable: true },
+    { cle: "expire", nom: tx("Expire le"), format: "date" },
+    { cle: "statut", nom: tx("Statut"), format: "badge", filtrable: true, tons: tonsStatut },
+  ];
+  const lignes: Ligne[] = abonnesPayants.map((t) => {
+    const expire = t.planExpiresAt ? new Date(t.planExpiresAt) < now : false;
+    const palier = PALIERS.find(p => p.id === t.planType);
+    return {
+      _id: t.id, _href: `/admin/boutiques/${t.id}`, boutique: t.nomBoutique, palier: palier ? tx(palier.nom) : t.planType,
+      expire: t.planExpiresAt ? t.planExpiresAt.getTime() : null,
+      statut: tx(expire ? "Expiré" : "Actif") + (ontPaye.has(t.id) ? "" : tx(" · sans paiement en ligne")),
+    };
+  });
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--cc-text)" }}>{tx("Abonnements")}</h1>
-        <p className="text-sm mt-1" style={{ color: "#AAAAAA" }}>{tx("Répartition des paliers et revenus récurrents Axso")}</p>
+    <div className="space-y-5">
+      <EnTetePage titre={tx("Abonnements")} sousTitre={tx("Répartition des paliers et revenus récurrents Axso")} />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <section className="cc-card p-4">
+          <p className="text-[12px] cc-muted">{tx("Revenu abonnements total")}</p>
+          <p className="text-2xl font-semibold cc-num cc-good mt-1">{formatMontant(revenuAbonnementsTotal._sum.montant || 0, "XAF")}</p>
+        </section>
+        <section className="cc-card p-4">
+          <p className="text-[12px] cc-muted">{tx("Ce mois-ci")}</p>
+          <p className="text-2xl font-semibold cc-num mt-1" style={{ color: "var(--cc-accent-text)" }}>{formatMontant(revenuAbonnementsMois._sum.montant || 0, "XAF")}</p>
+        </section>
+        <section className="cc-card p-4">
+          <p className="text-[12px] cc-muted flex items-center gap-1"><AlertTriangle size={12} className={abonnesExpires ? "cc-bad" : "cc-faint"} aria-hidden />{tx("Abonnements payants expirés")}</p>
+          <p className={`text-2xl font-semibold cc-num mt-1 ${abonnesExpires ? "cc-bad" : ""}`}>{abonnesExpires}</p>
+        </section>
       </div>
 
-      {/* Revenu abonnements */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl p-5 border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
-          <p className="text-2xl font-bold" style={{ color: "#16A34A" }}>{formatMontant(revenuAbonnementsTotal._sum.montant || 0, "XAF")}</p>
-          <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx("Revenu abonnements total")}</p>
-        </div>
-        <div className="rounded-2xl p-5 border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
-          <p className="text-2xl font-bold" style={{ color: "#F5A623" }}>{formatMontant(revenuAbonnementsMois._sum.montant || 0, "XAF")}</p>
-          <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx("Ce mois-ci")}</p>
-        </div>
-        <div className="rounded-2xl p-5 border" style={{ background: "#1A1A1A", borderColor: "rgba(220,38,38,0.2)" }}>
-          <p className="text-2xl font-bold" style={{ color: "#DC2626" }}>{tx(abonnesExpires)}</p>
-          <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "#AAAAAA" }}>
-            <AlertTriangle size={11} />{" "}{tx("Abonnements payants expirés")}
-          </p>
-        </div>
-      </div>
-
-      {/* Répartition par palier */}
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-3 gap-3">
         {PALIERS.map(p => {
           const Icon = p.icon;
           // « gratuit » est l'ancien nom du palier Essentiel : les deux valeurs coexistent en base, on les additionne.
           const count = (compteParPalier[p.id] ?? 0) + (p.id === "palier0" ? (compteParPalier["gratuit"] ?? 0) : 0);
           const pct = totalBoutiques > 0 ? Math.round((count / totalBoutiques) * 100) : 0;
           return (
-            <div key={p.id} className="rounded-2xl p-5 border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${p.color}18`, border: `1px solid ${p.color}30` }}>
-                  <Icon size={14} style={{ color: p.color }} />
-                </div>
-                <span className="text-sm font-semibold" style={{ color: "#ffffff" }}>{tx(p.nom)}</span>
-              </div>
-              <p className="text-2xl font-bold" style={{ color: p.color }}>{count}</p>
-              <p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{pct}{tx("% des boutiques ·")}{" "}{p.prix > 0 ? tx("{0} FCFA/mois", p.prix.toLocaleString(tx.loc)) : tx("Gratuit")}</p>
-            </div>
+            <section key={p.id} className="cc-card p-4">
+              <p className="flex items-center gap-2 text-[13px] font-medium"><Icon size={14} className={p.cls} aria-hidden />{tx(p.nom)}</p>
+              <p className="text-2xl font-semibold cc-num mt-1.5">{count}</p>
+              <p className="text-[12px] cc-muted mt-1">{tx("{0} % des boutiques", pct)} · {p.prix > 0 ? tx("{0} FCFA/mois", p.prix.toLocaleString(tx.loc)) : tx("Gratuit")}</p>
+            </section>
           );
         })}
       </div>
 
-      {/* Essais Illimité */}
-      <div className="rounded-2xl p-5 border space-y-4" style={{ background: "#1A1A1A", borderColor: "rgba(245,166,35,0.2)" }}>
-        <h2 className="font-semibold" style={{ color: "#ffffff" }}>{tx("Essais Illimité (7 jours)")}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {([["En cours", essaisEnCours.length, "#F5A623"], ["Terminés", essaisTermines.length, "#AAAAAA"], ["Devenus payants", essaisConvertis, "#16A34A"], ["Refusés (pour l'instant)", essaisRefuses, "#DC2626"]] as const).map(([l, n, c]) => (
-            <div key={l}><p className="text-2xl font-bold" style={{ color: c }}>{n}</p><p className="text-xs mt-1" style={{ color: "#AAAAAA" }}>{tx(l)}</p></div>
+      <Carte titre={tx("Essais Illimité (7 jours)")}>
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {([["En cours", essaisEnCours.length, ""], ["Terminés", essaisTermines.length, "cc-muted"], ["Devenus payants", essaisConvertis, "cc-good"], ["Refusés (pour l'instant)", essaisRefuses, "cc-bad"]] as const).map(([l, n, c]) => (
+            <div key={l}><dd className={`text-2xl font-semibold cc-num ${c}`}>{n}</dd><dt className="text-[12px] cc-muted mt-1">{tx(l)}</dt></div>
           ))}
-        </div>
+        </dl>
         {essaisEnCours.length > 0 && (
-          <ul className="text-sm space-y-1" style={{ color: "#DDDDDD" }}>
-            {essaisEnCours.map((e) => <li key={e.id}>{tx(e.nomBoutique)} — {tx("fin le {0}", formatDate(e.essaiFinLe!))}</li>)}
+          <ul className="text-[13px] space-y-1 mt-4">
+            {essaisEnCours.map((e) => <li key={e.id}><Link href={`/admin/boutiques/${e.id}`} className="hover:underline">{e.nomBoutique}</Link> <span className="cc-muted">— {tx("fin le {0}", formatDate(e.essaiFinLe!))}</span></li>)}
           </ul>
         )}
-      </div>
+      </Carte>
 
-      {/* Abonnés payants */}
-      <div className="rounded-2xl overflow-hidden border" style={{ background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" }}>
-        <div className="px-6 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <h2 className="font-semibold" style={{ color: "#ffffff" }}>{tx("Boutiques Pro & Illimité")}</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                {["Boutique", "Palier", "Expire le", "Statut"].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-medium" style={{ color: "#AAAAAA" }}>{tx(h)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-              {abonnesPayants.map(t => {
-                const expire = t.planExpiresAt ? new Date(t.planExpiresAt) < now : false;
-                const palier = PALIERS.find(p => p.id === t.planType);
-                return (
-                  <tr key={t.id} className="transition-colors hover:bg-white/[0.02]">
-                    <td className="px-5 py-3" style={{ color: "#ffffff" }}>{tx(t.nomBoutique)}</td>
-                    <td className="px-5 py-3">
-                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${palier?.color ?? "#AAAAAA"}18`, color: palier?.color ?? "#AAAAAA" }}>
-                        {tx(palier?.nom) ?? tx(t.planType)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-xs" style={{ color: "#AAAAAA" }}>{t.planExpiresAt ? formatDate(t.planExpiresAt) : "—"}</td>
-                    <td className="px-5 py-3">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full"
-                        style={expire ? { background: "rgba(220,38,38,0.15)", color: "#DC2626" } : { background: "rgba(22,163,74,0.15)", color: "#16A34A" }}>
-                        {expire ? tx("Expiré") : tx("Actif")}{!ontPaye.has(t.id) && <> · {tx("sans paiement en ligne")}</>}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-              {abonnesPayants.length === 0 && (
-                <tr><td colSpan={4} className="px-5 py-8 text-center text-xs" style={{ color: "#666666" }}>{tx("Aucun abonné payant pour l'instant")}</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Carte titre={tx("Boutiques Pro & Illimité")}>
+        {!lignes.length
+          ? <EtatVide titre={tx("Aucun abonné payant pour l'instant.")} explication={tx("Les boutiques passées en Pro ou Illimité apparaîtront ici avec leur date d'expiration.")} />
+          : <TableauInteractif colonnes={colonnes} lignes={lignes} nomExport="abonnes" />}
+      </Carte>
     </div>
   );
 }

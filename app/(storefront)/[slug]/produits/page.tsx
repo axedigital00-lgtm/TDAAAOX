@@ -110,6 +110,23 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
 
   const categories = Array.from(new Set(produits.map((p) => p.categorie).filter(Boolean))) as string[];
   const hasFilters = !!(q || tri || min || max || collection);
+  const collectionActive = collection ? tenant.collections.find((col) => col.slug === collection) : undefined;
+  // Filtres actifs, chacun retirable : lien vers le catalogue sans ce critère.
+  const criteres: Record<string, string | undefined> = { q, tri, min, max, collection };
+  const sans = (cle: string) => {
+    const u = new URLSearchParams();
+    for (const [k, v] of Object.entries(criteres)) if (v && k !== cle) u.set(k, v);
+    const qs = u.toString();
+    return `/${slug}/produits${qs ? `?${qs}` : ""}`;
+  };
+  const LIBELLES_TRI: Record<string, string> = { populaire: "Best-sellers", "prix-asc": "Prix croissant", "prix-desc": "Prix décroissant", avis: "Mieux notés" };
+  const filtresActifs = [
+    q && { cle: "q", libelle: t("Recherche : « {0} »", q) },
+    collection && { cle: "collection", libelle: t("Collection : {0}", t(collectionActive?.nom ?? collection)) },
+    tri && LIBELLES_TRI[tri] && { cle: "tri", libelle: t("Tri : {0}", t(LIBELLES_TRI[tri])) },
+    min && { cle: "min", libelle: t("Prix min. : {0}", min) },
+    max && { cle: "max", libelle: t("Prix max. : {0}", max) },
+  ].filter(Boolean) as { cle: string; libelle: string }[];
 
   if (cfg.builderHtmlProduits) {
     return <ImportedLiteralProductListPage cfg={cfg} />;
@@ -136,25 +153,30 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
       <div className={`${CONTAINER} mx-auto px-4 sm:px-6 lg:px-8 py-10`}>
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-end justify-between mb-6">
-            <div>
+          <div className="flex items-end justify-between gap-3 mb-6">
+            <div className="min-w-0">
               <span className="text-xs font-semibold uppercase tracking-widest mb-1 block" style={{ color: c.accent }}>
                 {t(tenant.nomBoutique)}
               </span>
               <h1 className="text-3xl sm:text-4xl font-bold font-playfair">
-                {q ? t("Résultats pour \"{0}\"", q) : collection ? t("Collection") : t("Tous les produits")}
+                {q ? t("Résultats pour \"{0}\"", q) : collectionActive ? t(collectionActive.nom) : t("Tous les produits")}
               </h1>
             </div>
-            <span className="text-sm" style={{ opacity: 0.4 }}>{produits.length} produit{produits.length !== 1 ? "s" : ""}</span>
+            <span className="text-sm whitespace-nowrap" style={{ opacity: 0.7 }}>{produits.length > 1 ? t("{0} produits", produits.length) : t("{0} produit", produits.length)}</span>
           </div>
 
           {/* Filters */}
           <form className="flex flex-wrap gap-2">
+            {collection && <input type="hidden" name="collection" value={collection} />}
+            {min && <input type="hidden" name="min" value={min} />}
+            {max && <input type="hidden" name="max" value={max} />}
             <div className="relative flex-1 min-w-48">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: c.texte, opacity: 0.45 }} />
               <input
                 name="q"
+                type="search"
                 defaultValue={q}
+                aria-label={t("Rechercher un produit")}
                 placeholder={t("Rechercher un produit…")}
                 className="w-full pl-10 pr-4 py-2.5 text-base sm:text-sm border focus:outline-none"
                 style={{ backgroundColor: c.surface, borderColor: `${c.accent}25`, color: c.texte, borderRadius: radius }}
@@ -163,6 +185,7 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
             <select
               name="tri"
               defaultValue={tri}
+              aria-label={t("Trier les produits")}
               className="px-4 py-2.5 text-base sm:text-sm border focus:outline-none"
               style={{ backgroundColor: c.surface, borderColor: `${c.accent}25`, color: c.texte, borderRadius: radius }}
             >
@@ -177,18 +200,42 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
               className={`text-sm inline-flex items-center gap-2 ${btnPrimaryClass}`}
               style={btnPrimaryStyle}
             >
-              <Search size={14} />{" "}{t("Filtrer")}
+              <Search size={14} />{" "}{t("Rechercher")}
             </button>
-            {hasFilters && (
-              <Link
-                href={`/${slug}/produits`}
-                className="px-4 py-2.5 text-sm border transition-all hover:opacity-80"
-                style={{ borderColor: `${c.accent}30`, color: c.texte, borderRadius: radius }}
-              >
-                {t("✕ Effacer")}
-              </Link>
-            )}
           </form>
+
+          {/* Filtres actifs, visibles et retirables un par un */}
+          {filtresActifs.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-3" aria-label={t("Filtres actifs")}>
+              {filtresActifs.map((f) => (
+                <Link key={f.cle} href={sans(f.cle)} aria-label={t("Retirer le filtre {0}", f.libelle)}
+                  className="inline-flex items-center gap-1.5 min-h-10 px-3 text-sm rounded-full border transition-all hover:opacity-80"
+                  style={{ borderColor: `${c.accent}40`, backgroundColor: `${c.accent}10`, color: c.texte }}>
+                  {f.libelle}<span aria-hidden="true" className="opacity-60">✕</span>
+                </Link>
+              ))}
+              <Link href={`/${slug}/produits`} className="inline-flex items-center min-h-10 px-2 text-sm underline underline-offset-4 opacity-70 hover:opacity-100">
+                {t("Tout effacer")}
+              </Link>
+            </div>
+          )}
+
+          {/* Collections sur téléphone (la colonne latérale n'apparaît que sur grand écran) */}
+          {tenant.collections.length > 0 && (
+            <nav aria-label={t("Collections")} className="lg:hidden flex gap-2 overflow-x-auto mt-3 -mx-4 px-4 pb-1">
+              {[{ slug: "", nom: "Tous les produits" }, ...tenant.collections].map((col) => {
+                const actif = (collection ?? "") === col.slug;
+                return (
+                  <Link key={col.slug || "tous"} href={col.slug ? `/${slug}/produits?collection=${col.slug}` : `/${slug}/produits`}
+                    aria-current={actif ? "page" : undefined}
+                    className="flex-shrink-0 inline-flex items-center min-h-10 px-4 text-sm rounded-full border whitespace-nowrap"
+                    style={{ borderColor: actif ? c.accent : `${c.accent}25`, backgroundColor: actif ? `${c.accent}15` : "transparent", color: actif ? c.accent : c.texte, fontWeight: actif ? 600 : 400 }}>
+                    {t(col.nom)}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
         </div>
 
         <div className="flex gap-8">
@@ -259,17 +306,22 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
             {produits.length === 0 ? (
               <div className="text-center py-24">
                 <Search size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="text-lg font-semibold mb-2">{t("Aucun produit trouvé")}</p>
-                <p className="text-sm mb-6" style={{ opacity: 0.5 }}>
-                  {q ? t("Aucun résultat pour \"{0}\"", q) : t("Cette collection est vide pour l'instant")}
+                <p className="text-lg font-semibold mb-2">{hasFilters ? t("Aucun produit trouvé") : t("Aucun produit pour le moment")}</p>
+                <p className="text-sm mb-6 max-w-md mx-auto" style={{ opacity: 0.7 }}>
+                  {q ? t("Aucun produit ne correspond à « {0} ». Vérifiez l'orthographe ou essayez un mot plus court.", q)
+                    : collection ? t("Cette collection est vide pour l'instant.")
+                    : hasFilters ? t("Aucun produit ne correspond à ces filtres. Retirez un filtre pour voir plus de produits.")
+                    : t("Cette boutique n'a pas encore mis de produits en ligne. Revenez bientôt.")}
                 </p>
-                <Link
-                  href={`/${slug}/produits`}
-                  className={`text-sm ${btnPrimaryClass}`}
-                  style={btnPrimaryStyle}
-                >
-                  {t("Voir tous les produits")}
-                </Link>
+                {hasFilters && (
+                  <Link
+                    href={`/${slug}/produits`}
+                    className={`text-sm ${btnPrimaryClass}`}
+                    style={btnPrimaryStyle}
+                  >
+                    {t("Voir tous les produits")}
+                  </Link>
+                )}
               </div>
             ) : (
               <div className={`grid ${GRID_PRODUITS} gap-4 sm:gap-5`}>
@@ -295,11 +347,11 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
                           ) : (
                             <div className="w-full h-full flex items-center justify-center"><Package size={40} className="opacity-20" /></div>
                           )}
-                          <WishlistHeartButton produitId={p.id} accent={c.accent} fond={c.fond} className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full" />
+                          <WishlistHeartButton produitId={p.id} accent={c.accent} fond={c.fond} className="absolute top-2 right-2 w-10 h-10 rounded-full" />
                           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
                             {p.featured && (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg" style={{ backgroundColor: c.accent, color: c.fond }}>
-                                VEDETTE
+                                {t("Vedette")}
                               </span>
                             )}
                             {remise > 0 && (
@@ -307,7 +359,7 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
                                 -{t(remise)}%
                               </span>
                             )}
-                            {p.stock === 0 && (
+                            {p.type === "physique" && p.stock <= 0 && (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-black/60 text-white">
                                 {t("Épuisé")}
                               </span>
@@ -325,7 +377,7 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
                         <div className="p-3.5">
                           <p className="font-medium text-sm leading-snug line-clamp-2 mb-2">{t(p.nom)}</p>
                           {p.categorie && (
-                            <p className="text-[10px] mb-2" style={{ opacity: 0.4 }}>{t(p.categorie)}</p>
+                            <p className="text-[11px] mb-2" style={{ opacity: 0.6 }}>{t(p.categorie)}</p>
                           )}
                           <div className="flex flex-wrap items-center gap-x-2">
                             <span className="font-bold text-sm" style={{ color: c.accent }}>
@@ -338,7 +390,7 @@ export default async function ProduitsPage({ params, searchParams }: Props) {
                             )}
                           </div>
                           {p.ventes > 5 && (
-                            <p className="text-[10px] mt-1" style={{ opacity: 0.35 }}>{t(p.ventes)} ventes</p>
+                            <p className="text-[11px] mt-1" style={{ opacity: 0.6 }}>{t("{0} ventes", p.ventes)}</p>
                           )}
                         </div>
                       </div>

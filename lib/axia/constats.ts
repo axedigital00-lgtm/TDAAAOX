@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { completionAuto } from "@/lib/llm-client";
 import { calculerProgression } from "@/lib/objectifs";
 import { lireStyle, rafraichirStyle, consigneStyle } from "./style";
+import { chargerDemarrage } from "@/lib/demarrage";
+import { PROMPTS_AXIA, QUESTIONS_AXIA } from "@/lib/demarrage-messages";
 
 const JOUR = 86_400_000;
 const MAX_PAR_JOUR = 4; // au-delà, AXIA devient du bruit
@@ -386,6 +388,19 @@ async function boutiqueBrouillon(ctx: Ctx): Promise<Constat | null> {
   };
 }
 
+// Boutique publiée mais incomplète (B10) : AXIA propose de faire la prochaine étape « Pour bien vendre » avec le marchand.
+// En brouillon, c'est boutiqueBrouillon qui parle (publication d'abord).
+async function demarrage(ctx: Ctx): Promise<Constat | null> {
+  if (ctx.statut !== "active") return null;
+  const etape = (await chargerDemarrage(ctx.tenantId))?.completude.manquantes[0];
+  if (!etape) return null;
+  return {
+    type: "demarrage", cle: `demarrage:${etape.cle}:${semaineCle()}`, priorite: 4, cooldownJours: 2,
+    texte: QUESTIONS_AXIA[etape.cle],
+    action: { prompt: PROMPTS_AXIA[etape.cle] },
+  };
+}
+
 async function rappels(ctx: Ctx): Promise<Constat | null> {
   const [posts, promo] = await Promise.all([
     prisma.postPlanifie.count({ where: { tenantId: ctx.tenantId, statut: "planifie", planifieLe: { gte: new Date(), lt: new Date(Date.now() + JOUR) } } }),
@@ -442,7 +457,7 @@ async function fetes(): Promise<Constat | null> {
 const DETECTEURS: ((ctx: Ctx) => Promise<Constat | null>)[] = [
   ventes, stockBas, topFlop, fichesIncompletes, paiementsNonFinalises, commandesBloquees,
   codeBloque, aAssigner, courseLongue, echecsAReplanifier, especesNonRemises,
-  clientsInactifs, avisNegatifs, messagesSansReponse, objectifs, abonnement, boutiqueBrouillon, rappels, fetes,
+  clientsInactifs, avisNegatifs, messagesSansReponse, objectifs, abonnement, boutiqueBrouillon, demarrage, rappels, fetes,
 ];
 
 /** Reformule les constats dans le style du marchand ; garde le texte par défaut si l'IA échoue. */

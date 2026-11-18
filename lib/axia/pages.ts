@@ -2,7 +2,7 @@
 // du dashboard. Sans import serveur : lu aussi par les fenêtres AXIA côté client.
 
 export const PAGES_DASHBOARD: Record<string, [chemin: string, nom: string]> = {
-  accueil: ["/dashboard", "Accueil (AXIA)"],
+  accueil: ["/dashboard/accueil", "Accueil"],
   tableau_de_bord: ["/dashboard/accueil", "Tableau de bord"],
   produits: ["/dashboard/produits", "Produits"],
   nouveau_produit: ["/dashboard/produits/nouveau", "Nouveau produit"],
@@ -11,7 +11,7 @@ export const PAGES_DASHBOARD: Record<string, [chemin: string, nom: string]> = {
   import_produits: ["/dashboard/magic-import", "Import de produits"],
   commandes: ["/dashboard/commandes", "Commandes"],
   clients: ["/dashboard/clients", "Clients"],
-  livraison: ["/dashboard/livraison", "Livraison"],
+  livraison: ["/dashboard/boutique?section=livraison", "Livraison"],
   livreurs: ["/dashboard/livreurs", "Livreurs"],
   logistique: ["/dashboard/logistique", "Logistique"],
   transporteurs: ["/dashboard/transporteurs", "Transporteurs"],
@@ -31,8 +31,9 @@ export const PAGES_DASHBOARD: Record<string, [chemin: string, nom: string]> = {
   analytics: ["/dashboard/analytics", "Statistiques"],
   rapports: ["/dashboard/rapports", "Rapports"],
   revenus: ["/dashboard/revenus", "Revenus"],
-  wallet: ["/dashboard/wallet", "Portefeuille"],
-  paiements: ["/dashboard/paiements", "Paiements"],
+  wallet: ["/dashboard/wallet", "Mon argent"],
+  // Ancienne page « Paiements » : redirige vers « Mon argent » (clé gardée pour les anciennes demandes).
+  paiements: ["/dashboard/wallet", "Mon argent"],
   factures: ["/dashboard/factures", "Factures"],
   abonnement: ["/dashboard/abonnement", "Abonnement"],
   boutique: ["/dashboard/boutique", "Boutique"],

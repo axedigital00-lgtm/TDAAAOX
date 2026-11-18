@@ -1,16 +1,25 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Truck, ToggleRight, KeyRound, Settings } from "lucide-react";
+import { toast } from "sonner";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
-
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
+import { Badge, Bouton, EnTetePage, EtatErreur, Saisie, SqueletteListe } from "@/components/ui";
+import { cn, formatMontant } from "@/lib/utils";
+
 const TRANSPORTEURS_TUTORIAL_STEPS = [
   { Icon: Truck,        titre: "Tes partenaires de livraison", description: "Chaque transporteur est listé avec ses zones de couverture et son logo." },
   { Icon: ToggleRight,  titre: "Active un transporteur",       description: "Bascule l'interrupteur pour le rendre disponible lors de la création d'une livraison." },
   { Icon: KeyRound,     titre: "Configure la clé API",         description: "Ajoute la clé API du transporteur pour synchroniser le suivi des colis automatiquement." },
   { Icon: Settings,     titre: "Fixe un tarif",                description: "Renseigne un tarif fixe optionnel pour standardiser le coût de livraison de ce partenaire." },
 ];
+
+// Codes de zone renvoyés par /api/transporteurs, dits en clair.
+const ZONES: Record<string, string> = {
+  international: "International", europe: "Europe", fr: "France", cm: "Cameroun",
+  ci: "Côte d'Ivoire", sn: "Sénégal", ng: "Nigeria", gh: "Ghana",
+};
 
 type Transporteur = {
   code: string; nom: string; zones: string[]; logo: string;
@@ -22,90 +31,119 @@ export default function TransporteursPage() {
   const { devise } = useDevise();
   const [liste, setListe] = useState<Transporteur[]>([]);
   const [loading, setLoading] = useState(true);
+  const [echec, setEchec] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [tarif, setTarif] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/transporteurs").then(r => r.json()).then(d => { setListe(d.transporteurs ?? []); setLoading(false); });
-  }, []);
+  async function charger() {
+    try {
+      const r = await fetch("/api/transporteurs");
+      if (!r.ok) throw new Error();
+      setListe((await r.json()).transporteurs ?? []);
+      setEchec(false);
+    } catch {
+      setEchec(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { charger(); }, []);
 
-  async function toggle(code: string, current: boolean) {
+  async function patch(body: unknown) {
+    const r = await fetch("/api/transporteurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+    if (r?.ok) return true;
+    const d = await r?.json().catch(() => ({}));
+    toast.error(d?.error ?? d?.message ? tr(d.error ?? d.message) : tr("Le changement n'a pas pu être enregistré. Vérifie ta connexion puis réessaie."));
+    return false;
+  }
+
+  async function toggle(x: Transporteur) {
     setSaving(true);
-    await fetch("/api/transporteurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, actif: !current }) });
-    setListe(l => l.map(t => t.code === code ? { ...t, actif: !current } : t));
+    if (await patch({ code: x.code, actif: !x.actif })) {
+      setListe(l => l.map(t => t.code === x.code ? { ...t, actif: !x.actif } : t));
+      toast.success(x.actif ? tr("{0} désactivé.", x.nom) : tr("{0} activé.", x.nom));
+    }
     setSaving(false);
   }
 
-  async function saveConfig(code: string) {
+  async function saveConfig(x: Transporteur) {
     setSaving(true);
-    await fetch("/api/transporteurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, apiKey, tarif: tarif ? parseFloat(tarif) : null }) });
-    setEditing(null); setApiKey(""); setTarif(""); setSaving(false);
-    const d = await fetch("/api/transporteurs").then(r => r.json());
-    setListe(d.transporteurs ?? []);
+    // Clé vide = on garde la clé déjà enregistrée (l'API n'y touche que si elle est envoyée).
+    if (await patch({ code: x.code, ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}), tarif: tarif ? parseFloat(tarif) : null })) {
+      toast.success(tr("Réglages de {0} enregistrés.", x.nom));
+      setEditing(null); setApiKey(""); setTarif("");
+      await charger();
+    }
+    setSaving(false);
   }
 
-  if (loading) return <div className="p-8 text-center text-sm text-gray-400">{tr("Chargement…")}</div>;
-
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <div className="max-w-3xl mx-auto space-y-5">
       <ModuleTutorial moduleKey="transporteurs" titre={tr("Transporteurs")} sousTitre={tr("Partenaires de livraison")} steps={TRANSPORTEURS_TUTORIAL_STEPS} />
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-[18px] font-bold text-[#111]">{tr("Transporteurs")}</h1>
-          <BoutonRevoirTutoriel moduleKey="transporteurs" />
-        </div>
-        <p className="text-[12px] text-gray-500">{tr("Activez et configurez vos partenaires de livraison")}</p>
-      </div>
+      <EnTetePage
+        retour={{ href: "/dashboard/logistique", libelle: tr("Logistique") }}
+        titre={tr("Transporteurs")}
+        description={tr("Activez et configurez vos partenaires de livraison")}
+        indicateurs={<BoutonRevoirTutoriel moduleKey="transporteurs" />}
+        className="mb-0"
+      />
 
-      <div className="space-y-3">
-        {liste.map(t => (
-          <div key={t.code} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{tr(t.logo)}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[13px] font-semibold text-[#111]">{tr(t.nom)}</span>
-                  <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{t.zones.join(", ")}</span>
+      {loading ? (
+        <SqueletteListe lignes={5} libelle={tr("Chargement des transporteurs…")} />
+      ) : echec ? (
+        <EtatErreur titre={tr("Les transporteurs n'ont pas pu être chargés")} texte={tr("Vérifie ta connexion puis réessaie.")} onReessayer={charger} />
+      ) : (
+        <ul className="space-y-3">
+          {liste.map(t => (
+            <li key={t.code} className="rounded-carte border border-bordure bg-carte p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-2xl" aria-hidden>{t.logo}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-encre">{t.nom}</span>
+                    <Badge ton={t.actif ? "succes" : "neutre"}>{t.actif ? tr("Activé") : tr("Désactivé")}</Badge>
+                    {t.apiKey && <Badge ton="info" icone={<KeyRound aria-hidden />}>{tr("Clé API enregistrée")}</Badge>}
+                  </div>
+                  <p className="mt-0.5 ax-aide">
+                    {t.zones.map(z => tr(ZONES[z] ?? z)).join(", ")}
+                    {t.tarif ? ` · ${tr("Tarif fixe :")} ${formatMontant(t.tarif, devise)}` : ""}
+                  </p>
                 </div>
-                {t.tarif && <p className="text-[11px] text-gray-400">{tr("Tarif fixe:")}{" "}{tr(t.tarif)} XAF</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { setEditing(t.code); setApiKey(""); setTarif(t.tarif?.toString() ?? ""); }}
-                  className="text-[11px] text-gray-400 hover:text-[#F5A623] px-2 py-1 rounded-lg border border-gray-100 hover:border-[#F5A623]/30 transition-all">
-                  {tr("Config")}
-                </button>
-                <button onClick={() => toggle(t.code, t.actif)} disabled={saving}
-                  className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${t.actif ? "bg-[#F5A623]" : "bg-gray-200"}`}>
-                  <span className={`inline-block h-4 w-4 m-0.5 rounded-full bg-white shadow transition-transform ${t.actif ? "translate-x-4" : ""}`} />
-                </button>
-              </div>
-            </div>
-
-            {editing === t.code && (
-              <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-[#F5A623]/50"
-                  placeholder={tr("Clé API (laisser vide pour ne pas changer)")}
-                  value={apiKey} onChange={e => setApiKey(e.target.value)} type="password" />
-                <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-[#F5A623]/50"
-                  placeholder={tr("Tarif fixe {0} (optionnel)", devise)} type="number"
-                  value={tarif} onChange={e => setTarif(e.target.value)} />
-                <div className="flex gap-2">
-                  <button onClick={() => saveConfig(t.code)} disabled={saving}
-                    className="flex-1 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-semibold hover:bg-[#e09520] transition-all disabled:opacity-50">
-                    {tr("Enregistrer")}
-                  </button>
-                  <button onClick={() => setEditing(null)}
-                    className="px-4 py-2 border border-gray-200 rounded-xl text-[12px] text-gray-500 hover:bg-gray-50">
-                    {tr("Annuler")}
+                <div className="flex items-center gap-2">
+                  {editing !== t.code && (
+                    <Bouton taille="compact" variante="secondaire" icone={<Settings className="size-4" aria-hidden />}
+                      onClick={() => { setEditing(t.code); setApiKey(""); setTarif(t.tarif?.toString() ?? ""); }}>
+                      {tr("Configurer")}
+                    </Bouton>
+                  )}
+                  <button type="button" role="switch" aria-checked={t.actif} disabled={saving} onClick={() => toggle(t)}
+                    aria-label={tr(t.actif ? "Désactiver {0}" : "Activer {0}", t.nom)}
+                    className="flex min-h-10 items-center px-1 disabled:opacity-50">
+                    <span className={cn("relative inline-flex h-6 w-10 rounded-full transition-colors", t.actif ? "bg-succes" : "bg-bordure-forte")}>
+                      <span className={cn("m-0.5 inline-block size-5 rounded-full bg-carte shadow transition-transform", t.actif && "translate-x-4")} />
+                    </span>
                   </button>
                 </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+
+              {editing === t.code && (
+                <form className="mt-3 space-y-champs border-t border-bordure pt-3" onSubmit={(e) => { e.preventDefault(); saveConfig(t); }}>
+                  <Saisie label={tr("Clé API")} type="password" autoComplete="off" value={apiKey} onChange={e => setApiKey(e.target.value)}
+                    aide={t.apiKey ? tr("Une clé est déjà enregistrée. Laisse vide pour la garder.") : tr("Fournie par le transporteur, pour suivre les colis automatiquement.")} />
+                  <Saisie label={tr("Tarif fixe")} mention="facultatif" type="number" inputMode="decimal" min={0} suffixe={devise}
+                    value={tarif} onChange={e => setTarif(e.target.value)} />
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                    <Bouton variante="secondaire" onClick={() => setEditing(null)}>{tr("Annuler")}</Bouton>
+                    <Bouton type="submit" charge={saving} texteCharge={tr("Enregistrement…")}>{tr("Enregistrer les réglages")}</Bouton>
+                  </div>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     const tenantId = (session.user as any)?.tenantId;
     if (!tenantId) {
-      return NextResponse.json({ message: "Tenant introuvable" }, { status: 400 });
+      return NextResponse.json({ message: "Boutique introuvable pour ce compte. Reconnectez-vous puis réessayez." }, { status: 400 });
     }
     if (await quotaCommandesAtteint(tenantId)) return NextResponse.json({ error: "Quota de commandes du Palier 0 atteint ce mois-ci — passez à un palier supérieur pour continuer à gérer vos commandes.", message: "Quota de commandes du Palier 0 atteint ce mois-ci — passez à un palier supérieur pour continuer à gérer vos commandes.", code: "quota_atteint" }, { status: 403 });
 
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const { commandeId } = body as { commandeId: string };
 
     if (!commandeId) {
-      return NextResponse.json({ message: "commandeId requis" }, { status: 400 });
+      return NextResponse.json({ message: "Commande non précisée. Rouvrez la commande puis réessayez." }, { status: 400 });
     }
 
     // Récupérer la commande avec ses lignes, produits et le tenant
@@ -96,6 +96,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ url });
   } catch (err) {
     console.error("[whatsapp-redirect]", err);
-    return NextResponse.json({ message: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ message: "Le lien WhatsApp n'a pas pu être préparé. Réessayez dans un instant." }, { status: 500 });
   }
 }

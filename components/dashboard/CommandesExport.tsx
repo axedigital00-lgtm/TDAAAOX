@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Download, Loader2, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { Bouton } from "@/components/ui";
 
 interface Props {
   total?: number;
@@ -9,10 +11,10 @@ interface Props {
 
 export function CommandesExport({ total }: Props) {
   const t = useT();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"mois" | "tout" | null>(null);
 
-  const exporter = async (filtre?: "mois" | "tout") => {
-    setLoading(true);
+  const exporter = async (filtre: "mois" | "tout") => {
+    setLoading(filtre);
     try {
       const params = new URLSearchParams();
       if (filtre === "mois") {
@@ -29,31 +31,25 @@ export function CommandesExport({ total }: Props) {
       a.download = `commandes-axso-${new Date().toISOString().slice(0, 10)}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
+      toast.success(filtre === "mois" ? t("Commandes du mois téléchargées (fichier Excel).") : t("Toutes les commandes téléchargées (fichier Excel)."));
     } catch (e) {
       console.error(e);
+      toast.error(t("Le fichier n'a pas pu être créé. Vérifiez votre connexion puis réessayez."));
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => exporter("mois")}
-        disabled={loading}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50"
-      >
-        {loading ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}
-        {t("Ce mois")}
-      </button>
-      <button
-        onClick={() => exporter("tout")}
-        disabled={loading}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-      >
-        {loading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-        {t("Tout (")}{total ?? "—"})
-      </button>
-    </div>
+    <>
+      <Bouton variante="secondaire" taille="compact" onClick={() => exporter("mois")} disabled={loading !== null} charge={loading === "mois"}
+        icone={<FileSpreadsheet className="size-4" aria-hidden />}>
+        {t("Exporter ce mois")}
+      </Bouton>
+      <Bouton variante="secondaire" taille="compact" onClick={() => exporter("tout")} disabled={loading !== null} charge={loading === "tout"}
+        icone={<Download className="size-4" aria-hidden />}>
+        {t("Exporter tout")}{total != null ? ` (${total})` : ""}
+      </Bouton>
+    </>
   );
 }

@@ -20,7 +20,7 @@ export function Traitement({ id, statut: initial, reponse: rep }: { id: string; 
     const r = await fetch(`/api/admin/support/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut, reponse }) }).catch(() => null);
     const d = await r?.json().catch(() => ({}));
     setCharge(false);
-    if (!r?.ok) return void toast.error(t(d?.erreur ?? "Action impossible"));
+    if (!r?.ok) return void toast.error(t(d?.erreur ?? "La réponse n'a pas été enregistrée. Réessayez."));
     toast.success(t(d.message));
     router.refresh();
   };
@@ -30,10 +30,10 @@ export function Traitement({ id, statut: initial, reponse: rep }: { id: string; 
       <textarea className="cc-input w-full !h-auto py-2" rows={3} maxLength={4000} value={reponse} onChange={(e) => setReponse(e.target.value)}
         placeholder={t("Réponse au marchand (il la verra dans son tableau de bord)")} aria-label={t("Réponse au marchand")} />
       <div className="flex flex-wrap gap-2">
-        <select className="cc-select" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label={t("Statut")}>
+        <select className="cc-select" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label={t("Statut du signalement")}>
           {STATUTS_SIGNALEMENT.map((s) => <option key={s} value={s}>{t(NOM_STATUT[s])}</option>)}
         </select>
-        <button className="cc-btn cc-btn-primary cc-btn-sm" disabled={charge}>{charge ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}{t("Enregistrer")}</button>
+        <button className="cc-btn cc-btn-primary cc-btn-sm" disabled={charge}>{charge ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}{t(charge ? "Enregistrement…" : "Enregistrer la réponse")}</button>
       </div>
     </form>
   );

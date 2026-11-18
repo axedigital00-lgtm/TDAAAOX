@@ -41,12 +41,11 @@ export function BoutiqueSwitcher({ sombre = false }: { sombre?: boolean }) {
 
   return (
     <label className="block">
-      <span className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide mb-1"
-        style={{ color: sombre ? "rgba(255,255,255,0.5)" : "#999999" }}>
+      <span className={`flex items-center gap-1.5 text-xs font-semibold mb-1 ${sombre ? "text-white/60" : "text-doux"}`}>
         {t("Boutique active")}
         {nonLuesAilleurs > 0 && (
-          <span className="rounded-full px-1.5 text-[10px] text-white normal-case" style={{ background: "#DC2626" }}>
-            {t(nonLuesAilleurs)} ailleurs
+          <span className="rounded-full px-1.5 text-xs text-white bg-erreur" title={t("Notifications non lues dans vos autres boutiques")}>
+            {t("{0} non lues ailleurs", nonLuesAilleurs)}
           </span>
         )}
       </span>
@@ -57,7 +56,7 @@ export function BoutiqueSwitcher({ sombre = false }: { sombre?: boolean }) {
           setBusy(true);
           if (!(await basculerBoutique(e.target.value))) setBusy(false);
         }}
-        className="w-full rounded-xl px-3 py-2 text-[12.5px] font-semibold border outline-none cursor-pointer disabled:opacity-60"
+        className="w-full min-h-10 rounded-controle px-3 py-2 text-sm font-semibold border outline-none cursor-pointer disabled:opacity-60 focus-visible:ring-3 focus-visible:ring-primaire/25"
         style={sombre
           ? { background: "rgba(255,255,255,0.08)", color: "#FFFFFF", borderColor: "rgba(255,255,255,0.15)" }
           : { background: "#FAFAFA", color: "#111111", borderColor: "#E8E8E8" }}

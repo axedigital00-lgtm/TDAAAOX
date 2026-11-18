@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, Lock } from "lucide-react";
+import { X, Lock } from "lucide-react";
+import { Badge, Bouton, BoutonIcone, EtatChargement, EtatErreur } from "@/components/ui";
 import { PlansGrid } from "@/components/dashboard/PlansGrid";
 import { NOMS_PALIERS, type Palier } from "@/lib/plans";
 import { useT } from "@/components/I18nProvider";
@@ -13,6 +14,7 @@ interface Etat {
   nomPlan: string;
   nomBoutique: string | null;
   devise: string;
+  promo?: boolean;
   essai?: EssaiGrille;
 }
 
@@ -25,12 +27,16 @@ export function AbonnementOverlay({ palierRequis, message, onClose, actionSecond
   const [etat, setEtat] = useState<Etat | null>(null);
   const [erreur, setErreur] = useState(false);
 
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
+  const charger = () => {
+    setErreur(false);
     fetch("/api/abonnement/etat")
       .then(res => { if (!res.ok) throw new Error(); return res.json(); })
       .then(setEtat)
       .catch(() => setErreur(true));
+  };
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    charger();
     return () => { document.body.style.overflow = ""; };
   }, []);
 
@@ -43,44 +49,36 @@ export function AbonnementOverlay({ palierRequis, message, onClose, actionSecond
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[10002] bg-white flex flex-col" style={{ animation: "axFadeIn 0.15s ease-out" }}>
+    <div role="dialog" aria-modal="true" aria-label={t("Abonnement")} className="fixed inset-0 z-[10002] bg-fond flex flex-col" style={{ animation: "axFadeIn 0.15s ease-out" }}>
       <style>{`@keyframes axFadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
 
       {/* Barre supérieure */}
-      <div className="flex-shrink-0 h-14 flex items-center justify-between px-5 border-b border-gray-100">
-        <div className="flex items-center gap-2">
+      <div className="flex-shrink-0 min-h-14 py-2 flex items-center justify-between gap-3 px-page sm:px-5 border-b border-bordure bg-carte">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           {palierRequis && (
-            <span className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#F5A623]/10 text-[#F5A623] border border-[#F5A623]/25">
-              <Lock size={10} />{" "}{t("Réservé au Palier")}{" "}{t(NOMS_PALIERS[palierRequis])}
-            </span>
+            <Badge ton="accent" icone={<Lock aria-hidden />}>{t("Réservé au Palier")}{" "}{t(NOMS_PALIERS[palierRequis])}</Badge>
           )}
-          {message && <p className="text-[13px] font-semibold text-[#111]">{t(message)}</p>}
+          {message && <p className="text-sm font-semibold text-encre">{t(message)}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
         {actionSecondaire && (
-          <button onClick={onClose} className="h-9 px-4 rounded-xl text-[13px] font-semibold border border-gray-200 text-[#333] hover:bg-gray-50">{t(actionSecondaire)}</button>
+          <Bouton variante="secondaire" taille="compact" onClick={onClose}>{t(actionSecondaire)}</Bouton>
         )}
-        <button onClick={onClose}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          aria-label={t("Fermer")}>
-          <X size={18} />
-        </button>
+        <BoutonIcone label={t("Fermer")} onClick={onClose}>
+          <X size={18} aria-hidden />
+        </BoutonIcone>
         </div>
       </div>
 
       {/* Contenu */}
-      <div className="flex-1 overflow-y-auto px-6 py-8">
+      <div className="flex-1 overflow-y-auto px-page sm:px-6 py-6 sm:py-8">
         <div className="max-w-4xl mx-auto">
           {erreur && (
-            <p className="text-center text-sm text-red-500 py-20">{t("Impossible de charger votre abonnement. Réessayez.")}</p>
+            <EtatErreur titre={t("Votre abonnement n'a pas pu être chargé.")} texte={t("Vérifiez votre connexion puis réessayez.")} onReessayer={charger} />
           )}
-          {!erreur && !etat && (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={22} className="animate-spin text-gray-300" />
-            </div>
-          )}
+          {!erreur && !etat && <EtatChargement texte={t("Chargement des abonnements…")} />}
           {etat && (
-            <PlansGrid planActuel={etat.planActuel} nomPlan={etat.nomPlan} devise={etat.devise} essai={etat.essai} compact />
+            <PlansGrid planActuel={etat.planActuel} nomPlan={etat.nomPlan} devise={etat.devise} essai={etat.essai} promo={!!etat.promo} compact />
           )}
         </div>
       </div>

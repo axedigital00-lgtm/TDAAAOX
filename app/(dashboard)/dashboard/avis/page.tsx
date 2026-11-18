@@ -8,6 +8,7 @@ import { Star, MessageSquare, CheckCircle2, Clock, ShieldCheck } from "lucide-re
 import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { AvisTutorial } from "@/components/dashboard/tutorials/AvisTutorial";
 import { getT } from "@/lib/i18n/serveur";
+import { Alerte, Badge, Bouton, EnTetePage, EtatVide } from "@/components/ui";
 
 const AVATAR_COLORS = [
   ["#FFF8EC","#F5A623"],["#EFF6FF","#3B82F6"],["#F0FDF4","#16A34A"],
@@ -89,26 +90,16 @@ export default async function AvisPage({ searchParams }: { searchParams: Promise
       style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
       <AvisTutorial />
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap pt-1">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5 mb-1">
-            <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Avis clients")}</h1>
-            <BoutonRevoirTutoriel moduleKey="avis" />
-            <span className="text-[11px] font-bold bg-[#F5F5F7] text-[#888888] border border-[#E8E8E8] px-2.5 py-0.5 rounded-full">
-              {totalAvis}
-            </span>
-          </div>
-          <p className="text-[12.5px] text-[#AAAAAA]">
-            {totalAvis}{" "}{t("avis au total ·")}{" "}{t(nonApprouves)}{" "}{t("en attente de modération")}
-          </p>
-        </div>
-        {nonApprouves > 0 && (
-          <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[#B45309] bg-[#FFFBEB] border border-[#FDE68A] px-3 py-1.5 rounded-2xl">
-            <Clock size={13} /> {t(nonApprouves)}{" "}{t("à modérer")}
-          </span>
-        )}
-      </div>
+      <EnTetePage
+        className="mb-0 pt-1"
+        titre={t("Avis clients")}
+        description={<>{totalAvis}{" "}{t("avis au total ·")}{" "}{nonApprouves}{" "}{t("en attente de modération")}</>}
+        indicateurs={<>
+          <BoutonRevoirTutoriel moduleKey="avis" />
+          <Badge>{totalAvis}</Badge>
+          {nonApprouves > 0 && <Badge ton="attention" icone={<Clock aria-hidden />}>{nonApprouves}{" "}{t("à modérer")}</Badge>}
+        </>}
+      />
 
       {/* ── Stats : note + répartition ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -171,13 +162,8 @@ export default async function AvisPage({ searchParams }: { searchParams: Promise
 
       {/* ── Bannière modération ── */}
       {nonApprouves > 0 && (
-        <div className="ax-card-flat flex items-center gap-3 p-4 border-[#FDE68A]/60"
-          style={{ background: "#FFFBEB" }}>
-          <Clock size={15} className="text-[#F5A623] flex-shrink-0" />
-          <p className="text-[12.5px] text-[#92400E]">
-            <strong>{t(nonApprouves)} avis</strong>{" "}{t("en attente de modération — approuvez-les pour qu'ils soient visibles sur votre boutique.")}
-          </p>
-        </div>
+        <Alerte ton="attention"
+          titre={<>{nonApprouves} avis{" "}{t("en attente de modération — approuvez-les pour qu'ils soient visibles sur votre boutique.")}</>} />
       )}
 
       {/* ── Liste ── */}
@@ -193,17 +179,8 @@ export default async function AvisPage({ searchParams }: { searchParams: Promise
         </div>
 
         {avis.length === 0 ? (
-          <div className="py-16 flex flex-col items-center gap-4 text-center px-6">
-            <div className="w-14 h-14 rounded-2xl bg-[#FFF8EC] flex items-center justify-center">
-              <Star size={24} className="text-[#F5A623]" fill="#F5A623" />
-            </div>
-            <div>
-              <p className="text-[14px] font-semibold text-[#111111]">{t("Aucun avis client")}</p>
-              <p className="text-[12px] text-[#AAAAAA] mt-1">
-                {t("Les avis apparaîtront ici dès que vos clients auront évalué leurs achats.")}
-              </p>
-            </div>
-          </div>
+          <EtatVide className="border-0" icone={<Star />} titre={t("Aucun avis client")}
+            texte={t("Les avis apparaîtront ici dès que vos clients auront évalué leurs achats.")} />
         ) : (
           <div className="divide-y divide-[#F9F9F9]">
             {avis.map(a => (
@@ -213,18 +190,8 @@ export default async function AvisPage({ searchParams }: { searchParams: Promise
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center flex-wrap gap-2 mb-1.5">
                       <span className="text-[13px] font-semibold text-[#222]">{t(a.client.nom)}</span>
-                      {a.verifie && (
-                        <span className="flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0]">
-                          <ShieldCheck size={9} />{" "}{t("Achat vérifié")}
-                        </span>
-                      )}
-                      <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-full border ${
-                        a.approuve
-                          ? "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]"
-                          : "bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]"
-                      }`}>
-                        {a.approuve ? t("Approuvé") : t("En attente")}
-                      </span>
+                      {a.verifie && <Badge ton="succes" icone={<ShieldCheck aria-hidden />}>{t("Achat vérifié")}</Badge>}
+                      <Badge ton={a.approuve ? "succes" : "attention"}>{a.approuve ? t("Approuvé") : t("En attente")}</Badge>
                     </div>
                     <div className="flex items-center gap-2 mb-2">
                       <Stars note={a.note} />
@@ -247,12 +214,10 @@ export default async function AvisPage({ searchParams }: { searchParams: Promise
                     <form action={moderer}>
                       <input type="hidden" name="id" value={a.id} />
                       <input type="hidden" name="approuve" value={a.approuve ? "0" : "1"} />
-                      <button type="submit"
-                        className={`text-[11.5px] font-semibold border px-3 py-1.5 rounded-2xl transition-all hover:scale-[1.01] ${a.approuve
-                          ? "bg-white text-[#888] border-[#E8E8E8] hover:bg-[#F5F5F7]"
-                          : "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0] hover:bg-[#ECFDF5]"}`}>
+                      <Bouton type="submit" taille="compact" variante={a.approuve ? "fantome" : "secondaire"}
+                        icone={a.approuve ? undefined : <CheckCircle2 className="size-4 text-succes" aria-hidden />}>
                         {a.approuve ? t("Masquer") : t("Approuver")}
-                      </button>
+                      </Bouton>
                     </form>
                   </div>
                 </div>
@@ -262,9 +227,9 @@ export default async function AvisPage({ searchParams }: { searchParams: Promise
         )}
         {nbPages > 1 && (
           <div className="px-5 py-3 border-t border-[#F3F3F3] flex items-center justify-between text-[12px] font-semibold">
-            {page > 1 ? <a href={`/dashboard/avis?page=${page - 1}`} className="text-[#111] hover:underline">← {t("Précédent")}</a> : <span />}
-            <span className="text-[#AAAAAA]">{page} / {nbPages}</span>
-            {page < nbPages ? <a href={`/dashboard/avis?page=${page + 1}`} className="text-[#111] hover:underline">{t("Suivant")} →</a> : <span />}
+            {page > 1 ? <Bouton variante="fantome" taille="compact" href={`/dashboard/avis?page=${page - 1}`}>← {t("Précédent")}</Bouton> : <span />}
+            <span className="text-doux">{page} / {nbPages}</span>
+            {page < nbPages ? <Bouton variante="fantome" taille="compact" href={`/dashboard/avis?page=${page + 1}`}>{t("Suivant")} →</Bouton> : <span />}
           </div>
         )}
       </div>

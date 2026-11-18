@@ -150,11 +150,11 @@ export default async function CollectionPage({ params }: Props) {
                       ) : (
                         <div className="w-full h-full flex items-center justify-center"><Package size={40} className="opacity-20" /></div>
                       )}
-                      <WishlistHeartButton produitId={p.id} accent={c.accent} fond={c.fond} className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full" />
+                      <WishlistHeartButton produitId={p.id} accent={c.accent} fond={c.fond} className="absolute top-2.5 right-2 w-10 h-10 rounded-full" />
                       <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
                         {p.featured && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg" style={{ backgroundColor: c.accent, color: c.fond }}>
-                            VEDETTE
+                            {t("Vedette")}
                           </span>
                         )}
                         {remise > 0 && (
@@ -162,7 +162,7 @@ export default async function CollectionPage({ params }: Props) {
                             -{t(remise)}%
                           </span>
                         )}
-                        {p.stock === 0 && (
+                        {p.type === "physique" && p.stock <= 0 && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-black/60 text-white">
                             {t("Épuisé")}
                           </span>
@@ -193,7 +193,7 @@ export default async function CollectionPage({ params }: Props) {
                         )}
                       </div>
                       {p.ventes > 5 && (
-                        <p className="text-[10px] mt-1" style={{ opacity: 0.35 }}>{t(p.ventes)} ventes</p>
+                        <p className="text-[10px] mt-1" style={{ opacity: 0.35 }}>{t("{0} ventes", p.ventes)}</p>
                       )}
                     </div>
                   </div>

@@ -12,9 +12,7 @@ export interface ConversationFull extends ConversationSummary {
   messages: any[];
 }
 
-// Gestion des conversations AXIA (façon ChatGPT) — partagée entre l'écran
-// plein écran (/dashboard) et la bulle flottante, pour ne jamais diverger
-// entre les deux surfaces.
+// Gestion des conversations AXIA (façon ChatGPT) du panneau AXIA (components/dashboard/AxiaConversation.tsx).
 export function useAxiaConversations() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeId, setActiveIdState] = useState<string | null>(null);

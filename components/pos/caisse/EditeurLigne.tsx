@@ -107,10 +107,10 @@ export function EditeurLigne({ ligne, nouveau, droits, plafondRemisePct, modeSim
   return (
     <Modale ouverte onFermer={onFermer} titre={ligne.nom} description={nouveau ? "Précisez l'article avant de l'ajouter au panier." : undefined}
       actions={<>
-        {!nouveau && <Bouton variante="danger" onClick={onRetirer} icone={<Trash2 size={15} aria-hidden />} className="mr-auto">{t("Supprimer")}</Bouton>}
+        {!nouveau && <Bouton variante="danger" onClick={onRetirer} icone={<Trash2 size={15} aria-hidden />} className="mr-auto">{t("Retirer du panier")}</Bouton>}
         {onFiche && <Bouton variante="discret" onClick={onFiche}>{t("Fiche produit")}</Bouton>}
         <Bouton variante="secondaire" onClick={onFermer}>{t("Annuler")}</Bouton>
-        <Bouton onClick={valider}>{nouveau ? t("Ajouter au panier") : t("Valider")}</Bouton>
+        <Bouton onClick={valider}>{nouveau ? t("Ajouter au panier") : t("Enregistrer la ligne")}</Bouton>
       </>}>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); valider(); }}>
         {ligne.variantes.length > 0 && (

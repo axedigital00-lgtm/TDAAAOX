@@ -17,12 +17,12 @@ export async function POST(req: NextRequest) {
     if (!produit?.affiliationActive) return NextResponse.json({ error: "Ce produit n'est pas ouvert aux affiliés" }, { status: 400 });
     tenantId = produit.tenantId;
   }
-  if (!tenantId) return NextResponse.json({ error: "Produit ou boutique requis" }, { status: 400 });
+  if (!tenantId) return NextResponse.json({ error: "Choisissez un produit ou une boutique pour obtenir votre lien." }, { status: 400 });
 
   try {
     const p = await assurerPartenariat(userId, tenantId);
     return NextResponse.json({ lien: lienAffiliation(p.codeParrainage, typeof produitId === "string" ? produitId : null), code: p.codeParrainage, statut: p.statut });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Erreur" }, { status: 400 });
+    return NextResponse.json({ error: e?.message || "Impossible d'obtenir le lien pour le moment. Réessayez dans un instant." }, { status: 400 });
   }
 }

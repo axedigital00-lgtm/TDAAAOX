@@ -92,7 +92,7 @@ export function OngletDocuments({ fiche, recharger }: PropsOnglet) {
                   )}
                   {d.url ? <LienFichier url={d.url} /> : <p className="text-[11px] text-[#AAAAAA]">{t("Aucun fichier joint : non vérifiable.")}</p>}
                 </div>
-                <BoutonSupprimer disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${d.id}`, "DELETE"))} />
+                <BoutonSupprimer objet={[t(TYPES_DOCUMENT[d.type] ?? d.type), d.certification, d.numero].filter(Boolean).join(" — ")} disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${d.id}`, "DELETE"))} />
               </li>
             );
           })}

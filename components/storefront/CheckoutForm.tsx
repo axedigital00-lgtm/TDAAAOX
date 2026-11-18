@@ -6,7 +6,7 @@ import { usePrix, useVisiteur } from "@/components/storefront/DeviseVitrine";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
-  Loader2, CreditCard, Shield, Lock,
+  Loader2, CreditCard, Shield,
   CheckCircle2, AlertCircle, MessageCircle, Download,
   Package, Zap, Phone, MapPin, User, Mail, ArrowLeft,
   Receipt, Save, ClipboardList, Check
@@ -15,6 +15,7 @@ import { trackPixelEvent } from "./MetaPixel";
 import { trackTikTokEvent } from "./TikTokPixel";
 import { trackSnapchatEvent } from "./SnapchatPixel";
 import { useT } from "@/components/I18nProvider";
+import { viderPanier as viderPanierVitrine } from "@/components/storefront/Panier";
 import { PAYS_OPTIONS, exempleTelephone, exempleVille, codePays } from "@/lib/devise-convert";
 import { moyensPhysique, type ReglagesPaiement } from "@/lib/paiement-pays";
 import { memoriserRef, lireRef, oublierRef } from "@/lib/ref-affiliation";
@@ -43,7 +44,7 @@ function GpsStep({ label, steps }: { label: string; steps: string[] }) {
   const t = useT();
   return (
     <div>
-      <p style={{ color: "#F5A623" }} className="font-bold mb-1">{t(label)} :</p>
+      <p className="font-bold mb-1">{t(label)} :</p>
       <ol className="list-decimal pl-4 space-y-0.5">
         {steps.map((s, i) => <li key={i}>{t(s)}</li>)}
       </ol>
@@ -68,7 +69,7 @@ function Recap({ theme, devise, items, total, codePromo, label, fraisLivraison, 
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{t(item.nom)}</p>
               {item.variante && <p className="text-xs opacity-40">{t(item.variante)}</p>}
-              <p className="text-xs opacity-45">{t("×")}{item.quantite}</p>
+              <p className="text-xs opacity-60">{item.quantite}{" × "}{fmt(item.prix, devise)}</p>
             </div>
             <span className="text-sm font-semibold flex-shrink-0" style={{ color: theme.accent }}>{fmt(item.prix * item.quantite, devise)}</span>
           </div>
@@ -110,12 +111,13 @@ function useZones(slug: string) {
 }
 
 // ─── Input stylisé ────────────────────────────────────────────────────────────
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, erreur, children }: { label: string; required?: boolean; erreur?: string; children: React.ReactNode }) {
   const t = useT();
   return (
     <label className="block">
-      <span className="text-xs block mb-1.5 font-medium opacity-60">{t(label)}{required && <span className="text-red-400 ml-0.5">*</span>}</span>
+      <span className="text-xs block mb-1.5 font-medium opacity-75">{t(label)}{required && <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>}</span>
       {children}
+      {erreur && <span role="alert" className="block text-xs mt-1.5 font-medium text-red-500">{erreur}</span>}
     </label>
   );
 }
@@ -147,7 +149,9 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
   const [zone, setZone] = useState("");
   const [fraisLivraison, setFraisLivraison] = useState<number | null>(null);
   const [delaiLivraison, setDelaiLivraison] = useState("");
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  // Erreurs affichées sous les champs concernés (nom, telephone, zone, ville) ; effacées dès la saisie.
+  const [erreurs, setErreurs] = useState<Record<string, string>>({});
+  const set = (k: string, v: string) => { setForm(f => ({ ...f, [k]: v })); setErreurs(e => (e[k] ? { ...e, [k]: "" } : e)); };
   // Les quartiers du marchand ne concernent que les livraisons dans le pays de la boutique.
   const zonesActives = codePays(form.pays) === paysBoutique ? zones : [];
   const zoneChoisie = zonesActives.length ? zone : "";
@@ -274,14 +278,26 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
     obtenirPosition();
   }
 
+  useEffect(() => {
+    if (!popup) return;
+    const echap = (e: KeyboardEvent) => { if (e.key === "Escape" && !loading) setPopup(null); };
+    document.addEventListener("keydown", echap);
+    return () => document.removeEventListener("keydown", echap);
+  }, [popup, loading]);
+
   // Selon le pays du client : paiement à la livraison seulement dans le pays de la boutique (sauf réglage contraire).
   const moyens = moyensPhysique(paiement, { paysClient: codePays(form.pays), paysBoutique });
 
   async function commander(canal: "whatsapp" | "direct") {
-    if (!form.nom.trim() || !form.telephone.trim()) { toast.error(t("Nom et téléphone obligatoires")); return; }
-    if (attendQuartier) { toast.error(t("Sélectionnez votre zone de livraison")); return; }
+    // Mêmes contrôles qu'avant, affichés sous chaque champ au lieu d'un message furtif.
+    const e: Record<string, string> = {};
+    if (!form.nom.trim()) e.nom = t("Indiquez votre nom pour que le livreur sache à qui remettre le colis.");
+    if (!form.telephone.trim()) e.telephone = t("Indiquez un numéro de téléphone : la boutique vous appelle pour la livraison.");
+    if (attendQuartier) e.zone = t("Choisissez votre zone de livraison dans la liste.");
     // Sans liste de zones, la ville dit où livrer et fixe les frais (revérifié par le serveur).
-    if (!zonesActives.length && !form.ville.trim()) { toast.error(t("Indiquez votre ville de livraison")); return; }
+    if (!zonesActives.length && !form.ville.trim()) e.ville = t("Indiquez votre ville de livraison.");
+    setErreurs(e);
+    if (Object.keys(e).length) return;
     // WhatsApp : onglet ouvert PENDANT le clic — ouvert après la requête, il
     // était bloqué par le navigateur (surtout sur mobile) et le client
     // n'arrivait jamais sur le WhatsApp du marchand.
@@ -301,8 +317,8 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
           champPersonnalise: champPerso && champPersoValeur.trim() ? { label: champPerso, valeur: champPersoValeur.trim() } : undefined,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "");
       trackPixelEvent("Purchase", {
         content_ids: items.map((i: any) => i.produitId),
         contents: items.map((i: any) => ({ id: i.produitId, quantity: i.quantite })),
@@ -323,7 +339,8 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
       } else onglet?.close();
     } catch (e: any) {
       onglet?.close();
-      toast.error(t(e.message) || t("Erreur"));
+      // Réseau coupé (TypeError) ou réponse sans explication : message clair plutôt que le texte technique.
+      toast.error(!(e instanceof TypeError) && e?.message ? t(e.message) : t("La commande n'a pas pu être envoyée. Vérifiez votre connexion internet puis réessayez."), { duration: 6000 });
     } finally {
       setLoadingCanal(null);
     }
@@ -341,7 +358,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
             <CheckCircle2 size={36} style={{ color: theme.accent }} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold font-playfair mb-2" style={{ color: theme.accent }}>{t("Commande #")}{done.numero}{" "}{t("confirmée !")}</h2>
+            <h2 className="text-2xl font-bold font-playfair mb-2" style={{ color: theme.accent }}>{t("Commande n° {0} enregistrée", done.numero)}</h2>
             <p className="text-sm opacity-60">
               {done.viaWhatsapp
                 ? t("Votre commande est enregistrée et un onglet WhatsApp s'est ouvert pour la confirmer auprès du vendeur.")
@@ -355,7 +372,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
             <a href={done.whatsappUrl} target="_blank" rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base hover:opacity-90 transition-all"
               style={{ background: "#25D366", color: "#fff", boxShadow: "0 4px 20px rgba(37,211,102,0.35)" }}>
-              <MessageCircle size={18} />{" "}{t("L'onglet ne s'est pas ouvert ? Cliquez ici")}
+              <MessageCircle size={18} />{" "}{t("Ouvrir WhatsApp pour envoyer la commande")}
             </a>
           )}
           {invoiceUrl && (
@@ -410,30 +427,31 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
             className="w-full sm:max-w-xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl"
             style={{ backgroundColor: theme.fond, color: theme.texte }}>
             <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: theme.fond, borderColor: `${theme.accent}20` }}>
-              <h2 id="titre-vos-informations" className="font-extrabold text-base tracking-[0.12em] flex items-center gap-2"><ClipboardList size={17} />{" "}{t("VOS INFORMATIONS")}</h2>
-              <button type="button" onClick={() => setPopup(null)} disabled={loading} aria-label={t("Fermer")} className="w-9 h-9 rounded-full flex items-center justify-center opacity-60 hover:opacity-100">✕</button>
+              <h2 id="titre-vos-informations" className="font-bold text-lg flex items-center gap-2"><ClipboardList size={17} />{" "}{t("Vos informations de livraison")}</h2>
+              <button type="button" onClick={() => setPopup(null)} disabled={loading} aria-label={t("Fermer")} className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center opacity-60 hover:opacity-100">✕</button>
             </div>
             <div className="p-5 space-y-4">
+        <p className="text-xs opacity-70">{t("Les champs marqués d'un * sont obligatoires.")}</p>
         {/* Formulaire */}
         <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
-          <h2 className="font-bold font-playfair text-base flex items-center gap-2"><ClipboardList size={16} />{" "}{t("Vos informations")}</h2>
+          <h3 className="font-bold text-base flex items-center gap-2"><User size={16} />{" "}{t("Vos coordonnées")}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <Field label={t("Nom complet")} required>
+              <Field label={t("Nom complet")} required erreur={erreurs.nom}>
                 <div className="relative">
                   <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
-                  <input value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={t("Ex: Aminata Diallo")} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+                  <input value={form.nom} onChange={e => set("nom", e.target.value)} autoComplete="name" aria-invalid={!!erreurs.nom} placeholder={t("Ex: Aminata Diallo")} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem", ...(erreurs.nom ? { borderColor: "#ef4444" } : {}) }} />
                 </div>
               </Field>
             </div>
-            <Field label={t("Téléphone (WhatsApp de préférence)")} required>
+            <Field label={t("Téléphone (WhatsApp de préférence)")} required erreur={erreurs.telephone}>
               <div className="relative">
                 <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
-                <input type="tel" value={form.telephone} onChange={e => set("telephone", e.target.value)} placeholder={exempleTelephone(form.pays)} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
+                <input type="tel" inputMode="tel" autoComplete="tel" aria-invalid={!!erreurs.telephone} value={form.telephone} onChange={e => set("telephone", e.target.value)} placeholder={exempleTelephone(form.pays)} className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem", ...(erreurs.telephone ? { borderColor: "#ef4444" } : {}) }} />
               </div>
             </Field>
             {demanderEmail && (
-              <Field label={t("Email (optionnel)")}>
+              <Field label={t("E-mail (facultatif)")}>
                 <div className="relative">
                   <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
                   <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@exemple.com" className={inp} style={{ ...inpStyle, paddingLeft: "2.25rem" }} />
@@ -442,7 +460,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
             )}
             {champPerso && (
               <div className={demanderEmail ? "" : "sm:col-span-2"}>
-                <Field label={champPerso}>
+                <Field label={`${champPerso} ${t("(facultatif)")}`}>
                   <input value={champPersoValeur} onChange={e => setChampPersoValeur(e.target.value)} className={inp} style={inpStyle} />
                 </Field>
               </div>
@@ -452,10 +470,10 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
 
         {/* Adresse livraison */}
         <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
-          <h2 className="font-bold font-playfair text-base flex items-center gap-2"><Package size={16} />{" "}{t("Adresse de livraison")}</h2>
+          <h3 className="font-bold text-base flex items-center gap-2"><Package size={16} />{" "}{t("Adresse de livraison")}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <Field label={t("Adresse exacte")}>
+              <Field label={t("Adresse exacte (facultatif)")}>
                 <div className="relative">
                   <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
                   <input value={adresseExacte || form.adresse}
@@ -480,7 +498,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
                     className="text-xs font-semibold underline flex-shrink-0" style={{ color: "#16a34a" }}>
                     {t("Voir")}
                   </a>
-                  <button type="button" onClick={() => setGps(null)} aria-label={t("Retirer la position")} className="text-xs opacity-50 hover:opacity-100 flex-shrink-0" style={{ color: "#16a34a" }}>✕</button>
+                  <button type="button" onClick={() => setGps(null)} aria-label={t("Retirer la position")} className="w-10 h-10 -my-2 -mr-2 flex items-center justify-center text-xs opacity-60 hover:opacity-100 flex-shrink-0" style={{ color: "#16a34a" }}>✕</button>
                 </div>
               )}
 
@@ -492,7 +510,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
                     <p className="text-sm font-bold" style={{ color: "#ef4444" }}>{t("Localisation bloquée — comment l'autoriser :")}</p>
                   </div>
 
-                  <div className="space-y-2.5 text-xs" style={{ color: "#d1d5db" }}>
+                  <div className="space-y-2.5 text-xs opacity-85">
                     {/* ── iOS Safari ── */}
                     {isSafariIOS && <>
                       <GpsStep label={t("Safari (iPhone/iPad)")} steps={[
@@ -657,13 +675,13 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
 
                   <div className="flex gap-2 pt-1">
                     <button type="button" onClick={() => { setGpsBloque(false); obtenirPosition(); }}
-                      className="flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                      style={{ background: "rgba(37,211,102,0.1)", color: "#22c55e", border: "1px solid rgba(37,211,102,0.2)" }}>
+                      className="flex-1 min-h-10 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                      style={{ background: "rgba(22,163,74,0.1)", color: "#15803d", border: "1px solid rgba(22,163,74,0.25)" }}>
                       <MapPin size={11} />{" "}{t("J'ai autorisé — Réessayer")}
                     </button>
                     <button type="button" onClick={() => setGpsBloque(false)}
-                      className="px-3 py-2 rounded-lg text-xs transition-all" style={{ color: "#6b7280" }}>
-                      {t("Ignorer")}
+                      className="min-h-10 px-3 py-2 rounded-lg text-xs transition-all opacity-70 hover:opacity-100">
+                      {t("Continuer sans GPS")}
                     </button>
                   </div>
                 </div>
@@ -685,16 +703,16 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
 
             {zonesActives.length > 0 && (
               <div className="sm:col-span-2">
-                <Field label={t("Zone de livraison")} required>
-                  <select value={zone} onChange={e => setZone(e.target.value)} className={inp} style={inpStyle}>
+                <Field label={t("Zone de livraison")} required erreur={erreurs.zone}>
+                  <select value={zone} onChange={e => { setZone(e.target.value); setErreurs(x => ({ ...x, zone: "" })); }} aria-invalid={!!erreurs.zone} className={inp} style={{ ...inpStyle, ...(erreurs.zone ? { borderColor: "#ef4444" } : {}) }}>
                     <option value="" style={{ backgroundColor: theme.surface }}>{t("Sélectionnez votre zone…")}</option>
                     {zonesActives.map(z => <option key={z} value={z} style={{ backgroundColor: theme.surface }}>{t(z)}</option>)}
                   </select>
                 </Field>
               </div>
             )}
-            <Field label={t("Ville")} required={!zonesActives.length}>
-              <input value={form.ville} onChange={e => set("ville", e.target.value)} placeholder={exempleVille(form.pays)} className={inp} style={inpStyle} />
+            <Field label={zonesActives.length ? t("Ville (facultatif)") : t("Ville")} required={!zonesActives.length} erreur={erreurs.ville}>
+              <input value={form.ville} onChange={e => set("ville", e.target.value)} autoComplete="address-level2" aria-invalid={!!erreurs.ville} placeholder={exempleVille(form.pays)} className={inp} style={{ ...inpStyle, ...(erreurs.ville ? { borderColor: "#ef4444" } : {}) }} />
             </Field>
             <Field label={t("Pays")}>
               <select value={form.pays} onChange={e => set("pays", e.target.value)} className={inp} style={inpStyle}>
@@ -705,6 +723,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
         </div>
             </div>
             <div className="sticky bottom-0 px-5 py-4 border-t" style={{ backgroundColor: theme.fond, borderColor: `${theme.accent}20` }}>
+              {Object.values(erreurs).some(Boolean) && <p role="alert" className="text-xs text-red-500 font-medium text-center mb-2">{t("Corrigez les champs signalés en rouge pour envoyer la commande.")}</p>}
               <button onClick={() => commander(popup)} disabled={loading}
                 className="w-full py-4 rounded-2xl font-bold text-base transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-3"
                 style={popup === "whatsapp" ? { background: "#25D366", color: "#fff" } : { background: theme.accent, color: "#fff" }}>
@@ -745,10 +764,6 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
             </p>
           )}
 
-          <div className="flex items-center gap-2 text-xs opacity-40 justify-center text-center">
-            <Lock size={10} className="flex-shrink-0" />{" "}
-            {t("Commande sécurisée · Paiement à la livraison")}
-          </div>
         </div>
       </div>
     </div>
@@ -778,17 +793,19 @@ export interface ArticleCommande {
   imageUrl?: string; type: string; variante?: string;
 }
 
-// Pas de panier : on commande UN produit, choisi sur sa fiche (Commander →
-// /checkout?produit=…). L'article et son prix viennent du serveur (page
-// checkout), jamais du navigateur ; le serveur les recalcule de toute façon.
-export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoUrl, parametresCommande, paysBoutique, paiement, article }: Props & { article: ArticleCommande | null }) {
+// Les articles commandés : UN produit choisi sur sa fiche (Commander → /checkout?produit=…) ou le
+// panier (?panier=…, physique uniquement). Articles et prix viennent du serveur (page checkout),
+// jamais du navigateur ; la création de la commande les recalcule de toute façon.
+export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoUrl, parametresCommande, paysBoutique, paiement, articles, depuisPanier }: Props & { articles: ArticleCommande[]; depuisPanier?: boolean }) {
   const t = useT();
-  const items = useMemo(() => (article ? [article] : []), [article]);
-  const sousTotal = article ? article.prix * article.quantite : 0;
+  const items = articles;
+  const article = articles[0] ?? null;
+  const sousTotal = articles.reduce((s, a) => s + a.prix * a.quantite, 0);
   const [promo, setPromo] = useState<{ code: string; reduction: number } | null>(null);
   const total = sousTotal - (promo?.reduction ?? 0);
   const codePromo = promo?.code ?? null;
-  const viderPanier = () => {};
+  // Commande passée depuis le panier : il est vidé (components/storefront/Panier.tsx).
+  const viderPanier = () => { if (depuisPanier) viderPanierVitrine(slug); };
   const [commandee, setCommandee] = useState(false); // écran de confirmation : plus de badge ni de code promo
 
   // digital + dropshipping → paiement en ligne (indisponible) ; physique → WhatsApp / paiement à la livraison
@@ -797,23 +814,25 @@ export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoU
   useEffect(() => {
     if (!article) return;
     trackPixelEvent("InitiateCheckout", {
-      content_ids: [article.produitId],
-      contents: [{ id: article.produitId, quantity: article.quantite }],
+      content_ids: items.map((i) => i.produitId),
+      contents: items.map((i) => ({ id: i.produitId, quantity: i.quantite })),
       value: total,
       currency: devise,
-      num_items: 1,
+      num_items: items.length,
     });
     trackTikTokEvent("InitiateCheckout", { value: total, currency: devise });
     trackSnapchatEvent("START_CHECKOUT", { price: total, currency: devise });
-    if (typeof window !== "undefined") (window as any).dataLayer?.push({ event: "initiate_checkout", value: total, currency: devise, num_items: 1 });
+    if (typeof window !== "undefined") (window as any).dataLayer?.push({ event: "initiate_checkout", value: total, currency: devise, num_items: items.length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!article) {
     return (
-      <div className="text-center py-20">
-        <p className="opacity-60">{t("Aucun produit sélectionné")}</p>
-        <a href={`/${slug}/produits`} className="text-sm mt-3 inline-block" style={{ color: theme.accent }}>{t("← Voir les produits")}</a>
+      <div className="max-w-md mx-auto text-center py-20 space-y-3">
+        <Package size={32} className="mx-auto opacity-30" />
+        <p className="font-semibold">{t("Aucun produit à commander")}</p>
+        <p className="text-sm opacity-70">{t("Le produit n'est plus disponible ou le lien de commande est incomplet. Choisissez un produit dans la boutique pour commander.")}</p>
+        <a href={`/${slug}/produits`} className="inline-flex items-center justify-center min-h-11 px-5 rounded-xl text-sm font-semibold" style={{ background: theme.accent, color: "#fff" }}>{t("Voir les produits")}</a>
       </div>
     );
   }
@@ -822,15 +841,7 @@ export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoU
 
   return (
     <>
-      {/* Badge type en haut */}
-      {!commandee && <div className="max-w-xl mx-auto mb-5">
-        {typePanier === "physique" && (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "rgba(16,185,129,0.1)", color: "#10B981", border: "1px solid rgba(16,185,129,0.2)" }}>
-            <Package size={14} />{" "}{t("Commande physique · Paiement à la livraison")}
-          </div>
-        )}
-      </div>}
-
+      {!commandee && <h1 className="max-w-xl mx-auto text-2xl sm:text-3xl font-bold mb-5">{t("Finaliser ma commande")}</h1>}
       {!commandee && typePanier === "physique" && <CodePromo theme={theme} slug={slug} devise={devise} sousTotal={sousTotal} items={items} promo={promo} onChange={setPromo} />}
 
       {typePanier === "physique" && <CheckoutPhysique {...commonProps} onCommandee={() => setCommandee(true)} />}
@@ -848,12 +859,13 @@ function CodePromo({ theme, slug, devise, sousTotal, items, promo, onChange }: {
   const { fmt } = usePrix();
   const [code, setCode] = useState("");
   const [verif, setVerif] = useState(false);
+  const [erreur, setErreur] = useState("");
   const appliquer = async () => {
     if (!code.trim()) return;
-    setVerif(true);
+    setVerif(true); setErreur("");
     try {
       const res = await fetch(`/api/codes-promo/verifier?code=${encodeURIComponent(code.trim())}&slug=${slug}`);
-      const p = await res.json();
+      const p = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(p.error || "Code promo invalide ou expiré");
       if (p.produitIds?.length && !items.some((i) => p.produitIds.includes(i.produitId))) throw new Error("Ce code ne s'applique pas à ce produit");
       if (p.minCommande && sousTotal < p.minCommande) throw new Error(t("Ce code s'applique dès {0} d'achat", fmt(p.minCommande, devise)));
@@ -862,25 +874,29 @@ function CodePromo({ theme, slug, devise, sousTotal, items, promo, onChange }: {
       onChange({ code: code.trim().toUpperCase(), reduction });
       toast.success(t("Code appliqué : -{0}", fmt(reduction, devise)));
     } catch (e) {
-      toast.error(e instanceof Error ? t(e.message) : t("Code promo invalide ou expiré"));
+      setErreur(e instanceof Error && !(e instanceof TypeError) ? t(e.message) : t("Vérification impossible pour le moment. Vérifiez votre connexion puis réessayez."));
     } finally { setVerif(false); }
   };
   if (promo) {
     return (
       <div className="max-w-xl mx-auto mb-5 flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
         <span className="flex items-center gap-2 min-w-0 text-green-600 font-semibold"><Check size={15} className="flex-shrink-0" />{" "}{t("Code {0} : -{1}", promo.code, fmt(promo.reduction, devise))}</span>
-        <button type="button" onClick={() => onChange(null)} className="text-xs opacity-60 hover:opacity-100">{t("Retirer")}</button>
+        <button type="button" onClick={() => onChange(null)} className="min-h-10 px-2 text-xs opacity-70 hover:opacity-100">{t("Retirer le code")}</button>
       </div>
     );
   }
   return (
-    <div className="max-w-xl mx-auto mb-5 flex gap-2">
-      <input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && appliquer()} placeholder={t("Code promo")} aria-label={t("Code promo")}
-        className="flex-1 min-w-0 h-11 px-4 rounded-xl border bg-transparent text-base sm:text-sm outline-none" style={{ borderColor: `${theme.accent}30` }} />
-      <button type="button" onClick={appliquer} disabled={verif || !code.trim()} className="h-11 px-5 rounded-xl text-sm font-semibold disabled:opacity-50"
-        style={{ background: `${theme.accent}15`, color: theme.accent }}>
-        {verif ? <Loader2 size={15} className="animate-spin" /> : t("Appliquer")}
-      </button>
+    <div className="max-w-xl mx-auto mb-5">
+      <label htmlFor="code-promo" className="text-xs block mb-1.5 font-medium opacity-75">{t("Code promo (facultatif)")}</label>
+      <div className="flex gap-2">
+        <input id="code-promo" value={code} onChange={(e) => { setCode(e.target.value); setErreur(""); }} onKeyDown={(e) => e.key === "Enter" && appliquer()} aria-invalid={!!erreur}
+          className="flex-1 min-w-0 h-11 px-4 rounded-xl border bg-transparent text-base sm:text-sm outline-none" style={{ borderColor: erreur ? "#ef4444" : `${theme.accent}30` }} />
+        <button type="button" onClick={appliquer} disabled={verif || !code.trim()} className="h-11 px-5 rounded-xl text-sm font-semibold disabled:opacity-50"
+          style={{ background: `${theme.accent}15`, color: theme.accent }}>
+          {verif ? <Loader2 size={15} className="animate-spin" /> : t("Appliquer le code")}
+        </button>
+      </div>
+      {erreur && <p role="alert" className="text-xs mt-1.5 font-medium text-red-500">{erreur}</p>}
     </div>
   );
 }

@@ -13,7 +13,7 @@ export interface AxiaAgentDefinition {
   tools: string[];
 }
 
-const LIM = `LIMITES : tu ne génères rien de payant ni ne publies sans l'accord du marchand (la bulle AXIA le demande) ; annonce toujours le coût estimé (academie_estimer_generation) avant de proposer une génération. Tu n'inventes jamais de référence, d'étude, de statistique, de témoignage ni de certification : une formation Axso délivre une attestation de réussite, pas un diplôme reconnu.`;
+const LIM = `LIMITES : tu ne génères rien de payant ni ne publies sans l'accord du marchand (le panneau AXIA le demande) ; annonce toujours le coût estimé (academie_estimer_generation) avant de proposer une génération. Tu n'inventes jamais de référence, d'étude, de statistique, de témoignage ni de certification : une formation Axso délivre une attestation de réussite, pas un diplôme reconnu.`;
 
 const REGISTRE_COMMUN = `─── STYLE ───────────────────────────────────────────────────────────────
 Tu tutoies le marchand. Direct, concret, jamais robotique. Pas de "Bien sûr !", pas de formules creuses.

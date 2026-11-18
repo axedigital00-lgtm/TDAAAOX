@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, BoutonIcone, EnTetePage, useConfirmation } from "@/components/ui";
 interface Campagne {
   id: string;
   plateforme: string;
@@ -169,10 +170,9 @@ function CampagneCard({ c, onStatut, onDelete }: { c: Campagne; onStatut: (id: s
             <Play size={11} />{" "}{t("Reprendre")}
           </button>
         )}
-        <button onClick={() => onDelete(c.id)}
-          className="w-9 h-9 flex items-center justify-center bg-red-50 border border-red-100 text-red-400 rounded-xl hover:bg-red-100 transition-colors flex-shrink-0">
-          <Trash2 size={13} />
-        </button>
+        <BoutonIcone label={t("Supprimer la campagne {0}", c.nom)} variante="danger" onClick={() => onDelete(c.id)}>
+          <Trash2 className="size-4" aria-hidden />
+        </BoutonIcone>
       </div>
     </div>
   );
@@ -182,6 +182,7 @@ export default function PublicitePage() {
   const t = useT();
   const { devise, fmt } = useDevise();
   const [campagnes, setCampagnes] = useState<Campagne[]>([]);
+  const { confirmer, dialogue } = useConfirmation();
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -217,7 +218,7 @@ export default function PublicitePage() {
       const data = await res.json();
       setCampagnes(data.campagnes || []);
       setStats(data.stats || {});
-    } catch { toast.error(t("Erreur chargement")); }
+    } catch { toast.error(t("Tes campagnes n'ont pas pu être chargées. Vérifie ta connexion et actualise la page.")); }
     finally { setLoading(false); }
   }
 
@@ -259,14 +260,14 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
           nom: parsed.nom_campagne || f.nom,
           imageAdUrl,
         }));
-        toast.success(t("Créatif généré !"));
+        toast.success(t("Créatif rédigé : relis-le avant de l'utiliser."));
       }
-    } catch { toast.error(t("Erreur IA")); }
+    } catch { toast.error(t("Le créatif n'a pas pu être rédigé. Réessaie.")); }
     finally { setGenIA(false); }
   }
 
   async function creer() {
-    if (!form.nom || !form.budget) { toast.error(t("Nom et budget requis")); return; }
+    if (!form.nom || !form.budget) { toast.error(t("Renseigne le nom de la campagne et son budget.")); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/campagnes", {
@@ -290,25 +291,29 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
           urlDestination: form.urlDestination || undefined,
         }),
       });
-      if (!res.ok) throw new Error("Erreur");
-      toast.success(t("Campagne créée !"));
+      if (!res.ok) throw new Error();
+      toast.success(t("Campagne « {0} » créée.", form.nom));
       setShowModal(false);
       setForm(f => ({ ...f, nom: "", budget: "", titreAd: "", descriptionAd: "", imageAdUrl: "", promptIA: "" }));
       charger();
-    } catch { toast.error(t("Erreur sauvegarde")); }
+    } catch { toast.error(t("La campagne n'a pas été enregistrée. Vérifie les champs et réessaie.")); }
     finally { setSaving(false); }
   }
 
   async function changerStatut(id: string, statut: string) {
-    await fetch("/api/campagnes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, statut }) });
+    const res = await fetch("/api/campagnes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, statut }) }).catch(() => null);
+    if (!res?.ok) { toast.error(t("Le statut de la campagne n'a pas été modifié. Réessaie.")); return; }
     setCampagnes(cs => cs.map(c => c.id === id ? { ...c, statut } : c));
     toast.success(t("Campagne {0}", statut === "active" ? "activée" : statut === "pause" ? "mise en pause" : "mise à jour"));
   }
 
   async function supprimer(id: string) {
-    await fetch(`/api/campagnes?id=${id}`, { method: "DELETE" });
+    const nom = campagnes.find(c => c.id === id)?.nom ?? t("Campagne");
+    if (!(await confirmer({ titre: t("Supprimer cette campagne ?"), objet: nom, description: t("Elle et ses statistiques disparaissent d'Axso. Rien n'est modifié chez Meta, Google ou TikTok."), libelleConfirmer: t("Supprimer la campagne") }))) return;
+    const res = await fetch(`/api/campagnes?id=${id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) { toast.error(t("La campagne n'a pas été supprimée. Réessaie.")); return; }
     setCampagnes(cs => cs.filter(c => c.id !== id));
-    toast.success(t("Campagne supprimée"));
+    toast.success(t("Campagne « {0} » supprimée.", nom));
   }
 
   const campagnesFiltrees = campagnes.filter(c => filterPlat === "tous" || c.plateforme === filterPlat);
@@ -317,18 +322,11 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Publicité")}</h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{t("Gérez vos campagnes Meta, Google et TikTok")}</p>
-        </div>
-        <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all"
-          style={{ background: "linear-gradient(135deg, #1877F2, #4285F4)", boxShadow: "0 4px 20px rgba(24,119,242,0.3)" }}>
-          <Plus size={16} />{" "}{t("Nouvelle campagne")}
-        </button>
-      </div>
+      {dialogue}
+      <EnTetePage className="mb-0"
+        titre={t("Publicité")}
+        description={t("Gérez vos campagnes Meta, Google et TikTok")}
+        actions={<Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{t("Nouvelle campagne")}</Bouton>} />
 
       {/* KPIs globaux */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -7,7 +7,7 @@ import { useT } from "@/components/I18nProvider";
 
 /** Classe d'un <input>, <select> ou <textarea> du kit (à poser sur un champ natif). */
 export const CLASSE_SAISIE =
-  "w-full min-h-11 rounded-xl border border-[#E8E8E8] bg-white px-3 py-2 text-[14px] text-[#111111] placeholder:text-[#AAAAAA] outline-none transition-colors focus:border-[#F5A623] focus-visible:ring-2 focus-visible:ring-[#F5A623]/40 disabled:bg-[#F5F5F5] disabled:text-[#AAAAAA] aria-[invalid=true]:border-[#B91C1C]";
+  "w-full min-h-11 rounded-xl border border-bordure bg-carte px-3 py-2 text-[14px] text-encre placeholder:text-discret outline-none transition-colors focus:border-primaire focus-visible:ring-2 focus-visible:ring-primaire/40 disabled:bg-fond disabled:text-discret aria-[invalid=true]:border-erreur";
 
 export type ChampProps = {
   label: string;
@@ -35,7 +35,7 @@ export function Champ({ label, aide, erreur, labelMasque, children, className }:
         {typeof children === "function" ? children({ id, "aria-describedby": decrit, "aria-invalid": erreur ? true : undefined }) : children}
       </div>
       {erreur
-        ? <p id={`${id}-erreur`} role="alert" className="mt-1 text-[12px] leading-snug text-[#B91C1C]">{t(erreur)}</p>
+        ? <p id={`${id}-erreur`} role="alert" className="mt-1 text-[12px] leading-snug text-erreur">{t(erreur)}</p>
         : aide && <p id={`${id}-aide`} className="mt-1 text-[11px] leading-snug text-[#888888]">{t(aide)}</p>}
     </div>
   );

@@ -15,7 +15,7 @@ const TYPES_COMMANDE = new Set(["nouvelle_commande", "commande_whatsapp"]);
 interface Notif { id: string; type: string; titre: string; message: string; lien?: string | null; nomBoutique?: string }
 
 // Une seule interrogation des notifications pour tout le dashboard : les
-// cloches (Header, AxiaNotifBell) s'abonnent ici au lieu d'interroger le
+// cloches (Header) s'abonnent ici au lieu d'interroger le
 // serveur chacune de leur côté.
 type Donnees = { notifications: any[]; nonLues: number };
 let derniere: Donnees | null = null;

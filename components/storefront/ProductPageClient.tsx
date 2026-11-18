@@ -9,10 +9,11 @@ import { SECTIONS_FICHE, whatsappFicheActif } from "@/lib/fiche-produit";
 import {
   Package, AlertTriangle, Lock, RotateCcw, Check, ChevronLeft,
   Star, Minus, Plus, Truck, ZoomIn,
-  MessageCircle, Download, ChevronRight, ShoppingBag,
+  MessageCircle, Download, ChevronRight, ShoppingBag, ShoppingCart,
   ChevronDown, Share2, PlayCircle, Headphones, FileText,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { ajouterAuPanier, usePanierVitrine } from "@/components/storefront/Panier";
 import { CoordonneesPied } from "@/components/storefront/CoordonneesPied";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ const DEFAULT_SECTIONS: ProdSection[] = [
   { id: "similar",     type: "similar",     actif: true, config: { count: 4, titre: "Vous aimerez aussi" } },
 ];
 
-// "addToCart" (ancien bloc « Ajouter au panier ») n'est plus rendu : il n'y a pas de panier.
+// "addToCart" (ancien bloc) n'est plus rendu : « Ajouter au panier » vit dans la section "quantity" (mode panier).
 const RIGHT_COL = new Set(["info", "variants", "quantity", "trust"]);
 // Types de produits digitaux — pas de stock physique, bouton "télécharger/accéder"
 // plutôt que "panier". Liste propre à la vitrine (voir TYPES_NUMERIQUES dans lib/pricing.ts).
@@ -110,8 +111,8 @@ function AvisForm({ tenantId, produitId, accent, surface, radius }: {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!note) { setErr("Veuillez sélectionner une note."); return; }
-    if (!nom.trim() || !email.trim()) { setErr("Nom et email requis."); return; }
+    if (!note) { setErr("Choisissez une note de 1 à 5 étoiles."); return; }
+    if (!nom.trim() || !email.trim()) { setErr("Indiquez votre nom et votre e-mail pour publier votre avis."); return; }
     setLoading(true); setErr("");
     try {
       const res = await fetch("/api/avis", {
@@ -119,10 +120,10 @@ function AvisForm({ tenantId, produitId, accent, surface, radius }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenantId, produitId, clientNom: nom, clientEmail: email, note, titre, commentaire }),
       });
-      const data = await res.json();
-      if (!res.ok) { setErr(data.error || "Erreur lors de l'envoi."); }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(data.error || "Votre avis n'a pas pu être envoyé. Réessayez dans un instant."); }
       else { setDone(true); }
-    } catch { setErr("Erreur réseau. Réessayez."); }
+    } catch { setErr("Connexion impossible. Vérifiez votre connexion internet puis réessayez."); }
     finally { setLoading(false); }
   }
 
@@ -141,9 +142,10 @@ function AvisForm({ tenantId, produitId, accent, surface, radius }: {
       <h3 className="font-bold text-sm">{tx("Laisser un avis")}</h3>
 
       {/* Star picker */}
-      <div className="flex items-center gap-1">
+      <p className="text-xs font-medium opacity-75">{tx("Votre note")}</p>
+      <div className="flex items-center gap-1 -mt-3" role="radiogroup" aria-label={tx("Votre note")}>
         {[1,2,3,4,5].map(i => (
-          <button key={i} type="button"
+          <button key={i} type="button" role="radio" aria-checked={note === i} aria-label={tx("{0} sur 5", i)}
             onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(0)}
             onClick={() => setNote(i)}
             style={{ background: "none", border: "none", padding: 9, cursor: "pointer" }}>
@@ -157,27 +159,35 @@ function AvisForm({ tenantId, produitId, accent, surface, radius }: {
 
       {/* Fields */}
       <div className="grid @min-[640px]:grid-cols-2 gap-3">
-        <input value={nom} onChange={e => setNom(e.target.value)} placeholder={tx("Votre nom *")}
+        <label className="block text-xs font-medium"><span className="block mb-1 opacity-75">{tx("Votre nom")}</span>
+        <input value={nom} onChange={e => setNom(e.target.value)} autoComplete="name"
           className="w-full px-3 py-2.5 text-base @min-[640px]:text-sm outline-none transition-all"
           style={{ borderRadius: rad, border: `1px solid ${accent}20`, background: "transparent" }} />
-        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={tx("Votre email *")}
+        </label>
+        <label className="block text-xs font-medium"><span className="block mb-1 opacity-75">{tx("Votre e-mail (non publié)")}</span>
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email"
           className="w-full px-3 py-2.5 text-base @min-[640px]:text-sm outline-none transition-all"
           style={{ borderRadius: rad, border: `1px solid ${accent}20`, background: "transparent" }} />
+        </label>
       </div>
-      <input value={titre} onChange={e => setTitre(e.target.value)} placeholder={tx("Titre (optionnel)")}
+      <label className="block text-xs font-medium"><span className="block mb-1 opacity-75">{tx("Titre (facultatif)")}</span>
+      <input value={titre} onChange={e => setTitre(e.target.value)}
         className="w-full px-3 py-2.5 text-base @min-[640px]:text-sm outline-none"
         style={{ borderRadius: rad, border: `1px solid ${accent}20`, background: "transparent" }} />
-      <textarea value={commentaire} onChange={e => setComment(e.target.value)} placeholder={tx("Votre commentaire…")} rows={3}
+      </label>
+      <label className="block text-xs font-medium"><span className="block mb-1 opacity-75">{tx("Votre commentaire (facultatif)")}</span>
+      <textarea value={commentaire} onChange={e => setComment(e.target.value)} placeholder={tx("Qu'avez-vous pensé de ce produit ?")} rows={3}
         className="w-full px-3 py-2.5 text-base @min-[640px]:text-sm outline-none resize-none"
         style={{ borderRadius: rad, border: `1px solid ${accent}20`, background: "transparent" }} />
+      </label>
 
-      {err && <p className="text-xs text-red-500">{tx(err)}</p>}
+      {err && <p role="alert" className="text-sm font-medium text-red-500">{tx(err)}</p>}
 
       <button type="submit" disabled={loading}
         className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all disabled:opacity-50"
         style={{ background: accent, color: "white", borderRadius: rad, border: "none", cursor: loading ? "default" : "pointer" }}>
         {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> : <Star size={14} fill="white" stroke="none" />}
-        {loading ? tx("Envoi…") : tx("Soumettre l'avis")}
+        {loading ? tx("Envoi de votre avis…") : tx("Envoyer mon avis")}
       </button>
     </form>
   );
@@ -347,10 +357,11 @@ function ImageGallery({ images, nom, accent, radius, zoomEnabled = true, sticky 
 }
 
 // ─── Variant Selector ─────────────────────────────────────────────────────────
-function VariantSelector({ variantes, accent, radius, selected, onSelect, cfg, suivreStock }: {
+function VariantSelector({ variantes, accent, radius, selected, onSelect, cfg, suivreStock, erreur }: {
   variantes: Variante[]; accent: string; radius: string;
   selected: Variante | null; onSelect: (v: Variante | null) => void; cfg: Record<string, any>;
   suivreStock: boolean; // stock suivi (physique) : une variante à 0 est épuisée ; sinon toujours disponible
+  erreur?: boolean; // le client a voulu commander sans choisir
 }) {
   const tx = useT();
   const TAILLE: Record<string, string> = { sm: "px-3 py-1.5 text-sm", md: "px-4 py-2.5 text-[15px]", lg: "px-5 py-3 text-base" };
@@ -361,7 +372,7 @@ function VariantSelector({ variantes, accent, radius, selected, onSelect, cfg, s
     return acc;
   }, {});
   return (
-    <div className="space-y-4">
+    <div id="choix-variante" className="space-y-4 scroll-mt-24">
       {Object.entries(grouped).map(([nom, variants]) => {
         const current = variants.find(v => v.id === selected?.id);
         return (
@@ -385,7 +396,8 @@ function VariantSelector({ variantes, accent, radius, selected, onSelect, cfg, s
                 const isSelected = selected?.id === v.id;
                 const isOut = suivreStock && v.stock === 0;
                 return (
-                  <button key={v.id} onClick={() => onSelect(isSelected ? null : v)} disabled={isOut}
+                  <button key={v.id} type="button" onClick={() => onSelect(isSelected ? null : v)} disabled={isOut} aria-pressed={isSelected}
+                    title={isOut ? tx("{0} : épuisé", tx(v.valeur)) : undefined}
                     className={`relative ${TAILLE[cfg.taille] ?? TAILLE.md} @max-[640px]:min-h-11 font-medium transition-all duration-150`}
                     style={{ borderRadius: rayon, border: `2px solid ${isSelected ? accent : "rgba(0,0,0,0.12)"}`, background: isSelected ? `${accent}12` : "transparent", color: isSelected ? accent : "inherit", opacity: isOut ? 0.3 : 1 }}>
                     {tx(v.valeur)}
@@ -398,6 +410,9 @@ function VariantSelector({ variantes, accent, radius, selected, onSelect, cfg, s
           </div>
         );
       })}
+      {erreur && !selected && (
+        <p role="alert" className="text-sm font-medium text-red-500">{tx("Choisissez une option ci-dessus pour commander ce produit.")}</p>
+      )}
     </div>
   );
 }
@@ -1154,12 +1169,37 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
 
   // Pas de panier : on commande ce produit directement — formulaire de commande
   // puis WhatsApp du marchand ou paiement à la livraison (physique).
+  // Variantes affichées : le client choisit avant de commander (sinon prix et stock de base, pas ceux de la variante).
+  const [choixRequis, setChoixRequis] = useState(false);
+  const choixManquant = () => {
+    const manque = !selectedVariante && variantes.length > 0 && rightSections.some(s => s.type === "variants");
+    if (manque) {
+      setChoixRequis(true);
+      document.getElementById("choix-variante")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    return manque;
+  };
+  // Changement de variante : la quantité ne dépasse pas son stock.
+  const choisirVariante = (v: Variante | null) => {
+    setSelectedVariante(v);
+    if (stockSuivi) setQuantite(q => Math.min(q, Math.max(1, v ? v.stock : produit.stock)));
+  };
   function commander(canal?: "whatsapp") {
-    if (enRupture) return;
+    if (enRupture || choixManquant()) return;
     const q = new URLSearchParams({ produit: produit.id, quantite: String(quantite) });
     if (canal) q.set("canal", canal); // le formulaire WhatsApp s'ouvre directement
     if (selectedVariante) q.set("variante", `${selectedVariante.nom}: ${selectedVariante.valeur}`);
     router.push(`/${slug}/checkout?${q}`);
+  }
+
+  const panier = usePanierVitrine();
+  function ajouterPanier() {
+    if (enRupture || choixManquant()) return;
+    ajouterAuPanier(slug, {
+      produitId: produit.id, quantite, nom: produit.nom, prix: prixEffectif, image: produit.images[0] ?? null,
+      stock: stockSuivi ? stockEffectif : null,
+      ...(selectedVariante ? { variante: `${selectedVariante.nom}: ${selectedVariante.valeur}` } : {}),
+    });
   }
 
   const waNum = (whatsappNumero || whatsapp || "").replace(/\D/g, "");
@@ -1266,7 +1306,7 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
         <StyledSection key={sec.id} id={sec.id} style={sec.style}>
           {sec.type === "variants" && variantes.length > 0 && (
             <VariantSelector variantes={variantes} accent={accent} radius={radius} cfg={cfg} suivreStock={stockSuivi}
-              selected={selectedVariante} onSelect={setSelectedVariante} />
+              selected={selectedVariante} onSelect={choisirVariante} erreur={choixRequis} />
           )}
           {sec.type === "quantity" && (
             <div className="space-y-4">
@@ -1274,9 +1314,9 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
                 <div className="flex items-center gap-4">
                   <span className="text-[15px] font-medium opacity-60">{tx("Quantité")}</span>
                   <div className="flex items-center border rounded-xl overflow-hidden" style={{ borderColor: `${accent}25` }}>
-                    <button onClick={() => setQuantite(q => Math.max(1, q - 1))} aria-label={tx("Diminuer la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80" style={{ color: accent }}><Minus size={15} /></button>
+                    <button type="button" onClick={() => setQuantite(q => Math.max(1, q - 1))} disabled={quantite <= 1} aria-label={tx("Diminuer la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80 disabled:opacity-30" style={{ color: accent }}><Minus size={15} /></button>
                     <span className="w-10 text-center text-base font-bold tabular-nums">{quantite}</span>
-                    <button onClick={() => setQuantite(q => Math.min(stockSuivi ? Math.max(1, stockEffectif) : 10, q + 1))} disabled={enRupture} aria-label={tx("Augmenter la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80" style={{ color: accent }}><Plus size={15} /></button>
+                    <button type="button" onClick={() => setQuantite(q => Math.min(stockSuivi ? Math.max(1, stockEffectif) : 10, q + 1))} disabled={enRupture || quantite >= (stockSuivi ? Math.max(1, stockEffectif) : 10)} aria-label={tx("Augmenter la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80 disabled:opacity-30" style={{ color: accent }}><Plus size={15} /></button>
                   </div>
                 </div>
               )}
@@ -1297,8 +1337,16 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
                     ["--ax-accent-glow" as any]: `${btnFond}80`,
                   }}>
                   <ShoppingBag size={18} />
-                  {enRupture ? tx("Indisponible") : (tx(cfg.texteBouton) || tx(produit.texteBoutonAchat) || tx("Commander"))}
+                  {enRupture ? tx("Indisponible") : (tx(cfg.texteBouton) || tx(produit.texteBoutonAchat) || tx("Commander maintenant"))}
                 </button>
+                {/* Mode d'achat « panier » (Constructeur) : produits physiques seulement. */}
+                {panier && produit.type === "physique" && !enRupture && (
+                  <button type="button" onClick={ajouterPanier}
+                    className={`w-full font-bold flex items-center justify-center gap-3 ${btnHoverClass}`}
+                    style={{ ...btnAchatSizing, background: "transparent", color: btnFond, border: `2px solid ${btnFond}` }}>
+                    <ShoppingCart size={18} />{" "}{tx("Ajouter au panier")}
+                  </button>
+                )}
                 {/* Option « Commander via WhatsApp » de la section (désactivée par défaut, à activer dans le Constructeur ;
                     l'ancien réglage afficherWhatsApp est ignoré) : vraie commande si la boutique accepte la commande
                     WhatsApp (Paramètres → Moyens de paiement), sinon simple « Contacter via WhatsApp ». */}

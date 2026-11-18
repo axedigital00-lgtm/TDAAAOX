@@ -7,6 +7,7 @@ import {
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { MODULES, ROLE_LABELS, type Niveau, type ModuleKey, type GrillePermissions } from "@/lib/permissions";
 import { useT } from "@/components/I18nProvider";
+import { Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, classesBouton, useConfirmation, type Ton } from "@/components/ui";
 
 const EQUIPE_TUTORIAL_STEPS = [
   { Icon: UserPlus,    titre: "Invite ton équipe",              description: "Ajoute un gérant, caissier, comptable ou un accès personnalisé — un lien d'invitation est généré immédiatement." },
@@ -36,10 +37,10 @@ const MODULE_LABELS: Record<ModuleKey, string> = {
 };
 const NIVEAU_LABELS: Record<Niveau, string> = { aucun: "Aucun", lecture: "Lecture", ecriture: "Écriture" };
 
-const STATUT_CFG: Record<string, { label: string; cls: string }> = {
-  invite: { label: "Invité", cls: "bg-amber-100 text-amber-700" },
-  actif: { label: "Actif", cls: "bg-green-100 text-green-700" },
-  suspendu: { label: "Suspendu", cls: "bg-red-100 text-red-600" },
+const STATUT_CFG: Record<string, { label: string; ton: Ton }> = {
+  invite: { label: "Invité", ton: "attention" },
+  actif: { label: "Actif", ton: "succes" },
+  suspendu: { label: "Suspendu", ton: "erreur" },
 };
 
 function permsVides(): GrillePermissions {
@@ -64,8 +65,8 @@ function GrillePermissionsEditor({ value, onChange }: { value: GrillePermissions
   return (
     <div className="space-y-1.5">
       {MODULES.map((mod) => (
-        <div key={mod} className="flex items-center justify-between gap-2 py-1.5 px-3 rounded-xl bg-gray-50">
-          <span className="text-[12px] font-medium text-gray-700">{t(MODULE_LABELS[mod])}</span>
+        <div key={mod} role="radiogroup" aria-label={t(MODULE_LABELS[mod])} className="flex flex-wrap items-center justify-between gap-2 py-1.5 px-3 rounded-controle bg-carte-2">
+          <span className="text-sm font-medium text-encre">{t(MODULE_LABELS[mod])}</span>
           <div className="flex items-center gap-1">
             {(["aucun", "lecture", "ecriture"] as Niveau[]).map((niveau) => {
               const actif = value[mod] === niveau;
@@ -73,9 +74,12 @@ function GrillePermissionsEditor({ value, onChange }: { value: GrillePermissions
                 <button
                   key={niveau}
                   type="button"
+                  role="radio"
+                  aria-checked={actif}
                   onClick={() => onChange({ ...value, [mod]: niveau })}
-                  className={`text-[10.5px] font-bold px-2.5 py-1 rounded-lg transition-colors ${actif ? "text-white" : "text-gray-400 hover:text-gray-600 bg-white border border-gray-200"}`}
-                  style={actif ? { background: niveau === "ecriture" ? "#F5A623" : niveau === "lecture" ? "#1B2A4A" : "#9ca3af" } : undefined}
+                  className={`text-xs font-semibold px-2.5 min-h-10 sm:min-h-8 rounded-controle border transition-colors ${actif
+                    ? niveau === "ecriture" ? "bg-primaire text-sur-primaire border-primaire" : niveau === "lecture" ? "bg-secondaire text-carte border-secondaire" : "bg-bordure-forte text-encre border-bordure-forte"
+                    : "bg-carte text-doux border-bordure hover:text-encre"}`}
                 >
                   {t(NIVEAU_LABELS[niveau])}
                 </button>
@@ -104,32 +108,37 @@ export default function EquipePage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [retiringId, setRetiringId] = useState<string | null>(null);
+  const [erreurChargement, setErreurChargement] = useState(false);
+  const [erreurEmail, setErreurEmail] = useState("");
+  const { confirmer, dialogue } = useConfirmation();
 
   const charger = useCallback(() => {
+    setErreurChargement(false);
     fetch("/api/equipe/liste")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => setMembres(d.membres || []))
+      .catch(() => setErreurChargement(true))
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { charger(); }, [charger]);
 
   async function inviter(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.email) { toast.error(t("L'email est requis")); return; }
+    if (!form.email) { setErreurEmail(t("Indique l'email de la personne à inviter.")); return; }
     setSaving(true);
     try {
       const body: any = { email: form.email, nom: form.nom || undefined, role: form.role };
       if (form.role === "personnalise") body.permissions = customPerms;
       const res = await fetch("/api/equipe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur lors de l'invitation");
-      toast.success(t("Invitation envoyée !"));
+      if (!res.ok) throw new Error(data.error || "L'invitation n'a pas pu être envoyée. Réessaie dans un instant.");
+      toast.success(t("Invitation créée pour {0} : partage le lien ci-dessous.", form.nom || form.email));
       setLastInvite({ nom: form.nom || form.email, email: form.email, lienInvitation: data.lienInvitation });
       setForm({ nom: "", email: "", role: "gerant" });
       setCustomPerms(permsVides());
       charger();
     } catch (err: any) {
-      toast.error(t(err.message) || t("Erreur lors de l'invitation"));
+      toast.error(t(err.message) || t("L'invitation n'a pas pu être envoyée. Réessaie dans un instant."));
     } finally {
       setSaving(false);
     }
@@ -139,9 +148,9 @@ export default function EquipePage() {
     if (!lien) return;
     try {
       await navigator.clipboard.writeText(lien);
-      toast.success(t("Lien copié !"));
+      toast.success(t("Lien d'invitation copié."));
     } catch {
-      toast.error(t("Impossible de copier le lien"));
+      toast.error(t("Copie impossible : sélectionne le lien et copie-le à la main."));
     }
   }
 
@@ -159,12 +168,12 @@ export default function EquipePage() {
       if (editRole === "personnalise") body.permissions = editPerms;
       const res = await fetch(`/api/equipe/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
-      toast.success(t("Membre mis à jour"));
+      if (!res.ok) throw new Error(data.error || "Les accès n'ont pas pu être enregistrés. Réessaie dans un instant.");
+      toast.success(t("Accès du membre enregistrés."));
       setExpandedId(null);
       charger();
     } catch (err: any) {
-      toast.error(t(err.message) || t("Erreur lors de la mise à jour"));
+      toast.error(t(err.message) || t("Les accès n'ont pas pu être enregistrés. Réessaie dans un instant."));
     } finally {
       setSavingEdit(false);
     }
@@ -176,216 +185,197 @@ export default function EquipePage() {
     try {
       const res = await fetch(`/api/equipe/${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut: nouveau }) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
-      toast.success(nouveau === "actif" ? t("Membre réactivé") : t("Membre suspendu"));
+      if (!res.ok) throw new Error(data.error || "Le statut du membre n'a pas pu être changé. Réessaie dans un instant.");
+      toast.success(nouveau === "actif" ? t("{0} a de nouveau accès à la boutique.", m.nom || m.email) : t("Accès de {0} suspendu.", m.nom || m.email));
       charger();
     } catch (err: any) {
-      toast.error(t(err.message) || t("Erreur"));
+      toast.error(t(err.message) || t("Le statut du membre n'a pas pu être changé. Réessaie dans un instant."));
     } finally {
       setTogglingId(null);
     }
   }
 
-  async function retirer(id: string) {
-    if (!confirm(t("Retirer ce membre de l'équipe ?"))) return;
+  async function retirer(m: Membre) {
+    if (!(await confirmer({
+      titre: m.statut === "invite" ? t("Annuler cette invitation ?") : t("Retirer ce membre de l'équipe ?"),
+      objet: `${m.nom || m.email}${m.nom ? ` (${m.email})` : ""}`,
+      description: m.statut === "invite" ? t("Le lien d'invitation ne fonctionnera plus.") : t("Cette personne n'aura plus accès à la boutique. Tu pourras l'inviter de nouveau plus tard."),
+      libelleConfirmer: m.statut === "invite" ? t("Annuler l'invitation") : t("Retirer le membre"),
+    }))) return;
+    const id = m.id;
     setRetiringId(id);
     try {
-      await fetch(`/api/equipe?id=${id}`, { method: "DELETE" });
-      toast.success(t("Membre retiré"));
+      const res = await fetch(`/api/equipe?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast.success(t("{0} a été retiré(e) de l'équipe.", m.nom || m.email));
       setExpandedId(null);
       charger();
     } catch {
-      toast.error(t("Erreur"));
+      toast.error(t("Le membre n'a pas pu être retiré. Réessaie dans un instant."));
     } finally {
       setRetiringId(null);
     }
   }
 
-  const inp = "mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#F5A623]/60";
-  const lbl = "text-[10px] font-bold text-gray-400 uppercase tracking-wide";
-
   return (
-    <div className="p-5 max-w-3xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <div className="max-w-3xl mx-auto space-y-section">
       <ModuleTutorial moduleKey="equipe" titre={t("Équipe")} sousTitre={t("Rôles et accès de ton équipe")} steps={EQUIPE_TUTORIAL_STEPS} />
+      {dialogue}
 
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-[18px] font-bold text-[#111]">{t("Équipe")}</h1>
-            <BoutonRevoirTutoriel moduleKey="equipe" />
-          </div>
-          <p className="text-[12px] text-gray-500">{membres.length}{" "}{t("membre(s) dans votre équipe")}</p>
-        </div>
-      </div>
+      <EnTetePage
+        className="mb-0"
+        titre={t("Équipe")}
+        retour={{ href: "/dashboard/parametres", libelle: t("Réglages") }}
+        indicateurs={<BoutonRevoirTutoriel moduleKey="equipe" />}
+        description={loading ? undefined : `${membres.length} ${t("membre(s) dans votre équipe")}`}
+        actions={<a href="#inviter" className={classesBouton()}><UserPlus size={16} aria-hidden />{t("Inviter un membre")}</a>}
+      />
 
       {/* Liste membres */}
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex items-center gap-2">
-          <Users size={15} className="text-[#F5A623]" />
-          <h2 className="text-[#111] font-semibold text-[13.5px]">{t("Membres de l'équipe")}</h2>
+      <section className="rounded-carte border border-bordure bg-carte shadow-carte overflow-hidden">
+        <div className="p-4 border-b border-bordure flex items-center gap-2">
+          <Users size={16} className="text-attention" aria-hidden />
+          <h2 className="ax-titre-section">{t("Membres de l'équipe")}</h2>
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-[13px] text-gray-400">{t("Chargement…")}</div>
+          <SqueletteListe className="p-4" lignes={3} libelle={t("Chargement de l'équipe…")} />
+        ) : erreurChargement ? (
+          <EtatErreur className="m-4" compact titre={t("La liste de l'équipe n'a pas pu être chargée.")} texte={t("Vérifie ta connexion puis réessaie.")} onReessayer={charger} />
         ) : membres.length === 0 ? (
-          <div className="py-10 text-center">
-            <Users size={28} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-[13px] font-semibold text-[#111]">{t("Aucun membre ajouté")}</p>
-            <p className="text-[11.5px] text-gray-400 mt-1">{t("Invitez des collaborateurs pour gérer votre boutique")}</p>
-          </div>
+          <EtatVide className="m-4" compact icone={<Users />} titre={t("Aucun membre ajouté")}
+            texte={t("Invitez des collaborateurs pour gérer votre boutique avec vous : chacun n'a accès qu'à ce que vous choisissez.")}>
+            <a href="#inviter" className={classesBouton({ variante: "secondaire" })}><UserPlus size={16} aria-hidden />{t("Inviter un membre")}</a>
+          </EtatVide>
         ) : (
-          <div>
+          <ul>
             {membres.map((m) => {
               const estInvite = m.statut === "invite";
               const expanded = expandedId === m.id;
+              const identite = (
+                <>
+                  <span className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-primaire-fond text-attention font-bold text-xs" aria-hidden>
+                    {(m.nom || m.email).slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-encre truncate">{t(m.nom) || m.email}</span>
+                    <span className="block text-xs text-doux truncate">{m.email}</span>
+                    <span className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <Badge ton="accent">{t(ROLE_LABELS[m.role]) ?? t(m.role)}</Badge>
+                      <Badge ton={STATUT_CFG[m.statut]?.ton ?? "neutre"}>{t(STATUT_CFG[m.statut]?.label) ?? t(m.statut)}</Badge>
+                    </span>
+                  </span>
+                </>
+              );
               return (
-                <div key={m.id} className="border-b border-gray-100 last:border-b-0">
-                  <div
-                    className={`p-4 flex items-center gap-3 ${!estInvite ? "cursor-pointer hover:bg-gray-50" : ""}`}
-                    onClick={!estInvite ? () => ouvrirDetail(m) : undefined}
-                  >
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F5A62318" }}>
-                      <span className="text-[#F5A623] font-bold text-[12px]">{(m.nom || m.email).slice(0, 2).toUpperCase()}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-semibold text-[#111] truncate">{t(m.nom) || m.email}</p>
-                      <p className="text-[11.5px] text-gray-400 truncate">{m.email}</p>
-                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: "#F5A623", background: "#F5A62315" }}>
-                          {t(ROLE_LABELS[m.role]) ?? t(m.role)}
-                        </span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUT_CFG[m.statut]?.cls ?? ""}`}>
-                          {t(STATUT_CFG[m.statut]?.label) ?? t(m.statut)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {estInvite ? (
-                      <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                <li key={m.id} className="border-b border-bordure last:border-b-0">
+                  {estInvite ? (
+                    <div className="p-4 flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-[12rem]">{identite}</div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {m.lienInvitation && (
                           <>
-                            <button onClick={() => copierLien(m.lienInvitation)} className="text-[10.5px] font-bold px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-600 flex items-center gap-1 hover:bg-gray-200 transition-colors">
-                              <Copy size={11} />{" "}{t("Copier le lien")}
-                            </button>
-                            <a
-                              href={`https://wa.me/?text=${encodeURIComponent(messageInvitation(m.nom, m.email, m.lienInvitation))}`}
-                              target="_blank" rel="noopener noreferrer"
-                              className="text-[10.5px] font-bold px-2.5 py-1.5 rounded-lg bg-green-500 text-white flex items-center gap-1 hover:opacity-90 transition-opacity"
-                            >
-                              <MessageCircle size={11} /> WhatsApp
+                            <Bouton variante="secondaire" taille="compact" onClick={() => copierLien(m.lienInvitation)} icone={<Copy size={14} aria-hidden />}>
+                              {t("Copier le lien")}
+                            </Bouton>
+                            <a href={`https://wa.me/?text=${encodeURIComponent(messageInvitation(m.nom, m.email, m.lienInvitation))}`}
+                              target="_blank" rel="noopener noreferrer" className={classesBouton({ variante: "secondaire", taille: "compact" })}>
+                              <MessageCircle size={14} className="text-succes" aria-hidden /> {t("Envoyer par WhatsApp")}
                             </a>
                           </>
                         )}
-                        <button onClick={() => retirer(m.id)} disabled={retiringId === m.id} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-300 hover:text-red-400 transition-colors disabled:opacity-50 flex-shrink-0">
-                          <Trash2 size={13} />
-                        </button>
+                        <BoutonIcone variante="danger" label={`${t("Annuler l'invitation de")} ${m.nom || m.email}`} onClick={() => retirer(m)} charge={retiringId === m.id}>
+                          <Trash2 size={14} aria-hidden />
+                        </BoutonIcone>
                       </div>
-                    ) : (
-                      <ChevronDown size={15} className={`text-gray-300 flex-shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} />
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <button type="button" aria-expanded={expanded} onClick={() => ouvrirDetail(m)}
+                      className="w-full p-4 flex items-center gap-3 text-left hover:bg-carte-2 transition-colors">
+                      {identite}
+                      <span className="flex items-center gap-1 text-xs font-semibold text-doux flex-shrink-0">
+                        <span className="hidden sm:inline">{expanded ? t("Fermer") : t("Modifier les accès")}</span>
+                        <ChevronDown size={16} className={`transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
+                      </span>
+                    </button>
+                  )}
 
                   {expanded && (
-                    <div className="px-4 pb-4 pt-1 space-y-3 bg-gray-50/60">
-                      <div>
-                        <label className={lbl}>{t("Rôle")}</label>
-                        <select value={editRole} onChange={(e) => setEditRole(e.target.value)} className={`${inp} bg-white`}>
-                          {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r])}</option>)}
-                        </select>
-                      </div>
+                    <div className="px-4 pb-4 pt-1 space-y-3 bg-carte-2/60">
+                      <Champ label={t("Rôle")}>
+                        {(a) => (
+                          <select {...a} value={editRole} onChange={(e) => setEditRole(e.target.value)} className={CLASSE_SAISIE}>
+                            {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r])}</option>)}
+                          </select>
+                        )}
+                      </Champ>
 
                       {editRole === "personnalise" && (
-                        <div>
-                          <label className={`${lbl} mb-1.5 block`}>{t("Accès par module")}</label>
+                        <div className="space-y-1.5">
+                          <p className="ax-libelle">{t("Accès par module")}</p>
                           <GrillePermissionsEditor value={editPerms} onChange={setEditPerms} />
                         </div>
                       )}
 
                       <div className="flex items-center gap-2 flex-wrap pt-1">
-                        <button onClick={() => enregistrerModif(m.id)} disabled={savingEdit} className="px-4 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-bold disabled:opacity-50">
-                          {savingEdit ? "…" : t("Enregistrer")}
-                        </button>
-                        <button
-                          onClick={() => toggleStatut(m)} disabled={togglingId === m.id}
-                          className={`px-4 py-2 rounded-xl text-[12px] font-bold flex items-center gap-1.5 disabled:opacity-50 ${m.statut === "suspendu" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}
-                        >
-                          {m.statut === "suspendu" ? <><RefreshCw size={12} />{" "}{t("Réactiver")}</> : <><Ban size={12} />{" "}{t("Suspendre")}</>}
-                        </button>
-                        <button onClick={() => retirer(m.id)} disabled={retiringId === m.id} className="px-4 py-2 rounded-xl text-[12px] font-bold bg-red-50 text-red-500 flex items-center gap-1.5 disabled:opacity-50">
-                          <Trash2 size={12} />{" "}{t("Retirer")}
-                        </button>
+                        <Bouton onClick={() => enregistrerModif(m.id)} charge={savingEdit} texteCharge={t("Enregistrement…")}>
+                          {t("Enregistrer les accès")}
+                        </Bouton>
+                        <Bouton variante="secondaire" onClick={() => toggleStatut(m)} charge={togglingId === m.id}
+                          icone={m.statut === "suspendu" ? <RefreshCw size={14} aria-hidden /> : <Ban size={14} aria-hidden />}>
+                          {m.statut === "suspendu" ? t("Réactiver l'accès") : t("Suspendre l'accès")}
+                        </Bouton>
+                        <Bouton variante="danger" onClick={() => retirer(m)} charge={retiringId === m.id} icone={<Trash2 size={14} aria-hidden />}>
+                          {t("Retirer de l'équipe")}
+                        </Bouton>
                       </div>
                     </div>
                   )}
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
-      </div>
-
-      {/* Rôles disponibles */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-5">
-        <h3 className="text-[#111] font-semibold text-[13px] mb-3">{t("Rôles disponibles")}</h3>
-        <div className="flex flex-wrap gap-2">
-          {ROLE_OPTIONS.map((r) => (
-            <span key={r} className="text-[11px] font-medium px-2.5 py-1 rounded-lg" style={{ color: "#F5A623", background: "#F5A62312", border: "1px solid #F5A62330" }}>
-              {t(ROLE_LABELS[r])}
-            </span>
-          ))}
-        </div>
-      </div>
+      </section>
 
       {/* Formulaire d'invitation */}
-      <form onSubmit={inviter} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <UserPlus size={15} className="text-[#F5A623]" />
-          <h2 className="text-[#111] font-semibold text-[13.5px]">{t("Inviter un membre")}</h2>
+      <form id="inviter" onSubmit={inviter} className="scroll-mt-24 rounded-carte border border-bordure bg-carte shadow-carte p-carte space-y-champs">
+        <h2 className="ax-titre-section flex items-center gap-2"><UserPlus size={16} className="text-attention" aria-hidden />{t("Inviter un membre")}</h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Saisie label={t("Prénom / Nom")} mention="facultatif" value={form.nom} onChange={(e) => setForm((v) => ({ ...v, nom: e.target.value }))} placeholder={t("Ex: Aminata Diallo")} />
+          <Saisie type="email" label={t("Email")} required value={form.email} erreur={erreurEmail || undefined}
+            onChange={(e) => { setForm((v) => ({ ...v, email: e.target.value })); setErreurEmail(""); }} placeholder="collaborateur@example.com" />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className={lbl}>{t("Prénom / Nom")}</label>
-            <input value={form.nom} onChange={(e) => setForm((v) => ({ ...v, nom: e.target.value }))} placeholder={t("Ex: Aminata Diallo")} className={inp} />
-          </div>
-          <div>
-            <label className={lbl}>{t("Email *")}</label>
-            <input type="email" required value={form.email} onChange={(e) => setForm((v) => ({ ...v, email: e.target.value }))} placeholder="collaborateur@example.com" className={inp} />
-          </div>
-        </div>
-
-        <div>
-          <label className={lbl}>{t("Rôle")}</label>
-          <select value={form.role} onChange={(e) => setForm((v) => ({ ...v, role: e.target.value }))} className={`${inp} bg-white`}>
-            {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r])}</option>)}
-          </select>
-        </div>
+        <Champ label={t("Rôle")} aide={<>{t("Rôles disponibles :")} {ROLE_OPTIONS.map((r) => t(ROLE_LABELS[r])).join(", ")}. {t("« Personnalisé » permet de régler chaque module.")}</>}>
+          {(a) => (
+            <select {...a} value={form.role} onChange={(e) => setForm((v) => ({ ...v, role: e.target.value }))} className={CLASSE_SAISIE}>
+              {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r])}</option>)}
+            </select>
+          )}
+        </Champ>
 
         {form.role === "personnalise" && (
-          <div>
-            <label className={`${lbl} mb-1.5 block`}>{t("Accès par module")}</label>
+          <div className="space-y-1.5">
+            <p className="ax-libelle">{t("Accès par module")}</p>
             <GrillePermissionsEditor value={customPerms} onChange={setCustomPerms} />
           </div>
         )}
 
-        <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[12.5px] disabled:opacity-50 transition-opacity hover:opacity-90" style={{ background: "#F5A623", color: "#fff" }}>
-          <UserPlus size={13} /> {saving ? t("Envoi…") : t("Envoyer l'invitation")}
-        </button>
+        <Bouton type="submit" charge={saving} texteCharge={t("Envoi…")} icone={<UserPlus size={15} aria-hidden />}>
+          {t("Envoyer l'invitation")}
+        </Bouton>
 
         {lastInvite && (
-          <div className="rounded-xl p-4 space-y-2" style={{ background: "#F5A62310", border: "1px solid #F5A62330" }}>
-            <p className="text-[12px] font-semibold text-[#111]">{t("Invitation envoyée à")}{" "}{t(lastInvite.nom)}{" "}{t("— partage ce lien :")}</p>
-            <div className="flex items-center gap-2">
-              <input readOnly value={lastInvite.lienInvitation} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-3 py-2 text-[11.5px] text-gray-600 truncate" />
-              <button type="button" onClick={() => copierLien(lastInvite.lienInvitation)} className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors flex-shrink-0">
-                <Copy size={13} className="text-gray-500" />
-              </button>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(messageInvitation(lastInvite.nom, lastInvite.email, lastInvite.lienInvitation))}`}
-                target="_blank" rel="noopener noreferrer"
-                className="p-2 rounded-lg bg-green-500 hover:opacity-90 transition-opacity flex-shrink-0"
-              >
-                <MessageCircle size={13} className="text-white" />
+          <div role="status" className="rounded-controle p-4 space-y-2 bg-primaire-fond border border-attention-bordure">
+            <p className="text-sm font-semibold text-encre">{t("Invitation envoyée à")}{" "}{t(lastInvite.nom)}{" "}{t("— partage ce lien :")}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input readOnly aria-label={t("Lien d'invitation")} value={lastInvite.lienInvitation} onFocus={(e) => e.target.select()} className={CLASSE_SAISIE + " flex-1 min-w-[12rem] text-xs"} />
+              <Bouton variante="secondaire" taille="compact" onClick={() => copierLien(lastInvite.lienInvitation)} icone={<Copy size={14} aria-hidden />}>{t("Copier le lien")}</Bouton>
+              <a href={`https://wa.me/?text=${encodeURIComponent(messageInvitation(lastInvite.nom, lastInvite.email, lastInvite.lienInvitation))}`}
+                target="_blank" rel="noopener noreferrer" className={classesBouton({ variante: "secondaire", taille: "compact" })}>
+                <MessageCircle size={14} className="text-succes" aria-hidden /> {t("Envoyer par WhatsApp")}
               </a>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Plus, Loader2, X, Sparkles, Send, Users, CheckCircle2, Zap, Smartphone, Crown, Moon, ShoppingCart, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { Alerte, Badge, Bouton, EnTetePage, EtatVide, Modale, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
 
 const SEGMENTS = [
   { id: "tous",     label: "Tous les clients", desc: "Toute votre base clients", Icon: Users    },
@@ -43,6 +44,7 @@ export default function SMSPage() {
   const [histoCampagnes, setHistoCampagnes] = useState<any[]>([]);
   // Faux tant que le prestataire SMS n'est pas branché côté Axso (lib/integrations.ts).
   const [disponible, setDisponible] = useState(true);
+  const { confirmer, dialogue } = useConfirmation();
 
   const [form, setForm] = useState({
     nom: "",
@@ -61,11 +63,11 @@ export default function SMSPage() {
       ]);
       if (clientsRes.ok) { const d = await clientsRes.json(); setNbClients(d.segments?.tous || 0); }
       if (campagnesRes.ok) { const d = await campagnesRes.json(); setHistoCampagnes(d.campagnes || []); setDisponible(d.disponible !== false); }
-    } catch { toast.error(tr("Erreur chargement")); }
+    } catch { toast.error(tr("Les campagnes n'ont pas pu être chargées. Vérifie ta connexion et actualise la page.")); }
   }
 
   async function genererMessage() {
-    if (!form.promptIA.trim()) { toast.error(tr("Décrivez votre campagne")); return; }
+    if (!form.promptIA.trim()) { toast.error(tr("Décris ta campagne en une phrase pour que l'IA rédige le SMS.")); return; }
     setGenerating(true);
     try {
       const res = await fetch("/api/ai/universal", {
@@ -84,13 +86,21 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
       if (!res.ok) throw new Error();
       const sms = (data.reponse || "").trim().slice(0, 160);
       setForm(f => ({ ...f, message: sms }));
-      toast.success(tr("Message généré !"));
-    } catch { toast.error(tr("Erreur IA")); }
+      toast.success(tr("Brouillon de SMS rédigé : relis-le avant d'envoyer."));
+    } catch { toast.error(tr("Le SMS n'a pas pu être rédigé. Réessaie ou écris-le toi-même.")); }
     finally { setGenerating(false); }
   }
 
   async function envoyer() {
-    if (!form.message.trim() || !form.nom) { toast.error(tr("Nom et message requis")); return; }
+    if (!form.message.trim() || !form.nom) { toast.error(tr("Renseigne le nom de la campagne et le message.")); return; }
+    const seg = SEGMENTS.find(s => s.id === form.segment);
+    if (!(await confirmer({
+      titre: tr("Envoyer cette campagne SMS ?"),
+      objet: <>« {form.nom} »<br /><span className="font-normal">{tr(seg?.label ?? form.segment)}</span></>,
+      description: tr("Les SMS partent immédiatement et ne peuvent pas être rappelés."),
+      libelleConfirmer: tr("Envoyer les SMS"),
+      destructive: false,
+    }))) return;
     setSending(true);
     try {
       const res = await fetch("/api/sms", {
@@ -99,13 +109,13 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
         body: JSON.stringify({ nom: form.nom, message: form.message, segment: form.segment }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Erreur envoi");
-      toast.success(tr(data.message) || tr("Campagne SMS lancée !"));
+      if (!res.ok) throw new Error(data.message || data.error || "La campagne n'a pas été envoyée. Réessaie dans un instant.");
+      toast.success(data.message ? tr(data.message) : tr("Campagne « {0} » envoyée.", form.nom));
       setShowModal(false);
       setForm({ nom: "", message: "", segment: "tous", promptIA: "" });
       charger();
     } catch (err: any) {
-      toast.error(tr(err.message));
+      toast.error(err?.message ? tr(err.message) : tr("La campagne n'a pas été envoyée. Réessaie dans un instant."));
     } finally { setSending(false); }
   }
 
@@ -113,27 +123,22 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{tr("SMS & WhatsApp")}</h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{tr("Envoyez des campagnes SMS à vos clients")}</p>
-        </div>
-        <button onClick={() => setShowModal(true)} disabled={!disponible}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", boxShadow: "0 4px 20px rgba(34,197,94,0.3)" }}>
-          <Plus size={16} />{" "}{tr(disponible ? "Nouvelle campagne" : "Bientôt disponible")}
-        </button>
-      </div>
+      {dialogue}
+      <EnTetePage className="mb-0"
+        titre={tr("SMS & WhatsApp")}
+        description={tr("Envoyez des campagnes SMS à vos clients")}
+        actions={<Bouton onClick={() => setShowModal(true)} disabled={!disponible} icone={<Plus className="size-4" aria-hidden />}>
+          {tr(disponible ? "Nouvelle campagne" : "Bientôt disponible")}
+        </Bouton>} />
 
       {!disponible && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-start gap-3">
-          <Smartphone size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-green-800">{tr("Les campagnes SMS seront bientôt disponibles")}</p>
-            <p className="text-xs text-green-700 mt-1">{tr("L'envoi de SMS n'est pas encore activé sur Axso. En attendant, vous pouvez écrire à vos clients par WhatsApp ou par e-mail.")}</p>
-          </div>
-        </div>
+        <Alerte ton="info" titre={tr("Les campagnes SMS seront bientôt disponibles")}
+          action={<div className="flex flex-wrap gap-2">
+            <Bouton variante="secondaire" taille="compact" href="/dashboard/whatsapp">{tr("Ouvrir WhatsApp")}</Bouton>
+            <Bouton variante="secondaire" taille="compact" href="/dashboard/marketing/email">{tr("Envoyer un e-mail")}</Bouton>
+          </div>}>
+          {tr("L'envoi de SMS n'est pas encore activé sur Axso. En attendant, vous pouvez écrire à vos clients par WhatsApp ou par e-mail.")}
+        </Alerte>
       )}
 
       {/* Stats */}
@@ -147,128 +152,99 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
           return (
             <div key={s.label} className="ax-card p-5">
               <div className="flex items-center gap-3 mb-1">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: s.color + "15", border: `1px solid ${s.color}25` }}>
+                <div className="w-9 h-9 rounded-controle flex items-center justify-center bg-carte-2" aria-hidden>
                   <Icone size={16} style={{ color: s.color }} />
                 </div>
-                <p className="text-[20px] font-bold text-[#111111] tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>{s.val}</p>
+                <p className="text-[20px] font-bold text-encre tabular-nums">{s.val}</p>
               </div>
-              <p className="text-[12px] text-[#AAAAAA]">{tr(s.label)}</p>
+              <p className="ax-aide">{tr(s.label)}</p>
             </div>
           );
         })}
       </div>
 
       {/* Historique */}
-      {histoCampagnes.length > 0 && (
+      {histoCampagnes.length > 0 ? (
         <div className="ax-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#F3F3F3]">
-            <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Campagnes récentes")}</h2>
+          <div className="px-5 py-4 border-b border-bordure">
+            <h2 className="ax-sous-titre">{tr("Campagnes récentes")}</h2>
           </div>
-          <div className="divide-y divide-[#F9F9F9]">
+          <div className="divide-y divide-bordure">
             {histoCampagnes.slice(0, 5).map((c: any) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-[#FAFAFA] transition-colors">
+              <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                 <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-[#222] truncate">{c.nom}</p>
-                  <p className="text-[11.5px] text-[#AAAAAA]">{tr(c.segment)} · {new Date(c.createdAt).toLocaleDateString(tr.loc)}</p>
+                  <p className="text-sm font-medium text-encre truncate">{c.nom}</p>
+                  <p className="ax-aide">{tr(c.segment)} · {new Date(c.createdAt).toLocaleDateString(tr.loc)}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs text-gray-500">{c.nbEnvoyes}{" "}{tr("envoyés")}</span>
-                  <span className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full border ${c.statut === "envoye" ? "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]" : "bg-[#F5F5F7] text-[#888] border-[#EBEBEB]"}`}>
-                    {c.statut === "envoye" ? tr("✓ Envoyé") : tr("Brouillon")}
-                  </span>
+                  <span className="ax-aide">{c.nbEnvoyes}{" "}{tr("envoyés")}</span>
+                  <Badge ton={c.statut === "envoye" ? "succes" : "neutre"}>{c.statut === "envoye" ? tr("Envoyé") : tr("Brouillon")}</Badge>
                 </div>
               </div>
             ))}
           </div>
         </div>
+      ) : disponible && (
+        <EtatVide icone={<Send />} titre={tr("Aucune campagne SMS envoyée")}
+          texte={tr("Une campagne SMS envoie un court message à un groupe de clients (tous, VIP, inactifs…).")}>
+          <Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{tr("Nouvelle campagne")}</Bouton>
+        </EtatVide>
       )}
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-[#F3F3F3]">
-              <h2 className="text-[15px] font-bold text-[#111111]">{tr("Nouvelle campagne SMS")}</h2>
-              <button onClick={() => setShowModal(false)} aria-label={tr("Fermer")} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
-            </div>
-            <div className="p-6 space-y-5">
-              {/* Segment */}
-              <div>
-                <label className="text-[12px] font-semibold text-[#555] block mb-2">{tr("Destinataires")}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SEGMENTS.map(s => (
-                    <button key={s.id} onClick={() => setForm(f => ({ ...f, segment: s.id }))}
-                      className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${form.segment === s.id ? "border-green-400 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
-                      <s.Icon size={18} className={form.segment === s.id ? "text-green-600 flex-shrink-0 mt-0.5" : "text-gray-400 flex-shrink-0 mt-0.5"} />
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">{tr(s.label)}</p>
-                        <p className="text-[10px] text-gray-400">{tr(s.desc)}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Nom */}
-              <div>
-                <label className="ax-label block mb-1.5">{tr("Nom de la campagne *")}</label>
-                <input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-                  placeholder={tr("Ex: Promo Tabaski 2024")}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all placeholder:text-[#CCCCCC]" />
-              </div>
-
-              {/* Templates */}
-              <div>
-                <label className="text-[12px] font-semibold text-[#555] block mb-2">{tr("Templates")}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {TEMPLATES.map(t => (
-                    <button key={t.label} onClick={() => setForm(f => ({ ...f, message: t.template }))}
-                      className="flex items-center gap-2 p-2.5 rounded-xl border border-gray-200 text-left hover:border-green-400 hover:bg-green-50 transition-all text-xs text-gray-600">
-                      <t.Icon size={14} className="text-gray-400 flex-shrink-0" /> {tr(t.label)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Générer avec IA */}
-              <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
-                <label className="text-xs font-semibold text-green-700 flex items-center gap-1.5">
-                  <Sparkles size={12} />{" "}{tr("Générer avec l'IA")}
-                </label>
-                <input value={form.promptIA} onChange={e => setForm(f => ({ ...f, promptIA: e.target.value }))}
-                  placeholder={tr("Ex: Promo -25% pour la fête des mères, boutique de mode...")}
-                  className="w-full bg-white border border-green-200 rounded-xl px-3 py-2.5 text-gray-900 text-sm focus:outline-none" />
-                <button onClick={genererMessage} disabled={generating || !form.promptIA}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
-                  style={{ background: "#22c55e" }}>
-                  {generating ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}{" "}{tr("Générer")}
+      <Modale ouverte={showModal} onFermer={() => setShowModal(false)} verrouillee={sending}
+        titre={tr("Nouvelle campagne SMS")}
+        actions={<>
+          <Bouton variante="secondaire" onClick={() => setShowModal(false)} disabled={sending}>{tr("Annuler")}</Bouton>
+          <Bouton onClick={envoyer} disabled={!form.message || !form.nom || charCount > 160} charge={sending} texteCharge={tr("Envoi en cours…")}
+            icone={<Send className="size-4" aria-hidden />}>{tr("Envoyer la campagne")}</Bouton>
+        </>}>
+        <div className="space-y-champs">
+          <fieldset>
+            <legend className="ax-libelle mb-2">{tr("Destinataires")}</legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {SEGMENTS.map(s => (
+                <button key={s.id} type="button" aria-pressed={form.segment === s.id} onClick={() => setForm(f => ({ ...f, segment: s.id }))}
+                  className={`flex items-start gap-2.5 p-3 rounded-controle border-2 text-left transition-colors ${form.segment === s.id ? "border-primaire bg-primaire-fond" : "border-bordure hover:border-bordure-forte"}`}>
+                  <s.Icon size={18} aria-hidden className={`flex-shrink-0 mt-0.5 ${form.segment === s.id ? "text-attention" : "text-doux"}`} />
+                  <div>
+                    <p className="text-sm font-semibold text-encre">{tr(s.label)}</p>
+                    <p className="ax-aide">{tr(s.desc)}</p>
+                  </div>
                 </button>
-              </div>
-
-              {/* Message */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-gray-500 text-xs font-medium">{tr("Message SMS *")}</label>
-                  <span className={`text-xs font-medium ${charCount > 160 ? "text-red-500" : charCount > 130 ? "text-[#D4911A]" : "text-gray-400"}`}>
-                    {charCount}/160
-                  </span>
-                </div>
-                <textarea value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-                  rows={4} maxLength={160} placeholder={tr("Votre message SMS... ({{nom}} sera remplacé par le prénom du client)")}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all placeholder:text-[#CCCCCC] resize-none" />
-                <p className="text-[11px] text-gray-400 mt-1">{tr("Utilisez")}{" "}<code className="bg-gray-100 px-1 rounded">{tr("{{nom}}")}</code>{" "}{tr("pour personnaliser · 1 SMS = 160 caractères")}</p>
-              </div>
-
-              <button onClick={envoyer} disabled={sending || !form.message || !form.nom}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
-                {sending ? <><Loader2 size={16} className="animate-spin" />{" "}{tr("Envoi en cours…")}</> : <><Send size={16} />{" "}{tr("Envoyer la campagne")}</>}
-              </button>
+              ))}
             </div>
+          </fieldset>
+
+          <Saisie label={tr("Nom de la campagne")} required value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
+            placeholder={tr("Ex: Promo Tabaski 2024")} aide={tr("Visible par toi seul, pour retrouver la campagne.")} />
+
+          <fieldset>
+            <legend className="ax-libelle mb-2">{tr("Modèles")}</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {TEMPLATES.map(t => (
+                <Bouton key={t.label} variante="secondaire" taille="compact" className="justify-start"
+                  onClick={() => setForm(f => ({ ...f, message: t.template }))} icone={<t.Icon className="size-3.5 text-doux" aria-hidden />}>
+                  {tr(t.label)}
+                </Bouton>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="rounded-carte border border-bordure bg-carte-2 p-3 space-y-2">
+            <Saisie label={<span className="inline-flex items-center gap-1.5"><Sparkles className="size-3.5" aria-hidden />{tr("Rédiger avec l'IA")}</span>} mention="facultatif"
+              value={form.promptIA} onChange={e => setForm(f => ({ ...f, promptIA: e.target.value }))}
+              placeholder={tr("Ex: Promo -25% pour la fête des mères, boutique de mode...")} />
+            <Bouton variante="secondaire" taille="compact" onClick={genererMessage} disabled={!form.promptIA} charge={generating} texteCharge={tr("Rédaction…")}
+              icone={<Zap className="size-3.5" aria-hidden />}>{tr("Rédiger le SMS")}</Bouton>
           </div>
+
+          <ZoneTexte label={tr("Message SMS")} required rows={4} maxLength={160} value={form.message}
+            onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+            placeholder={tr("Votre message SMS... ({{nom}} sera remplacé par le prénom du client)")}
+            aide={<>{tr("Utilisez")}{" "}<code className="bg-carte-2 px-1 rounded">{"{{nom}}"}</code>{" "}{tr("pour personnaliser · 1 SMS = 160 caractères")}{" · "}
+              <span className={charCount > 160 ? "text-erreur font-semibold" : charCount > 130 ? "text-attention font-semibold" : ""}>{charCount}/160</span></>} />
         </div>
-      )}
+      </Modale>
     </div>
   );
 }

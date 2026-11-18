@@ -49,6 +49,8 @@ const nextConfig: NextConfig = {
       ...["commandes", "expeditions", "stocks"].map((p) => vers(`/dashboard/sourcing/${p}`, `/dashboard/sourcing?bloc=${p}`)),
       vers("/dashboard/sourcing/produits/:id", "/dashboard/sourcing?dossier=:id"),
       vers("/dashboard/dropshipping", "/dashboard/sourcing?bloc=benefice"),
+      // AXIA n'a plus de page : il vit dans le panneau de droite (anciens liens, annonce « Parler à AXIA » en base).
+      vers("/dashboard/axia", "/dashboard/accueil?axia"),
     ];
   },
 

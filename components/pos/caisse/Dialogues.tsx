@@ -29,12 +29,12 @@ export function RemiseVente({ remise, codePromo, note, peutRemiser, horsPlafond,
 
   return (
     <Modale ouverte onFermer={onFermer} taille="sm" titre={peutRemiser ? "Remise et code promo" : "Code promo"}
-      actions={<><Bouton variante="secondaire" onClick={onFermer}>{t("Annuler")}</Bouton><Bouton onClick={valider} disabled={invalide}>{t("Appliquer")}</Bouton></>}>
+      actions={<><Bouton variante="secondaire" onClick={onFermer}>{t("Annuler")}</Bouton><Bouton onClick={valider} disabled={invalide}>{t("Appliquer au panier")}</Bouton></>}>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); valider(); }}>
         {peutRemiser && (
           <div className="grid grid-cols-[1fr_auto] items-start gap-2">
             <Saisie label="Remise sur tout le panier" autoFocus inputMode="decimal" value={valeur} onChange={(e) => setValeur(e.target.value)} placeholder="0"
-              erreur={invalide ? "Cette remise n'est pas valide." : null}
+              erreur={invalide ? (type === "pourcentage" ? "Saisissez un pourcentage entre 0 et 100." : "Saisissez un montant en chiffres, par exemple 500.") : null}
               aide={horsPlafond ? "Laissez vide pour retirer la remise." : `Plafond sans validation d'un responsable : ${plafondPct} %.`} />
             <Champ label="Type">
               {(attributs) => (
@@ -73,7 +73,7 @@ export function SuspendrePanier({ onValider, onFermer }: { onValider: (libelle: 
     <Modale ouverte onFermer={onFermer} verrouillee={envoi} taille="sm" titre="Mettre le panier en attente" description="Le panier est gardé sur le serveur : il pourra être repris depuis n'importe quelle caisse du magasin."
       actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={valider} charge={envoi}>{t("Mettre en attente")}</Bouton></>}>
       <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); valider(); }}>
-        <Saisie label="Repère" autoFocus value={libelle} onChange={(e) => setLibelle(e.target.value)} maxLength={80} placeholder={t("Facultatif — ex. le nom du client")} />
+        <Saisie label="Repère (facultatif)" autoFocus value={libelle} onChange={(e) => setLibelle(e.target.value)} maxLength={80} placeholder={t("Ex. : le nom du client")} />
         {erreur && <EtatPos compact code={erreur.code} message={erreur.message} onReessayer={valider} />}
         <button type="submit" hidden />
       </form>
@@ -150,7 +150,7 @@ export function PaniersSuspendus({ caisseId, panierOccupe, onReprendre, onFermer
                   </div>
                   <div className="mt-2 flex flex-wrap justify-end gap-2">
                     {aAbandonner === p.id
-                      ? <><Bouton variante="secondaire" taille="compact" onClick={() => setAAbandonner(null)}>{t("Garder")}</Bouton><Bouton variante="danger" taille="compact" onClick={() => agir(p, "abandonner")} charge={action === p.id}>{t("Confirmer l'abandon")}</Bouton></>
+                      ? <><Bouton variante="secondaire" taille="compact" onClick={() => setAAbandonner(null)}>{t("Garder")}</Bouton><Bouton variante="danger" taille="compact" onClick={() => agir(p, "abandonner")} charge={action === p.id}>{t("Abandonner ce panier")}</Bouton></>
                       : <><Bouton variante="danger" taille="compact" onClick={() => setAAbandonner(p.id)} disabled={!!action}>{t("Abandonner")}</Bouton><Bouton taille="compact" onClick={() => agir(p, "reprendre")} disabled={panierOccupe || !!action} charge={action === p.id}>{t("Reprendre")}</Bouton></>}
                   </div>
                 </li>

@@ -26,12 +26,12 @@ export function NewsletterForm({ slug, placeholder, cta, inputStyle, buttonStyle
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, site_web: siteWeb }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Inscription impossible");
-      toast.success(t("Merci, vous êtes inscrit !"));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "");
+      toast.success(t("Inscription confirmée : vous recevrez les nouveautés de la boutique par e-mail."));
       setEmail("");
     } catch (err: any) {
-      toast.error(t(err.message));
+      toast.error(!(err instanceof TypeError) && err?.message ? t(err.message) : t("Inscription impossible pour le moment. Vérifiez votre connexion puis réessayez."));
     } finally {
       setEnvoi(false);
     }
@@ -40,7 +40,7 @@ export function NewsletterForm({ slug, placeholder, cta, inputStyle, buttonStyle
   return (
     <form onSubmit={envoyer} className="flex flex-col sm:flex-row gap-3 justify-center">
       <input type="text" name="site_web" value={siteWeb} onChange={(e) => setSiteWeb(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden className="hidden" />
-      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={placeholder} autoComplete="email"
+      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={placeholder} aria-label={t("Votre adresse e-mail")} autoComplete="email"
         className="flex-1 px-5 py-3.5 text-base sm:text-sm border focus:outline-none max-w-sm" style={inputStyle} />
       <button type="submit" disabled={envoi} className="px-7 py-3.5 text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-50" style={buttonStyle}>
         {cta}

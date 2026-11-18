@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { NotificationSound } from "@/components/ui/NotificationSound";
 import { AlerteCommande } from "@/components/dashboard/AlerteCommande";
-import { AxiaBulle } from "@/components/dashboard/AxiaBulle";
 import { quotaCommandesAtteint, planActif } from "@/lib/abonnement";
 import { permissionsSession, estCaissierPur } from "@/lib/permissions-server";
 import { AbonnementOverlayProvider } from "@/components/dashboard/AbonnementOverlayProvider";
@@ -18,6 +17,8 @@ import { etatEssai } from "@/lib/essai";
 import { finPromo } from "@/lib/promo";
 import { boutiquesDuCompte } from "@/lib/tenant";
 import { urlBoutique } from "@/lib/utils";
+import { chargerDemarrage } from "@/lib/demarrage";
+import { progression } from "@/lib/demarrage-regles";
 
 
 // Manifeste : installable (écran d'accueil), exigé par iPhone pour les notifications push.
@@ -53,10 +54,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ? await prisma.reglagesPos.findUnique({ where: { tenantId }, select: { mode: true } }).then((r) => (r?.mode === "pro" ? "pro" as const : "simple" as const), () => "simple" as const)
     : "simple" as const;
 
+  // Pastilles du menu (B10) : étapes restantes + entrées dont l'étape « Pour bien vendre » manque.
+  // Boutique absente ou base pas encore migrée : pas de pastille, jamais d'erreur.
+  const demarrage = tenantId && boutique
+    ? await chargerDemarrage(tenantId).then((d) => {
+        if (!d) return null;
+        const { faites, total } = progression(d.etapes);
+        const hrefs = d.completude.manquantes
+          .filter((e) => e.cle === "livraison" || e.cle === "politiques" || e.cle === "coordonnees")
+          .map((e) => e.href.split("#")[0]);
+        return { restantes: total - faites, hrefs };
+      }, () => null)
+    : null;
+
   return (
     <I18nProvider langue={await getLangue()} dico={await dico("dashboard", "boutique")}>
     <AbonnementOverlayProvider palier={palier}>
-      <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo}>
+      <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo} demarrage={demarrage}>
         <DeviseProvider devise={boutique?.devise || "XAF"}>{children}</DeviseProvider>
       </DashboardShell>
       {/* Son audio sur chaque notification toast */}
@@ -66,8 +80,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Notifications push : alertes sur l'appareil, même appli fermée. */}
       <ActivationPush espace="dashboard" />
       {essai && <EssaiIllimite phase={essai.phase} finLe={essai.finLe?.toISOString() ?? null} proposer={essai.proposer} montrerFin={essai.montrerFin} />}
-      {/* AXIA prend la parole : constats, rappels, demandes d'accord. */}
-      <AxiaBulle />
       {/* Liste ouverte des menus déroulants, la même dans tous les navigateurs. */}
       <MenusDeroulants />
     </AbonnementOverlayProvider>

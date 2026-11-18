@@ -3,8 +3,7 @@ import { ActivationPush } from "@/components/ActivationPush";
 import { MenusDeroulants } from "@/components/ui/MenusDeroulants";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Home, List, LogOut } from "lucide-react";
+import { NavLivreur } from "@/components/livreur/NavLivreur";
 import { NotificationsPanel } from "@/components/livreur/NotificationsPanel";
 import { DisponibiliteToggle } from "@/components/livreur/DisponibiliteToggle";
 import { I18nProvider } from "@/components/I18nProvider";
@@ -60,17 +59,7 @@ export default async function LivreurLayout({ children }: { children: React.Reac
           </div>
 
           {/* Navigation PC (la barre du bas est réservée au mobile) */}
-          <nav className="hidden lg:flex items-center gap-1 text-sm">
-            <Link href="/livreur" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:text-[#F5A623] hover:bg-white/5 transition-colors">
-              <Home size={16} />{t("Accueil")}
-            </Link>
-            <Link href="/livreur/commandes" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:text-[#F5A623] hover:bg-white/5 transition-colors">
-              <List size={16} />{t("Livraisons")}
-            </Link>
-            <Link href="/connexion" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-500 hover:text-red-400 hover:bg-white/5 transition-colors">
-              <LogOut size={16} />{t("Quitter")}
-            </Link>
-          </nav>
+          <NavLivreur variante="haut" />
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <DisponibiliteToggle livreurId={livreur.id} disponible={livreur.disponible} />
@@ -84,7 +73,7 @@ export default async function LivreurLayout({ children }: { children: React.Reac
 
       <main className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-5 pb-24 lg:pb-10">
         {!livreur.actif && (
-          <div className="mb-5 rounded-2xl border border-[#F5A623]/25 bg-[#F5A623]/10 px-4 py-3 text-sm text-[#F5A623]">
+          <div role="status" className="mb-5 rounded-2xl border border-[#F5A623]/25 bg-[#F5A623]/10 px-4 py-3 text-sm text-[#F5A623]">
             {livreur.valideAt
               ? t("Votre compte est suspendu. Contactez l'équipe Axso pour le réactiver.")
               : t("Votre compte est en attente de validation par l'équipe Axso. Vous recevrez des livraisons dès qu'il sera validé.")}
@@ -93,23 +82,7 @@ export default async function LivreurLayout({ children }: { children: React.Reac
         {children}
       </main>
 
-      {/* Bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#0A0A0A]/95 backdrop-blur-xl border-t border-white/5 safe-area-bottom">
-        <div className="max-w-2xl mx-auto px-4 py-3 grid grid-cols-3">
-          <Link href="/livreur" className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#F5A623] transition-colors py-1">
-            <Home size={20} />
-            <span className="text-[10px]">{t("Accueil")}</span>
-          </Link>
-          <Link href="/livreur/commandes" className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#F5A623] transition-colors py-1">
-            <List size={20} />
-            <span className="text-[10px]">{t("Livraisons")}</span>
-          </Link>
-          <Link href="/connexion" className="flex flex-col items-center gap-1 text-gray-500 hover:text-red-400 transition-colors py-1">
-            <LogOut size={20} />
-            <span className="text-[10px]">{t("Quitter")}</span>
-          </Link>
-        </div>
-      </nav>
+      <NavLivreur variante="bas" />
     </div>
     </I18nProvider>
   );

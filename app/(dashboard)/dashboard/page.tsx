@@ -1,23 +1,16 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { planActif } from "@/lib/abonnement";
-import { AxiaHomeClient } from "@/components/dashboard/AxiaHomeClient";
+import { prisma } from "@/lib/prisma";
 
-// Porte d'accès serveur à AXIA plein écran : réservée au palier Pro et plus.
-// Un compte palier0 est toujours renvoyé vers /dashboard/accueil (jamais de
-// flash de l'UI AXIA), avec ?axia=pro pour déclencher le toast explicatif
-// (voir AxiaProNotice, monté sur la page accueil). page.tsx (contrairement à
-// un layout) se ré-exécute à chaque navigation vers cette route exacte, donc
-// ce contrôle reste fiable même en cas de rétrogradation de plan en cours de
-// session.
-export default async function DashboardHomePage() {
+// /dashboard n'a plus de page à lui : AXIA vit dans le panneau de droite (components/dashboard/AxiaPanneau.tsx).
+// Boutique en brouillon → Démarrer, sinon Tableau de bord. ?axia=<question> suit la redirection :
+// le panneau s'ouvre et envoie la question (liens externes, notifications, anciens liens).
+export default async function DashboardHomePage({ searchParams }: { searchParams: Promise<{ axia?: string | string[] }> }) {
   const session = await auth();
   const tenantId = (session?.user as any)?.tenantId as string | undefined;
-  const { plan } = tenantId ? await planActif(tenantId) : { plan: "palier0" as const };
-
-  if (plan === "palier0") {
-    redirect("/dashboard/accueil?axia=pro");
-  }
-
-  return <AxiaHomeClient />;
+  const t = tenantId ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { statut: true } }) : null;
+  const base = t?.statut === "brouillon" ? "/dashboard/demarrer" : "/dashboard/accueil";
+  const { axia } = await searchParams;
+  const question = Array.isArray(axia) ? axia[0] : axia;
+  redirect(question === undefined ? base : `${base}?axia=${encodeURIComponent(question)}`);
 }

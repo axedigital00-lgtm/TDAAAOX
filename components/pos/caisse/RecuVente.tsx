@@ -45,21 +45,22 @@ export function RecuVente({ recu, commandeId, rejoue, provisoire = false, caisse
       description={provisoire ? "En attente de synchronisation : cette vente sera envoyée au serveur dès le retour du réseau. Son numéro est provisoire." : rejoue ? "Cette vente a déjà été enregistrée. Aucun doublon n'a été créé." : undefined}
       actions={annulation ? (
         <>
-          <Bouton variante="secondaire" onClick={() => { setAnnulation(false); setErreur(null); }} disabled={envoi}>{t("Retour")}</Bouton>
-          <Bouton variante="danger" onClick={annuler} charge={envoi}>{t("Confirmer l'annulation")}</Bouton>
+          <Bouton variante="secondaire" onClick={() => { setAnnulation(false); setErreur(null); }} disabled={envoi}>{t("Garder la vente")}</Bouton>
+          <Bouton variante="danger" onClick={annuler} charge={envoi}>{t("Annuler la vente {0}", recu.numero)}</Bouton>
         </>
       ) : (
         <>
           {peutAnnuler && !provisoire && <Bouton variante="danger" onClick={() => setAnnulation(true)} className="mr-auto">{t("Annuler cette vente")}</Bouton>}
-          <Bouton variante="secondaire" onClick={() => setImpression(imprimerRecu(ref.current, recu.format))} icone={<Printer size={16} aria-hidden />}>{t("Imprimer")}</Bouton>
+          <Bouton variante="secondaire" onClick={() => setImpression(imprimerRecu(ref.current, recu.format))} icone={<Printer size={16} aria-hidden />}>{t("Imprimer le reçu")}</Bouton>
           <Bouton onClick={onFermer}>{t("Nouvelle vente")}</Bouton>
         </>
       )}>
       {annulation ? (
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); annuler(); }}>
           <p className="text-[13px] leading-relaxed text-[#555555]">{t("La vente {0} sera annulée : le stock est remis en rayon et les paiements sont contre-passés. Cette action est tracée.", recu.numero)}</p>
-          <Saisie label="Motif de l'annulation" autoFocus value={motif} onChange={(e) => setMotif(e.target.value)} maxLength={300} />
-          {erreur && <EtatPos compact code={erreur.code} message={erreur.message} />}
+          <Saisie label="Motif de l'annulation" autoFocus value={motif} onChange={(e) => { setMotif(e.target.value); if (erreur?.code === "invalide") setErreur(null); }} maxLength={300}
+            erreur={erreur?.code === "invalide" ? erreur.message : null} />
+          {erreur && erreur.code !== "invalide" && <EtatPos compact code={erreur.code} message={erreur.message} />}
           <button type="submit" hidden />
         </form>
       ) : (
@@ -71,7 +72,7 @@ export function RecuVente({ recu, commandeId, rejoue, provisoire = false, caisse
             <p className="flex flex-wrap items-center gap-2 text-[12px] text-[#666666]"><Badge ton="attention">{t("Non vérifié")}</Badge>{t("Au moins un paiement a été confirmé par le caissier, sans vérification auprès d'un prestataire.")}</p>
           )}
           <div className="overflow-x-auto rounded-xl border border-[#E8E8E8] bg-[#FAFAFA] p-3"><Recu recu={recu} ref={ref} /></div>
-          {!impression && <p role="alert" className="text-[12.5px] text-[#B91C1C]">{t("L'impression n'a pas pu être lancée par ce navigateur.")}</p>}
+          {!impression && <p role="alert" className="text-[12.5px] text-[#B91C1C]">{t("L'impression n'a pas pu être lancée par ce navigateur. Vérifiez que l'imprimante est connectée, puis réessayez.")}</p>}
         </div>
       )}
     </Modale>

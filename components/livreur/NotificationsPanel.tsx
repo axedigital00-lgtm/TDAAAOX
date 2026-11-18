@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { Bell, Package, X, CheckCheck, Check, AlertTriangle, Bike, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
@@ -70,7 +71,8 @@ export function NotificationsPanel() {
   }, [charger]);
 
   async function toutMarquerLu() {
-    await fetch("/api/notifications", { method: "PATCH" });
+    const res = await fetch("/api/notifications", { method: "PATCH" }).catch(() => null);
+    if (!res?.ok) { toast.error(t("Impossible de marquer les notifications comme lues. Réessayez dans un instant.")); return; }
     setNonLues(0);
     setNotifications((prev) => prev.map((n) => ({ ...n, lu: true })));
   }
@@ -85,12 +87,15 @@ export function NotificationsPanel() {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
+        aria-label={nonLues > 0 ? t("Notifications ({0} non lues)", nonLues) : t("Notifications")}
+        aria-expanded={open}
         className="relative w-11 h-11 rounded-2xl bg-[#111] border border-[#1a1a1a] flex items-center justify-center text-gray-400 hover:text-white hover:border-[#F5A623]/30 transition-all"
       >
         <Bell size={18} />
         {nonLues > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#F5A623] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#F5A623] rounded-full text-black text-[10px] font-bold flex items-center justify-center motion-safe:animate-pulse">
             {nonLues > 9 ? "9+" : t(nonLues)}
           </span>
         )}
@@ -110,11 +115,11 @@ export function NotificationsPanel() {
               </div>
               <div className="flex items-center gap-2">
                 {nonLues > 0 && (
-                  <button onClick={toutMarquerLu} className="text-gray-500 hover:text-[#F5A623] transition-colors" title={t("Tout marquer lu")}>
-                    <CheckCheck size={14} />
+                  <button type="button" onClick={toutMarquerLu} className="flex items-center gap-1 px-2 min-h-10 rounded-lg text-xs text-gray-400 hover:text-[#F5A623] transition-colors">
+                    <CheckCheck size={14} />{t("Tout marquer lu")}
                   </button>
                 )}
-                <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white">
+                <button type="button" onClick={() => setOpen(false)} aria-label={t("Fermer les notifications")} className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:text-white">
                   <X size={14} />
                 </button>
               </div>
@@ -124,13 +129,11 @@ export function NotificationsPanel() {
               {notifications.length === 0 ? (
                 <div className="p-6 text-center text-gray-500 text-sm">
                   <Bell size={24} className="mx-auto mb-2 opacity-30" />
-                  {t("Aucune notification")}
+                  {t("Aucune notification pour le moment. Vous serez prévenu ici dès qu'une course vous est attribuée.")}
                 </div>
-              ) : notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`px-4 py-3 border-b border-[#1a1a1a] hover:bg-[#151515] transition-colors ${!n.lu ? "bg-[#F5A623]/5" : ""}`}
-                >
+              ) : notifications.map((n) => {
+                const classe = `block px-4 py-3 border-b border-[#1a1a1a] hover:bg-[#151515] transition-colors ${!n.lu ? "bg-[#F5A623]/5" : ""}`;
+                const contenu = (
                   <div className="flex items-start gap-3">
                     <span className="flex-shrink-0 mt-0.5">
                       {(() => { const Icon = TYPE_ICON_MAP[n.type] || Bell; return <Icon size={16} />; })()}
@@ -144,8 +147,12 @@ export function NotificationsPanel() {
                     </div>
                     {!n.lu && <div className="w-2 h-2 bg-[#F5A623] rounded-full flex-shrink-0 mt-1.5" />}
                   </div>
-                </div>
-              ))}
+                );
+                // Notification liée à une course : un toucher ouvre la fiche.
+                return n.commandeId
+                  ? <Link key={n.id} href={`/livreur/commande/${n.commandeId}`} onClick={() => setOpen(false)} className={classe}>{contenu}</Link>
+                  : <div key={n.id} className={classe}>{contenu}</div>;
+              })}
             </div>
           </div>
         </>

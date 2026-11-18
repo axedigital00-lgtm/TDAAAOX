@@ -66,7 +66,7 @@ export function ReglagesEquipe() {
         )}
 
       <Tiroir ouverte={!!membre} onFermer={() => setOuvert(null)} largeur="lg" titre={membre ? `Droits de ${membre.nom}` : "Droits"} description="« Selon le rôle » rend la valeur par défaut du rôle."
-        actions={<><Bouton variante="secondaire" onClick={() => setOuvert(null)}>{t("Annuler")}</Bouton><Bouton onClick={() => void enregistrer()} charge={envoi}>{t("Enregistrer")}</Bouton></>}>
+        actions={<><Bouton variante="secondaire" onClick={() => setOuvert(null)}>{t("Annuler")}</Bouton><Bouton onClick={() => void enregistrer()} charge={envoi}>{t("Enregistrer les droits")}</Bouton></>}>
         {membre && donnees && (
           <div className="space-y-5">
             {refus && <EtatPos compact code={refus.code} message={refus.message} />}

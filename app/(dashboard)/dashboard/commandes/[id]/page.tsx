@@ -3,8 +3,9 @@ import { STATUTS_COURSE_ACTIVE } from "@/lib/commandes";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, MapPin, Phone, Mail, Package, Clock, CheckCircle, Truck, XCircle, User, CreditCard, FileText, Map, Share2 } from "lucide-react";
+import { MapPin, Phone, Mail, Package, Truck, User, CreditCard, FileText, Map, Share2 } from "lucide-react";
+import { Badge, EnTetePage } from "@/components/ui";
+import { statutCommande, statutPaiement, libelleMethodePaiement } from "../statuts";
 import { formatMontant, dateRelative } from "@/lib/utils";
 import { StatutCommandeSelector } from "@/components/dashboard/StatutCommandeSelector";
 import { AssignerLivreur } from "@/components/dashboard/AssignerLivreur";
@@ -13,15 +14,6 @@ import { qrSvg } from "@/lib/qr";
 import { lienBoutique } from "@/lib/origine-site";
 import { lienAccesCommande } from "@/lib/livraison-numerique";
 import { RenvoyerLienDigital } from "@/components/dashboard/RenvoyerLienDigital";
-
-const STATUT_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string }> = {
-  en_attente:    { label: "En attente",      icon: Clock,        color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-  confirmee:     { label: "Confirmée",       icon: CheckCircle,  color: "#60a5fa", bg: "rgba(96,165,250,0.1)" },
-  en_preparation:{ label: "En préparation",  icon: Package,      color: "#FFD280", bg: "rgba(167,139,250,0.1)" },
-  expediee:      { label: "Expédiée",        icon: Truck,        color: "#38bdf8", bg: "rgba(56,189,248,0.1)" },
-  livree:        { label: "Livrée",          icon: CheckCircle,  color: "#34d399", bg: "rgba(52,211,153,0.1)" },
-  annulee:       { label: "Annulée",         icon: XCircle,      color: "#f87171", bg: "rgba(248,113,113,0.1)" },
-};
 
 export default async function CommandeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const t = await getT();
@@ -65,8 +57,8 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
   ]);
   const lienAccesDigital = journalDigital ? await lienAccesCommande(commande.tenant.slug, id) : null;
 
-  const statutInfo = STATUT_CONFIG[commande.statut] || STATUT_CONFIG.en_attente;
-  const StatutIcon = statutInfo.icon;
+  const statutInfo = statutCommande(commande.statut);
+  const paiementInfo = statutPaiement(commande.paiementStatut);
 
 
   // Lien livreur : QR affiché à l'écran du marchand pendant la course seulement,
@@ -75,40 +67,31 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
   const qrLivreur = lienLivreur && STATUTS_COURSE_ACTIVE.includes(commande.statut) ? await qrSvg(lienLivreur) : null;
   return (
     <div className="max-w-4xl space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/dashboard/commandes" className="w-9 h-9 flex-shrink-0 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#F5A623] hover:border-[#F5A623]/30 transition-all">
-            <ArrowLeft size={16} />
-          </Link>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="text-xl font-bold text-[#111111] font-mono break-all">{commande.numero}</h1>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium"
-                style={{ color: statutInfo.color, backgroundColor: statutInfo.bg }}>
-                <StatutIcon size={11} />
-                {t(statutInfo.label)}
-              </div>
-            </div>
-            <p className="text-gray-500 text-xs mt-0.5">{dateRelative(commande.createdAt)}</p>
-          </div>
-        </div>
-        <StatutCommandeSelector commandeId={commande.id} statutActuel={commande.statut} payeeEnLigne={commande.methodePaiement === "notchpay" && commande.paiementStatut === "completed"} />
-      </div>
+      <EnTetePage
+        className="mb-0"
+        retour={{ href: "/dashboard/commandes", libelle: t("Commandes") }}
+        titre={<span className="font-mono break-all">{t("Commande")} {commande.numero}</span>}
+        indicateurs={<>
+          <Badge ton={statutInfo.ton}>{t(statutInfo.label)}</Badge>
+          <Badge ton={paiementInfo.ton}>{t(paiementInfo.label)}</Badge>
+        </>}
+        description={<>{t("Passée {0}", dateRelative(commande.createdAt))} · {t(libelleMethodePaiement(commande.methodePaiement))}</>}
+        actions={<StatutCommandeSelector commandeId={commande.id} numero={commande.numero} statutActuel={commande.statut} payeeEnLigne={commande.methodePaiement === "notchpay" && commande.paiementStatut === "completed"} />}
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-5">
           {/* Articles commandés */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <Package size={14} className="text-[#F5A623]" />
-              {t("Articles (")}{commande.lignes.length})
+          <div className="bg-carte border border-bordure rounded-carte p-4 sm:p-6">
+            <h2 className="text-encre font-semibold text-sm mb-4 flex items-center gap-2">
+              <Package size={14} className="text-primaire" aria-hidden />
+              {t("Produits commandés")} ({commande.lignes.length})
             </h2>
             <div className="space-y-4">
               {commande.lignes.map((ligne) => (
                 <div key={ligne.id} className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-gray-50 border border-gray-200 overflow-hidden flex-shrink-0">
+                  <div className="w-14 h-14 rounded-xl bg-carte-2 border border-bordure overflow-hidden flex-shrink-0">
                     {ligne.imageUrl ? (
                       <img src={ligne.imageUrl} alt={ligne.nom} className="w-full h-full object-cover" />
                     ) : (
@@ -116,11 +99,11 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[#111111] font-medium text-sm truncate">{t(ligne.nom)}</p>
-                    {ligne.variante && <p className="text-gray-500 text-xs">{t(ligne.variante)}</p>}
-                    <p className="text-gray-400 text-xs mt-0.5">{t("Qté :")}{" "}{ligne.quantite}{" "}{t("×")}{" "}{formatMontant(ligne.prix, commande.devise)}</p>
+                    <p className="text-encre font-medium text-sm truncate">{t(ligne.nom)}</p>
+                    {ligne.variante && <p className="text-doux text-xs">{t(ligne.variante)}</p>}
+                    <p className="text-doux text-xs mt-0.5">{t("Qté :")}{" "}{ligne.quantite}{" "}{t("×")}{" "}{formatMontant(ligne.prix, commande.devise)}</p>
                   </div>
-                  <p className="text-[#F5A623] font-bold text-sm flex-shrink-0">
+                  <p className="text-encre font-bold text-sm flex-shrink-0 tabular-nums">
                     {formatMontant(ligne.prix * ligne.quantite, commande.devise)}
                   </p>
                 </div>
@@ -128,69 +111,63 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
             </div>
 
             {/* Totaux */}
-            <div className="border-t border-gray-100 mt-5 pt-4 space-y-2">
+            <div className="border-t border-bordure mt-5 pt-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">{t("Sous-total")}</span>
-                <span className="text-[#111111]">{formatMontant(commande.montantSousTotal, commande.devise)}</span>
+                <span className="text-doux">{t("Sous-total")}</span>
+                <span className="text-encre">{formatMontant(commande.montantSousTotal, commande.devise)}</span>
               </div>
               {commande.montantLivraison > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">{t("Livraison")}</span>
-                  <span className="text-[#111111]">{formatMontant(commande.montantLivraison, commande.devise)}</span>
+                  <span className="text-doux">{t("Livraison")}</span>
+                  <span className="text-encre">{formatMontant(commande.montantLivraison, commande.devise)}</span>
                 </div>
               )}
               {commande.montantReduction > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">{t("Réduction")}{" "}{commande.codePromo && `(${commande.codePromo.code})`}</span>
-                  <span className="text-green-400">−{formatMontant(commande.montantReduction, commande.devise)}</span>
+                  <span className="text-doux">{t("Réduction")}{" "}{commande.codePromo && `(${commande.codePromo.code})`}</span>
+                  <span className="text-succes">−{formatMontant(commande.montantReduction, commande.devise)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-100">
-                <span className="text-[#111111]">{t("Total")}</span>
-                <span className="text-[#F5A623]">{formatMontant(commande.montantTotal, commande.devise)}</span>
+              <div className="flex justify-between text-base font-bold pt-2 border-t border-bordure">
+                <span className="text-encre">{t("Total")}</span>
+                <span className="text-encre">{formatMontant(commande.montantTotal, commande.devise)}</span>
               </div>
             </div>
           </div>
 
           {/* Paiement */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <CreditCard size={14} className="text-[#F5A623]" />
+          <div className="bg-carte border border-bordure rounded-carte p-6">
+            <h2 className="text-encre font-semibold text-sm mb-4 flex items-center gap-2">
+              <CreditCard size={14} className="text-primaire" aria-hidden />
               {t("Paiement")}
             </h2>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">{t("Méthode")}</span>
-                <span className="text-[#111111]">{t(({ whatsapp_cod: "À la livraison (WhatsApp)", direct_cod: "À la livraison", notchpay: "Payé en ligne", en_attente: "En ligne — non finalisé" } as Record<string, string>)[commande.methodePaiement] ?? commande.methodePaiement)}</span>
+                <span className="text-doux">{t("Méthode")}</span>
+                <span className="text-encre text-right">{t(libelleMethodePaiement(commande.methodePaiement))}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">{t("Statut paiement")}</span>
-                <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                  commande.paiementStatut === "completed" ? "bg-green-500/20 text-green-400" :
-                  commande.paiementStatut === "pending" ? "bg-yellow-500/20 text-yellow-400" :
-                  "bg-red-500/20 text-red-400"
-                }`}>
-                  {t(({ completed: "Payé", pending: "En attente", failed: "Échoué", refunded: "Remboursé", refunding: "Remboursement en cours" } as Record<string, string>)[commande.paiementStatut] ?? commande.paiementStatut)}
-                </span>
+                <span className="text-doux">{t("Statut paiement")}</span>
+                <Badge ton={paiementInfo.ton}>{t(paiementInfo.label)}</Badge>
               </div>
               {commande.flutterwaveRef && (
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-gray-400">{t("Référence")}</span>
-                  <span className="text-[#111111] font-mono text-xs break-all text-right">{commande.flutterwaveRef}</span>
+                  <span className="text-doux">{t("Référence")}</span>
+                  <span className="text-encre font-mono text-xs break-all text-right">{commande.flutterwaveRef}</span>
                 </div>
               )}
 
 
               {commande.commission && (
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5 text-xs">
-                  <p className="text-gray-400 font-medium">{t("Commission Axso")}</p>
+                <div className="mt-3 pt-3 border-t border-bordure space-y-1.5 text-xs">
+                  <p className="text-doux font-medium">{t("Commission Axso")}</p>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">{t("Commission brute")}</span>
-                    <span className="text-[#111111]">{formatMontant(commande.commission.montantCommission, commande.devise)}</span>
+                    <span className="text-doux">{t("Commission brute")}</span>
+                    <span className="text-encre">{formatMontant(commande.commission.montantCommission, commande.devise)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">{t("Votre part")}</span>
-                    <span className="text-green-400">{formatMontant(commande.commission.montantMarchand, commande.devise)}</span>
+                    <span className="text-doux">{t("Votre part")}</span>
+                    <span className="text-succes">{formatMontant(commande.commission.montantMarchand, commande.devise)}</span>
                   </div>
                 </div>
               )}
@@ -199,40 +176,40 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
 
           {/* Livraison numérique */}
           {journalDigital && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-                <Share2 size={14} className="text-[#F5A623]" />
+            <div className="bg-carte border border-bordure rounded-carte p-6">
+              <h2 className="text-encre font-semibold text-sm mb-4 flex items-center gap-2">
+                <Share2 size={14} className="text-primaire" aria-hidden />
                 {t("Livraison numérique")}
               </h2>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">{t("Accès")}</span>
-                  <span className={`text-xs px-2 py-1 rounded-lg font-medium ${journalDigital.statut === "livree" ? "bg-green-500/20 text-green-600" : journalDigital.statut === "revoquee" ? "bg-gray-200 text-gray-600" : "bg-red-500/20 text-red-500"}`}>
+                  <span className="text-doux">{t("Accès")}</span>
+                  <Badge ton={journalDigital.statut === "livree" ? "succes" : journalDigital.statut === "revoquee" ? "neutre" : journalDigital.statut === "en_cours" ? "info" : "erreur"}>
                     {t(({ livree: "Livrés", partielle: "Incomplets", echec: "Échec", en_cours: "En cours", revoquee: "Révoqués" } as Record<string, string>)[journalDigital.statut] ?? journalDigital.statut)}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">{t("E-mail au client")}</span>
-                  <span className="text-[#111111] text-xs">
+                  <span className="text-doux">{t("E-mail au client")}</span>
+                  <span className="text-encre text-xs">
                     {t(({ envoye: "Envoyé", echec: "Échec d'envoi", sans_email: "Pas d'e-mail", en_attente: "Pas encore envoyé" } as Record<string, string>)[journalDigital.emailStatut] ?? journalDigital.emailStatut)}
                     {journalDigital.emailEnvoyeAt ? ` · ${dateRelative(journalDigital.emailEnvoyeAt)}` : ""}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">{t("Tentatives")}</span>
-                  <span className="text-[#111111] text-xs">{journalDigital.tentatives}{" "}{t("livraison(s)")}{" · "}{journalDigital.emailTentatives}{" "}{t("e-mail(s)")}</span>
+                  <span className="text-doux">{t("Tentatives")}</span>
+                  <span className="text-encre text-xs">{journalDigital.tentatives}{" "}{t("livraison(s)")}{" · "}{journalDigital.emailTentatives}{" "}{t("e-mail(s)")}</span>
                 </div>
                 {jetons.map((j) => (
                   <div key={j.id} className="flex justify-between text-xs">
-                    <span className="text-gray-500 truncate">{t(j.produit.nom)}</span>
-                    <span className="text-[#111111]">{j.revoqueAt ? t("Révoqué") : `${j.nbTelechargements} ${t("téléchargement(s)")}`}</span>
+                    <span className="text-doux truncate">{t(j.produit.nom)}</span>
+                    <span className="text-encre">{j.revoqueAt ? t("Révoqué") : `${j.nbTelechargements} ${t("téléchargement(s)")}`}</span>
                   </div>
                 ))}
                 {(nbFormations > 0 || nbCles > 0) && (
-                  <p className="text-xs text-gray-500">{nbFormations > 0 ? `${nbFormations} ${t("accès formation")}` : ""}{nbFormations > 0 && nbCles > 0 ? " · " : ""}{nbCles > 0 ? `${nbCles} ${t("clé(s) de licence")}` : ""}</p>
+                  <p className="text-xs text-doux">{nbFormations > 0 ? `${nbFormations} ${t("accès formation")}` : ""}{nbFormations > 0 && nbCles > 0 ? " · " : ""}{nbCles > 0 ? `${nbCles} ${t("clé(s) de licence")}` : ""}</p>
                 )}
                 {journalDigital.derniereErreur && journalDigital.statut !== "revoquee" && (
-                  <p className="text-xs text-red-500">{t(journalDigital.derniereErreur)}</p>
+                  <p className="text-xs text-erreur">{t(journalDigital.derniereErreur)}</p>
                 )}
                 {journalDigital.statut !== "revoquee" && commande.paiementStatut === "completed" && lienAccesDigital && (
                   <RenvoyerLienDigital commandeId={commande.id} lienAcces={lienAccesDigital} />
@@ -243,9 +220,9 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
 
           {/* Note client */}
           {commande.noteClient && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <p className="text-gray-400 text-xs mb-2">{t("Note du client")}</p>
-              <p className="text-gray-600 text-sm italic">"{t(commande.noteClient)}"</p>
+            <div className="bg-carte border border-bordure rounded-carte p-5">
+              <p className="text-doux text-xs mb-2">{t("Note du client")}</p>
+              <p className="text-encre text-sm italic">"{t(commande.noteClient)}"</p>
             </div>
           )}
         </div>
@@ -253,69 +230,71 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
         {/* Colonne latérale */}
         <div className="space-y-5">
           {/* Client */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <User size={14} className="text-[#F5A623]" />
+          <div className="bg-carte border border-bordure rounded-carte p-5">
+            <h2 className="text-encre font-semibold text-sm mb-4 flex items-center gap-2">
+              <User size={14} className="text-primaire" aria-hidden />
               {t("Client")}
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-[#111111] font-medium">{t(commande.clientNom)}</p>
-                {commande.client && <p className="text-gray-500 text-xs mt-0.5">{t(commande.client.totalCommandes)} commande(s)</p>}
+                <p className="text-encre font-medium">{t(commande.clientNom)}</p>
+                {commande.client && <p className="text-doux text-xs mt-0.5">{t(commande.client.totalCommandes)} commande(s)</p>}
               </div>
-              <a href={`mailto:${commande.clientEmail}`} className="flex items-center gap-2 min-w-0 break-all text-gray-400 hover:text-[#F5A623] text-sm transition-colors">
-                <Mail size={13} className="text-gray-500 flex-shrink-0" />
+              <a href={`mailto:${commande.clientEmail}`} className="flex items-center gap-2 min-w-0 break-all text-doux hover:text-encre hover:underline text-sm transition-colors">
+                <Mail size={13} className="text-doux flex-shrink-0" />
                 {t(commande.clientEmail)}
               </a>
-              <a href={`tel:${commande.clientTelephone}`} className="flex items-center gap-2 text-gray-400 hover:text-[#F5A623] text-sm transition-colors">
-                <Phone size={13} className="text-gray-500" />
+              <a href={`tel:${commande.clientTelephone}`} className="flex items-center gap-2 text-doux hover:text-encre hover:underline text-sm transition-colors">
+                <Phone size={13} className="text-doux" />
                 {t(commande.clientTelephone)}
               </a>
             </div>
           </div>
 
           {/* Livraison */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <MapPin size={14} className="text-[#F5A623]" />
+          <div className="bg-carte border border-bordure rounded-carte p-5">
+            <h2 className="text-encre font-semibold text-sm mb-4 flex items-center gap-2">
+              <MapPin size={14} className="text-primaire" aria-hidden />
               {t("Adresse de livraison")}
             </h2>
             <div className="space-y-1.5 text-sm">
-              <p className="text-[#111111]">{t(commande.adresseLivraison)}</p>
-              <p className="text-gray-400">{t(commande.ville)}, {t(commande.pays)}</p>
+              <p className="text-encre">{t(commande.adresseLivraison)}</p>
+              <p className="text-doux">{t(commande.ville)}, {t(commande.pays)}</p>
             </div>
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${commande.adresseLivraison}, ${commande.ville}`)}`}
               target="_blank" rel="noopener noreferrer"
-              className="mt-3 flex items-center gap-2 bg-[#3b82f6]/10 border border-[#3b82f6]/20 text-[#60a5fa] py-2.5 rounded-xl text-xs justify-center hover:bg-[#3b82f6]/20 transition-all"
+              className="mt-3 flex items-center gap-2 min-h-10 bg-carte border border-bordure text-encre rounded-controle text-sm font-medium justify-center hover:border-bordure-forte hover:bg-carte-2 transition-colors"
             >
-              <MapPin size={12} />{" "}{t("Voir sur Maps")}
+              <MapPin size={12} />{" "}{t("Ouvrir l'adresse dans Google Maps")}
             </a>
           </div>
 
           {/* Livreur assigné */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <Truck size={14} className="text-[#F5A623]" />
+          <div className="bg-carte border border-bordure rounded-carte p-5">
+            <h2 className="text-encre font-semibold text-sm mb-4 flex items-center gap-2">
+              <Truck size={14} className="text-primaire" aria-hidden />
               {t("Livreur")}
             </h2>
             {commande.livreur ? (
               <div className="space-y-2 mb-3">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${commande.livreur.disponible ? "bg-green-400" : "bg-gray-500"}`} />
-                  <p className="text-[#111111] font-medium text-sm">{t(commande.livreur.nom)}</p>
+                  <div className={`w-2 h-2 rounded-full ${commande.livreur.disponible ? "bg-green-400" : "bg-carte-20"}`} />
+                  <p className="text-encre font-medium text-sm">{t(commande.livreur.nom)}</p>
                 </div>
-                <p className="text-gray-400 text-xs">{commande.livreur.telephone}</p>
-                <a href={`tel:${commande.livreur.telephone}`} className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-600 py-2 px-3 rounded-xl text-xs hover:border-[#F5A623]/30 transition-all">
+                <p className="text-doux text-xs">{commande.livreur.telephone}</p>
+                <a href={`tel:${commande.livreur.telephone}`} className="flex items-center gap-2 bg-carte-2 border border-bordure text-encre py-2 px-3 rounded-xl text-xs hover:border-bordure-forte transition-all">
                   <Phone size={11} />{" "}{t("Appeler le livreur")}
                 </a>
               </div>
             ) : (
-              <p className="text-gray-500 text-xs mb-3">{t("Aucun livreur assigné")}</p>
+              <p className="text-doux text-xs mb-3">{t("Aucun livreur assigné")}</p>
             )}
             <AssignerLivreur
               commandeId={commande.id}
               livreurActuelId={commande.livreurId || null}
+              livreurActuelNom={commande.livreur?.nom ?? undefined}
+              statut={commande.statut}
               villeCommande={commande.ville}
               livreurs={livreurs.map(l => ({
                 id: l.id,
@@ -330,32 +309,32 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
 
           {/* Suivi */}
           {(commande.numeroSuivi || commande.transporteur) && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <h2 className="text-[#111111] font-semibold text-sm mb-3">{t("Suivi colis")}</h2>
-              {commande.transporteur && <p className="text-gray-400 text-xs">{t(commande.transporteur)}</p>}
-              {commande.numeroSuivi && <p className="text-[#111111] font-mono text-sm mt-1">{t(commande.numeroSuivi)}</p>}
+            <div className="bg-carte border border-bordure rounded-carte p-5">
+              <h2 className="text-encre font-semibold text-sm mb-3">{t("Suivi colis")}</h2>
+              {commande.transporteur && <p className="text-doux text-xs">{t(commande.transporteur)}</p>}
+              {commande.numeroSuivi && <p className="text-encre font-mono text-sm mt-1">{t(commande.numeroSuivi)}</p>}
             </div>
           )}
 
           {/* ─── Tracking temps réel & Livraison ─── */}
           {(commande as any).trackingToken && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
-              <h2 className="text-[#111111] font-semibold text-sm flex items-center gap-2">
-                <Truck size={14} className="text-[#F5A623]" />
+            <div className="bg-carte border border-bordure rounded-carte p-5 space-y-3">
+              <h2 className="text-encre font-semibold text-sm flex items-center gap-2">
+                <Truck size={14} className="text-primaire" aria-hidden />
                 {t("Tracking & Livraison")}
               </h2>
 
               {/* Localisation client */}
               {((commande as any).latitudeClient || (commande as any).adresseExacte) && (
-                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{t("Position client GPS")}</p>
-                  {(commande as any).adresseExacte && <p className="text-sm text-[#111111]">{t((commande as any).adresseExacte)}</p>}
+                <div className="bg-carte-2 rounded-xl p-3 space-y-1.5">
+                  <p className="text-[10px] text-doux font-semibold uppercase tracking-wide">{t("Position client GPS")}</p>
+                  {(commande as any).adresseExacte && <p className="text-sm text-encre">{t((commande as any).adresseExacte)}</p>}
                   {(commande as any).latitudeClient && (
-                    <p className="text-xs text-gray-500 font-mono">{(commande as any).latitudeClient?.toFixed(5)}, {(commande as any).longitudeClient?.toFixed(5)}</p>
+                    <p className="text-xs text-doux font-mono">{(commande as any).latitudeClient?.toFixed(5)}, {(commande as any).longitudeClient?.toFixed(5)}</p>
                   )}
                   {(commande as any).mapsLienClient && (
                     <a href={(commande as any).mapsLienClient} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[#60a5fa] text-xs hover:underline">
+                      className="inline-flex items-center gap-1.5 min-h-10 text-info text-sm font-medium hover:underline">
                       <MapPin size={11} />{" "}{t("Ouvrir Google Maps")}
                     </a>
                   )}
@@ -367,23 +346,23 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
                 {/* Facture */}
                 <a href={await lienBoutique((commande as any).tenant?.slug ?? "", `/facture/${(commande as any).trackingToken}`)}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 w-full py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-[#F5A623]/30 hover:text-[#F5A623] transition-all">
+                  className="flex items-center gap-2 w-full py-2.5 px-4 bg-carte-2 border border-bordure rounded-xl text-sm text-encre hover:border-bordure-forte hover:text-encre hover:underline transition-all">
                   <FileText size={14} />{" "}{t("Voir la facture client")}
                 </a>
 
                 {/* Tracking client */}
                 <a href={await lienBoutique((commande as any).tenant?.slug ?? "", `/tracking/${(commande as any).trackingToken}`)}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 w-full py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-[#F5A623]/30 hover:text-[#F5A623] transition-all">
+                  className="flex items-center gap-2 w-full py-2.5 px-4 bg-carte-2 border border-bordure rounded-xl text-sm text-encre hover:border-bordure-forte hover:text-encre hover:underline transition-all">
                   <Map size={14} />{" "}{t("Page de suivi (vue client)")}
                 </a>
 
                 {/* Lien livreur */}
                 {qrLivreur && (
-                  <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white">
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-bordure bg-white">
                     <div className="w-24 h-24 flex-shrink-0" dangerouslySetInnerHTML={{ __html: qrLivreur }} />
-                    <div className="text-[12px] text-gray-500 leading-relaxed">
-                      <p className="font-semibold text-[#111111] text-[13px] mb-1">{t("QR du livreur")}</p>
+                    <div className="text-[12px] text-doux leading-relaxed">
+                      <p className="font-semibold text-encre text-[13px] mb-1">{t("QR du livreur")}</p>
                       {t("À faire scanner par le livreur depuis cet écran, au départ : il démarre la course, partage sa position et confirme la livraison avec le code du client. Ne l'imprime pas et ne le mets pas dans le colis. Le lien s'arrête quand la commande est livrée ou annulée, et change si tu changes de livreur.")}
                     </div>
                   </div>
@@ -394,7 +373,7 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
                   return (
                     <a href={`https://wa.me/?text=${msg}`}
                       target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 w-full py-2.5 px-4 rounded-xl text-sm font-semibold transition-all text-[#111111]"
+                      className="flex items-center gap-2 w-full py-2.5 px-4 rounded-xl text-sm font-semibold transition-all text-encre"
                       style={{ background:"rgba(37,211,102,0.15)", border:"1px solid rgba(37,211,102,0.25)", color:"#25D366" }}>
                       <Share2 size={14} />{" "}{t("Partager avec le livreur (WhatsApp)")}
                     </a>

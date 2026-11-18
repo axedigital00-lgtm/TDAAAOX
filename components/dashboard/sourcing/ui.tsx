@@ -1,10 +1,16 @@
 "use client";
-// Briques d'interface communes aux pages AXSO Sourcing — mêmes codes visuels
-// que le reste du tableau de bord (cartes blanches arrondies, accent #F5A623).
+// Briques d'interface communes aux pages AXSO Sourcing, branchées sur le kit
+// du tableau de bord (components/ui) : mêmes jetons, mêmes boutons, mêmes états.
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { Loader2, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import {
+  Alerte, Badge, Bouton as BoutonUi, EnTetePage, EtatChargement, EtatVide as EtatVideUi, CLASSE_SAISIE, type Ton as TonUi,
+} from "@/components/ui";
+import { cn } from "@/lib/utils";
+
+const ERREUR_RESEAU = "Connexion impossible. Vérifie ta connexion internet puis réessaie.";
+const ERREUR_INCONNUE = "L'opération n'a pas abouti. Réessaie dans un instant.";
 
 export const POLICE = { fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" } as const;
 
@@ -17,9 +23,9 @@ export function useApi<T>(url: string | null) {
     if (!url) return;
     setChargement(true);
     try {
-      const r = await fetch(url).catch(() => { throw new Error("Erreur réseau"); });
+      const r = await fetch(url).catch(() => { throw new Error(ERREUR_RESEAU); });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error ?? d.message ?? "Erreur");
+      if (!r.ok) throw new Error(d.error ?? d.message ?? ERREUR_INCONNUE);
       setData(d); setErreur(null);
     } catch (e) {
       setErreur((e as Error).message);
@@ -34,9 +40,9 @@ export function useApi<T>(url: string | null) {
 /** Appel d'écriture : renvoie le JSON, ou lève l'erreur renvoyée par l'API (message en français). */
 export async function envoyer<T = any>(url: string, method: "POST" | "PATCH" | "PUT" | "DELETE", body?: unknown): Promise<T> {
   const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) })
-    .catch(() => { throw new Error("Erreur réseau"); });
+    .catch(() => { throw new Error(ERREUR_RESEAU); });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? d.message ?? "Erreur");
+  if (!r.ok) throw new Error(d.error ?? d.message ?? ERREUR_INCONNUE);
   return d as T;
 }
 
@@ -50,29 +56,20 @@ export function Page({ children, etroite }: { children: React.ReactNode; etroite
 export function Entete({ badge, titre, sousTitre, actions }: { badge?: string; titre: string; sousTitre?: string; actions?: React.ReactNode }) {
   const t = useT();
   return (
-    <div className="flex items-start justify-between gap-4 flex-wrap">
-      <div className="min-w-0">
-        {badge && (
-          <div className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold mb-2 tracking-wide"
-            style={{ background: "#FFF7ED", color: "#D4911A", border: "1px solid #FDE68A" }}>{t(badge)}</div>
-        )}
-        <h1 className="text-[20px] sm:text-[22px] font-bold text-[#111111] leading-tight tracking-tight">{t(titre)}</h1>
-        {sousTitre && <p className="text-[#666666] text-sm mt-1 max-w-2xl leading-relaxed">{t(sousTitre)}</p>}
-      </div>
-      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
-    </div>
+    <EnTetePage className="mb-0" titre={t(titre)} description={sousTitre ? t(sousTitre) : undefined}
+      indicateurs={badge ? <Badge ton="accent">{t(badge)}</Badge> : undefined} actions={actions} />
   );
 }
 
 export function Carte({ titre, aide, actions, children, className = "" }: { titre?: string; aide?: string; actions?: React.ReactNode; children: React.ReactNode; className?: string }) {
   const t = useT();
   return (
-    <section className={`bg-white rounded-2xl border border-[#E8E8E8] shadow-sm p-4 sm:p-5 ${className}`}>
+    <section className={cn("rounded-carte border border-bordure bg-carte p-4 shadow-carte sm:p-5", className)}>
       {(titre || actions) && (
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            {titre && <h2 className="text-[14px] font-bold text-[#111111]">{t(titre)}</h2>}
-            {aide && <p className="text-[12px] text-[#666666] mt-0.5 leading-relaxed">{t(aide)}</p>}
+            {titre && <h2 className="ax-titre-section">{t(titre)}</h2>}
+            {aide && <p className="mt-0.5 ax-aide">{t(aide)}</p>}
           </div>
           {actions}
         </div>
@@ -82,17 +79,12 @@ export function Carte({ titre, aide, actions, children, className = "" }: { titr
   );
 }
 
-const TONS = {
-  neutre: { background: "#F5F5F5", color: "#666666", border: "1px solid #E8E8E8" },
-  accent: { background: "#FFF7ED", color: "#B45309", border: "1px solid #FDE68A" },
-  positif: { background: "#ECFDF5", color: "#15803D", border: "1px solid #BBF7D0" },
-  attention: { background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA" },
-  info: { background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE" },
-} as const;
+// Tons historiques du sourcing → tons du kit (« attention » était rouge : il reste rouge).
+const TONS = { neutre: "neutre", accent: "accent", positif: "succes", attention: "erreur", info: "info" } as const satisfies Record<string, TonUi>;
 export type Ton = keyof typeof TONS;
 
 export function Pastille({ ton = "neutre", children }: { ton?: Ton; children: React.ReactNode }) {
-  return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={TONS[ton]}>{children}</span>;
+  return <Badge ton={TONS[ton]}>{children}</Badge>;
 }
 
 /** Statut d'une intégration : ne jamais laisser croire qu'un service non branché fonctionne. */
@@ -106,30 +98,30 @@ export function PastilleIntegration({ statut }: { statut: "actif" | "sandbox" | 
 /** Étiquette obligatoire à côté de tout chiffre qui n'est pas mesuré. */
 export function Estimation({ children }: { children?: React.ReactNode }) {
   const t = useT();
-  return <Pastille ton="accent"><Info size={9} />{children ?? t("Estimation")}</Pastille>;
+  return <Pastille ton="accent"><Info aria-hidden />{children ?? t("Estimation")}</Pastille>;
 }
 
 export function Bouton({ children, onClick, href, variante = "primaire", disabled, charge, type = "button", petit }: {
   children: React.ReactNode; onClick?: () => void; href?: string; variante?: "primaire" | "secondaire" | "discret";
   disabled?: boolean; charge?: boolean; type?: "button" | "submit"; petit?: boolean;
 }) {
-  const classes = `inline-flex items-center justify-center gap-1.5 rounded-xl font-bold transition-all disabled:opacity-50 ${petit ? "px-3 py-1.5 text-[11px]" : "px-4 py-2.5 text-[13px]"} ${
-    variante === "primaire" ? "bg-[#F5A623] text-[#111111] hover:bg-[#D4911A] shadow-sm"
-    : variante === "secondaire" ? "bg-white text-[#111111] border border-[#E8E8E8] hover:border-[#F5A623]"
-    : "text-[#B45309] bg-[#FFF7ED] hover:bg-[#FDE68A]/60"}`;
-  if (href) return <Link href={href} className={classes}>{children}</Link>;
-  return <button type={type} onClick={onClick} disabled={disabled || charge} className={classes}>{charge && <Loader2 size={13} className="animate-spin" />}{children}</button>;
+  return (
+    <BoutonUi variante={variante === "discret" ? "fantome" : variante} taille={petit ? "compact" : "normal"}
+      href={href} onClick={onClick} disabled={disabled} charge={charge} type={type}>
+      {children}
+    </BoutonUi>
+  );
 }
 
-export const CLASSE_CHAMP = "w-full border border-[#E8E8E8] rounded-xl px-3 py-2 text-[13px] text-[#111111] outline-none focus:border-[#F5A623] bg-white";
+export const CLASSE_CHAMP = CLASSE_SAISIE;
 
 export function Champ({ label, aide, children }: { label: string; aide?: string; children: React.ReactNode }) {
   const t = useT();
   return (
     <label className="block">
-      <span className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide">{t(label)}</span>
-      <div className="mt-1">{children}</div>
-      {aide && <span className="block text-[11px] text-[#AAAAAA] mt-1 leading-snug">{t(aide)}</span>}
+      <span className="ax-libelle">{t(label)}</span>
+      <div className="mt-1.5">{children}</div>
+      {aide && <span className="mt-1 block ax-aide">{t(aide)}</span>}
     </label>
   );
 }
@@ -143,7 +135,7 @@ export function ChampNombre({ label, aide, valeur, onChange, suffixe, placeholde
       <div className="flex items-center gap-2">
         <input type="number" inputMode="decimal" min={0} step={pas ?? "any"} value={valeur ?? ""} placeholder={placeholder}
           onChange={(e) => onChange(e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)))} className={`${CLASSE_CHAMP} min-w-0`} />
-        {suffixe && <span className="text-[12px] text-[#666666] whitespace-nowrap">{suffixe}</span>}
+        {suffixe && <span className="whitespace-nowrap text-sm text-doux">{suffixe}</span>}
       </div>
     </Champ>
   );
@@ -158,22 +150,17 @@ export function ChampPourcent({ label, aide, valeur, onChange, placeholder }: { 
 
 export function EtatVide({ titre, texte, children }: { titre: string; texte?: string; children?: React.ReactNode }) {
   const t = useT();
-  return (
-    <div className="bg-white border border-dashed border-[#E8E8E8] rounded-2xl p-8 sm:p-10 text-center">
-      <p className="text-[#111111] font-semibold text-sm">{t(titre)}</p>
-      {texte && <p className="text-[#666666] text-xs mt-1.5 max-w-md mx-auto leading-relaxed">{t(texte)}</p>}
-      {children && <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">{children}</div>}
-    </div>
-  );
+  return <EtatVideUi titre={t(titre)} texte={texte ? t(texte) : undefined}>{children}</EtatVideUi>;
 }
 
 export function Chargement() {
-  return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-[#F5A623]" size={22} /></div>;
+  return <EtatChargement />;
 }
 
+/** Échec d'un chargement ou d'une action : le message de l'API, en français, dit quoi faire. */
 export function Erreur({ message }: { message: string }) {
   const t = useT();
-  return <div className="rounded-2xl p-4 border bg-[#FEF2F2] border-[#FECACA] text-[13px] text-[#B91C1C]">{t(message)}</div>;
+  return <Alerte ton="erreur" titre={t(message)} />;
 }
 
 export function Onglets<T extends string>({ onglets, actif, onChange }: { onglets: { cle: T; libelle: string; nombre?: number }[]; actif: T; onChange: (c: T) => void }) {
@@ -182,8 +169,9 @@ export function Onglets<T extends string>({ onglets, actif, onChange }: { onglet
     <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
       {onglets.map((o) => (
         <button key={o.cle} type="button" onClick={() => onChange(o.cle)}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all"
-          style={actif === o.cle ? { background: "#F5A623", color: "#111111" } : { background: "#F5F5F5", color: "#666666" }}>
+          aria-pressed={actif === o.cle}
+          className={cn("min-h-10 whitespace-nowrap rounded-controle px-3 text-sm font-semibold transition-colors sm:min-h-9",
+            actif === o.cle ? "bg-secondaire text-carte" : "bg-carte-2 text-doux hover:text-encre")}>
           {t(o.libelle)}{o.nombre !== undefined ? ` · ${o.nombre}` : ""}
         </button>
       ))}
@@ -195,10 +183,10 @@ export function Onglets<T extends string>({ onglets, actif, onChange }: { onglet
 export function Kpi({ libelle, valeur, detail, ton }: { libelle: string; valeur: string; detail?: string; ton?: "positif" | "attention" }) {
   const t = useT();
   return (
-    <div className="bg-white rounded-2xl border border-[#E8E8E8] shadow-sm p-4">
-      <p className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide">{t(libelle)}</p>
-      <p className="text-[19px] font-bold leading-tight mt-1 tabular-nums break-words" style={{ color: ton === "positif" ? "#15803D" : ton === "attention" ? "#B91C1C" : "#111111" }}>{valeur}</p>
-      {detail && <p className="text-[11px] text-[#AAAAAA] mt-0.5">{t(detail)}</p>}
+    <div className="rounded-carte border border-bordure bg-carte p-4 shadow-carte">
+      <p className="ax-aide font-semibold">{t(libelle)}</p>
+      <p className={cn("mt-1 break-words text-xl font-bold leading-tight tabular-nums", ton === "positif" ? "text-succes" : ton === "attention" ? "text-erreur" : "text-encre")}>{valeur}</p>
+      {detail && <p className="mt-0.5 ax-aide">{t(detail)}</p>}
     </div>
   );
 }

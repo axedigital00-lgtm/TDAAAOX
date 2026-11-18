@@ -11,6 +11,8 @@ import { RetoursPanel } from "./RetoursPanel";
 import { FacturesPanel } from "./FacturesPanel";
 import { POSPanel } from "./POSPanel";
 import { useT } from "@/components/I18nProvider";
+import { Alerte, Bouton, EnTetePage } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
 interface Stats {
   enCours: number;
@@ -34,32 +36,35 @@ export function LogistiqueHubClient({ initialTab, stats, caisseV2 = false }: { i
   const tr = useT();
   const [onglet, setOnglet] = useState(TABS.some((t) => t.id === initialTab) ? initialTab! : "apercu");
 
+  // Chaque carte dit ce que le chiffre compte (pas seulement le nom du module).
   const cartes = [
-    { tab: "livraison", label: "Livraison", desc: "Suivi des commandes en cours", Icon: Truck, valeur: stats.enCours, accent: "#3b82f6" },
-    { tab: "livreurs",  label: "Livreurs",  desc: "Flotte & disponibilité",       Icon: Bike,  valeur: stats.livreursActifs, accent: "#F5A623" },
-    { tab: "retours",   label: "Retours",   desc: "Demandes de retour / RMA",     Icon: RotateCcw, valeur: stats.retoursOuverts, accent: "#ef4444" },
-    { tab: "factures",  label: "Factures",  desc: "Factures en attente",          Icon: FileText, valeur: stats.facturesEnAttente, accent: "#F5A623" },
+    { tab: "livraison", label: "Livraison", desc: "Commandes confirmées, en préparation ou expédiées", Icon: Truck, valeur: stats.enCours },
+    { tab: "livreurs",  label: "Livreurs",  desc: "Livreurs actifs et disponibles maintenant",          Icon: Bike,  valeur: stats.livreursActifs },
+    { tab: "retours",   label: "Retours",   desc: "Demandes de retour ouvertes ou en cours",            Icon: RotateCcw, valeur: stats.retoursOuverts },
+    { tab: "factures",  label: "Factures",  desc: "Factures émises, en attente de paiement",            Icon: FileText, valeur: stats.facturesEnAttente },
   ];
 
   const liensExternes = [
-    { href: "/dashboard/logistique/encaissements", label: "Encaissements COD", desc: "Cash à réconcilier avec vos livreurs", Icon: Wallet, valeur: stats.codEnAttente, accent: "#10b981" },
-    { href: "/dashboard/logistique/entrepots", label: "Entrepôts", desc: "Stock par emplacement", Icon: Warehouse, valeur: null, accent: "#8b5cf6" },
-    { href: "/dashboard/logistique/transporteurs", label: "Transporteurs", desc: "Agences & partenaires", Icon: Bus, valeur: null, accent: "#10b981" },
+    { href: "/dashboard/logistique/encaissements", label: "Encaissements à la livraison", desc: "Commandes livrées dont l'argent n'est pas encore remis", Icon: Wallet, valeur: stats.codEnAttente as number | null },
+    { href: "/dashboard/logistique/entrepots", label: "Entrepôts", desc: "Vos lieux de stockage", Icon: Warehouse, valeur: null },
+    { href: "/dashboard/logistique/transporteurs", label: "Transporteurs", desc: "Agences et partenaires de livraison", Icon: Bus, valeur: null },
   ];
 
   return (
     <div className="space-y-5 max-w-6xl">
-      <div>
-        <h1 className="text-xl font-bold text-[#111111]">{tr("Logistique")}</h1>
-        <p className="text-sm text-gray-400 mt-0.5">{tr("Livraison, livreurs, retours, factures et caisse — tout en un seul endroit")}</p>
-      </div>
+      <EnTetePage
+        titre={tr("Logistique")}
+        description={tr("Livraison, livreurs, retours, factures et caisse — tout en un seul endroit")}
+        className="mb-0"
+      />
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 overflow-x-auto">
+      {/* Onglets : défilent sur téléphone, l'onglet actif est marqué pour les lecteurs d'écran. */}
+      <div role="tablist" aria-label={tr("Sections de la logistique")} className="-mx-1 flex gap-1 overflow-x-auto rounded-carte bg-carte-2 border border-bordure p-1">
         {TABS.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setOnglet(id)}
-            className={`flex-1 py-2 px-3 rounded-xl text-[12px] font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${onglet === id ? "bg-white shadow-sm text-[#111]" : "text-gray-500 hover:text-gray-700"}`}>
-            <Icon size={13} />
+          <button key={id} type="button" role="tab" aria-selected={onglet === id} onClick={() => setOnglet(id)}
+            className={cn("flex min-h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-controle px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-focus",
+              onglet === id ? "bg-secondaire text-carte" : "text-doux hover:bg-carte hover:text-encre")}>
+            <Icon className="size-4" aria-hidden />
             {tr(label)}
           </button>
         ))}
@@ -68,61 +73,52 @@ export function LogistiqueHubClient({ initialTab, stats, caisseV2 = false }: { i
       {onglet === "apercu" && (
         <div className="space-y-5">
           {stats.echecs > 0 && (
-            <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
-              <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                <Truck size={15} className="text-red-500" />
-              </div>
-              <p className="text-sm text-red-700">
-                <span className="font-bold">{stats.echecs}</span>{" "}{tr(stats.echecs > 1 ? "livraisons ont échoué et attendent une replanification" : "livraison a échoué et attend une replanification")}
-              </p>
-            </div>
+            <Alerte ton="erreur"
+              titre={tr(stats.echecs > 1 ? "{0} livraisons ont échoué" : "{0} livraison a échoué", stats.echecs)}
+              action={<Bouton variante="secondaire" taille="compact" onClick={() => setOnglet("livraison")}>{tr("Voir les livraisons")}</Bouton>}>
+              {tr("Le client n'a pas été livré. Relance la livraison ou annule la commande depuis la colonne « Échec livraison ».")}
+            </Alerte>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {cartes.map((c) => (
-              <button
-                key={c.tab}
-                onClick={() => setOnglet(c.tab)}
-                className="group flex items-start gap-3 bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${c.accent}15` }}>
-                  <c.Icon size={18} style={{ color: c.accent }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-[#111111]">{tr(c.label)}</p>
-                    <span className="text-lg font-bold" style={{ color: c.accent }}>{tr(c.valeur)}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{tr(c.desc)}</p>
-                </div>
+              <button key={c.tab} type="button" onClick={() => setOnglet(c.tab)}
+                className="group flex items-start gap-3 rounded-carte border border-bordure bg-carte p-carte text-left shadow-carte transition-colors hover:border-bordure-forte focus-visible:outline-2 focus-visible:outline-focus">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-controle bg-primaire-fond text-attention" aria-hidden>
+                  <c.Icon className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="ax-libelle font-semibold">{tr(c.label)}</span>
+                    <span className="text-xl font-bold tabular-nums text-encre">{c.valeur}</span>
+                  </span>
+                  <span className="mt-0.5 block ax-aide">{tr(c.desc)}</span>
+                </span>
               </button>
             ))}
           </div>
 
-          <div>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">{tr("Autres modules")}</p>
+          <section>
+            <h2 className="ax-titre-section mb-2">{tr("Autres modules")}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {liensExternes.map((c) => (
-                <Link
-                  key={c.href}
-                  href={c.href}
-                  className="group flex items-start gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${c.accent}15` }}>
-                    <c.Icon size={16} style={{ color: c.accent }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[13px] font-bold text-[#111111]">{tr(c.label)}</p>
-                      {c.valeur !== null && <span className="text-[13px] font-bold" style={{ color: c.accent }}>{tr(c.valeur)}</span>}
-                    </div>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{tr(c.desc)}</p>
-                  </div>
-                  <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors flex-shrink-0 mt-1" />
+                <Link key={c.href} href={c.href}
+                  className="group flex items-start gap-3 rounded-carte border border-bordure bg-carte p-4 transition-colors hover:border-bordure-forte focus-visible:outline-2 focus-visible:outline-focus">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-controle bg-carte-2 text-doux" aria-hidden>
+                    <c.Icon className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-semibold text-encre">{tr(c.label)}</span>
+                      {c.valeur !== null && <span className="text-sm font-bold tabular-nums text-encre">{c.valeur}</span>}
+                    </span>
+                    <span className="mt-0.5 block ax-aide">{tr(c.desc)}</span>
+                  </span>
+                  <ChevronRight className="mt-1 size-4 shrink-0 text-discret group-hover:text-encre" aria-hidden />
                 </Link>
               ))}
             </div>
-          </div>
+          </section>
         </div>
       )}
 
@@ -131,11 +127,9 @@ export function LogistiqueHubClient({ initialTab, stats, caisseV2 = false }: { i
       {onglet === "retours"   && <RetoursPanel />}
       {onglet === "factures"  && <FacturesPanel />}
       {onglet === "pos"       && (caisseV2 ? (
-        <div className="rounded-2xl border border-[#E8E8E8] bg-white p-6 text-center">
-          <p className="text-[13px] text-[#555555]">{tr("La nouvelle caisse est activée pour cette boutique : les ventes s'encaissent désormais depuis l'écran Caisse.")}</p>
-          <Link href="/dashboard/pos/caisse" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#111111] px-4 text-[13px] font-semibold text-white">
-            <ShoppingCart size={15} aria-hidden />{tr("Ouvrir la caisse")}
-          </Link>
+        <div className="rounded-carte border border-bordure bg-carte p-6 text-center">
+          <p className="ax-texte-secondaire">{tr("La nouvelle caisse est activée pour cette boutique : les ventes s'encaissent désormais depuis l'écran Caisse.")}</p>
+          <Bouton href="/dashboard/pos/caisse" variante="sombre" icone={<ShoppingCart className="size-4" aria-hidden />} className="mt-4">{tr("Ouvrir la caisse")}</Bouton>
         </div>
       ) : <POSPanel />)}
     </div>

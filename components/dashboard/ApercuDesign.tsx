@@ -55,6 +55,10 @@ export function fichierDuTheme(slug?: string | null): string | null {
   return m ? `${m[1]}.html` : null;
 }
 
-/** Message de confirmation avant de remplacer le design actif. */
-export const CONFIRMER_CHANGEMENT = (nom: string) =>
-  `Activer « ${nom} » ?\n\nTa page d'accueil sera remplacée par ce design : les modifications faites sur ton design actuel (textes, images, styles, réglages) seront perdues.\n\nTes produits, ta fiche produit et tes pages À propos / Contact sont conservés.`;
+/** Confirmation avant de remplacer le design actif (pour useConfirmation du kit d'interface). */
+export const optionsChangementDesign = (nom: string, t: (s: string) => string) => ({
+  titre: t("Activer ce design ?"),
+  objet: nom,
+  description: t("Ta page d'accueil sera remplacée par ce design : les modifications faites sur ton design actuel (textes, images, styles, réglages) seront perdues. Tes produits, ta fiche produit et tes pages À propos / Contact sont conservés."),
+  libelleConfirmer: t("Activer ce design"),
+});

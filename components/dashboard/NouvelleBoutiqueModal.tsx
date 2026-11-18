@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { X, Loader2, Store, Check, AlertCircle, Sparkles, Shirt, Utensils, Cpu, Home, Palette, MoreHorizontal } from "lucide-react";
+import { useRef, useState } from "react";
+import { Loader2, Store, Check, AlertCircle, Sparkles, Shirt, Utensils, Cpu, Home, Palette, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { slugify, SOUS_DOMAINES_ACTIFS } from "@/lib/utils";
 import { PAYS_DEVISES } from "@/lib/ai-agent";
 import { SelectPays } from "@/components/ui/SelectPays";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, Champ, Modale, Saisie } from "@/components/ui";
 
 const CATEGORIES = [
   { label: "Mode", Icon: Shirt },
@@ -31,10 +31,8 @@ export function NouvelleBoutiqueModal({ onClose, onCree }: { onClose: () => void
   const [loading, setLoading] = useState(false);
   const [slugTouche, setSlugTouche] = useState(false);
   const [statutSlug, setStatutSlug] = useState<StatutSlug>("idle");
-  const [visible, setVisible] = useState(false);
+  const [tente, setTente] = useState(false); // erreurs affichées sous les champs après un premier essai
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => { const id = setTimeout(() => setVisible(true), 10); return () => clearTimeout(id); }, []);
 
   function changerNom(v: string) {
     setNom(v);
@@ -56,8 +54,8 @@ export function NouvelleBoutiqueModal({ onClose, onCree }: { onClose: () => void
   }
 
   async function creer() {
-    if (!nom.trim() || !slug.trim() || !whatsapp.trim()) { toast.error(t("Remplissez tous les champs")); return; }
-    if (statutSlug === "pris") { toast.error(t("Cette URL est déjà prise")); return; }
+    setTente(true);
+    if (!nom.trim() || !slug.trim() || !whatsapp.trim() || statutSlug === "pris" || statutSlug === "verification") return;
     setLoading(true);
     try {
       const res = await fetch("/api/boutiques", {
@@ -65,119 +63,65 @@ export function NouvelleBoutiqueModal({ onClose, onCree }: { onClose: () => void
         body: JSON.stringify({ nomBoutique: nom.trim(), slug: slug.trim(), pays, categorie, whatsapp: whatsapp.trim(), devise: PAYS_DEVISES[pays] ?? "XAF" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
-      toast.success(t("✅ Boutique \"{0}\" créée !", nom));
+      if (!res.ok) throw new Error(data.error || "La boutique n'a pas pu être créée. Réessayez dans un instant.");
+      toast.success(t("Boutique « {0} » créée.", nom));
       onCree(data.tenantId);
-    } catch (e: any) { toast.error(t(e.message)); }
+    } catch (e: any) { toast.error(t(e.message) || t("La boutique n'a pas pu être créée. Réessayez dans un instant.")); }
     finally { setLoading(false); }
   }
 
-  function fermer() {
-    setVisible(false);
-    setTimeout(onClose, 150);
-  }
+  const fermer = onClose;
 
-  const pretAEnvoyer = nom.trim() && slug.trim() && whatsapp.trim() && statutSlug !== "pris" && statutSlug !== "verification";
+  return (
+    <Modale ouverte onFermer={fermer} verrouillee={loading} titre={<span className="flex items-center gap-2"><Store size={18} aria-hidden />{t("Nouvelle boutique")}</span>}
+      description={t("Palier 2 · multi-boutique")}
+      actions={<>
+        <Bouton variante="secondaire" onClick={fermer} disabled={loading}>{t("Annuler")}</Bouton>
+        <Bouton onClick={creer} charge={loading} disabled={statutSlug === "verification"} icone={<Store size={15} aria-hidden />}>{t("Créer la boutique")}</Bouton>
+      </>}>
+      <div className="space-y-champs">
+        <Saisie label={t("Nom de la boutique")} required value={nom} onChange={e => changerNom(e.target.value)} placeholder={t("Ma deuxième boutique")} autoFocus
+          erreur={tente && !nom.trim() ? t("Indiquez le nom de la nouvelle boutique.") : undefined} />
 
-  const [monte, setMonte] = useState(false);
-  useEffect(() => setMonte(true), []);
-  if (!monte) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8 transition-opacity duration-150"
-      style={{ background: "rgba(10,14,26,0.55)", backdropFilter: "blur(3px)", opacity: visible ? 1 : 0 }}
-      onClick={fermer}>
-      <div className="w-full max-w-md rounded-3xl bg-white overflow-hidden transition-all duration-200 flex flex-col my-auto"
-        style={{
-          maxHeight: "calc(100vh - 4rem)",
-          boxShadow: "0 40px 100px rgba(0,0,0,.35)",
-          transform: visible ? "translateY(0) scale(1)" : "translateY(12px) scale(.97)",
-          opacity: visible ? 1 : 0,
-        }}
-        onClick={e => e.stopPropagation()}>
-
-        {/* Header dégradé */}
-        <div className="relative px-6 pt-6 pb-5 overflow-hidden flex-shrink-0" style={{ background: "linear-gradient(135deg,#111111 0%,#333333 100%)" }}>
-          <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(circle at 85% -10%, #F5A623 0%, transparent 55%)" }} />
-          <div className="relative flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
-                <Store size={18} className="text-white" />
-              </div>
-              <div>
-                <h2 className="font-bold text-white text-base leading-tight">{t("Nouvelle boutique")}</h2>
-                <p className="text-white/50 text-xs mt-0.5">{t("Palier 2 · multi-boutique")}</p>
-              </div>
+        <Champ label={t("Adresse de la boutique")} mention="obligatoire"
+          aide={statutSlug === "disponible" ? <span className="text-succes">{t("Adresse disponible")}</span> : undefined}
+          erreur={statutSlug === "pris" ? t("Cette adresse est déjà prise ou réservée : choisissez-en une autre.") : tente && !slug.trim() ? t("Indiquez l'adresse de la boutique.") : undefined}>
+          {(a) => (
+            <div className={`flex items-center gap-2 rounded-controle px-3 min-h-10 border bg-carte-2 transition-colors focus-within:border-primaire ${statutSlug === "pris" ? "border-erreur" : statutSlug === "disponible" ? "border-succes-bordure" : "border-bordure"}`}>
+              {!SOUS_DOMAINES_ACTIFS && <span className="text-doux text-sm whitespace-nowrap">axsoafrica.com/</span>}
+              <input {...a} value={slug} onChange={e => { verifierSlug(slugify(e.target.value)); setSlugTouche(true); }} placeholder="maboutique"
+                autoCapitalize="none" className="flex-1 bg-transparent text-sm text-encre outline-none min-w-0 py-2" />
+              {SOUS_DOMAINES_ACTIFS && <span className="text-doux text-sm whitespace-nowrap">.{process.env.NEXT_PUBLIC_AXSO_DOMAIN}</span>}
+              <span className="flex-shrink-0" aria-hidden>
+                {statutSlug === "verification" && <Loader2 size={14} className="animate-spin text-doux" />}
+                {statutSlug === "disponible" && <Check size={14} className="text-succes" />}
+                {statutSlug === "pris" && <AlertCircle size={14} className="text-erreur" />}
+              </span>
             </div>
-            <button onClick={fermer} className="text-white/50 hover:text-white transition-colors">
-              <X size={18} />
-            </button>
+          )}
+        </Champ>
+
+        <div className="space-y-1.5">
+          <p id="nb-categorie" className="ax-libelle">{t("Catégorie")}</p>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby="nb-categorie">
+            {CATEGORIES.map(({ label, Icon }) => (
+              <button key={label} type="button" role="radio" aria-checked={categorie === label} onClick={() => setCategorie(label)}
+                className={`flex items-center gap-1.5 px-3 min-h-10 sm:min-h-8 rounded-full text-xs font-semibold transition-all ${categorie === label ? "bg-secondaire text-carte" : "bg-carte-2 text-doux hover:text-encre"}`}>
+                <Icon size={13} aria-hidden /> {t(label)}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
-          <div>
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">{t("Nom de la boutique")}</label>
-            <input value={nom} onChange={e => changerNom(e.target.value)} placeholder={t("Ma deuxième boutique")} autoFocus
-              className="w-full rounded-xl px-3.5 py-2.5 text-sm border border-gray-200 focus:outline-none transition-colors"
-              style={{ borderColor: nom ? "rgba(17,17,17,.25)" : undefined }}
-              onFocus={e => (e.target.style.borderColor = "#F5A623")}
-              onBlur={e => (e.target.style.borderColor = nom ? "rgba(17,17,17,.25)" : "#e5e7eb")} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <span className="ax-libelle block">{t("Pays")}</span>
+            <SelectPays ariaLabel={t("Pays")} value={pays} onChange={setPays} />
           </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">{t("Adresse de la boutique")}</label>
-            <div className="flex items-center gap-2 rounded-xl px-3.5 py-2.5 border transition-colors"
-              style={{ borderColor: statutSlug === "pris" ? "#f87171" : statutSlug === "disponible" ? "#34d399" : "#e5e7eb", background: "#fafafa" }}>
-              {!SOUS_DOMAINES_ACTIFS && <span className="text-gray-400 text-sm whitespace-nowrap">axsoafrica.com/</span>}
-              <input value={slug} onChange={e => { verifierSlug(slugify(e.target.value)); setSlugTouche(true); }} placeholder="maboutique"
-                className="flex-1 bg-transparent text-sm text-gray-800 focus:outline-none min-w-0" />
-              {SOUS_DOMAINES_ACTIFS && <span className="text-gray-400 text-sm whitespace-nowrap">.{process.env.NEXT_PUBLIC_AXSO_DOMAIN}</span>}
-              <div className="flex-shrink-0">
-                {statutSlug === "verification" && <Loader2 size={14} className="animate-spin text-gray-400" />}
-                {statutSlug === "disponible" && <Check size={14} className="text-emerald-500" />}
-                {statutSlug === "pris" && <AlertCircle size={14} className="text-red-400" />}
-              </div>
-            </div>
-            {statutSlug === "pris" && <p className="text-[11px] text-red-500 mt-1">{t("Cette adresse est déjà prise ou réservée")}</p>}
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">{t("Catégorie")}</label>
-            <div className="flex flex-wrap gap-1.5">
-              {CATEGORIES.map(({ label, Icon }) => (
-                <button key={label} type="button" onClick={() => setCategorie(label)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                  style={categorie === label
-                    ? { background: "#111111", color: "white" }
-                    : { background: "#f4f4f6", color: "#6b7280" }}>
-                  <Icon size={12} /> {t(label)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">{t("Pays")}</label>
-              <SelectPays value={pays} onChange={setPays} />
-            </div>
-            <div>
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">WhatsApp</label>
-              <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder={t("+237 6XX XXX XXX")}
-                className="w-full rounded-xl px-3.5 py-2.5 text-sm border border-gray-200 focus:outline-none focus:border-[#F5A623]" />
-            </div>
-          </div>
-
-          <button onClick={creer} disabled={loading || !pretAEnvoyer}
-            className="w-full py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "linear-gradient(135deg,#111111,#333333)", boxShadow: pretAEnvoyer ? "0 6px 20px rgba(17,17,17,.35)" : "none" }}>
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Store size={14} />}
-            {t("Créer la boutique")}
-          </button>
+          <Saisie type="tel" label="WhatsApp" required value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder={t("+237 6XX XXX XXX")}
+            erreur={tente && !whatsapp.trim() ? t("Indiquez le numéro WhatsApp de la boutique.") : undefined} />
         </div>
       </div>
-    </div>,
-    document.body
+    </Modale>
   );
 }

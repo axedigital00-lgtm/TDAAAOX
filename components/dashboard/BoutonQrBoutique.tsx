@@ -2,9 +2,10 @@
 // QR de la boutique : à afficher sur un stand, un flyer ou un emballage.
 // L'affiche PNG (nom de la boutique + QR + adresse) se télécharge pour l'imprimer.
 import { useEffect, useState } from "react";
-import { Download, QrCode, X } from "lucide-react";
+import { Download, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, Modale } from "@/components/ui";
 
 export function BoutonQrBoutique({ url, nomBoutique }: { url: string; nomBoutique: string }) {
   const t = useT();
@@ -37,29 +38,20 @@ export function BoutonQrBoutique({ url, nomBoutique }: { url: string; nomBoutiqu
 
   return (
     <>
-      <button onClick={() => setOuvert(true)}
-        className="flex items-center gap-1.5 text-[12px] font-medium border border-white/20 rounded-2xl px-3.5 py-2 bg-white/10 backdrop-blur-sm text-white hover:bg-white/15 hover:border-white/30 transition-all">
-        <QrCode size={13} />{" "}{t("QR boutique")}
+      <button type="button" onClick={() => setOuvert(true)}
+        className="flex items-center gap-1.5 min-h-10 text-xs font-semibold border border-white/20 rounded-controle px-3.5 bg-white/10 backdrop-blur-sm text-white hover:bg-white/15 hover:border-white/30 transition-all">
+        <QrCode size={14} aria-hidden />{" "}{t("QR boutique")}
       </button>
-      {ouvert && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setOuvert(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[16px] font-bold text-[#111111]">{t("QR de ta boutique")}</h2>
-              <button onClick={() => setOuvert(false)} aria-label={t("Fermer")} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
-            </div>
-            <div className="w-56 h-56 mx-auto rounded-xl border border-gray-100 overflow-hidden bg-white">
-              {image && <img src={image} alt={t("QR code de la boutique")} className="w-full h-full" />}
-            </div>
-            <p className="mt-3 text-[12px] text-gray-500 break-all">{url}</p>
-            <p className="mt-3 text-[13px] text-gray-600">{t("Affiche-le sur ton stand, tes flyers ou tes emballages : tes clients arrivent directement sur ta boutique.")}</p>
-            <button onClick={telechargerAffiche}
-              className="mt-5 w-full flex items-center justify-center gap-2 rounded-xl py-3 text-[14px] font-semibold text-white" style={{ background: "#111111" }}>
-              <Download size={15} />{" "}{t("Télécharger l'affiche (PNG)")}
-            </button>
+      <Modale ouverte={ouvert} onFermer={() => setOuvert(false)} taille="sm" titre={t("QR de ta boutique")}
+        description={t("Affiche-le sur ton stand, tes flyers ou tes emballages : tes clients arrivent directement sur ta boutique.")}
+        actions={<Bouton variante="sombre" large onClick={telechargerAffiche} icone={<Download size={15} aria-hidden />}>{t("Télécharger l'affiche (PNG)")}</Bouton>}>
+        <div className="text-center">
+          <div className="w-56 h-56 mx-auto rounded-controle border border-bordure overflow-hidden bg-white">
+            {image && <img src={image} alt={t("QR code de la boutique")} className="w-full h-full" />}
           </div>
+          <p className="mt-3 ax-aide break-all">{url}</p>
         </div>
-      )}
+      </Modale>
     </>
   );
 }

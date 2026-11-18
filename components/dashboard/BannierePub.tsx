@@ -46,7 +46,7 @@ export function ContenuAnnonce({ a, onClic }: { a: AnnonceAffichee; onClic?: () 
         <p className="mt-1 text-[13px] text-white/70 leading-snug">{t(a.texte)}</p>
       </div>
       <Cta href={a.lien} onClick={onClic} {...(externe ? { target: "_blank", rel: "noopener noreferrer sponsored" } : {})}
-        className="self-start sm:self-center flex-shrink-0 inline-flex items-center gap-2 h-11 px-5 rounded-xl text-[13.5px] font-bold text-[#111111] hover:opacity-90 transition-opacity"
+        className="self-start sm:self-center flex-shrink-0 inline-flex items-center gap-2 h-11 px-5 rounded-controle text-[13.5px] font-bold text-[#111111] hover:opacity-90 transition-opacity"
         style={{ background: a.accent }}>
         {t(a.cta)} <ArrowRight size={16} />
       </Cta>
@@ -98,10 +98,13 @@ export function BannierePub() {
         <ContenuAnnonce a={a} onClic={() => compter(a.id, "clic")} />
       </div>
       {annonces.length > 1 && (
-        <div className="mt-4 flex gap-1.5">
+        <div className="mt-2 -mb-2 flex">
           {annonces.map((x, k) => (
-            <button key={x.id} onClick={() => setI(k)} aria-label={t("Annonce {0}", k + 1)} aria-current={k === i}
-              className={`h-1.5 rounded-full transition-all ${k === i ? "w-6 bg-white" : "w-3 bg-white/35 hover:bg-white/60"}`} />
+            // Zone tactile de 40 px autour du petit point visible.
+            <button key={x.id} type="button" onClick={() => setI(k)} aria-label={t("Annonce {0}", k + 1)} aria-current={k === i}
+              className="group flex h-10 items-center px-1">
+              <span className={`h-1.5 rounded-full transition-all ${k === i ? "w-6 bg-white" : "w-3 bg-white/35 group-hover:bg-white/60"}`} />
+            </button>
           ))}
         </div>
       )}

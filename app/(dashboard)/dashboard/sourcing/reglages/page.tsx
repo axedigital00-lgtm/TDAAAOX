@@ -69,7 +69,7 @@ export default function ReglagesSourcingPage() {
   useEffect(() => { if (data) setR(data.reglages ?? {}); }, [data]);
 
   if (chargement && !data) return <Page etroite><Chargement /></Page>;
-  if (erreur || !data) return <Page etroite><Erreur message={erreur ?? "Erreur"} /></Page>;
+  if (erreur || !data) return <Page etroite><Erreur message={erreur ?? "Les réglages n'ont pas pu être chargés. Recharge la page."} /></Page>;
 
   const pays = r.pays ?? data.pays;
   const config = configPays(pays);

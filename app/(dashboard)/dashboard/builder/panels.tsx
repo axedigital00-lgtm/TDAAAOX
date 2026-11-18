@@ -19,8 +19,10 @@ import { ImageUpload } from "@/components/ui/ImageUpload";
 import { MediaUpload } from "@/components/ui/MediaUpload";
 import { FONTS } from "@/lib/theme-fonts";
 import { MANIFESTE_LIBRAIRIE } from "@/lib/axso-design-manifest";
-import { CONFIRMER_CHANGEMENT, parametresApercu } from "@/components/dashboard/ApercuDesign";
+import { optionsChangementDesign, parametresApercu } from "@/components/dashboard/ApercuDesign";
+import { useConfirmation } from "@/components/ui";
 import { useT } from "@/components/I18nProvider";
+import { modeAchat, type ModeAchat } from "@/lib/mode-achat";
 
 // ─── Section library types ────────────────────────────────────────────────────
 const CUSTOM_SECTION_TYPES = [
@@ -408,6 +410,29 @@ export function PanelLogo({ tenant, onChange }: { tenant: any; onChange: (url: s
       <ImageUpload label={tr("Logo")} value={tenant?.logoUrl || ""} aspectRatio="circle" onChange={changer} onRemove={() => changer("")} />
       <p className="text-[12px] text-gray-500">{tr("Nom affiché")} : <strong className="text-gray-800">{tenant?.nomBoutique}</strong>{" "}— <Link href="/dashboard/boutique" className="text-[#F5A623] underline">{tr("modifier dans Ma boutique")}</Link></p>
       {erreur && <p className="text-[12px] text-red-600">{tr("Le logo n'a pas pu être enregistré. Réessaie.")}</p>}
+    </div>
+  );
+}
+
+/** Mode d'achat de la vitrine (Tenant.parametresCommande.modeAchat, lib/mode-achat.ts) : enregistré aussitôt, comme le logo. */
+export function PanelModeAchat({ tenant }: { tenant: any }) {
+  const tr = useT();
+  const [mode, setMode] = useState<ModeAchat>(() => modeAchat(tenant?.parametresCommande));
+  const [erreur, setErreur] = useState(false);
+  useEffect(() => { if (tenant) setMode(modeAchat(tenant.parametresCommande)); }, [tenant]);
+  async function choisir(v: ModeAchat) {
+    const avant = mode;
+    setMode(v); setErreur(false);
+    const res = await fetch("/api/tenants", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parametresCommande: { modeAchat: v } }) }).catch(() => null);
+    if (!res?.ok) { setMode(avant); setErreur(true); }
+  }
+  return (
+    <div className="p-4 space-y-2">
+      <FSel label="Mode d'achat" value={mode} onChange={(v) => choisir(v as ModeAchat)} opts={[{ v: "panier", l: "Panier + commande (par défaut)" }, { v: "direct", l: "Commande directe uniquement" }]} />
+      <p className="text-[12px] text-gray-500 leading-relaxed">{tr(mode === "panier"
+        ? "Tes clients ajoutent plusieurs produits au panier, puis commandent en une fois."
+        : "Pas de panier : chaque fiche produit garde le bouton « Commander maintenant ».")}</p>
+      {erreur && <p className="text-[12px] text-red-600">{tr("Le réglage n'a pas pu être enregistré. Réessaie.")}</p>}
     </div>
   );
 }
@@ -835,6 +860,7 @@ export function PanelModeles({ tenant, onApplied }: { tenant: any; onApplied: ()
   const [applying, setApplying] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [produits, setProduits] = useState<any[]>([]);
+  const { confirmer, dialogue } = useConfirmation();
 
   // Vrais produits de la boutique injectés dans les aperçus (vide → produits de démo du gabarit).
   useEffect(() => {
@@ -852,7 +878,7 @@ export function PanelModeles({ tenant, onApplied }: { tenant: any; onApplied: ()
 
   async function appliquer(fichier: string) {
     const nom = MANIFESTE_LIBRAIRIE.find((e) => e.fichier === fichier)?.nom ?? fichier;
-    if (!confirm(CONFIRMER_CHANGEMENT(nom))) return;
+    if (!(await confirmer(optionsChangementDesign(nom, tr)))) return;
     setApplying(fichier);
     setErreur(null);
     try {
@@ -864,7 +890,7 @@ export function PanelModeles({ tenant, onApplied }: { tenant: any; onApplied: ()
       if (!res.ok) throw new Error();
       await onApplied();
     } catch {
-      setErreur("Erreur lors de l'application du modèle — réessaie dans un instant.");
+      setErreur("Le design n'a pas pu être activé. Vérifie ta connexion et réessaie dans un instant.");
     } finally {
       setApplying(null);
     }
@@ -872,6 +898,7 @@ export function PanelModeles({ tenant, onApplied }: { tenant: any; onApplied: ()
 
   return (
     <div className="p-3 space-y-3">
+      {dialogue}
       <p className="text-[13px] text-gray-500 leading-relaxed px-0.5">
         {tr("Tous les designs AXSO — tes vrais produits sont branchés automatiquement.")}
       </p>
@@ -924,8 +951,18 @@ export function PanelModeles({ tenant, onApplied }: { tenant: any; onApplied: ()
 // ─── Panel Avancé ─────────────────────────────────────────────────────────────
 export function PanelAvance({ config, set, onReset }: any) {
   const tr = useT();
+  const { confirmer, dialogue } = useConfirmation();
+  const reinitialiser = async () => {
+    if (await confirmer({
+      titre: tr("Réinitialiser le design ?"),
+      objet: tr("Toutes les personnalisations du thème"),
+      description: tr("Couleurs, polices, mise en page, boutons et CSS reviennent aux réglages d'origine du thème. Rien n'est enregistré tant que tu ne cliques pas sur Enregistrer."),
+      libelleConfirmer: tr("Réinitialiser le design"),
+    })) onReset();
+  };
   return (
     <div className="p-4 space-y-5">
+      {dialogue}
       <div>
         <p className="text-[12px] text-gray-500 font-semibold uppercase tracking-widest mb-2">{tr("CSS personnalisé")}</p>
         <p className="text-[13px] text-gray-600 mb-3 leading-relaxed">{tr("Injecté dans toutes les pages de votre boutique. Utilisez les classes Tailwind ou du CSS natif.")}</p>
@@ -944,7 +981,7 @@ export function PanelAvance({ config, set, onReset }: any) {
         <button onClick={() => { if (typeof navigator !== "undefined") navigator.clipboard.writeText(JSON.stringify(config, null, 2)); }} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-200 hover:border-gray-300 text-sm text-gray-400 hover:text-gray-300 transition-all">
           <span>{tr("Exporter la config JSON")}</span><Copy size={15}/>
         </button>
-        <button onClick={onReset} className="w-full px-3 py-2.5 rounded-xl border border-red-500/20 hover:border-red-400/40 text-sm text-red-500/60 hover:text-red-400 transition-all">
+        <button onClick={reinitialiser} className="w-full min-h-10 px-3 py-2.5 rounded-xl border border-erreur-bordure hover:bg-erreur-fond text-sm text-erreur transition-all">
           {tr("Réinitialiser toutes les personnalisations")}
         </button>
       </div>
@@ -1463,6 +1500,7 @@ export function PanelProduit({ config, setProductPage, set, boutiqueCreeLe }: an
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const { confirmer, dialogue } = useConfirmation();
 
   // Fiche ciblée : template global (null) ou fiche propre à un produit, façon
   // Shopify. Un produit sans fiche propre suit le template global ; sa
@@ -1508,8 +1546,13 @@ export function PanelProduit({ config, setProductPage, set, boutiqueCreeLe }: an
     const { [cible as string]: _, ...reste } = p.productPagesParProduit || {};
     return { ...p, productPagesParProduit: reste };
   });
-  const appliquerATous = () => {
-    if (!confirm(tr("Appliquer cette fiche à tous les produits ?\n\nLes fiches personnalisées des autres produits seront remplacées."))) return;
+  const appliquerATous = async () => {
+    if (!(await confirmer({
+      titre: tr("Appliquer cette fiche à tous les produits ?"),
+      objet: produits.find((x) => x.id === cible)?.nom ?? tr("Fiche produit"),
+      description: tr("Les fiches personnalisées des autres produits seront remplacées par celle-ci."),
+      libelleConfirmer: tr("Appliquer à tous les produits"),
+    }))) return;
     set((p: ThemeConfig) => ({ ...p, productPage: pp, productPagesParProduit: {} }));
     choisir(null);
   };
@@ -1582,6 +1625,7 @@ export function PanelProduit({ config, setProductPage, set, boutiqueCreeLe }: an
 
   return (
     <div className="flex flex-col h-full">
+      {dialogue}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
 
         {/* Fiche ciblée : template global ou produit précis */}

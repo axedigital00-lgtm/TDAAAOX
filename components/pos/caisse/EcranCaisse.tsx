@@ -19,7 +19,7 @@
 //   réseau, la caisse démarre et calcule sur le catalogue gardé sur l'appareil ;
 //   la vente est mise en file et le reçu est PROVISOIRE. Drapeau éteint : rien
 //   de tout cela n'est branché.
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ShoppingCart, Smartphone, Store } from "lucide-react";
@@ -59,14 +59,25 @@ const ModaleAppairage = dynamic(() => import("@/components/pos/scanner/ModaleApp
 const FicheClientCaisse = dynamic(() => import("@/components/pos/crm/FicheClientCaisse").then((m) => m.FicheClientCaisse), { ssr: false });
 const FicheProduit = dynamic(() => import("@/components/pos/stock/FicheProduit"), { ssr: false });
 
-const ETROIT = "(max-width: 767px)";
-/** Téléphone : le panier passe dans un tiroir bas. */
-function useEtroit() {
-  return useSyncExternalStore(
-    (cb) => { const m = window.matchMedia(ETROIT); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); },
-    () => window.matchMedia(ETROIT).matches,
-    () => false,
-  );
+/**
+ * Largeur sous laquelle catalogue et panier ne tiennent plus côte à côte : le panier
+ * passe dans un tiroir bas. Mesurée sur l'écran de caisse lui-même, pas sur la
+ * fenêtre : sur une tablette en portrait, le menu du tableau de bord prend déjà
+ * ~300 px et laissait au catalogue une colonne d'une centaine de pixels.
+ */
+const LARGEUR_DEUX_COLONNES = 680;
+function useEtroit(ref: React.RefObject<HTMLElement | null>) {
+  const [etroit, setEtroit] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const mesurer = () => setEtroit(el.clientWidth < LARGEUR_DEUX_COLONNES);
+    mesurer();
+    const obs = new ResizeObserver(mesurer);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [ref]);
+  return etroit;
 }
 
 function useEnLigne() {
@@ -138,7 +149,8 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
   const t = useT();
   const router = useRouter();
   const { fmt, devise } = useDevise();
-  const etroit = useEtroit();
+  const racine = useRef<HTMLDivElement>(null);
+  const etroit = useEtroit(racine);
   const navigateurEnLigne = useEnLigne();
   // Mode hors ligne en service : l'état vient d'un appel de contrôle au serveur, pas seulement du navigateur.
   const hl = useHorsLigne();
@@ -365,7 +377,7 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
   );
 
   return (
-    <div className="flex flex-col gap-3" style={{ "--pos-chrome": kiosque ? "9.5rem" : "10.5rem" } as React.CSSProperties}>
+    <div ref={racine} className="flex flex-col gap-3" style={{ "--pos-chrome": kiosque ? "9.5rem" : "10.5rem" } as React.CSSProperties}>
       <p className="sr-only" role="status" aria-live="polite">{annonce}</p>
       {/* Douchette USB / Bluetooth quand le curseur n'est pas dans un champ (le champ de recherche gère la sienne). */}
       <CapteurClavier contexte="vente" caisseId={caisseId} actif={!fermee} />
@@ -407,7 +419,7 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
       {fermee ? (
         <OuvertureCaisse d={d} caisseId={caisseId} onOuverte={onRecharger} />
       ) : (
-        <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className={etroit ? "grid items-start gap-3" : "grid items-start gap-3 grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_400px]"}>
           <Catalogue caisseId={caisseId} modeSimple={modeSimple} champRef={champ} onAjouter={ajouterArticle} version={version}
             actions={<BoutonScanner contexte="vente" caisseId={caisseId} className="min-h-12 flex-shrink-0" />} />
           {!etroit && (
@@ -418,11 +430,11 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
         </div>
       )}
 
-      {/* Téléphone : le panier est un tiroir bas, résumé dans une barre toujours visible. */}
+      {/* Écran étroit : le panier est un tiroir bas, résumé dans une barre toujours visible. */}
       {etroit && !fermee && (
-        // Hors kiosque, la barre de navigation flottante du téléphone occupe le bas : la barre Payer passe au-dessus.
-        <div className="sticky z-10 flex items-center gap-2 rounded-2xl bg-[#111111] p-2 shadow-xl"
-          style={{ bottom: kiosque ? "0.5rem" : "calc(env(safe-area-inset-bottom) + 7.25rem)" }}>
+        // Hors kiosque, sur téléphone, la barre de navigation flottante occupe le bas : la barre Payer passe au-dessus.
+        // Tablette (≥ md) : pas de barre de navigation en bas, la barre Payer reste collée au bas de l'écran.
+        <div className={`sticky z-10 flex items-center gap-2 rounded-2xl bg-[#111111] p-2 shadow-xl ${kiosque ? "bottom-2" : "bottom-[calc(env(safe-area-inset-bottom)+7.25rem)] md:bottom-2"}`}>
           <button type="button" onClick={() => setFenetre("panier")} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 text-left text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
             <ShoppingCart size={18} aria-hidden className="flex-shrink-0 text-[#F5A623]" />
             <span className="min-w-0">

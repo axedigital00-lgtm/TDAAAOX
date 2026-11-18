@@ -65,6 +65,114 @@
   --font-serif: 'Playfair Display', Georgia, serif;
 }
 
+/* ── Jetons à usage fixe de l'interface (dashboard, affilié, livreur, admin) ──
+   Guide d'usage : en-tête de components/ui/index.ts. Chaque couleur a UN usage ; les couleurs de
+   texte d'état passent le contraste AA (≥ 4,5:1) sur blanc et sur leur fond.
+   Les anciennes variables (--accent, --text-2, --success…) restent valables. */
+:root {
+  --ax-primaire: var(--accent);          /* action principale, marque */
+  --ax-primaire-hover: var(--accent-dark);
+  --ax-sur-primaire: #111111;            /* texte sur le primaire (le blanc ne fait que 2:1) */
+  --ax-primaire-fond: #FFF7ED;           /* sélection, mise en avant légère */
+  --ax-secondaire: #111111;              /* action forte non principale, sélection d'onglet */
+  --ax-secondaire-hover: #333333;
+  --ax-fond: var(--bg);                  /* fond de page */
+  --ax-carte: var(--surface);            /* surface de contenu */
+  --ax-carte-2: #FAFAFA;                 /* zone secondaire dans une carte, pied de modale */
+  --ax-bordure: var(--border);
+  --ax-bordure-forte: #CFCFCF;           /* survol d'un champ */
+  --ax-encre: var(--text-1);             /* texte principal */
+  --ax-doux: var(--text-2);              /* texte secondaire, aide (5,7:1) */
+  --ax-discret: #8A8A8A;                 /* indications non essentielles, désactivé (3,5:1 : jamais pour un texte utile) */
+  --ax-succes: #15803D;      --ax-succes-fond: var(--success-bg);  --ax-succes-bordure: #BBF7D0;
+  --ax-attention: #B45309;   --ax-attention-fond: var(--warning-bg); --ax-attention-bordure: #FDE68A;
+  --ax-erreur: #B91C1C;      --ax-erreur-fond: var(--error-bg);    --ax-erreur-bordure: #FECACA;
+  --ax-info: #1D4ED8;        --ax-info-fond: #EFF6FF;              --ax-info-bordure: #BFDBFE;
+  --ax-focus: #111111;                   /* anneau de focus clavier */
+  /* Rayons : contrôle (bouton, champ) / carte / modale */
+  --ax-rayon-controle: 0.75rem;          /* = rounded-xl */
+  --ax-rayon-carte: 1rem;                /* = rounded-2xl */
+  --ax-rayon-modale: 1.25rem;
+  /* Ombres : la carte n'en a presque pas ; seul ce qui flotte (menu, modale) en a une vraie */
+  --ax-ombre-carte: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
+  --ax-ombre-flottante: 0 16px 40px -12px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.05);
+  /* Utilisées par components/ui/sonner.tsx (jusqu'ici indéfinies) */
+  --popover: var(--surface);
+  --popover-foreground: var(--text-1);
+  --radius: var(--ax-rayon-controle);
+}
+
+/* Command Center (sombre par défaut) : les mêmes jetons suivent ses couleurs,
+   pour que les composants partagés s'y affichent juste, en sombre comme en clair. */
+.cc {
+  --ax-primaire: var(--cc-accent);  --ax-primaire-hover: var(--cc-accent-text); --ax-sur-primaire: var(--cc-on-accent);
+  --ax-primaire-fond: var(--cc-accent-bg);
+  --ax-secondaire: var(--cc-text);  --ax-secondaire-hover: var(--cc-text-2);
+  --ax-fond: var(--cc-bg); --ax-carte: var(--cc-surface); --ax-carte-2: var(--cc-surface-2);
+  --ax-bordure: var(--cc-border-strong); --ax-bordure-forte: var(--cc-text-3);
+  --ax-encre: var(--cc-text); --ax-doux: var(--cc-text-2); --ax-discret: var(--cc-text-3);
+  --ax-succes: var(--cc-good);    --ax-succes-fond: var(--cc-good-bg);  --ax-succes-bordure: var(--cc-good-bg);
+  --ax-attention: var(--cc-warn); --ax-attention-fond: var(--cc-warn-bg); --ax-attention-bordure: var(--cc-warn-bg);
+  --ax-erreur: var(--cc-bad);     --ax-erreur-fond: var(--cc-bad-bg);   --ax-erreur-bordure: var(--cc-bad-bg);
+  --ax-info: var(--cc-info);      --ax-info-fond: var(--cc-info-bg);    --ax-info-bordure: var(--cc-info-bg);
+  --ax-focus: var(--cc-accent);
+}
+
+/* Classes Tailwind : bg-primaire, text-sur-primaire, text-encre, text-doux, border-bordure,
+   bg-erreur-fond, text-succes, rounded-controle, rounded-carte, shadow-carte… */
+@theme inline {
+  --color-primaire: var(--ax-primaire);
+  --color-primaire-hover: var(--ax-primaire-hover);
+  --color-sur-primaire: var(--ax-sur-primaire);
+  --color-primaire-fond: var(--ax-primaire-fond);
+  --color-secondaire: var(--ax-secondaire);
+  --color-secondaire-hover: var(--ax-secondaire-hover);
+  --color-fond: var(--ax-fond);
+  --color-carte: var(--ax-carte);
+  --color-carte-2: var(--ax-carte-2);
+  --color-bordure: var(--ax-bordure);
+  --color-bordure-forte: var(--ax-bordure-forte);
+  --color-encre: var(--ax-encre);
+  --color-doux: var(--ax-doux);
+  --color-discret: var(--ax-discret);
+  --color-succes: var(--ax-succes);
+  --color-succes-fond: var(--ax-succes-fond);
+  --color-succes-bordure: var(--ax-succes-bordure);
+  --color-attention: var(--ax-attention);
+  --color-attention-fond: var(--ax-attention-fond);
+  --color-attention-bordure: var(--ax-attention-bordure);
+  --color-erreur: var(--ax-erreur);
+  --color-erreur-fond: var(--ax-erreur-fond);
+  --color-erreur-bordure: var(--ax-erreur-bordure);
+  --color-info: var(--ax-info);
+  --color-info-fond: var(--ax-info-fond);
+  --color-info-bordure: var(--ax-info-bordure);
+  --color-focus: var(--ax-focus);
+  --radius-controle: var(--ax-rayon-controle);
+  --radius-carte: var(--ax-rayon-carte);
+  --radius-modale: var(--ax-rayon-modale);
+  --shadow-carte: var(--ax-ombre-carte);
+  --shadow-flottante: var(--ax-ombre-flottante);
+  /* Espacements nommés (p-carte, gap-section, space-y-champs, px-page…) */
+  --spacing-page: 1rem;        /* marge latérale de page (téléphone) ; sm:px-6 au-delà */
+  --spacing-section: 1.25rem;  /* entre deux blocs d'une page (= space-y-5) */
+  --spacing-carte: 1.25rem;    /* intérieur d'une carte (= p-5) */
+  --spacing-champs: 1rem;      /* entre deux champs d'un formulaire (= space-y-4) */
+}
+
+/* Hiérarchie typographique (html = 15 px : text-sm ≈ 14 px, text-xs = 12 px).
+   Rien d'utile sous 12 px. */
+.ax-titre-page    { font-size: 1.375rem; line-height: 1.25; font-weight: 700; color: var(--ax-encre); letter-spacing: -0.01em; }
+.ax-titre-section { font-size: 1.125rem; line-height: 1.3;  font-weight: 600; color: var(--ax-encre); }
+.ax-sous-titre    { font-size: 1rem;     line-height: 1.4;  font-weight: 600; color: var(--ax-encre); }
+.ax-texte         { font-size: 0.9375rem; line-height: 1.55; color: var(--ax-encre); }
+.ax-libelle       { font-size: 0.9375rem; line-height: 1.4; font-weight: 500; color: var(--ax-encre); }
+.ax-texte-secondaire { font-size: 0.875rem; line-height: 1.5;  color: var(--ax-doux); }
+.ax-aide          { font-size: 0.8rem;   line-height: 1.45; color: var(--ax-doux); }
+.ax-erreur-champ  { font-size: 0.8rem;   line-height: 1.45; font-weight: 500; color: var(--ax-erreur); }
+/* Badge : text-xs font-semibold (composant Badge). Bouton : text-sm font-semibold (composant Bouton). */
+@media (min-width: 640px) { .ax-titre-page { font-size: 1.625rem; } }
+
 /* Reset & base */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -507,7 +615,7 @@ main > section, main > div > section {
 }
 
 .ax-skeleton {
-  background: linear-gradient(110deg, var(--bg) 8%, #ECECEC 18%, var(--bg) 33%);
+  background: linear-gradient(110deg, var(--ax-fond) 8%, var(--ax-bordure) 18%, var(--ax-fond) 33%);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
 }
@@ -518,6 +626,17 @@ main > section, main > div > section {
     animation: none !important;
     transition: none !important;
   }
+  /* Partout : animations et transitions quasi instantanées. Durée très courte plutôt que
+     « none » : un élément qui apparaît par animation (opacity 0 → 1) finit bien visible. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  html { scroll-behavior: auto !important; }
+  /* Seule exception : l'indicateur de chargement, qui porte une information. */
+  .animate-spin { animation-duration: 1s !important; animation-iteration-count: infinite !important; }
 }
 
 /* ── Menus déroulants (<select>) — style commun à toute la plateforme ─────────

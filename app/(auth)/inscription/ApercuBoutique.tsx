@@ -1,39 +1,53 @@
 "use client";
 // La boutique qui se construit au fil des réponses : même téléphone que le hero de la landing.
 // Nom dès qu'il est saisi, couleurs et miniature du design une fois choisi, produits après l'analyse.
+// Identité visuelle (écran « charte ») : logo, couleurs et polices du marchand priment sur celles du design.
 import { Search, ShoppingBag, Download } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { MANIFESTE_LIBRAIRIE } from "@/lib/axso-design-manifest";
+import { fontEntry, googleFontsHref } from "@/lib/theme-fonts";
+import { lisible } from "@/lib/charte-visuelle";
 import { miniatureTheme } from "./donnees";
 import { COURBE } from "./ui";
 
 type Produit = { nom: string; prix: number };
 
-export function ApercuBoutique({ nom, digital, themeId, produits, devise, compact }: {
+export function ApercuBoutique({ nom, digital, themeId, produits, devise, compact, logoUrl, couleurs, polices, children }: {
   nom: string; digital: boolean; themeId?: string; produits?: Produit[]; devise: string; compact?: boolean;
+  logoUrl?: string; couleurs?: { principale: string; secondaire: string } | null; polices?: { titre: string; corps: string } | null;
+  children?: React.ReactNode; // bande compacte : action à droite (« Voir l'aperçu »)
 }) {
   const tr = useT();
   const e = themeId ? MANIFESTE_LIBRAIRIE.find((x) => x.fichier === themeId) : undefined;
   const fond = e?.couleurs.fond || "#ffffff";
-  const accent = e?.couleurs.accent || "#F5A623";
-  const texte = e?.couleurs.texte || "#111111";
+  const accent = couleurs?.principale || e?.couleurs.accent || "#F5A623";
+  // Secondaire = couleur des textes, seulement si elle reste lisible sur le fond du design.
+  const texte = couleurs && lisible(couleurs.secondaire, fond) ? couleurs.secondaire : e?.couleurs.texte || "#111111";
+  const surAccent = lisible("#111111", accent) ? "#111111" : "#ffffff";
+  const policesActives = polices ?? e?.polices;
+  const policeTitre = fontEntry(policesActives?.titre)?.label;
+  const policeCorps = fontEntry(policesActives?.corps)?.label;
+  const hrefPolices = policesActives ? googleFontsHref(policesActives) : "";
   const nomAffiche = nom.trim() || tr("Ta boutique");
   const fondu = { transition: `background-color .6s ${COURBE}, color .6s ${COURBE}` };
 
-  // Mobile : une bande compacte sous la jauge, pour garder la question au premier plan.
+  // Mobile : une bande compacte sous l'écran, qui déplie le téléphone (page.tsx).
   if (compact) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white/90 px-3 py-2.5 shadow-[0_10px_40px_-18px_rgba(17,17,17,0.25)]" aria-label={tr("Aperçu de ta boutique")}>
-        <span className="w-9 h-9 rounded-lg flex items-center justify-center text-[14px] font-extrabold flex-shrink-0" style={{ background: accent, color: "#111111", ...fondu }}>
-          {nomAffiche.charAt(0).toUpperCase()}
-        </span>
+        {logoUrl
+          ? <img src={logoUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-white flex-shrink-0" />
+          : <span className="w-9 h-9 rounded-lg flex items-center justify-center text-[14px] font-extrabold flex-shrink-0" style={{ background: accent, color: surAccent, fontFamily: policeTitre, ...fondu }}>
+            {nomAffiche.charAt(0).toUpperCase()}
+          </span>}
         <span className="min-w-0 flex-1">
           <span className="block text-[14px] font-extrabold text-[#111111] truncate">{nomAffiche}</span>
-          <span className="block text-[12px] text-gray-500 truncate">
+          <span className="block text-[14px] text-gray-500 truncate">
             {e ? tr(e.nom) : tr("Design à choisir")}
             {produits?.length ? ` · ${tr("{0} produits", produits.length)}` : ""}
           </span>
         </span>
+        {children}
       </div>
     );
   }
@@ -41,7 +55,8 @@ export function ApercuBoutique({ nom, digital, themeId, produits, devise, compac
   return (
     <div aria-label={tr("Aperçu de ta boutique")} role="img"
       className="relative w-[270px] h-[550px] rounded-[44px] bg-[#111111] p-[10px] shadow-[0_40px_80px_-20px_rgba(17,17,17,0.55)]">
-      <div className="w-full h-full rounded-[34px] overflow-hidden flex flex-col" style={{ background: fond, color: texte, ...fondu }}>
+      {hrefPolices && <link rel="stylesheet" href={hrefPolices} />}
+      <div className="w-full h-full rounded-[34px] overflow-hidden flex flex-col" style={{ background: fond, color: texte, fontFamily: policeCorps, ...fondu }}>
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <span className="text-[10px] font-semibold">9:41</span>
           <span className="w-16 h-4 rounded-full bg-[#111111]" />
@@ -49,10 +64,12 @@ export function ApercuBoutique({ nom, digital, themeId, produits, devise, compac
         </div>
         <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: `${texte}14` }}>
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-extrabold flex-shrink-0" style={{ background: accent, color: "#111111", ...fondu }}>
-              {nomAffiche.charAt(0).toUpperCase()}
-            </span>
-            <span className="text-[12px] font-extrabold truncate">{nomAffiche}</span>
+            {logoUrl
+              ? <img src={logoUrl} alt="" className="h-6 max-w-[90px] object-contain flex-shrink-0" />
+              : <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-extrabold flex-shrink-0" style={{ background: accent, color: surAccent, ...fondu }}>
+                {nomAffiche.charAt(0).toUpperCase()}
+              </span>}
+            <span className="text-[12px] font-extrabold truncate" style={{ fontFamily: policeTitre }}>{nomAffiche}</span>
           </div>
           <div className="flex items-center gap-2 opacity-70">{digital ? <Download size={13} /> : <><Search size={13} /><ShoppingBag size={13} /></>}</div>
         </div>
@@ -68,7 +85,7 @@ export function ApercuBoutique({ nom, digital, themeId, produits, devise, compac
               <div className="aspect-square rounded-xl" style={{ background: `${texte}0d` }} />
               {p ? (
                 <>
-                  <p className="mt-1.5 text-[9.5px] font-semibold truncate">{tr(p.nom)}</p>
+                  <p className="mt-1.5 text-[9.5px] font-semibold truncate" style={{ fontFamily: policeTitre }}>{tr(p.nom)}</p>
                   <p className="text-[9.5px] font-extrabold" style={{ color: accent }}>{p.prix.toLocaleString("fr-FR")} {tr(devise)}</p>
                 </>
               ) : (

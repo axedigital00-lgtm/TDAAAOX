@@ -130,7 +130,8 @@ function remplacerPolices(css: string, origine: Polices, choisies: Polices): str
     const apres = fontEntry(choisies[k])?.label;
     if (!avant || !apres || avant === apres) continue;
     const nom = new RegExp(`(["']?)${avant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\1`, "gi");
-    css = css.replace(/(font(?:-family)?\s*:)([^;}]*)/gi, (_m, prop: string, valeur: string) => prop + valeur.replace(nom, `'${apres}'`));
+    // Aussi les variables --police-titre / --police-corps (standard des thèmes premium et des imports).
+    css = css.replace(/((?:font(?:-family)?|--police-(?:titre|corps))\s*:)([^;}]*)/gi, (_m, prop: string, valeur: string) => prop + valeur.replace(nom, `'${apres}'`));
   }
   return css;
 }

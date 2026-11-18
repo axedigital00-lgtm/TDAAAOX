@@ -17,18 +17,19 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { chercher, textesPage } from "@/lib/recherche-dashboard";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { BoutiqueSwitcher } from "@/components/dashboard/BoutiqueSwitcher";
 import { AvatarCompte } from "@/components/dashboard/AvatarCompte";
 import {
   Home, ShoppingCart, Monitor, Users, Package, Download,
   Star, Truck, MessageSquare, BarChart3, Megaphone,
-  DollarSign, CreditCard, Wallet, Map, Box,
+  DollarSign, CreditCard, Wallet, Map, Box, Rocket,
   Settings2, ExternalLink, UserCheck, LayoutGrid, Plug, Link2,
   Bell, ChevronDown, ChevronRight, RotateCcw, FileText, Lock,
   Target, FileBarChart, Sparkles, Boxes, Receipt, Calculator, Store,
-  Tags, FolderOpen, Search,
+  Tags, FolderOpen, Search, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { useAbonnementOverlay } from "@/components/dashboard/AbonnementOverlayProvider";
 import { palierAuMoins, type Palier } from "@/lib/plans";
@@ -82,12 +83,14 @@ export interface SidebarProps {
   boutiqueNom?: string;
   boutiqueSlug?: string;
   boutiqueUrl?: string; // adresse publique (urlBoutique)
-  userInitials?: string;
+  nomCompte?: string;
   palier?: Palier;
   /** undefined = propriétaire : aucun filtrage n'est appliqué. */
   permissions?: Record<ModuleKey, Niveau>;
   /** Mode de la caisse (ReglagesPos.mode). "simple" (défaut) masque les outils avancés du groupe « Caisse & magasin ». */
   modePos?: "simple" | "pro";
+  /** Parcours de démarrage (lib/demarrage.ts) : étapes restantes et hrefs des entrées dont l'étape manque. */
+  demarrage?: { restantes: number; hrefs: string[] } | null;
 }
 
 // ─── Filtrage par permissions ─────────────────────────────────────────────────
@@ -106,17 +109,26 @@ function filtreParPermission(
 // paire clé/valeur de la query, ce qui remplace l'ancien `activeOverride`
 // codé en dur pour le seul lien de la caisse.
 
-function estActif(item: NavItem, pathname: string, searchParams: URLSearchParams): boolean {
+/** Le lien (avec ou sans query) correspond-il à l'adresse courante ? Une clé sans valeur
+ *  (« /page?onglet ») exige seulement sa présence : /page?onglet=… reste actif. */
+function correspond(href: string, pathname: string, searchParams: URLSearchParams): boolean {
+  const [base, query] = href.split("?");
+  if (pathname !== base) return false;
+  for (const [cle, valeur] of new URLSearchParams(query ?? "")) {
+    if (valeur ? searchParams.get(cle) !== valeur : !searchParams.has(cle)) return false;
+  }
+  return true;
+}
+
+export function estActif(item: Pick<NavItem, "href" | "exact" | "excludePrefix">, pathname: string, searchParams: URLSearchParams): boolean {
   if (item.excludePrefix?.some((p) => pathname.startsWith(p))) return false;
 
   const [base, query] = item.href.split("?");
-  if (query) {
-    if (pathname !== base) return false;
-    for (const [cle, valeur] of new URLSearchParams(query)) {
-      if (searchParams.get(cle) !== valeur) return false;
-    }
-    return true;
-  }
+  if (query) return correspond(item.href, pathname, searchParams);
+
+  // Un lien plus précis du menu (même page + query) prend la main : sur
+  // /dashboard/boutique?section=livraison, seule « Livraison » est surlignée, pas « Ma boutique ».
+  if (HREFS_AVEC_QUERY.some((h) => correspond(h, pathname, searchParams))) return false;
 
   if (item.exact) return pathname === base;
   // "/dashboard" est un préfixe de tout le dashboard : il exige l'égalité
@@ -128,12 +140,14 @@ function estActif(item: NavItem, pathname: string, searchParams: URLSearchParams
 
 /** Raccourcis hors groupe — toujours visibles, en tête de sidebar. */
 const PRIMAIRES: NavItem[] = [
-  // AXIA plein écran : Palier Pro (app/(dashboard)/dashboard/page.tsx redirige un compte Essentiel).
-  { href: "/dashboard",         label: "AXIA",            Icon: Sparkles, exact: true, requiresPalier: "palier1", messageVerrou: "AXIA, ton assistante personnelle, est disponible à partir du Palier Pro." },
+  // « Accueil » : parcours de démarrage (l'URL reste /dashboard/demarrer). L'assistante vit dans le panneau de droite.
+  { href: "/dashboard/demarrer", label: "Accueil", Icon: Rocket, exact: true, moduleKey: "boutique" },
   { href: "/dashboard/accueil", label: "Tableau de bord", Icon: Home,     exact: true },
   // Hub du module Boutique (profil, médias, SEO, réseaux, livraison,
   // multi-boutique) — remplace l'ancienne sous-sidebar dédiée.
   { href: "/dashboard/boutique", label: "Ma boutique", Icon: Store, exact: true, moduleKey: "boutique" },
+  // Point d'entrée unique de l'argent du marchand (solde, séquestre, retraits) ; l'ancienne page Paiements y redirige.
+  { href: "/dashboard/wallet", label: "Mon argent", Icon: Wallet, moduleKey: "finance" },
 ];
 
 const GROUPES: NavGroupe[] = [
@@ -143,6 +157,7 @@ const GROUPES: NavGroupe[] = [
       { href: "/dashboard/commandes", label: "Commandes", Icon: ShoppingCart, badge: true, moduleKey: "commandes" },
       { href: "/dashboard/factures",  label: "Factures",  Icon: FileText,                 moduleKey: "finance"   },
       { href: "/dashboard/retours",   label: "Retours",   Icon: RotateCcw,                moduleKey: "commandes" },
+      { href: "/dashboard/boutique?section=livraison", label: "Livraison", Icon: Truck, moduleKey: "boutique" },
     ],
   },
   {
@@ -219,6 +234,7 @@ const GROUPES: NavGroupe[] = [
     items: [
       { href: "/dashboard/themes",        label: "Thèmes",        Icon: LayoutGrid, moduleKey: "boutique" },
       { href: "/dashboard/builder",       label: "Constructeur",  Icon: Sparkles,   moduleKey: "boutique" },
+      { href: "/dashboard/boutique/politiques", label: "Politiques", Icon: FileText, moduleKey: "boutique" },
       { href: "/dashboard/fichiers",      label: "Fichiers",      Icon: FolderOpen, moduleKey: "boutique" },
       { href: "/dashboard/transporteurs", label: "Transporteurs", Icon: Truck,      moduleKey: "commandes" },
       { href: "/dashboard/connecteurs",   label: "Connecteurs",   Icon: Plug,       moduleKey: "boutique" },
@@ -235,23 +251,33 @@ const GROUPES: NavGroupe[] = [
       { href: "/dashboard/rapports",    label: "Rapports",    Icon: FileBarChart, moduleKey: "produits"  },
       { href: "/dashboard/marketing",   label: "Marketing",   Icon: Megaphone,    requiresPalier: "palier1", moduleKey: "marketing" },
       { href: "/dashboard/affiliation", label: "Affiliation", Icon: UserCheck,    moduleKey: "marketing" },
-    ],
-  },
-  {
-    id: "finance", label: "Finance", Icon: Wallet,
-    items: [
-      { href: "/dashboard/revenus",   label: "Revenus",   Icon: DollarSign, moduleKey: "finance" },
-      { href: "/dashboard/paiements", label: "Paiements", Icon: CreditCard, moduleKey: "finance" },
-      { href: "/dashboard/wallet",    label: "Wallet",    Icon: Wallet,     moduleKey: "finance" },
+      // Analyse des ventes ; l'argent lui-même (solde, retraits) est dans « Mon argent ».
+      { href: "/dashboard/revenus",     label: "Revenus",     Icon: DollarSign,   moduleKey: "finance"   },
     ],
   },
   {
     id: "compte", label: "Compte", Icon: Settings2,
     items: [
+      { href: "/dashboard/parametres", label: "Réglages",   Icon: Settings2,  moduleKey: "parametres" },
       { href: "/dashboard/abonnement", label: "Abonnement", Icon: CreditCard, opensAbonnement: true, moduleKey: "finance" },
     ],
   },
 ];
+
+const HREFS_AVEC_QUERY = [...PRIMAIRES, ...GROUPES.flatMap((g) => g.items)].map((it) => it.href).filter((h) => h.includes("?"));
+
+/** Groupes du menu pour cette session : mêmes droits et même mode caisse partout (barre latérale, tiroir mobile). */
+export function groupesVisibles(permissions: Record<ModuleKey, Niveau> | undefined, modePos: "simple" | "pro", pathname: string, searchParams: URLSearchParams) {
+  return GROUPES
+    .map(g => ({ ...g, items: filtreParPermission(g.items, permissions) }))
+    .map(g => (g.id === "pos" && modePos === "simple"
+      ? { ...g, items: g.items.filter(it => it.essentiel || estActif(it, pathname, searchParams)) }
+      : g))
+    .filter(g => g.items.length > 0);
+}
+
+/** Raccourcis de premier niveau (Accueil, Tableau de bord, Ma boutique, Mon argent) filtrés par droits. */
+export const primairesVisibles = (permissions?: Record<ModuleKey, Niveau>) => filtreParPermission(PRIMAIRES, permissions);
 
 /** Pages proposées par la recherche du tableau de bord (Ctrl+K), filtrées comme le menu. */
 export function pagesDashboard(permissions?: Record<ModuleKey, Niveau>) {
@@ -261,12 +287,25 @@ export function pagesDashboard(permissions?: Record<ModuleKey, Niveau>) {
   ];
 }
 
+// ─── Pastille « à compléter » (parcours de démarrage, B10) ────────────────────
+
+function Pastille({ valeur }: { valeur?: number | boolean }) {
+  const t = useT();
+  if (!valeur) return null;
+  return typeof valeur === "number"
+    ? <span aria-label={t("{0} étapes restantes", valeur)} className="min-w-[18px] h-[18px] px-1 rounded-full flex-shrink-0 flex items-center justify-center text-[10.5px] font-bold leading-none text-white bg-[#F97316]">{valeur}</span>
+    : <span role="img" aria-label={t("À compléter")} title={t("À compléter")} className="w-2 h-2 rounded-full flex-shrink-0 bg-[#F97316]" />;
+}
+
 // ─── Lien de premier niveau (raccourci hors groupe) ───────────────────────────
 
 function LienPrincipal({
-  item, pathname, searchParams, palier, accent = "#F5A623", activeBg = "#FFF7ED", activeText = "#92400E",
+  item, pathname, searchParams, palier, pastille, compact, accent = "#F5A623", activeBg = "#FFF7ED", activeText = "#92400E",
 }: {
   item: NavItem;
+  /** Barre repliée : icône seule, pastilles posées sur l'icône. */
+  compact?: boolean;
+  pastille?: number | boolean;
   pathname: string;
   searchParams: URLSearchParams;
   palier?: Palier;
@@ -288,28 +327,39 @@ function LienPrincipal({
         />
       )}
       <span
-        className="flex-shrink-0 flex items-center justify-center w-[30px] h-[30px] rounded-lg transition-all"
+        className="relative flex-shrink-0 flex items-center justify-center w-[30px] h-[30px] rounded-lg transition-all"
         style={active
           ? { backgroundColor: `${accent}22`, color: accent }
           : { backgroundColor: "#F5F5F5", color: locked ? "#D1D5DB" : "#9CA3AF" }}
       >
         <item.Icon size={16} />
+        {compact && (locked
+          ? <Lock size={10} className="absolute -bottom-0.5 -right-0.5 text-gray-400" />
+          : (pastille || item.badge) && (
+            <span className="absolute -top-1.5 -right-1.5 flex">
+              {pastille ? <Pastille valeur={pastille} /> : <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: accent }} />}
+            </span>
+          ))}
       </span>
       <span className={cn(
         "flex-1 truncate leading-none font-medium",
+        compact && "sr-only",
         locked ? "text-gray-400" : active ? "font-semibold text-[#111111]" : "text-gray-600 group-hover:text-[#111111]",
       )}>
         {t(item.label)}
       </span>
-      {locked && <Lock size={12} className="flex-shrink-0 text-gray-300" />}
-      {!locked && item.badge && (
+      {!compact && locked && <Lock size={12} className="flex-shrink-0 text-gray-300" />}
+      {!compact && !locked && <Pastille valeur={pastille} />}
+      {!compact && !locked && item.badge && (
         <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: accent }} />
       )}
     </>
   );
 
+  // Icône à 36 px du bord dans les deux modes (marge de la nav + 9 px) : rien ne bouge quand la barre se déplie.
   const className = cn(
-    "relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 group",
+    "relative flex items-center gap-3 pl-[9px] py-2.5 rounded-xl text-[13.5px] font-medium whitespace-nowrap transition-all duration-150 group",
+    compact ? "pr-[9px]" : "pr-3.5",
     !active && !locked && "hover:bg-[#FFF7ED]",
     locked && "cursor-pointer hover:bg-[#FFF7ED]/60",
   );
@@ -330,7 +380,7 @@ function LienPrincipal({
     );
   }
   return (
-    <Link href={item.href} className={className} style={active ? { backgroundColor: activeBg, color: activeText } : undefined}>
+    <Link href={item.href} aria-current={active ? "page" : undefined} className={className} style={active ? { backgroundColor: activeBg, color: activeText } : undefined}>
       {t(contenu)}
     </Link>
   );
@@ -339,9 +389,10 @@ function LienPrincipal({
 // ─── Lien enfant (à l'intérieur d'un groupe déplié) ───────────────────────────
 
 function LienEnfant({
-  item, pathname, searchParams, palier, accent = "#F5A623", activeBg = "#FFF7ED", activeText = "#92400E",
+  item, pathname, searchParams, palier, pastille, accent = "#F5A623", activeBg = "#FFF7ED", activeText = "#92400E",
 }: {
   item: NavItem;
+  pastille?: number | boolean;
   pathname: string;
   searchParams: URLSearchParams;
   palier?: Palier;
@@ -367,6 +418,7 @@ function LienEnfant({
         {t(item.label)}
       </span>
       {locked && <Lock size={11} className="flex-shrink-0 text-gray-300" />}
+      {!locked && <Pastille valeur={pastille} />}
       {!locked && item.badge && (
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: accent }} />
       )}
@@ -395,7 +447,7 @@ function LienEnfant({
     );
   }
   return (
-    <Link href={item.href} className={className} style={active ? { backgroundColor: activeBg, color: activeText } : undefined}>
+    <Link href={item.href} aria-current={active ? "page" : undefined} className={className} style={active ? { backgroundColor: activeBg, color: activeText } : undefined}>
       {t(contenu)}
     </Link>
   );
@@ -404,9 +456,12 @@ function LienEnfant({
 // ─── Groupe repliable ─────────────────────────────────────────────────────────
 
 function GroupeRepliable({
-  groupe, pathname, searchParams, palier, ouvert, onToggle,
+  groupe, pathname, searchParams, palier, ouvert, onToggle, pastille, compact,
 }: {
   groupe: NavGroupe;
+  /** Barre repliée : icône du groupe seule, sans ses liens. */
+  compact?: boolean;
+  pastille: (item: NavItem) => number | boolean;
   pathname: string;
   searchParams: URLSearchParams;
   palier?: Palier;
@@ -417,34 +472,42 @@ function GroupeRepliable({
   const Icon = groupe.Icon;
   const contientActif = groupe.items.some(it => estActif(it, pathname, searchParams));
   // Replié, le groupe signale quand même une activité à traiter.
-  const badgeMasque = !ouvert && groupe.items.some(it => it.badge);
+  const badgeMasque = (compact || !ouvert) && groupe.items.some(it => it.badge);
+  const pastilleMasquee = (compact || !ouvert) && groupe.items.some(it => pastille(it));
+  const signal = pastilleMasquee
+    ? <Pastille valeur />
+    : badgeMasque && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: "#F5A623" }} />;
 
   return (
     <div>
       <button
         type="button"
         onClick={onToggle}
-        aria-expanded={ouvert}
+        aria-expanded={!compact && ouvert}
         className={cn(
-          "w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all duration-150",
+          "w-full flex items-center gap-2.5 pl-[9px] py-2.5 rounded-xl whitespace-nowrap transition-all duration-150",
+          compact ? "pr-[9px]" : "pr-3.5",
           !contientActif && "text-[#999999] hover:bg-[#FFF7ED] hover:text-[#111111]",
         )}
         style={contientActif ? { color: "#D4911A" } : undefined}
       >
-        <Icon size={14} className="flex-shrink-0" />
-        <span className="flex-1 text-left text-[11.5px] font-bold uppercase tracking-[0.1em]">
+        <span className={cn("relative flex-shrink-0 flex items-center justify-center w-[30px] h-[22px] rounded-lg", compact && contientActif && "bg-primaire-fond")}>
+          <Icon size={compact ? 16 : 14} />
+          {compact && signal && <span className="absolute -top-1.5 -right-1.5 flex">{signal}</span>}
+        </span>
+        <span className={cn("flex-1 text-left text-[11.5px] font-bold uppercase tracking-[0.1em] truncate", compact && "sr-only")}>
           {t(groupe.label)}
         </span>
-        {badgeMasque && (
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: "#F5A623" }} />
+        {!compact && signal}
+        {!compact && (
+          <ChevronDown
+            size={13}
+            className={cn("flex-shrink-0 transition-transform duration-200", ouvert && "rotate-180")}
+          />
         )}
-        <ChevronDown
-          size={13}
-          className={cn("flex-shrink-0 transition-transform duration-200", ouvert && "rotate-180")}
-        />
       </button>
 
-      {ouvert && (
+      {ouvert && !compact && (
         <div className="ml-[19px] pl-2.5 border-l border-[#F0F0F0] mt-0.5 mb-1 space-y-0.5">
           {groupe.items.map((item, i) => (
             <div key={item.href}>
@@ -459,6 +522,7 @@ function GroupeRepliable({
                 pathname={pathname}
                 searchParams={searchParams}
                 palier={palier}
+                pastille={pastille(item)}
               />
             </div>
           ))}
@@ -470,21 +534,57 @@ function GroupeRepliable({
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-export function Sidebar({ boutiqueNom, boutiqueSlug, boutiqueUrl, userInitials, palier, permissions, modePos = "simple" }: SidebarProps) {
+const LARGEUR = 252;
+const LARGEUR_REPLIEE = 72;
+const CLE_REPLIE = "sidebar_repliee";
+
+export function Sidebar({ boutiqueNom, boutiqueSlug, boutiqueUrl, nomCompte = "", palier, permissions, modePos = "simple", demarrage }: SidebarProps) {
   const t = useT();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Barre repliable (icônes seules), choix mémorisé. Repliée, elle se déplie par-dessus le contenu
+  // au survol ou quand le clavier y entre, et se replie à la sortie : la page ne bouge pas.
+  const [repliee, setRepliee] = useState(false);
+  const [anime, setAnime] = useState(false); // pas de transition au chargement de l'état mémorisé
+  const [survol, setSurvol] = useState(false);
+  const [focusDedans, setFocusDedans] = useState(false);
+  useEffect(() => {
+    try { setRepliee(localStorage.getItem(CLE_REPLIE) === "1"); } catch { /* stockage indisponible */ }
+    const id = requestAnimationFrame(() => setAnime(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const basculerRepli = () => {
+    const v = !repliee;
+    setRepliee(v);
+    setSurvol(false); // la souris est sur le bouton : on replie tout de suite, sans attendre qu'elle sorte
+    try { localStorage.setItem(CLE_REPLIE, v ? "1" : "0"); } catch { /* stockage indisponible */ }
+  };
+  const etendue = !repliee || survol || focusDedans;
+  const compact = !etendue;
 
   // Groupes visibles pour cette session (les items sans accès sont retirés,
   // et un groupe entièrement vidé par le filtrage disparaît avec eux).
   // Caisse en mode « simple » : le groupe ne garde que ses liens essentiels —
   // plus la page en cours, pour qu'un lien direct vers un outil avancé reste repéré.
-  const groupes = GROUPES
-    .map(g => ({ ...g, items: filtreParPermission(g.items, permissions) }))
-    .map(g => (g.id === "pos" && modePos === "simple"
-      ? { ...g, items: g.items.filter(it => it.essentiel || estActif(it, pathname, searchParams)) }
-      : g))
-    .filter(g => g.items.length > 0);
+  const tousGroupes = groupesVisibles(permissions, modePos, pathname, searchParams);
+
+  // Champ « Rechercher… » : filtre en direct les entrées visibles (lib/recherche-dashboard.ts :
+  // sans accents, synonymes, petites fautes) ; les groupes qui ont un résultat s'ouvrent d'office.
+  const [q, setQ] = useState("");
+  const enRecherche = !!q.trim();
+  const trouves = new Set(enRecherche
+    ? chercher([...PRIMAIRES, ...tousGroupes.flatMap(g => g.items.map(it => ({ ...it, groupe: g.label })))], q,
+        (it: NavItem & { groupe?: string }) => textesPage(it, t)).map(it => it.href)
+    : []);
+  const primaires = filtreParPermission(PRIMAIRES, permissions).filter(it => !enRecherche || trouves.has(it.href));
+  const groupes = enRecherche
+    ? tousGroupes.map(g => ({ ...g, items: g.items.filter(it => trouves.has(it.href)) })).filter(g => g.items.length > 0)
+    : tousGroupes;
+
+  // Pastilles du parcours de démarrage : nombre d'étapes sur « Accueil », point sur les entrées à compléter.
+  const pastille = (it: NavItem): number | boolean =>
+    it.href === "/dashboard/demarrer" ? demarrage?.restantes ?? 0 : !!demarrage?.hrefs.includes(it.href);
 
   // Groupe qui contient la route courante.
   const idActif = groupes
@@ -496,43 +596,76 @@ export function Sidebar({ boutiqueNom, boutiqueSlug, boutiqueUrl, userInitials, 
   // écrasé par la navigation. État purement dérivé : aucun effet, donc aucun
   // risque de re-déplier un groupe que l'utilisateur vient de fermer.
   const [choix, setChoix] = useState<Record<string, boolean>>({});
-  const estOuvert = (id: string) => choix[id] ?? (id === idActif);
+  const estOuvert = (id: string) => enRecherche || (choix[id] ?? (id === idActif));
   const toggle = (id: string) => setChoix(prev => ({ ...prev, [id]: !(prev[id] ?? (id === idActif)) }));
 
+  const transition = anime ? "transition-[width,box-shadow] duration-200 ease-out" : "";
+
   return (
+    // Emplacement réservé dans la mise en page : seule l'épingle (bouton) le fait changer de largeur.
+    <div className={cn("relative flex-shrink-0 h-screen", transition)} style={{ width: repliee ? LARGEUR_REPLIEE : LARGEUR }}>
     <aside
-      className="flex-shrink-0 h-screen flex flex-col bg-white border-r border-gray-100/80"
+      aria-label={t("Menu principal")}
+      onMouseEnter={() => repliee && setSurvol(true)}
+      onMouseLeave={(e) => {
+        // Liste déroulante native ouverte (choix de boutique) : sa fenêtre sort de la barre, on la garde ouverte.
+        const actif = document.activeElement;
+        if (actif?.tagName === "SELECT" && e.currentTarget.contains(actif)) return;
+        setSurvol(false);
+      }}
+      // Le clavier déplie la barre ; un clic de souris sur un lien, non (sinon elle resterait ouverte après la navigation).
+      onFocus={(e) => { const c = e.target; if (c.matches(":focus-visible") || c.tagName === "INPUT" || c.tagName === "SELECT") setFocusDedans(true); }}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) { setFocusDedans(false); if (repliee) setQ(""); } }}
+      className={cn(
+        "absolute inset-y-0 left-0 z-50 flex flex-col overflow-hidden bg-carte border-r border-bordure",
+        transition,
+        repliee && etendue && "shadow-flottante",
+      )}
       style={{
-        width: "252px",
-        boxShadow: "2px 0 20px rgba(0,0,0,0.04)",
+        width: etendue ? LARGEUR : LARGEUR_REPLIEE,
         fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif",
       }}
     >
-      {/* En-tête */}
-      <div className="h-[60px] flex items-center px-5 flex-shrink-0 border-b border-gray-100/80">
-        <span
-          className="text-[15px] font-bold tracking-tight leading-tight"
-          style={{
-            background: "linear-gradient(135deg,#111111 0%,#333333 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          {t("Build your empire here")}
-        </span>
+      {/* En-tête : logo (monogramme quand la barre est repliée) + épingle. Même hauteur que la barre du haut. */}
+      <div className="h-14 flex items-center gap-2 pl-[22px] pr-2 flex-shrink-0 border-b border-bordure">
+        <Link href="/dashboard/accueil" aria-label={t("Axso — revenir au tableau de bord")} className="flex-shrink-0 flex items-center gap-2 whitespace-nowrap">
+          <img src="/icon-192.png" alt="" className="w-7 h-7 rounded-[6px] flex-shrink-0" />
+          {!compact && <span className="text-[14px] font-[650] tracking-wide text-encre">AXSO</span>}
+        </Link>
+        {etendue && (
+          <button type="button" onClick={basculerRepli} aria-pressed={!repliee}
+            aria-label={repliee ? t("Garder le menu ouvert") : t("Replier le menu")} title={repliee ? t("Garder le menu ouvert") : t("Replier le menu")}
+            className="ml-auto w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-controle text-doux hover:bg-carte-2 hover:text-encre transition-colors">
+            {repliee ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
+        )}
       </div>
 
       {/* Navigation — raccourcis puis groupes repliables */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+      <nav className="flex-1 px-3 py-3 overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: "none" }}>
+        {/* Repliée : seule la loupe se voit ; un clic (ou Tab) met le focus dans le champ, ce qui déplie la barre. */}
+        <label className="flex items-center gap-2 h-9 pl-[17px] pr-3 mb-2 rounded-xl bg-[#F5F5F5] border border-transparent focus-within:bg-white focus-within:border-[#F5A623] transition-colors cursor-text"
+          title={compact ? t("Rechercher dans le menu") : undefined}>
+          <Search size={14} className="text-[#999999] flex-shrink-0" />
+          <input type="search" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Escape") setQ(""); }}
+            placeholder={t("Rechercher…")} aria-label={t("Rechercher dans le menu")} autoComplete="off"
+            className={cn("flex-1 min-w-0 bg-transparent outline-none text-[13px] text-[#111111] placeholder:text-[#AAAAAA]", compact && "sr-only")} />
+        </label>
+
+        {enRecherche && !compact && !primaires.length && !groupes.length && (
+          <p className="px-3 py-3 text-center text-[12.5px] text-[#888888]">{t("Aucun résultat pour « {0} »", q.trim())}</p>
+        )}
+
         <div className="space-y-0.5 mb-1.5">
-          {filtreParPermission(PRIMAIRES, permissions).map(item => (
+          {primaires.map(item => (
             <LienPrincipal
               key={item.href}
               item={item}
               pathname={pathname}
               searchParams={searchParams}
               palier={palier}
+              pastille={pastille(item)}
+              compact={compact}
             />
           ))}
         </div>
@@ -547,55 +680,78 @@ export function Sidebar({ boutiqueNom, boutiqueSlug, boutiqueUrl, userInitials, 
               palier={palier}
               ouvert={estOuvert(groupe.id)}
               onToggle={() => toggle(groupe.id)}
+              pastille={pastille}
+              compact={compact}
             />
           ))}
         </div>
+
+        {enRecherche && !compact && (
+          // Ouvre la recherche globale (RechercheDashboard, en-tête) avec la même requête.
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("recherche:ouvrir", { detail: q.trim() }))}
+            className="w-full mt-2 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-[12.5px] text-[#555555] hover:bg-[#FFF7ED]">
+            <Search size={13} className="flex-shrink-0 text-[#F5A623]" />
+            <span className="truncate">{t("Chercher « {0} » partout", q.trim())}</span>
+          </button>
+        )}
       </nav>
 
       {/* Pied — vitrine + compte */}
-      <div className="flex-shrink-0 px-3.5 py-3 space-y-2" style={{ borderTop: "1px solid #F0F0F0" }}>
-        <BoutiqueSwitcher />
+      <div className="flex-shrink-0 px-3 py-3 space-y-2 border-t border-bordure">
+        <div className={compact ? "hidden" : undefined}><BoutiqueSwitcher /></div>
         {boutiqueSlug && (
           <a
             href={boutiqueUrl ?? `/${boutiqueSlug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl active:scale-[0.98] transition-all group"
+            aria-label={compact ? t(boutiqueNom) || t("Voir ma boutique") : undefined}
+            className={cn("flex items-center gap-3 py-2.5 rounded-xl active:scale-[0.98] transition-all group whitespace-nowrap", compact ? "justify-center px-0" : "px-3.5")}
             style={{
               background: "linear-gradient(135deg,#111111,#333333)",
               boxShadow: "0 2px 12px rgba(17,17,17,0.22)",
             }}
           >
             <ExternalLink size={14} className="text-white/80 flex-shrink-0" />
-            <span className="text-[12.5px] font-bold text-white flex-1 truncate">
-              {t(boutiqueNom) || t("Voir ma boutique")}
-            </span>
-            <ChevronRight size={13} className="text-white/40 group-hover:text-white/80 transition-all group-hover:translate-x-0.5" />
+            {!compact && (
+              <>
+                <span className="text-[12.5px] font-bold text-white flex-1 truncate">
+                  {t(boutiqueNom) || t("Voir ma boutique")}
+                </span>
+                <ChevronRight size={13} className="text-white/40 group-hover:text-white/80 transition-all group-hover:translate-x-0.5" />
+              </>
+            )}
           </a>
         )}
 
         <Link
           href="/dashboard/profil"
+          aria-label={compact ? nomCompte || t("Mon compte") : undefined}
           className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group",
+            "flex items-center gap-3 py-2.5 rounded-xl transition-all group whitespace-nowrap",
+            compact ? "justify-center px-0" : "px-3",
             pathname.startsWith("/dashboard/profil") ? "bg-[#FFF7ED]" : "hover:bg-[#FFF7ED]",
           )}
         >
           <AvatarCompte
-            nom="" lettres={t(userInitials) || "A"}
-            className="w-9 h-9 rounded-xl text-white text-[13px] font-bold"
+            nom={nomCompte}
+            className="w-9 h-9 flex-shrink-0 rounded-xl text-white text-[13px] font-bold"
             style={{
               background: "linear-gradient(135deg,#F5A623,#D4911A)",
               boxShadow: "0 2px 8px rgba(245,166,35,0.3)",
             }}
           />
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-semibold text-[#111111] leading-tight">{t("Mon compte")}</div>
-            <div className="text-[11px] text-[#999999] leading-none mt-1">{t("Profil et sécurité")}</div>
-          </div>
-          <Settings2 size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+          {!compact && (
+            <>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold text-[#111111] leading-tight truncate">{nomCompte || t("Mon compte")}</div>
+                <div className="text-[11px] text-[#999999] leading-none mt-1">{t("Profil et sécurité")}</div>
+              </div>
+              <Settings2 size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+            </>
+          )}
         </Link>
       </div>
     </aside>
+    </div>
   );
 }

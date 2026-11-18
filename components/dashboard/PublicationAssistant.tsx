@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import {
-  X, Check, AlertCircle, Sparkles, Loader2,
+  Check, AlertCircle, Sparkles,
   Globe, ImageIcon, HelpCircle, DollarSign, Type,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, Modale } from "@/components/ui";
 
 interface Props {
   produitId: string;
@@ -37,7 +38,7 @@ export default function PublicationAssistant({
 
   const score = items.filter(i => i.ok).length;
   const pct   = Math.round((score / items.length) * 100);
-  const color  = pct >= 80 ? "#16a34a" : pct >= 50 ? "#F5A623" : "#ef4444";
+  const ton = pct >= 80 ? { texte: "text-succes", barre: "bg-succes" } : pct >= 50 ? { texte: "text-attention", barre: "bg-primaire" } : { texte: "text-erreur", barre: "bg-erreur" };
 
   const handlePublier = async () => {
     setPublishing(true);
@@ -50,7 +51,7 @@ export default function PublicationAssistant({
   };
 
   const genererFaq = async () => {
-    if (!nom) { toast.error(t("Entrez d'abord le nom du produit")); return; }
+    if (!nom) { toast.error(t("Indiquez d'abord le nom du produit : la FAQ s'appuie dessus.")); return; }
     setGenFaq(true);
     try {
       const r = await fetch("/api/ai/faq", {
@@ -60,109 +61,67 @@ export default function PublicationAssistant({
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      await fetch(`/api/produits/${produitId}`, {
+      const maj = await fetch(`/api/produits/${produitId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ faq: d.faq }),
       });
-      toast.success(t("FAQ générée ! Rechargez la page pour la voir."));
+      if (!maj.ok) throw new Error("La FAQ a été générée mais n'a pas pu être enregistrée. Réessayez.");
+      toast.success(t("FAQ générée et enregistrée. Rechargez la page pour la voir."));
     } catch (e: any) {
-      toast.error(t(e.message) ?? t("Erreur IA"));
+      toast.error(e?.message ? t(e.message) : t("La FAQ n'a pas pu être générée. Réessayez dans un instant."));
     } finally {
       setGenFaq(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-start justify-between p-6 pb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <div className="w-6 h-6 rounded-lg bg-[#F5A623] flex items-center justify-center">
-                <Sparkles size={13} className="text-white" />
-              </div>
-              <h2 className="text-base font-bold text-gray-900">{t("Avant de publier…")}</h2>
-            </div>
-            <p className="text-xs text-gray-400 ml-8">{t("Vérifications pour maximiser vos ventes")}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors"
-          >
-            <X size={14} />
-          </button>
-        </div>
-
+    <Modale ouverte onFermer={onClose} verrouillee={publishing}
+      titre={<span className="flex items-center gap-2"><Sparkles size={16} className="text-attention" aria-hidden />{t("Avant de publier…")}</span>}
+      description={t("Vérifications pour maximiser vos ventes")}
+      actions={<>
+        <Bouton variante="secondaire" onClick={onClose} disabled={publishing}>{t("Continuer d'améliorer")}</Bouton>
+        <Bouton onClick={handlePublier} charge={publishing} texteCharge={t("Publication…")} icone={<Check size={15} aria-hidden />}>
+          {score === items.length ? t("Publier le produit") : t("Publier quand même")}
+        </Bouton>
+      </>}>
+      <div className="space-y-4">
         {/* Score */}
-        <div className="px-6 pb-4">
+        <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-gray-500 font-medium">{t("Complétude du produit")}</span>
-            <span className="text-sm font-bold" style={{ color }}>{pct}%</span>
+            <span className="text-sm text-doux font-medium">{t("Complétude du produit")}</span>
+            <span className={`text-sm font-bold ${ton.texte}`}>{pct}%</span>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+          <div className="h-2 bg-carte-2 rounded-full overflow-hidden" role="progressbar" aria-label={t("Complétude du produit")} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+            <div className={`h-full rounded-full transition-all duration-500 ${ton.barre}`} style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-[10px] text-gray-400 mt-1">{score}/{items.length}{" "}{t("éléments complétés")}</p>
+          <p className="text-xs text-doux mt-1">{score}/{items.length}{" "}{t("éléments complétés")}</p>
         </div>
 
         {/* Checklist */}
-        <div className="px-6 space-y-1.5 max-h-52 overflow-y-auto pb-2">
+        <ul className="space-y-1.5">
           {items.map(item => (
-            <div
-              key={item.key}
-              className={`flex items-start gap-3 p-3 rounded-xl ${item.ok ? "bg-green-50" : "bg-amber-50/70"}`}
-            >
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${item.ok ? "bg-[#16a34a]" : "bg-amber-400"}`}>
-                {item.ok
-                  ? <Check size={10} className="text-white" />
-                  : <AlertCircle size={10} className="text-white" />}
-              </div>
+            <li key={item.key} className={`flex items-start gap-3 p-3 rounded-controle border ${item.ok ? "bg-succes-fond border-succes-bordure" : "bg-attention-fond border-attention-bordure"}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-white ${item.ok ? "bg-succes" : "bg-attention"}`} aria-hidden>
+                {item.ok ? <Check size={11} /> : <AlertCircle size={11} />}
+              </span>
               <div className="flex-1 min-w-0">
-                <p className={`text-xs font-semibold ${item.ok ? "text-[#16a34a]" : "text-amber-700"}`}>{t(item.label)}</p>
-                {!item.ok && <p className="text-[10.5px] text-amber-600 mt-0.5 leading-relaxed">{t(item.conseil)}</p>}
+                <p className={`text-sm font-semibold ${item.ok ? "text-succes" : "text-attention"}`}>
+                  {t(item.label)}<span className="sr-only"> : {item.ok ? t("fait") : t("à compléter")}</span>
+                </p>
+                {!item.ok && <p className="text-xs text-encre/80 mt-0.5 leading-relaxed">{t(item.conseil)}</p>}
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
 
         {/* IA suggestion — FAQ */}
         {faqCount < 2 && (
-          <div className="px-6 pt-3">
-            <button
-              onClick={genererFaq}
-              disabled={genFaq}
-              className="w-full flex items-center gap-2 p-3 rounded-xl border border-[#F5A623]/30 bg-[#FFFBF0] text-[#d4820a] text-xs font-medium hover:bg-[#FEF3C7] transition-colors disabled:opacity-50"
-            >
-              {genFaq ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-              {t("Générer une FAQ avec l'IA")}
-            </button>
-          </div>
+          <Bouton variante="secondaire" large onClick={genererFaq} charge={genFaq} texteCharge={t("Génération de la FAQ…")} icone={<Sparkles size={14} className="text-attention" aria-hidden />}>
+            {t("Générer une FAQ avec l'IA")}
+          </Bouton>
         )}
-
-        {/* Boutons action */}
-        <div className="p-6 pt-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-colors"
-          >
-            {t("Continuer d'améliorer")}
-          </button>
-          <button
-            onClick={handlePublier}
-            disabled={publishing}
-            className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
-            style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)" }}
-          >
-            {publishing
-              ? <><Loader2 size={14} className="animate-spin" />{" "}{t("Publication…")}</>
-              : <><Check size={14} />{" "}{t("Publier quand même")}</>}
-          </button>
-        </div>
       </div>
-    </div>
+    </Modale>
   );
 }

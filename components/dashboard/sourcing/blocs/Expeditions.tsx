@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { ChevronDown, Info, PackageCheck, Pencil, Plus, Truck } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { useConfirmation } from "@/components/ui";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { LIBELLES_EXPEDITION, STATUTS_EXPEDITION, transitionExpeditionValide, type StatutExpedition } from "@/lib/sourcing/statuts";
 import { Bouton, Carte, Champ, ChampNombre, Chargement, CLASSE_CHAMP, Erreur, EtatVide, Onglets, Pastille, envoyer, useApi, versDossier } from "@/components/dashboard/sourcing/ui";
@@ -96,6 +97,7 @@ function CarteExpedition({ e, entrepots, onFait }: { e: Expedition; entrepots: E
   const [suivi, setSuivi] = useState({ trackingNo: e.trackingNo ?? "", transporteur: e.transporteur ?? "", arriveeEstimee: e.arriveeEstimee?.slice(0, 10) ?? "", entrepotId: e.entrepotId ?? "" });
   const [charge, setCharge] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const { confirmer, dialogue } = useConfirmation();
 
   const jour = (d: string | null) => (d ? new Date(d).toLocaleDateString(t.loc) : "—");
   const index = STATUTS_EXPEDITION.indexOf(e.statut as (typeof STATUTS_EXPEDITION)[number]);
@@ -140,6 +142,7 @@ function CarteExpedition({ e, entrepots, onFait }: { e: Expedition; entrepots: E
 
   return (
     <Carte>
+      {dialogue}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[14px] font-bold text-[#111111] leading-snug flex items-center gap-1.5">
@@ -217,8 +220,16 @@ function CarteExpedition({ e, entrepots, onFait }: { e: Expedition; entrepots: E
             <Bouton onClick={() => setEdition((v) => !v)} variante="secondaire" petit><Pencil size={11} />{t("Modifier le suivi")}</Bouton>
             {transitionExpeditionValide(e.statut, "annulee") && (
               <Bouton variante="discret" petit disabled={charge}
-                onClick={() => { if (window.confirm(t("Annuler cette expédition ?"))) patch({ statut: "annulee", note: texte(note) }, () => null); }}>
-                {t("Annuler")}
+                onClick={async () => {
+                  const ok = await confirmer({
+                    titre: t("Annuler cette expédition ?"),
+                    objet: e.commande ? t("Commande #{0}", e.commande.numero) : e.produit ? t("Réapprovisionnement : {0} × {1}", e.produit.nom, e.quantite ?? "—") : t("Expédition"),
+                    description: t("Son suivi s'arrête. Ce n'est pas annulable."),
+                    libelleConfirmer: t("Annuler l'expédition"),
+                  });
+                  if (ok) patch({ statut: "annulee", note: texte(note) }, () => null);
+                }}>
+                {t("Annuler l'expédition")}
               </Bouton>
             )}
           </div>

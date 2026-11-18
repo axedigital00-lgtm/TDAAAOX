@@ -23,11 +23,11 @@ export function LockedDownloads({ token, nom, accent, fond }: { token: string; n
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Mot de passe incorrect");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Mot de passe incorrect. Vérifiez-le (majuscules comprises) puis réessayez.");
       setFichiers(data.fichiers);
     } catch (e: any) {
-      setErreur(e.message || "Erreur");
+      setErreur(!(e instanceof TypeError) && e?.message ? e.message : "Vérification impossible. Vérifiez votre connexion internet puis réessayez.");
     } finally {
       setLoading(false);
     }

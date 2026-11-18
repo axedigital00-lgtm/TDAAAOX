@@ -1,23 +1,13 @@
 "use client";
-import { AvatarCompte } from "@/components/dashboard/AvatarCompte";
 import { useState, useRef, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Send, Mic, LayoutDashboard, History, Sparkles, PanelLeft, Plus, Volume2, VolumeX, Phone, Paperclip, X, Copy, Check, RotateCcw, Square, MessageSquare, Bell } from "lucide-react";
+import { Send, Mic, History, Sparkles, Plus, Volume2, VolumeX, Phone, Paperclip, X, Copy, Check, RotateCcw, Square } from "lucide-react";
 import { renderMarkdown, parseContent } from "@/lib/axia-format";
 import { useAxiaConversations } from "@/hooks/useAxiaConversations";
 import { AxiaConversationSidebar } from "@/components/dashboard/AxiaConversationSidebar";
-import { AxiaNotifBell } from "@/components/dashboard/AxiaNotifBell";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
-import { useRouter } from "next/navigation";
-import { pageAOuvrir, ouvrirPage, sansMarque } from "@/lib/axia/pages";
-
-const AXIA_TUTORIAL_STEPS = [
-  { Icon: MessageSquare, titre: "Discute avec AXIA", description: "Pose n'importe quelle question sur ta boutique — ventes, stock, clients — ou demande-lui d'agir directement : créer un produit, lancer une promo, relancer un client." },
-  { Icon: Mic,           titre: "Mode vocal",         description: "Touche l'icône téléphone pour parler à AXIA à voix haute — elle t'écoute, réfléchit et te répond, comme un vrai appel." },
-  { Icon: History,       titre: "Historique & Journal", description: "Toutes tes conversations sont sauvegardées (icône panneau à gauche). Le Journal liste chaque action qu'AXIA a effectuée pour toi, en toute transparence." },
-  { Icon: Bell,          titre: "Notifications",      description: "La cloche en haut t'alerte en temps réel dès qu'une nouvelle commande ou un événement important arrive, même depuis cet écran." },
-];
+import { usePathname, useRouter } from "next/navigation";
+import { pageAOuvrir, ouvrirPage } from "@/lib/axia/pages";
+import { ActionsAxia } from "@/components/dashboard/AxiaBulle";
 
 interface Msg {
   role: "user" | "assistant";
@@ -66,20 +56,30 @@ const PHASE_CONFIG: Record<VoicePhase, { orbGrad: string; orbShadow: string; rin
   speaking:  { orbGrad: "radial-gradient(circle at 35% 35%, #10b981, #059669)", orbShadow: "0 0 90px rgba(16,185,129,0.55)", ringColor: "#10b981" },
 };
 
-// Écran d'accueil du dashboard — AXIA est le point d'entrée principal et
-// UNIQUE (plus de bulle flottante redondante ailleurs dans le dashboard) :
-// conversation texte + voix, pièces jointes, historique multi-fils.
-// Le contrôle d'accès Pro (palier0 → redirection) vit désormais en amont,
-// côté serveur, dans app/(dashboard)/dashboard/page.tsx — ce composant n'est
-// jamais monté pour un compte palier0.
-export function AxiaHomeClient() {
+const BOUTON_ICONE = "w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 text-doux hover:bg-carte-2 hover:text-encre transition-colors";
+
+// Conversation AXIA du panneau de droite (components/dashboard/AxiaPanneau.tsx) : texte + voix,
+// pièce jointe, historique multi-fils, actions avec leur état. Montée seulement pour un compte
+// Palier Pro et plus (le panneau montre MESSAGE_PRO aux autres). Reste montée quand le panneau
+// est fermé : la conversation en cours survit d'une page à l'autre.
+export function AxiaConversation({ question, onQuestionTraitee, ouvert, entete, propositions }: {
+  /** Question à envoyer tout de suite (?axia=… ou ouvrirAxia(question)). */
+  question: string | null;
+  onQuestionTraitee: () => void;
+  ouvert: boolean;
+  /** Boutons de droite de la barre (Journal, Fermer), fournis par le panneau. */
+  entete: React.ReactNode;
+  /** Propositions d'AXIA et demandes d'accord, en tête du panneau. */
+  propositions: React.ReactNode;
+}) {
   const tr = useT();
   const router = useRouter();
+  const pathname = usePathname();
   const [nomBoutique, setNomBoutique] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
   const [ttsOn, setTtsOn] = useState(true);
@@ -108,6 +108,7 @@ export function AxiaHomeClient() {
   const loadingRef     = useRef(loading);
   const messagesRef    = useRef(messages);
   const activeIdRef    = useRef<string | null>(null);
+  const pathnameRef    = useRef(pathname);
 
   const {
     conversations, activeId, loadingList,
@@ -119,13 +120,18 @@ export function AxiaHomeClient() {
   useEffect(() => { loadingRef.current = loading; }, [loading]);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
   useEffect(() => {
     if (!loading) { setThinkingMsgIdx(0); return; }
     const id = setInterval(() => setThinkingMsgIdx(i => (i + 1) % THINKING_MSGS.length), 2200);
     return () => clearInterval(id);
   }, [loading]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ block: "end" }); }, [messages, loading, ouvert]);
   useEffect(() => { voiceScrollRef.current?.scrollTo({ top: 9999, behavior: "smooth" }); }, [messages]);
+  // Panneau ouvert sur ordinateur : le curseur est prêt dans la saisie (pas sur téléphone : le clavier masquerait tout).
+  useEffect(() => {
+    if (ouvert && window.matchMedia("(min-width: 1024px)").matches) inputRef.current?.focus();
+  }, [ouvert]);
 
   useEffect(() => {
     fetch("/api/tenants/moi").then(r => r.json()).then(d => setNomBoutique(d?.nomBoutique ?? null)).catch(() => {});
@@ -236,18 +242,20 @@ export function AxiaHomeClient() {
     let finalActions: string[] = [];
 
     try {
+      // Le panneau est ouvert à côté d'une page : AXIA sait laquelle (seulement dans l'envoi, pas dans l'historique gardé).
+      const envoyes = historyBefore.map((m, i) => ({
+        role: m.role,
+        content: i === historyBefore.length - 1 && m.role === "user"
+          ? `[Contexte : le marchand est sur la page ${pathnameRef.current} du dashboard et te parle depuis le panneau AXIA, sans la quitter.] ${m.content}`
+          : m.content,
+      }));
       const res = await fetch("/api/ai/axia", {
         method: "POST",
         signal: abortRef.current.signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: historyBefore.map(m => ({ role: m.role, content: m.content })),
-          imageUrl: imgUrl ?? undefined,
-          fast: false,
-          stream: true,
-        }),
+        body: JSON.stringify({ messages: envoyes, imageUrl: imgUrl ?? undefined, fast: false, stream: true }),
       });
-      if (!res.ok || !res.body) throw new Error(`Erreur ${res.status}`);
+      if (!res.ok || !res.body) throw new Error(res.status === 401 ? "session" : "serveur");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -293,9 +301,10 @@ export function AxiaHomeClient() {
         return next;
       });
       if (voiceModeRef.current) speakThenListen(txt);
-      // ouvrir_page : AXIA amène le marchand sur la page demandée.
+      // ouvrir_page : AXIA amène le marchand sur la page demandée ; sinon, si elle a agi, la page se met à jour.
       const lien = pageAOuvrir(finalActions);
       if (lien) ouvrirPage(lien, router.push);
+      else if (finalActions.length) router.refresh();
     } catch (err: any) {
       if (err?.name === "AbortError") {
         if (streamingContent) {
@@ -307,11 +316,17 @@ export function AxiaHomeClient() {
           });
         }
       } else {
+        // Message lisible : ce qui s'est passé + quoi faire (jamais le texte technique brut).
+        const texte = err?.message === "session"
+          ? "Ta session a expiré : reconnecte-toi puis renvoie ton message."
+          : err instanceof TypeError
+            ? "Pas de connexion internet : vérifie ton réseau puis renvoie ton message (bouton ↻ sous ce message)."
+            : "AXIA n'a pas pu terminer sa réponse. Renvoie ton message dans un instant (bouton ↻ sous ce message).";
         setMessages(prev => {
           const next = [...prev];
           const last = next[next.length - 1];
-          if (last?.role === "assistant" && !last.content) next[next.length - 1] = { role: "assistant", content: `Erreur : ${err.message}` };
-          else next.push({ role: "assistant", content: `Erreur : ${err.message}` });
+          if (last?.role === "assistant" && !last.content) next[next.length - 1] = { role: "assistant", content: texte };
+          else next.push({ role: "assistant", content: texte });
           return next;
         });
         if (voiceModeRef.current) speakThenListen("Désolée, je n'ai pas pu répondre. Tu peux répéter ?");
@@ -319,7 +334,7 @@ export function AxiaHomeClient() {
     } finally {
       setLoading(false);
       abortRef.current = null;
-      // Une action sensible a pu créer une demande d'accord : la bulle la montre tout de suite.
+      // Une action sensible a pu créer une demande d'accord : le panneau la montre tout de suite.
       window.dispatchEvent(new Event("axia:rafraichir"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -344,18 +359,16 @@ export function AxiaHomeClient() {
 
   useEffect(() => { sendRef.current = (t) => sendMessage(t); }, [sendMessage]);
 
-  // Demandes venues de la bulle AXIA (components/dashboard/AxiaBulle.tsx) :
-  // événement si on est déjà ici, sinon ?axia=… dans l'URL.
+  // Question venue d'ailleurs (lien ?axia=…, « Demander à Axia », proposition acceptée).
+  // Garde : un effet rejoué (mode strict en développement) ne doit pas l'envoyer deux fois.
+  const questionEnvoyee = useRef<string | null>(null);
   useEffect(() => {
-    const demande = new URLSearchParams(window.location.search).get("axia");
-    if (demande) {
-      window.history.replaceState(null, "", window.location.pathname);
-      setTimeout(() => sendRef.current(demande), 0);
-    }
-    const ecouter = (e: Event) => sendRef.current((e as CustomEvent<string>).detail);
-    window.addEventListener("axia:demander", ecouter);
-    return () => window.removeEventListener("axia:demander", ecouter);
-  }, []);
+    if (!question) { questionEnvoyee.current = null; return; }
+    if (questionEnvoyee.current === question) return;
+    questionEnvoyee.current = question;
+    sendRef.current(question);
+    onQuestionTraitee();
+  }, [question, onQuestionTraitee]);
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();
@@ -465,14 +478,14 @@ export function AxiaHomeClient() {
   // ── Conversations ─────────────────────────────────────────────────────────
   async function ouvrirConversation(id: string) {
     setActiveId(id);
-    setSidebarOpen(false);
+    setHistoriqueOuvert(false);
     const conv = await chargerConversation(id);
     setMessages(conv?.messages ?? []);
   }
   function nouvelleConversation() {
     setActiveId(null);
     setMessages([]);
-    setSidebarOpen(false);
+    setHistoriqueOuvert(false);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
   async function supprimerConversation(id: string) {
@@ -485,14 +498,7 @@ export function AxiaHomeClient() {
   const isOrb = voicePhase === "listening" || voicePhase === "speaking";
 
   return (
-    <div className="h-full flex min-h-0" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-
-      <ModuleTutorial
-        moduleKey="axia"
-        titre="AXIA"
-        sousTitre={tr("Ton assistant boutique intelligent")}
-        steps={AXIA_TUTORIAL_STEPS}
-      />
+    <div className="relative flex-1 flex flex-col min-h-0">
 
       {/* ── Mode vocal plein écran ─────────────────────────────────────────── */}
       {voiceMode && (
@@ -508,11 +514,11 @@ export function AxiaHomeClient() {
           </div>
 
           <div className="absolute top-5 right-5 flex gap-2 z-20">
-            <button onClick={() => setTtsOn(v => !v)}
+            <button onClick={() => setTtsOn(v => !v)} aria-label={ttsOn ? tr("Couper la voix d'AXIA") : tr("Activer la voix d'AXIA")} aria-pressed={ttsOn}
               className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
               {ttsOn ? <Volume2 size={16} className="text-white/70" /> : <VolumeX size={16} className="text-white/30" />}
             </button>
-            <button onClick={closeVoiceMode} type="button"
+            <button onClick={closeVoiceMode} type="button" aria-label={tr("Quitter le mode vocal")}
               className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
               <X size={18} className="text-white/70" />
             </button>
@@ -539,7 +545,8 @@ export function AxiaHomeClient() {
           )}
 
           <div className="absolute bottom-0 left-0 right-0 h-[380px] flex flex-col items-center justify-center gap-6">
-            <div onClick={handleOrbTap}
+            <div onClick={handleOrbTap} role="button" tabIndex={0} aria-label={tr("Parler ou interrompre AXIA")}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleOrbTap(); } }}
               className="relative w-36 h-36 rounded-full flex items-center justify-center cursor-pointer p-2"
               style={{ background: phase.orbGrad, boxShadow: phase.orbShadow,
                 transform: voicePhase === "listening" ? "scale(1.1)" : voicePhase === "speaking" ? "scale(1.05)" : "scale(1)",
@@ -601,270 +608,171 @@ export function AxiaHomeClient() {
         </div>
       )}
 
-      {/* ── Sidebar conversations ────────────────────────────────────────── */}
-      <div className={`flex-shrink-0 overflow-hidden transition-all duration-300 ${sidebarOpen ? "w-[260px]" : "w-0"} hidden lg:block`}>
-        <div className="w-[260px] h-full">
+      {/* ── Historique des conversations : par-dessus la conversation, dans le panneau ── */}
+      {historiqueOuvert && (
+        <div className="absolute inset-0 z-20 bg-carte flex flex-col">
           <AxiaConversationSidebar
             conversations={conversations} activeId={activeId} loading={loadingList}
             onSelect={ouvrirConversation} onNew={nouvelleConversation}
-            onDelete={supprimerConversation} onRename={renommer}
+            onDelete={supprimerConversation} onRename={renommer} onClose={() => setHistoriqueOuvert(false)}
           />
-        </div>
-      </div>
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setSidebarOpen(false)}>
-          <div className="absolute left-0 top-0 bottom-0 w-[80%] max-w-[300px]" onClick={e => e.stopPropagation()}>
-            <AxiaConversationSidebar
-              conversations={conversations} activeId={activeId} loading={loadingList}
-              onSelect={ouvrirConversation} onNew={nouvelleConversation}
-              onDelete={supprimerConversation} onRename={renommer} onClose={() => setSidebarOpen(false)}
-            />
-          </div>
         </div>
       )}
 
-      <div className="flex-1 min-w-0 h-full flex flex-col min-h-0" style={{ background: "linear-gradient(160deg,#111111 0%,#1a1a1a 55%,#0a0a0a 100%)" }}>
-        {/* Barre supérieure */}
-        <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 gap-2">
-          <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
-            <button onClick={() => setSidebarOpen(v => !v)}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0"
-              title={tr("Historique des conversations")}>
-              <PanelLeft size={14} className="text-white/60" />
-            </button>
-            <button onClick={nouvelleConversation}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0"
-              title={tr("Nouvelle conversation")}>
-              <Plus size={14} className="text-white/60" />
-            </button>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden flex-shrink-0 ml-0.5 sm:ml-1" style={{ boxShadow: "0 0 20px rgba(245,166,35,0.25)" }}>
-              <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
-            </div>
-            <span className="hidden sm:inline text-white font-bold text-sm tracking-tight">AXIA</span>
-            <span className="hidden sm:block ml-0.5"><BoutonRevoirTutoriel moduleKey="axia" dark /></span>
-          </div>
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-            <AxiaNotifBell />
-            <button onClick={() => setTtsOn(v => !v)} title={tr("Réponses vocales")}
-              className="flex w-7 h-7 sm:w-8 sm:h-8 rounded-xl items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0">
-              {ttsOn ? <Volume2 size={13} className="text-white/60" /> : <VolumeX size={13} className="text-white/25" />}
-            </button>
-            <button onClick={openVoiceMode} title={tr("Mode vocal")}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
-              style={{ background: "rgba(245,166,35,0.15)" }}>
-              <Phone size={12} className="text-[#F5A623]" />
-            </button>
-            <Link href="/dashboard/axia/journal" title={tr("Journal")}
-              className="hidden sm:flex items-center gap-1.5 text-[11.5px] font-semibold text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-full px-3 py-1.5 transition-all flex-shrink-0">
-              <History size={12} />{" "}{tr("Journal")}
-            </Link>
-            <Link href="/dashboard/accueil" title={tr("Tableau de bord")}
-              className="flex items-center gap-1.5 text-[11.5px] font-bold rounded-full px-2.5 sm:px-3.5 py-1.5 transition-all hover:opacity-90 flex-shrink-0"
-              style={{ background: "#F5A623", color: "#111111" }}>
-              <LayoutDashboard size={12} /> <span className="hidden sm:inline">{tr("Tableau de bord")}</span>
-            </Link>
-          </div>
+      {/* Barre du panneau */}
+      <div className="flex-shrink-0 flex items-center gap-0.5 px-2 h-14 border-b border-bordure">
+        <button onClick={() => setHistoriqueOuvert(true)} className={BOUTON_ICONE}
+          title={tr("Historique des conversations")} aria-label={tr("Historique des conversations")} aria-expanded={historiqueOuvert}>
+          <History size={17} />
+        </button>
+        <button onClick={nouvelleConversation} className={BOUTON_ICONE}
+          title={tr("Nouvelle conversation")} aria-label={tr("Nouvelle conversation")}>
+          <Plus size={17} />
+        </button>
+        <div className="flex items-center gap-2 min-w-0 flex-1 px-1">
+          <img src="/axia-icon.png" alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
+          <span className="text-encre font-bold text-sm">AXIA</span>
         </div>
+        <button onClick={openVoiceMode} className={BOUTON_ICONE}
+          title={tr("Parler à AXIA (mode vocal)")} aria-label={tr("Parler à AXIA (mode vocal)")}>
+          <Phone size={16} />
+        </button>
+        {entete}
+      </div>
 
-        {isEmpty ? (
-          /* ── Écran d'accueil centré ────────────────────────────────── */
-          <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-            <div className="ax-axia-mascot w-20 h-20 sm:w-24 sm:h-24 mb-5 rounded-3xl overflow-hidden"
-              style={{ boxShadow: "0 0 50px rgba(245,166,35,0.35), 0 8px 30px rgba(0,0,0,0.3)" }}>
-              <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white text-center mb-1.5">
-              {nomBoutique ? tr("Bonjour, {0}", nomBoutique) : tr("Bonjour")}
-            </h1>
-            <p className="text-white/40 text-sm text-center mb-8">{tr("Que veux-tu faire pour ta boutique aujourd'hui ?")}</p>
+      {propositions}
 
-            <ChatInput
-              input={input} setInput={setInput} loading={loading} pendingImage={pendingImage} setPendingImage={setPendingImage}
-              inputRef={inputRef} fileRef={fileRef} onFile={handleFileChange} onSend={handleSendChat} onStop={stopGeneration}
-              autoGrow={autoGrowInput} centered
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 w-full max-w-2xl">
+      {/* ── Conversation ──────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 min-h-0">
+        {isEmpty && (
+          <div className="px-1 pt-2">
+            <p className="text-base font-bold text-encre">{nomBoutique ? tr("Bonjour, {0}", nomBoutique) : tr("Bonjour")}</p>
+            <p className="ax-texte-secondaire mt-0.5 mb-4">{tr("Que veux-tu faire pour ta boutique aujourd'hui ?")}</p>
+            <div className="flex flex-col gap-2">
               {SUGGESTIONS.map(s => (
                 <button key={s} onClick={() => sendMessage(s)}
-                  className="flex items-center gap-2 text-left px-4 py-3 rounded-2xl text-[13px] text-white/70 hover:text-white transition-all"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <Sparkles size={12} className="flex-shrink-0" style={{ color: "#F5A623" }} />
+                  className="flex items-center gap-2 text-left min-h-10 px-3 py-2 rounded-controle border border-bordure bg-carte text-[13px] text-encre hover:border-bordure-forte hover:bg-carte-2 transition-colors">
+                  <Sparkles size={13} className="flex-shrink-0 text-primaire" aria-hidden />
                   {tr(s)}
                 </button>
               ))}
             </div>
           </div>
-        ) : (
-          /* ── Conversation ──────────────────────────────────────────── */
-          <>
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-4 min-h-0 max-w-3xl w-full mx-auto">
-              {messages.map((m, i) => {
-                const { text, images: pImgs, videos: pVids } = parseContent(m.content);
-                const allImages = [...(pImgs ?? []), ...(m.images ?? [])];
-                const allVideos = [...(pVids ?? []), ...(m.videos ?? [])];
-                const isLast = i === messages.length - 1;
-                return (
-                  <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden"
-                      style={m.role === "user" ? { background: "#F5A623" } : { background: "rgba(255,255,255,0.08)" }}>
-                      {m.role === "assistant"
-                        ? <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
-                        : <AvatarCompte nom={nomBoutique ?? "M"} className="w-full h-full" classeInitiales="text-[11px] font-bold text-[#111111]" />}
-                    </div>
-                    <div className="flex flex-col gap-1.5 min-w-0 break-words" style={{ maxWidth: "85%" }}>
-                      {m.imageUrl && (
-                        <div className={`rounded-xl overflow-hidden border border-white/10 ${m.role === "user" ? "self-end" : ""}`} style={{ maxWidth: 200 }}>
-                          <img src={m.imageUrl} alt="" className="w-full object-cover" />
-                        </div>
-                      )}
-                      {text && (
-                        <div className="relative group">
-                          <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${m.role === "user" ? "text-[#111111] font-medium" : "text-white/90"}`}
-                            style={m.role === "user" ? { background: "#F5A623" } : { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                            {m.role === "assistant"
-                              ? <div className="axia-md" dangerouslySetInnerHTML={{ __html: renderMarkdown(text || (m.streaming ? "" : m.content)) }} />
-                              : <span className="whitespace-pre-wrap">{tr(text)}</span>}
-                            {m.streaming && (
-                              <span className="inline-flex gap-0.5 ml-1 align-middle">
-                                {[0, 1, 2].map(k => (
-                                  <span key={k} className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "rgba(255,255,255,0.4)", animation: `xdot 1s ${k * 0.15}s ease-in-out infinite` }} />
-                                ))}
-                              </span>
-                            )}
-                          </div>
-                          {m.role === "assistant" && text && !m.streaming && (
-                            <div className="absolute -bottom-2 right-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1">
-                              <button onClick={() => { navigator.clipboard.writeText(text); setCopiedIdx(i); setTimeout(() => setCopiedIdx(null), 1500); }}
-                                className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(20,20,20,0.9)", border: "1px solid rgba(255,255,255,0.1)" }} title={tr("Copier")}>
-                                {copiedIdx === i ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} className="text-white/50" />}
-                              </button>
-                              {isLast && !loading && (
-                                <button onClick={regenerateLast}
-                                  className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(20,20,20,0.9)", border: "1px solid rgba(255,255,255,0.1)" }} title={tr("Régénérer")}>
-                                  <RotateCcw size={10} className="text-white/50" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {allImages.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {allImages.map((src, j) => <img key={j} src={src} alt="" className="rounded-xl max-w-[200px]" loading="lazy" />)}
-                        </div>
-                      )}
-                      {allVideos.map((src, j) => <video key={j} src={src} controls className="rounded-xl max-w-full max-h-56" />)}
-                      {m.actions && m.actions.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {m.actions.map((a, j) => (
-                            <span key={j} className="inline-flex items-center gap-1 text-[10.5px] px-2 py-0.5 rounded-lg font-medium" style={{ background: "rgba(16,185,129,0.12)", color: "#34d399", border: "1px solid rgba(16,185,129,0.25)" }}>
-                              <Sparkles size={9} /> {tr(sansMarque(a))}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        )}
 
-              {loading && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-xl flex-shrink-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                    <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="rounded-2xl px-4 py-3 flex items-center gap-2.5" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <div className="flex gap-1 items-center">
-                      {[0, 1, 2].map(j => (
-                        <div key={j} className="w-1.5 h-1.5 rounded-full" style={{ background: "#F5A623", animation: `xdot 1s ${j * 0.18}s ease-in-out infinite` }} />
-                      ))}
-                    </div>
-                    <span className="text-[12px] text-white/40">{tr(THINKING_MSGS[thinkingMsgIdx])}</span>
-                  </div>
+        {messages.map((m, i) => {
+          const { text, images: pImgs, videos: pVids } = parseContent(m.content);
+          const allImages = [...(pImgs ?? []), ...(m.images ?? [])];
+          const allVideos = [...(pVids ?? []), ...(m.videos ?? [])];
+          const isLast = i === messages.length - 1;
+          return (
+            <div key={i} className={`flex flex-col gap-1.5 min-w-0 break-words ${m.role === "user" ? "items-end" : "items-start"}`}>
+              {m.imageUrl && (
+                <div className="rounded-controle overflow-hidden border border-bordure" style={{ maxWidth: 180 }}>
+                  <img src={m.imageUrl} alt="" className="w-full object-cover" />
                 </div>
               )}
-              <div ref={bottomRef} />
+              {text && (
+                <div className={`rounded-carte px-3.5 py-2.5 text-[13.5px] leading-relaxed max-w-[92%] ${m.role === "user"
+                  ? "bg-secondaire text-white rounded-br-md"
+                  : "bg-carte-2 border border-bordure text-encre rounded-bl-md"}`}>
+                  {m.role === "assistant"
+                    ? <div className="axia-md" dangerouslySetInnerHTML={{ __html: renderMarkdown(text || (m.streaming ? "" : m.content)) }} />
+                    : <span className="whitespace-pre-wrap">{tr(text)}</span>}
+                </div>
+              )}
+              {allImages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {allImages.map((src, j) => <img key={j} src={src} alt="" className="rounded-controle max-w-[180px]" loading="lazy" />)}
+                </div>
+              )}
+              {allVideos.map((src, j) => <video key={j} src={src} controls className="rounded-controle max-w-full max-h-56" />)}
+              {/* Chaque action avec son état : fait, en attente de ton accord, non fait, page ouverte. */}
+              <div className="w-full"><ActionsAxia actions={m.actions} /></div>
+              {m.role === "assistant" && text && !m.streaming && (
+                <div className="flex gap-1">
+                  <button onClick={() => { navigator.clipboard.writeText(text); setCopiedIdx(i); setTimeout(() => setCopiedIdx(null), 1500); }}
+                    className={BOUTON_ICONE} title={tr("Copier la réponse")} aria-label={copiedIdx === i ? tr("Réponse copiée") : tr("Copier la réponse")}>
+                    {copiedIdx === i ? <Check size={14} className="text-succes" /> : <Copy size={14} />}
+                  </button>
+                  {isLast && !loading && (
+                    <button onClick={regenerateLast} className={BOUTON_ICONE} title={tr("Refaire la réponse")} aria-label={tr("Refaire la réponse")}>
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            <ChatInput
-              input={input} setInput={setInput} loading={loading} pendingImage={pendingImage} setPendingImage={setPendingImage}
-              inputRef={inputRef} fileRef={fileRef} onFile={handleFileChange} onSend={handleSendChat} onStop={stopGeneration}
-              autoGrow={autoGrowInput}
-            />
-          </>
+          );
+        })}
+
+        {loading && (
+          <div className="flex items-center gap-2.5 rounded-carte px-3.5 py-2.5 bg-carte-2 border border-bordure w-fit" role="status">
+            <div className="flex gap-1 items-center">
+              {[0, 1, 2].map(j => (
+                <div key={j} className="w-1.5 h-1.5 rounded-full bg-primaire" style={{ animation: `xdot 1s ${j * 0.18}s ease-in-out infinite` }} />
+              ))}
+            </div>
+            <span className="text-[12px] text-doux">{tr(THINKING_MSGS[thinkingMsgIdx])}</span>
+          </div>
         )}
-
-        <style>{`
-          @keyframes xdot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}}
-          .axia-md .axia-p{margin:0 0 8px}
-          .axia-md .axia-p:last-child{margin-bottom:0}
-          .axia-md .axia-h1,.axia-md .axia-h2,.axia-md .axia-h3{font-weight:700;margin:10px 0 4px;color:#fff}
-          .axia-md .axia-ul{margin:4px 0 8px;padding-left:18px}
-          .axia-md .axia-li{margin:2px 0}
-          .axia-md .axia-link{color:#F5A623;text-decoration:underline}
-          .axia-md .axia-inline-code{background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:5px;font-size:0.85em}
-          .axia-md .axia-pre{background:rgba(0,0,0,0.3);border-radius:10px;padding:10px 12px;overflow-x:auto;margin:6px 0}
-          .axia-md .axia-bq{border-left:2px solid #F5A623;padding-left:10px;opacity:0.8;margin:6px 0}
-        `}</style>
+        <div ref={bottomRef} />
       </div>
-    </div>
-  );
-}
 
-// ── Barre de saisie — texte, pièce jointe, envoi/stop ─────────────────────
-function ChatInput({
-  input, setInput, loading, pendingImage, setPendingImage, inputRef, fileRef, onFile, onSend, onStop, autoGrow, centered,
-}: {
-  input: string; setInput: (v: string) => void; loading: boolean;
-  pendingImage: string | null; setPendingImage: (v: string | null) => void;
-  inputRef: React.RefObject<HTMLTextAreaElement | null>; fileRef: React.RefObject<HTMLInputElement | null>;
-  onFile: (e: React.ChangeEvent<HTMLInputElement>) => void; onSend: () => void; onStop: () => void;
-  autoGrow: (el: HTMLTextAreaElement) => void; centered?: boolean;
-}) {
-  const tr = useT();
-  return (
-    <div className={centered ? "w-full max-w-2xl mx-auto" : "flex-shrink-0 px-4 sm:px-6 pb-4 sm:pb-6 pt-2 max-w-3xl w-full mx-auto"}>
-      {pendingImage && (
-        <div className="mb-2 relative inline-block">
-          <img src={pendingImage} alt="" className="h-16 rounded-xl border border-white/15" />
-          <button onClick={() => setPendingImage(null)}
-            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center">
-            <X size={10} className="text-white" />
+      {/* ── Saisie — texte, pièce jointe, envoi/stop ── */}
+      <div className="flex-shrink-0 px-3 pb-3 pt-2 border-t border-bordure">
+        {pendingImage && (
+          <div className="mb-2 relative inline-block">
+            <img src={pendingImage} alt="" className="h-16 rounded-controle border border-bordure" />
+            <button onClick={() => setPendingImage(null)}
+              aria-label={tr("Retirer l'image")} className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-secondaire text-white flex items-center justify-center">
+              <X size={11} />
+            </button>
+          </div>
+        )}
+        <div className="flex items-end gap-1 rounded-carte border border-bordure bg-carte px-1.5 py-1.5 focus-within:border-primaire transition-colors">
+          <button onClick={() => fileRef.current?.click()} className={BOUTON_ICONE} title={tr("Joindre une image")} aria-label={tr("Joindre une image")}>
+            <Paperclip size={15} />
           </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          <textarea
+            ref={inputRef}
+            value={input}
+            rows={1}
+            onChange={e => { setInput(e.target.value); autoGrowInput(e.target); }}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
+            placeholder={tr("Demande n'importe quoi à AXIA…")}
+            aria-label={tr("Message pour AXIA")}
+            disabled={loading}
+            className="flex-1 bg-transparent text-base lg:text-sm text-encre outline-none placeholder:text-discret resize-none py-2 leading-relaxed min-w-0"
+            style={{ maxHeight: 140 }}
+          />
+          {loading ? (
+            <button onClick={stopGeneration}
+              className="w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 bg-erreur text-white" title={tr("Arrêter la réponse")} aria-label={tr("Arrêter la réponse")}>
+              <Square size={11} fill="currentColor" />
+            </button>
+          ) : (
+            <button onClick={handleSendChat} disabled={!input.trim() && !pendingImage} aria-label={tr("Envoyer le message")}
+              className="w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 bg-primaire text-sur-primaire hover:bg-primaire-hover disabled:bg-carte-2 disabled:text-discret transition-colors">
+              <Send size={15} />
+            </button>
+          )}
         </div>
-      )}
-      <div className="flex items-end gap-2 rounded-2xl px-3 py-2.5 transition-colors"
-        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(10px)" }}>
-        <button onClick={() => fileRef.current?.click()}
-          className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors mb-0.5" title={tr("Joindre une image")}>
-          <Paperclip size={14} className="text-white/50" />
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-        <textarea
-          ref={inputRef}
-          value={input}
-          rows={1}
-          onChange={e => { setInput(e.target.value); autoGrow(e.target); }}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-          placeholder={tr("Demande n'importe quoi à AXIA…")}
-          disabled={loading}
-          className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35 resize-none py-1 leading-relaxed min-w-0"
-          style={{ maxHeight: 140 }}
-        />
-        {loading ? (
-          <button onClick={onStop}
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5"
-            style={{ background: "linear-gradient(135deg,#ef4444,#b91c1c)" }} title={tr("Arrêter")}>
-            <Square size={11} className="text-white" fill="white" />
-          </button>
-        ) : (
-          <button onClick={onSend} disabled={!input.trim() && !pendingImage}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all disabled:opacity-40 flex-shrink-0 mb-0.5"
-            style={{ background: input.trim() || pendingImage ? "#F5A623" : "rgba(255,255,255,0.06)" }}>
-            <Send size={13} className={input.trim() || pendingImage ? "text-[#111111]" : "text-white/40"} />
-          </button>
-        )}
       </div>
+
+      <style>{`
+        @keyframes xdot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}}
+        .axia-md .axia-p{margin:0 0 8px}
+        .axia-md .axia-p:last-child{margin-bottom:0}
+        .axia-md .axia-h1,.axia-md .axia-h2,.axia-md .axia-h3{font-weight:700;margin:10px 0 4px;color:var(--ax-encre)}
+        .axia-md .axia-ul{margin:4px 0 8px;padding-left:18px}
+        .axia-md .axia-li{margin:2px 0}
+        .axia-md .axia-link{color:var(--ax-encre);text-decoration:underline;text-decoration-color:var(--ax-primaire);text-underline-offset:2px}
+        .axia-md .axia-inline-code{background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:5px;font-size:0.85em}
+        .axia-md .axia-pre{background:var(--ax-carte);border:1px solid var(--ax-bordure);border-radius:10px;padding:10px 12px;overflow-x:auto;margin:6px 0}
+        .axia-md .axia-bq{border-left:2px solid var(--ax-primaire);padding-left:10px;color:var(--ax-doux);margin:6px 0}
+      `}</style>
     </div>
   );
 }

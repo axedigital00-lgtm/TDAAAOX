@@ -217,7 +217,7 @@ export function OngletOffres({ fiche, recharger }: PropsOnglet) {
                     prixUnitaire: brute.prixUnitaire, devise: brute.devise, moq: brute.moq ?? undefined, delaiProduction: brute.delaiProduction ?? undefined, poidsKg: brute.poidsKg ?? undefined,
                     paliers: Array.isArray(brute.paliers) ? (brute.paliers as unknown as Palier[]) : [],
                   })}><Pencil size={14} /></button>
-                <BoutonSupprimer disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${brute.id}`, "DELETE"))} />
+                <BoutonSupprimer objet={t("Offre : {0}", brute.nomProduit)} disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${brute.id}`, "DELETE"))} />
               </div>
             </div>
 

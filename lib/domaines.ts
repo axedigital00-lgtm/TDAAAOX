@@ -84,6 +84,32 @@ export async function synchroniserSousDomaines(max = 50) {
   return { declares: Math.min(max, manquants.length) - erreurs.length, restants: Math.max(0, manquants.length - max), erreurs };
 }
 
+// ── Suggestions de noms : disponibilité + prix réels (Vercel Registrar) ──────────
+// POST /v1/registrar/domains/search : jusqu'à 200 noms exacts, résultats dans l'ordre, prix en USD
+// pour les noms disponibles. Une extension non vendue par Vercel (ex. .cm) revient « non disponible ».
+export type OffreDomaine = { domaine: string; disponible: boolean; prix?: number; renouvellement?: number; annees?: number; premium?: boolean };
+
+/** Lève si Vercel ne répond pas correctement : l'appelant le dit au marchand et ne propose rien. */
+export async function disponibilitesDomaines(domaines: string[]): Promise<OffreDomaine[]> {
+  const equipe = process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : "";
+  const r = await fetch(`${API}/v1/registrar/domains/search${equipe}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(process.env.VERCEL_API_TOKEN ? { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}` } : {}) },
+    body: JSON.stringify({ domains: domaines }),
+    signal: AbortSignal.timeout(10000),
+  });
+  const corps = (await r.json().catch(() => null)) as any;
+  if (!r.ok || !Array.isArray(corps?.results)) throw new Error(corps?.error?.message ?? `Vercel ${r.status}`);
+  return corps.results.map((x: any): OffreDomaine => ({
+    domaine: String(x.domain),
+    disponible: x.available === true && typeof x.price === "number",
+    prix: typeof x.price === "number" ? x.price : undefined,
+    renouvellement: typeof x.renewalPrice === "number" ? x.renewalPrice : undefined,
+    annees: typeof x.years === "number" ? x.years : undefined,
+    premium: x.premium === true,
+  }));
+}
+
 export async function retirerDomaineVercel(domaine: string) {
   await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domaine}`, { method: "DELETE" }).catch(() => {});
 }

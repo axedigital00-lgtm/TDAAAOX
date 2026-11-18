@@ -27,7 +27,7 @@ const ETAPES = [
 
 const FAQ = [
   { q: "C'est gratuit ?", r: "Oui. Créer un compte affilié ne coûte rien et ne demande pas de boutique." },
-  { q: "Quand suis-je payé ?", r: "Votre commission devient disponible 48 h après la livraison de la commande (immédiatement pour un produit numérique). Vous demandez ensuite un retrait sur Mobile Money, validé par Axso." },
+  { q: "Quand suis-je payé ?", r: "Votre commission devient disponible 48 h après la livraison de la commande (un produit numérique est livré dès le paiement). Vous demandez ensuite un retrait sur Mobile Money, validé par Axso." },
   { q: "Combien je gagne ?", r: "Chaque boutique fixe sa commission, avec un minimum de 10 % sur les produits physiques et 20 % sur les produits numériques. Le taux est affiché sur chaque produit." },
   { q: "Les paiements à la livraison comptent ?", r: "Non. Seules les commandes payées en ligne donnent droit à une commission." },
   { q: "Combien de temps mon lien est valable ?", r: "30 jours après le clic. Si l'acheteur clique ensuite sur le lien d'un autre affilié, c'est le dernier clic qui compte." },
@@ -58,7 +58,7 @@ export default async function AffiliationPage() {
             {t("Touchez une commission sur chaque vente payée en ligne grâce à votre lien, versée par Axso sur Mobile Money.")}
           </p>
           <Link href={INSCRIPTION}
-            className="inline-flex items-center gap-2 font-bold px-8 py-4 rounded-2xl transition-all hover:scale-105"
+            className="inline-flex items-center gap-2 font-bold px-8 py-4 rounded-2xl transition-all motion-safe:hover:scale-105"
             style={{ background: AMBRE, color: "#080808", boxShadow: "0 8px 30px rgba(245,166,35,0.35)" }}>
             {t("Créer mon compte affilié")}{" "}<ArrowRight size={18} />
           </Link>
@@ -68,8 +68,8 @@ export default async function AffiliationPage() {
         </div>
       </section>
 
-      {/* ── Chiffres ── */}
-      <section className="px-4 sm:px-10 pb-20">
+      {/* ── Chiffres (réels : masqués tant que le catalogue est vide) ── */}
+      {total > 0 && <section className="px-4 sm:px-10 pb-20">
         <div className="max-w-3xl mx-auto grid grid-cols-3 gap-3 sm:gap-5">
           {[
             { n: String(boutiques), label: "boutiques partenaires" },
@@ -83,7 +83,7 @@ export default async function AffiliationPage() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* ── Comment ça marche ── */}
       <section className="px-4 sm:px-10 pb-24">
@@ -114,7 +114,7 @@ export default async function AffiliationPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {produits.map((p) => (
                 <Link key={p.produitId} href={VERS_CATALOGUE}
-                  className="rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  className="rounded-2xl overflow-hidden border transition-all duration-300 motion-safe:hover:-translate-y-1 hover:shadow-xl"
                   style={{ borderColor: "rgba(0,0,0,0.08)" }}>
                   <div className="relative aspect-square overflow-hidden" style={{ background: "#F5F5F5" }}>
                     {p.image ? (
@@ -143,7 +143,7 @@ export default async function AffiliationPage() {
             </div>
             <div className="text-center mt-10">
               <Link href={VERS_CATALOGUE}
-                className="inline-flex items-center gap-2 font-bold px-7 py-3.5 rounded-2xl text-white transition-transform hover:scale-[1.03]"
+                className="inline-flex items-center gap-2 font-bold px-7 py-3.5 rounded-2xl text-white transition-transform motion-safe:hover:scale-[1.03]"
                 style={{ background: "#111111" }}>
                 {t("Voir tout le catalogue")}{" "}<ArrowRight size={18} />
               </Link>
@@ -169,7 +169,7 @@ export default async function AffiliationPage() {
           </div>
           <div className="text-center mt-12">
             <Link href={INSCRIPTION}
-              className="inline-flex items-center gap-2 font-bold px-8 py-4 rounded-2xl transition-all hover:scale-105"
+              className="inline-flex items-center gap-2 font-bold px-8 py-4 rounded-2xl transition-all motion-safe:hover:scale-105"
               style={{ background: AMBRE, color: "#080808", boxShadow: "0 8px 30px rgba(245,166,35,0.35)" }}>
               {t("Créer mon compte affilié")}{" "}<ArrowRight size={18} />
             </Link>

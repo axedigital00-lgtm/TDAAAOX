@@ -241,7 +241,8 @@ export function remplacerTokensCarte(gabarit: string, p: ProduitPourClone, slug:
     .replaceAll("{{ID}}", echapperHtml(p.id))
     .replaceAll("{{NOM}}", echapperHtml(p.nom))
     .replaceAll("{{PRIX}}", echapperHtml(p.prixAffiche))
-    .replaceAll("{{IMAGE}}", echapperHtml(p.image || ""))
+    // Sans photo : image transparente (la carte montre le fond du cadre) plutôt qu'une image cassée.
+    .replaceAll("{{IMAGE}}", echapperHtml(p.image || "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="))
     .replaceAll("{{LIEN}}", echapperHtml(`/${slug}/produits/${p.id}`));
 }
 
@@ -392,13 +393,26 @@ export function injecterGrilleLibrairie(params: {
 // parler à la place du marchand. On garde l'en-tête (h1) avec ses vrais nom, catégorie
 // et description, la grille de produits titrée « Nos produits », et l'on retire tout
 // autre texte. Le visuel du design (formes, couleurs, mise en page) reste intact.
-export function personnaliserAccueilLibrairie(vueHtml: string, p: { nom: string; accroche?: string | null; description?: string | null }): string {
+// `garderSections` (thèmes premium, EntreeLibrairie.accueilComplet) : leurs textes sont écrits pour être
+// vrais pour toute boutique du secteur (ni avis, ni chiffres, ni promesses) — on garde toutes les
+// sections et les cartes de démonstration (remplacées par les vrais produits dès qu'il y en a, voir
+// lib/vitrine-design.ts::rafraichirGrillesProduits) ; seule la bannière prend le nom et la description.
+export function personnaliserAccueilLibrairie(vueHtml: string, p: { nom: string; accroche?: string | null; description?: string | null }, garderSections = false): string {
   const vue = parse(vueHtml).firstChild as ParsedElement | null;
   if (!vue?.childNodes) return vueHtml;
   const blocs = vue.childNodes.filter((n) => (n as ParsedElement).tagName) as ParsedElement[];
   const entete = blocs.find((b) => b.querySelector("h1"));
   const grille = blocs.find((b) => b.id === "homeGrid" || b.querySelector("#homeGrid"));
   if (!entete || !grille) return vueHtml;
+  if (garderSections) {
+    const h1 = entete.querySelector("h1")!;
+    h1.set_content(echapperHtml(p.nom));
+    const surtitre = entete.querySelector(".eyebrow");
+    if (surtitre && p.accroche?.trim()) surtitre.set_content(echapperHtml(p.accroche.trim()));
+    const paragraphe = entete.querySelectorAll("p").find((e) => !e.children.length);
+    if (paragraphe && p.description?.trim()) paragraphe.set_content(echapperHtml(p.description.trim()));
+    return vue.outerHTML;
+  }
   for (const b of blocs) if (b !== entete && b !== grille) b.remove();
 
   const aTexte = (e: ParsedElement) => e.childNodes.some((n) => n.nodeType === 3 && n.text.trim());

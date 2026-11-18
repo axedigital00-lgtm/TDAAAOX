@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { televerser } from "@/lib/televerser";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Plus, X, Sparkles, Loader2, Package, Image as ImageIcon,
+  Plus, X, Sparkles, Loader2, Package, Image as ImageIcon,
   Tag, BarChart2, Globe, Upload, Video, FileText, Truck, Download,
   ExternalLink, Info, Zap, ScanLine
 } from "lucide-react";
@@ -18,6 +18,7 @@ import { GardeProduitPhysique } from "@/components/dashboard/GardeProduitPhysiqu
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { PolitiquePrix } from "@/components/dashboard/PolitiquePrix";
+import { Badge, Bouton, EnTetePage } from "@/components/ui";
 
 const TYPES_PRODUIT = [
   {
@@ -204,7 +205,7 @@ function FormulaireProduit() {
       });
       const data = await res.json();
       if (data.description) set("description", data.description);
-    } catch { toast.error(tr("Erreur IA")); }
+    } catch { toast.error(tr("La description n'a pas pu être générée. Réessayez ou écrivez-la vous-même.")); }
     finally { setGenIA(false); }
   }
 
@@ -219,13 +220,13 @@ function FormulaireProduit() {
       const url = `https://image.pollinations.ai/prompt/${encoded}?width=800&height=800&nologo=true&model=flux&enhance=true&seed=${seed}`;
       set("images", [...form.images, url]);
       toast.success(tr("Image IA générée !"));
-    } catch { toast.error(tr("Erreur génération image")); }
+    } catch { toast.error(tr("L'image n'a pas pu être générée. Réessayez ou importez une photo.")); }
     finally { setGenImage(false); }
   }
 
   // ─── Sauvegarde ─────────────────────────────────────────────────
   async function sauvegarder() {
-    if (!form.nom || !form.prix) { toast.error(tr("Nom et prix obligatoires")); return; }
+    if (!form.nom || !form.prix) { toast.error(tr("Indiquez le nom et le prix de vente du produit avant de le créer.")); return; }
     if (form.type === "digital" && !form.fichierUrl) {
       toast.error(tr("Uploadez le fichier digital avant de créer le produit"));
       return;
@@ -300,29 +301,14 @@ function FormulaireProduit() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/dashboard/produits" className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:border-[#F5A623]/30 transition-all">
-            <ArrowLeft size={16} />
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 font-poppins">{tr("Nouveau produit")}</h1>
-            <p className="text-gray-400 text-xs">{tr("Physique, digital ou dropshipping")}</p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={() => set("actif", !form.actif)}
-            className={`px-4 py-2 rounded-xl text-sm border transition-all ${form.actif ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-gray-200 text-gray-500"}`}>
-            {form.actif ? tr("✓ Actif") : tr("Brouillon")}
-          </button>
-          <button onClick={sauvegarder} disabled={saving}
-            className="flex items-center gap-2 bg-[#F5A623] text-white font-semibold px-5 py-2 rounded-xl text-sm hover:bg-[#d4820a] transition-all disabled:opacity-50 shadow-lg shadow-[#F5A623]/25">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            {tr("Créer le produit")}
-          </button>
-        </div>
-      </div>
+      <EnTetePage
+        className="mb-0"
+        retour={{ href: "/dashboard/produits", libelle: tr("Produits") }}
+        titre={tr("Ajouter un produit")}
+        description={tr("Commencez par l'essentiel : type, nom, prix, photos et stock. Les autres réglages sont facultatifs.")}
+        indicateurs={form.actif ? <Badge ton="succes">{tr("Sera en ligne")}</Badge> : <Badge>{tr("Brouillon")}</Badge>}
+        actions={<Bouton variante="primaire" onClick={sauvegarder} charge={saving} texteCharge={tr("Création…")} icone={<Plus className="size-4" aria-hidden />}>{tr("Créer le produit")}</Bouton>}
+      />
 
       {/* ─── Sélecteur de type ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -372,11 +358,11 @@ function FormulaireProduit() {
               <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Informations générales")}</h2>
             </div>
             <div>
-              <label className="ax-label block mb-1.5">{tr("Nom du produit *")}</label>
-              <input value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={tr("Ex: Robe Wax Premium")} maxLength={120} className={inputClass} />
+              <label htmlFor="produit-nom" className="ax-label block mb-1.5">{tr("Nom du produit *")}</label>
+              <input id="produit-nom" required value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={tr("Ex: Robe Wax Premium")} maxLength={120} className={inputClass} />
             </div>
             <div>
-              <label className="ax-label block mb-1.5">{tr("Slug URL")}</label>
+              <label className="ax-label block mb-1.5">{tr("Adresse de la page produit (facultatif)")}</label>
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                 <span className="text-gray-400 text-xs flex-shrink-0">/produits/</span>
                 <input value={form.slug} onChange={e => set("slug", e.target.value)} className="bg-transparent text-sm text-gray-600 outline-none flex-1 min-w-0" />
@@ -405,8 +391,8 @@ function FormulaireProduit() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="ax-label block mb-1.5">{tr("Prix de vente *")}</label>
-                <input type="number" value={form.prix} onChange={e => set("prix", e.target.value)} placeholder="0" min="0" className={inputClass} />
+                <label htmlFor="produit-prix" className="ax-label block mb-1.5">{tr("Prix de vente *")}</label>
+                <input id="produit-prix" required type="number" inputMode="decimal" value={form.prix} onChange={e => set("prix", e.target.value)} placeholder="0" min="0" className={inputClass} />
                 <div className="mt-2"><PolitiquePrix prix={form.prix} type={form.type} /></div>
               </div>
               <div>
@@ -633,20 +619,23 @@ function FormulaireProduit() {
           </div>
 
           {/* SEO */}
-          <div className="ax-card p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Globe size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">SEO</h2>
-            </div>
+          <details className="ax-card p-6">
+            <summary className="flex items-center gap-2 min-h-10 cursor-pointer select-none">
+              <Globe size={15} className="text-primaire" aria-hidden />
+              <h2 className="text-[13px] font-semibold text-encre">{tr("Référencement Google et partage")}</h2>
+              <span className="ax-aide">{tr("facultatif")}</span>
+            </summary>
+            <div className="space-y-4 mt-4">
             <div>
-              <label className="ax-label block mb-1.5">{tr("Titre méta")}</label>
+              <label className="ax-label block mb-1.5">{tr("Titre affiché sur Google")}</label>
               <input value={form.metaTitle} maxLength={60} onChange={e => set("metaTitle", e.target.value)} placeholder={tr("Titre pour Google")} className={inputClass} />
             </div>
             <div>
-              <label className="ax-label block mb-1.5">{tr("Méta description")}</label>
+              <label className="ax-label block mb-1.5">{tr("Description affichée sur Google")}</label>
               <textarea value={form.metaDesc} maxLength={155} onChange={e => set("metaDesc", e.target.value)} rows={2} placeholder={tr("Description Google...")} className={`${inputClass} resize-none`} />
             </div>
           </div>
+          </details>
         </div>
 
         {/* Colonne latérale */}
@@ -773,7 +762,7 @@ function FormulaireProduit() {
                   <p className="text-gray-800 text-sm">{tr(opt.label)}</p>
                   <p className="text-gray-400 text-xs">{tr(opt.desc)}</p>
                 </div>
-                <button onClick={() => set(opt.key, !(form as any)[opt.key])}
+                <button type="button" role="switch" aria-checked={!!(form as any)[opt.key]} aria-label={tr(opt.label)} onClick={() => set(opt.key, !(form as any)[opt.key])}
                   className={`w-11 h-6 rounded-full transition-all relative ${(form as any)[opt.key] ? "bg-[#F5A623]" : "bg-gray-200"}`}>
                   <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${(form as any)[opt.key] ? "left-5" : "left-0.5"}`} />
                 </button>

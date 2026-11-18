@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   Plus, Package, Search, TrendingUp, Tag, AlertTriangle,
-  Star, ChevronRight, Eye, EyeOff,
+  Star, ChevronRight, Eye, EyeOff, X,
 } from "lucide-react";
 import { formatMontant } from "@/lib/utils";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
@@ -13,24 +13,24 @@ import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { ProduitsTutorial } from "@/components/dashboard/tutorials/ProduitsTutorial";
 import { getT } from "@/lib/i18n/serveur";
 import { ImportProduitsExcel } from "@/components/dashboard/ImportProduitsExcel";
+import { ActiverExemple } from "./ActiverExemple";
+import { Badge, Bouton, EnTetePage, EtatVide } from "@/components/ui";
 
 const FILTER_TABS = [
   { key: "all",      label: "Tous"         },
-  { key: "actif",    label: "Actifs"       },
-  { key: "inactif",  label: "Inactifs"     },
+  { key: "actif",    label: "En ligne"     },
+  { key: "inactif",  label: "Hors ligne"   },
   { key: "faible",   label: "Stock faible" },
-  { key: "epuise",   label: "Épuisés"      },
+  { key: "epuise",   label: "En rupture"   },
 ];
 
-async function StockBadge({ stock }: { stock: number }) {
+// Mêmes seuils que les filtres : rupture = 0, faible = 1 à 5 (physique seulement : un produit numérique n'a pas de stock).
+async function StockBadge({ stock, type }: { stock: number; type: string }) {
   const t = await getT();
-  if (stock === 0)
-    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]">{t("Épuisé")}</span>;
-  if (stock <= 5)
-    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">{stock} restants</span>;
-  if (stock <= 20)
-    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">{stock}{" "}{t("en stock")}</span>;
-  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0]">{stock}{" "}{t("en stock")}</span>;
+  if (type !== "physique") return <Badge>{t("Sans stock à gérer")}</Badge>;
+  if (stock === 0) return <Badge ton="erreur">{t("Rupture")}</Badge>;
+  if (stock <= 5) return <Badge ton="attention">{t("Stock faible : {0}", stock)}</Badge>;
+  return <Badge ton="succes">{stock}{" "}{t("en stock")}</Badge>;
 }
 
 export default async function ProduitsPage({
@@ -55,8 +55,9 @@ export default async function ProduitsPage({
   const FILTRES: Record<string, object> = {
     actif:   { actif: true },
     inactif: { actif: false },
-    faible:  { actif: true, stock: { gt: 0, lte: 5 } },
-    epuise:  { stock: 0 },
+    // Mêmes règles que « À traiter » du Tableau de bord (accueil/page.tsx) : un produit numérique n'a pas de stock.
+    faible:  { actif: true, type: "physique", stock: { gt: 0, lte: 5 } },
+    epuise:  { actif: true, type: "physique", stock: 0 },
   };
   const where = {
     ...base,
@@ -67,7 +68,7 @@ export default async function ProduitsPage({
     prisma.produit.count({ where: base }),
     prisma.produit.count({ where: { ...base, actif: true } }),
     prisma.produit.count({ where: { ...base, ...FILTRES.faible } }),
-    prisma.produit.count({ where: { ...base, actif: true, stock: 0 } }),
+    prisma.produit.count({ where: { ...base, ...FILTRES.epuise } }),
     prisma.produit.aggregate({ where: base, _sum: { ventes: true } }),
     prisma.produit.count({ where }),
     prisma.produit.findMany({
@@ -80,14 +81,19 @@ export default async function ProduitsPage({
   ]);
   const totalVentes = ventes._sum.ventes ?? 0;
   const nbPages = Math.max(1, Math.ceil(totalFiltre / PAR_PAGE));
+  const libelleFiltre = filtre && filtre !== "all" ? FILTER_TABS.find(f => f.key === filtre)?.label ?? null : null;
+  const lienFiltres = (p: { q?: string; filtre?: string }) => {
+    const params = new URLSearchParams({ ...(p.filtre && p.filtre !== "all" ? { filtre: p.filtre } : {}), ...(p.q ? { q: p.q } : {}) }).toString();
+    return `/dashboard/produits${params ? `?${params}` : ""}`;
+  };
   const lienPage = (n: number) =>
     `/dashboard/produits?${new URLSearchParams({ ...(filtre ? { filtre } : {}), ...(q ? { q } : {}), page: String(n) })}`;
 
   const statCards = [
-    { label: "Produits actifs",  value: totalActifs,    iconBg: "#F0FDF4", iconColor: "#16A34A", Icon: Package     },
+    { label: "Produits en ligne", value: totalActifs,    iconBg: "#F0FDF4", iconColor: "#16A34A", Icon: Package     },
     { label: "Ventes totales",   value: totalVentes,    iconBg: "#FFF8EC", iconColor: "#F5A623", Icon: TrendingUp, accent: true },
     { label: "Stock faible",     value: stockFaible,    iconBg: "#FFFBEB", iconColor: "#D97706", Icon: AlertTriangle },
-    { label: "Épuisés",          value: stockEpuise,    iconBg: "#FEF2F2", iconColor: "#DC2626", Icon: AlertTriangle },
+    { label: "En rupture",       value: stockEpuise,    iconBg: "#FEF2F2", iconColor: "#DC2626", Icon: AlertTriangle },
   ];
 
   return (
@@ -95,31 +101,26 @@ export default async function ProduitsPage({
       style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
       <ProduitsTutorial />
 
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 pt-1">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 sm:gap-2.5 mb-1 flex-wrap">
-            <h1 className="text-[18px] sm:text-[20px] font-bold text-[#111111] tracking-tight inline-flex items-center gap-2">{t("Produits")}{" "}<AgentActiveIndicator label={t("Agent Produits actif")} /></h1>
-            <BoutonRevoirTutoriel moduleKey="produits" />
-            <span className="text-[11px] font-bold bg-[#F5F5F7] text-[#888888] border border-[#E8E8E8] px-2.5 py-0.5 rounded-full">
-              {totalTous}
-            </span>
-            {stockFaible > 0 && (
-              <span className="text-[11px] font-bold bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A] px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <AlertTriangle size={9} /> {t(stockFaible)}{" "}{t("stock faible")}
-              </span>
-            )}
-          </div>
-          <p className="text-[12px] sm:text-[12.5px] text-[#AAAAAA]">{t("Gérez votre catalogue et suivez vos ventes")}</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-shrink-0">
+      <EnTetePage
+        className="mb-0 pt-1"
+        titre={<span className="inline-flex items-center gap-2">{t("Produits")}{" "}<AgentActiveIndicator label={t("Agent Produits actif")} /></span>}
+        description={t("Gérez votre catalogue, vos prix et votre stock.")}
+        indicateurs={<>
+          <BoutonRevoirTutoriel moduleKey="produits" />
+          <Badge>{totalTous}</Badge>
+          {stockFaible + stockEpuise > 0 && (
+            <Link href={`/dashboard/produits?filtre=${stockEpuise > 0 ? "epuise" : "faible"}`} className="rounded-full focus-visible:outline-2 focus-visible:outline-focus">
+              <Badge ton={stockEpuise > 0 ? "erreur" : "attention"} icone={<AlertTriangle aria-hidden />}>
+                {stockEpuise > 0 ? t("{0} en rupture", stockEpuise) : t("{0} en stock faible", stockFaible)}
+              </Badge>
+            </Link>
+          )}
+        </>}
+        actions={<>
           <ImportProduitsExcel />
-          <Link href="/dashboard/produits/nouveau"
-            className="flex items-center justify-center gap-1.5 text-[12.5px] sm:text-[12px] font-semibold bg-[#111111] text-white rounded-2xl px-4 py-3 sm:py-2 hover:bg-[#2a2a2a] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-sm whitespace-nowrap w-full sm:w-auto flex-shrink-0">
-            <Plus size={14} />{" "}{t("Nouveau produit")}
-          </Link>
-        </div>
-      </div>
+          <Bouton variante="primaire" href="/dashboard/produits/nouveau" icone={<Plus className="size-4" aria-hidden />}>{t("Ajouter un produit")}</Bouton>
+        </>}
+      />
 
       {/* ── Stat cards — défilement horizontal sur mobile, grille au-delà ── */}
       {totalTous > 0 && (
@@ -149,30 +150,25 @@ export default async function ProduitsPage({
         </div>
       )}
 
-      {/* ── Search + Filter tabs ── */}
+      {/* ── Recherche + filtres (filtre actif visible et retirable) ── */}
       <div className="flex flex-col gap-3">
-        {/* Search bar (form submit via GET) */}
-        <form action="/dashboard/produits" method="GET" className="flex gap-2">
+        <form action="/dashboard/produits" method="GET" role="search" className="flex gap-2">
           {filtre && filtre !== "all" && <input type="hidden" name="filtre" value={filtre} />}
-          <div className="flex-1 flex items-center gap-2.5 bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 sm:py-2.5 focus-within:border-[#CCCCCC] transition-colors">
-            <Search size={14} className="text-[#CCCCCC] flex-shrink-0" />
+          <label className="flex-1 flex items-center gap-2.5 min-h-11 bg-carte border border-bordure rounded-controle px-3.5 focus-within:border-bordure-forte focus-within:outline-2 focus-within:outline-focus transition-colors">
+            <Search size={15} className="text-doux flex-shrink-0" aria-hidden />
+            <span className="sr-only">{t("Rechercher un produit par son nom")}</span>
             <input
+              type="search"
               name="q"
               defaultValue={q}
-              placeholder={t("Rechercher un produit...")}
-              className="bg-transparent text-[13.5px] sm:text-[13px] text-[#111111] placeholder:text-[#CCCCCC] outline-none flex-1 min-w-0"
+              placeholder={t("Rechercher un produit par son nom")}
+              className="bg-transparent text-[14px] text-encre placeholder:text-doux outline-none flex-1 min-w-0"
             />
-          </div>
-          {q && (
-            <Link href={filtre ? `/dashboard/produits?filtre=${filtre}` : "/dashboard/produits"}
-              className="flex items-center px-3 py-3 sm:py-2.5 rounded-2xl border border-[#E8E8E8] text-[12px] text-[#888] hover:text-[#111] hover:border-[#CCC] transition-all flex-shrink-0">
-              {t("Effacer")}
-            </Link>
-          )}
+          </label>
+          <Bouton type="submit" variante="secondaire">{t("Rechercher")}</Bouton>
         </form>
 
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: "none" }}>
+        <nav aria-label={t("Filtrer les produits")} className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: "none" }}>
           {FILTER_TABS.map(tab => {
             const isActive = (filtre ?? "all") === tab.key;
             const count = tab.key === "all" ? totalTous
@@ -180,55 +176,63 @@ export default async function ProduitsPage({
               : tab.key === "inactif" ? totalTous - totalActifs
               : tab.key === "faible"  ? stockFaible
               : stockEpuise;
-            const href = tab.key === "all"
-              ? (q ? `/dashboard/produits?q=${q}` : "/dashboard/produits")
-              : (q ? `/dashboard/produits?filtre=${tab.key}&q=${q}` : `/dashboard/produits?filtre=${tab.key}`);
+            const params = new URLSearchParams({ ...(tab.key !== "all" ? { filtre: tab.key } : {}), ...(q ? { q } : {}) }).toString();
             return (
-              <Link key={tab.key} href={href}
-                className="flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all flex-shrink-0"
-                style={isActive
-                  ? { background: "#111111", color: "#FFFFFF", border: "1px solid #111111" }
-                  : { background: "#FFFFFF", color: "#888888", border: "1px solid #E8E8E8" }}>
+              <Link key={tab.key} href={`/dashboard/produits${params ? `?${params}` : ""}`}
+                aria-current={isActive ? "page" : undefined}
+                className={`flex items-center gap-1.5 min-h-10 sm:min-h-8 px-3 rounded-full border text-[12px] font-semibold whitespace-nowrap transition-colors flex-shrink-0 ${isActive ? "bg-secondaire text-carte border-secondaire" : "bg-carte text-doux border-bordure hover:text-encre hover:border-bordure-forte"}`}>
                 {t(tab.label)}
                 {count > 0 && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                    style={isActive
-                      ? { background: "rgba(255,255,255,0.15)", color: "#FFFFFF" }
-                      : { background: "#F5F5F7", color: "#AAAAAA" }}>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? "bg-white/15" : "bg-carte-2"}`}>
                     {count}
                   </span>
                 )}
               </Link>
             );
           })}
-        </div>
+        </nav>
+
+        {(q || libelleFiltre) && (
+          <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-doux">
+            <span>{totalFiltre}{" "}{t(totalFiltre > 1 ? "résultats" : "résultat")}</span>
+            {q && (
+              <Link href={lienFiltres({ filtre })} aria-label={t("Retirer la recherche « {0} »", q)}
+                className="inline-flex items-center gap-1 min-h-8 rounded-full border border-bordure bg-carte-2 pl-2.5 pr-2 font-medium text-encre hover:border-bordure-forte">
+                « {q} » <X className="size-3.5 text-doux" aria-hidden />
+              </Link>
+            )}
+            {libelleFiltre && (
+              <Link href={lienFiltres({ q })} aria-label={t("Retirer le filtre « {0} »", t(libelleFiltre))}
+                className="inline-flex items-center gap-1 min-h-8 rounded-full border border-bordure bg-carte-2 pl-2.5 pr-2 font-medium text-encre hover:border-bordure-forte">
+                {t(libelleFiltre)} <X className="size-3.5 text-doux" aria-hidden />
+              </Link>
+            )}
+            {q && libelleFiltre && (
+              <Link href="/dashboard/produits" className="min-h-8 inline-flex items-center font-semibold text-encre underline underline-offset-2">{t("Tout effacer")}</Link>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Grid ── */}
       {produits.length === 0 ? (
-        <div className="ax-card p-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#F5F5F7] flex items-center justify-center mx-auto mb-4">
-            <Package size={24} className="text-[#CCCCCC]" />
-          </div>
-          <p className="text-[14px] font-semibold text-[#111111] mb-1">
-            {q ? t("Aucun résultat pour « {0} »", q) : t("Aucun produit")}
-          </p>
-          <p className="text-[12px] text-[#AAAAAA] mb-6">
-            {q
-              ? t("Essayez un autre terme ou modifiez le filtre")
-              : t("Votre catalogue est vide. Ajoutez votre premier produit pour commencer à vendre.")}
-          </p>
-          {!q && (
-            <Link href="/dashboard/produits/nouveau"
-              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-2xl bg-[#111111] text-white hover:bg-[#2a2a2a] transition-colors">
-              <Plus size={13} />{" "}{t("Ajouter un produit")}
-            </Link>
-          )}
-        </div>
+        q || libelleFiltre ? (
+          <EtatVide icone={<Search />}
+            titre={q ? t("Aucun produit ne correspond à « {0} »", q) : t("Aucun produit « {0} »", t(libelleFiltre ?? ""))}
+            texte={q ? t("Vérifiez l'orthographe ou essayez un autre mot.") : t("Aucun produit n'est dans ce cas pour le moment.")}>
+            <Bouton variante="secondaire" href="/dashboard/produits">{t("Voir tous les produits")}</Bouton>
+          </EtatVide>
+        ) : (
+          <EtatVide icone={<Package />} titre={t("Vous n'avez pas encore de produit")}
+            texte={t("Ajoutez votre premier produit pour commencer à vendre, ou importez votre catalogue depuis un fichier Excel.")}>
+            <Bouton variante="primaire" href="/dashboard/produits/nouveau" icone={<Plus className="size-4" aria-hidden />}>{t("Ajouter un produit")}</Bouton>
+          </EtatVide>
+        )
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
           {produits.map(p => (
-            <Link key={p.id} href={`/dashboard/produits/${p.id}`} className="group block">
+            <div key={p.id} className="flex flex-col gap-1.5">
+            <Link href={`/dashboard/produits/${p.id}`} className="group block flex-1">
               <div className="ax-card overflow-hidden h-full flex flex-col hover:shadow-[0_4px_24px_rgba(0,0,0,0.09)] hover:-translate-y-0.5 transition-all duration-200">
 
                 {/* Image */}
@@ -242,11 +246,11 @@ export default async function ProduitsPage({
                     </div>
                   )}
 
-                  {/* Inactive overlay */}
+                  {/* Inactive overlay — exemple d'Axia : jamais visible des clients tant qu'il n'est pas activé */}
                   {!p.actif && (
                     <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
                       <span className="flex items-center gap-1 text-white text-[9px] sm:text-[10px] font-bold bg-black/50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full backdrop-blur-sm">
-                        <EyeOff size={9} />{" "}{t("Inactif")}
+                        <EyeOff size={9} />{" "}{p.exempleAxia ? t("Exemple · Préparé par Axia") : t("Inactif")}
                       </span>
                     </div>
                   )}
@@ -261,15 +265,10 @@ export default async function ProduitsPage({
                     </div>
                   )}
 
-                  {/* Stock overlay badge */}
-                  {p.stock === 0 && (
+                  {/* Stock overlay badge (pas sur un exemple : son stock est à saisir à l'activation) */}
+                  {p.type === "physique" && p.stock === 0 && !p.exempleAxia && (
                     <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
-                      <span className="text-[8.5px] sm:text-[9.5px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]">{t("Épuisé")}</span>
-                    </div>
-                  )}
-                  {p.stock > 0 && p.stock <= 5 && (
-                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
-                      <span className="text-[8.5px] sm:text-[9.5px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">{t("Stock faible")}</span>
+                      <span className="text-[8.5px] sm:text-[9.5px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-erreur-fond text-erreur border border-erreur-bordure">{t("Rupture")}</span>
                     </div>
                   )}
 
@@ -288,11 +287,11 @@ export default async function ProduitsPage({
                   </h3>
 
                   <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2 flex-wrap">
-                    <span className="text-[13.5px] sm:text-[16px] font-bold text-[#F5A623]"
+                    <span className="text-[13.5px] sm:text-[16px] font-bold text-encre"
                       style={{ fontVariantNumeric: "tabular-nums" }}>
                       {formatMontant(p.prix, devise)}
                     </span>
-                    <StockBadge stock={p.stock} />
+                    {!p.exempleAxia && <StockBadge stock={p.stock} type={p.type} />}
                   </div>
 
                   <div className="flex items-center justify-between mt-auto pt-2 sm:pt-3 border-t border-[#F5F5F7]">
@@ -315,6 +314,15 @@ export default async function ProduitsPage({
                 </div>
               </div>
             </Link>
+            {p.type === "physique" && p.stock <= 5 && !p.exempleAxia && (
+              <Bouton variante={p.stock === 0 ? "secondaire" : "fantome"} taille="compact" large href={`/dashboard/produits/${p.id}#stock`}>
+                {t("Mettre à jour le stock")}
+              </Bouton>
+            )}
+            {p.exempleAxia && !p.actif && (
+              <ActiverExemple id={p.id} nom={p.nom} prix={p.prix} image={p.images?.[0]} digital={p.type === "digital"} />
+            )}
+            </div>
           ))}
         </div>
       )}

@@ -43,6 +43,7 @@ test("Retrait : en attente sans transfert, puis payé (marchand prévenu) ou ref
   assert.equal(r1.reference, null, "aucun transfert automatique tenté");
   assert.equal(r1.destinataire, "+237677123456", "indicatif du pays de la boutique");
   assert.equal(await solde(), 7000);
+  assert.ok(await prisma.notificationMarchand.findFirst({ where: { tenantId, type: "retrait_demande" } }), "prévenu dès la demande");
 
   await cloturerRetraitManuel(r1.id, true);
   assert.equal((await prisma.retrait.findUniqueOrThrow({ where: { id: r1.id } })).statut, "complete");

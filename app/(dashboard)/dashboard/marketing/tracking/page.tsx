@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { useConfirmation } from "@/components/ui";
 
 interface TenantTracking {
   metaPixelId: string | null;
@@ -141,6 +142,7 @@ function PlatformCard({
   onSaved: (v: string | null) => void;
 }) {
   const tr = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const { key, nom, sousTitre, couleur, couleurDark, bg, border, Icone, placeholder, guide, events } = platform;
 
   const [valeur, setValeur]   = useState(valeurInitiale ?? "");
@@ -174,28 +176,33 @@ function PlatformCard({
       setSaved(v);
       setOpen(false);
       onSaved(v);
-      toast.success(v ? tr("{0} activé avec succès !", nom) : tr("{0} retiré", nom));
+      toast.success(v ? tr("{0} activé.", nom) : tr("{0} retiré.", nom));
     } catch {
-      toast.error(tr("Erreur de sauvegarde"));
+      toast.error(tr("L'enregistrement a échoué. Vérifie ta connexion et réessaie."));
     } finally {
       setSaving(false);
     }
   }
 
   async function retirer() {
+    if (!(await confirmer({ titre: tr("Retirer ce pixel ?"), objet: `${nom}${saved ? ` · ${saved}` : ""}`,
+      description: tr("Il ne se chargera plus sur ta boutique et son identifiant sera effacé. Tu pourras le recoller plus tard."),
+      libelleConfirmer: tr("Retirer le pixel") }))) return;
     try {
       await patchTenant({ [key]: null });
       setValeur("");
       setSaved(null);
       setOpen(false);
       onSaved(null);
-      toast.success(tr("{0} désactivé", nom));
+      toast.success(tr("{0} retiré.", nom));
     } catch {
-      toast.error(tr("Erreur"));
+      toast.error(tr("{0} n'a pas été retiré. Réessaie.", nom));
     }
   }
 
   return (
+    <>
+    {dialogue}
     <div
       className="bg-white rounded-2xl overflow-hidden transition-all duration-300"
       style={{
@@ -397,13 +404,14 @@ function PlatformCard({
                 onClick={retirer}
                 className="px-4 py-2.5 rounded-xl text-xs font-bold border border-red-200 text-red-400 hover:bg-red-50 transition-all"
               >
-                {tr("Retirer")}
+                {tr("Retirer le pixel")}
               </button>
             )}
           </div>
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -426,9 +434,9 @@ function CustomScriptsCard({ valeurInitiale }: { valeurInitiale: string | null }
       const v = script.trim() || null;
       await patchTenant({ trackingScripts: v });
       setSaved(v);
-      toast.success(tr("Scripts personnalisés enregistrés !"));
+      toast.success(tr("Scripts personnalisés enregistrés."));
     } catch {
-      toast.error(tr("Erreur de sauvegarde"));
+      toast.error(tr("L'enregistrement a échoué. Vérifie ta connexion et réessaie."));
     } finally {
       setSaving(false);
     }
@@ -527,7 +535,7 @@ function CustomScriptsCard({ valeurInitiale }: { valeurInitiale: string | null }
           >
             {saving
               ? <><Loader2 size={13} className="animate-spin" />{" "}{tr("Sauvegarde…")}</>
-              : <><Zap size={13} />{" "}{tr("Enregistrer")}</>}
+              : <><Zap size={13} />{" "}{tr("Enregistrer les scripts")}</>}
           </button>
         </div>
       )}

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { ColonneRapport, LigneRapport } from "@/lib/command-center/rapports";
 import type { RapportPlanifie } from "@/lib/command-center/reglages";
 import { useT } from "@/components/I18nProvider";
+import { useConfirmation } from "@/components/command-center/Confirmation";
 
 export interface BlocExport { titre: string; colonnes: ColonneRapport[]; lignes: LigneRapport[] }
 
@@ -70,12 +71,14 @@ export function Programmer({ type, planifies, frequenceParDefaut }: { type: Rapp
   const [emails, setEmails] = useState(actuel?.destinataires.join(", ") ?? "");
   const [actif, setActif] = useState(actuel?.actif ?? true);
   const [charge, setCharge] = useState(false);
+  const { confirmer, dialogue } = useConfirmation();
 
   async function enregistrer(supprimer = false) {
+    if (supprimer && actuel && !(await confirmer({ titre: t("Arrêter l'envoi automatique de ce rapport ?"), message: t("Plus aucun e-mail ne partira vers les destinataires. Le rapport reste consultable ici."), details: [{ libelle: t("Destinataires"), valeur: actuel.destinataires.join(", ") }], action: t("Supprimer la programmation"), danger: true }))) return;
     const destinataires = [...new Set(emails.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean))];
-    if (!supprimer && !destinataires.length) { toast.error(t("Ajoutez au moins un destinataire")); return; }
+    if (!supprimer && !destinataires.length) { toast.error(t("Ajoutez au moins une adresse e-mail de destinataire.")); return; }
     const invalides = destinataires.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
-    if (!supprimer && invalides.length) { toast.error(t("Adresse invalide : {0}", invalides[0])); return; }
+    if (!supprimer && invalides.length) { toast.error(t("Adresse e-mail invalide : {0}. Corrigez-la puis réessayez.", invalides[0])); return; }
     const valeur = [...planifies.filter((p) => p.type !== type), ...(supprimer ? [] : [{ type, frequence, destinataires, actif }])];
     setCharge(true);
     const r = await fetch("/api/admin/command-center/reglages", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cle: "rapports", valeur }) }).catch(() => null);
@@ -100,9 +103,10 @@ export function Programmer({ type, planifies, frequenceParDefaut }: { type: Rapp
           </label>
           <div className="flex items-center gap-2">
             <label className="text-[12px] flex items-center gap-1.5"><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} />{t("Actif")}</label>
-            <button className="cc-btn cc-btn-primary cc-btn-sm" disabled={charge} onClick={() => enregistrer()}>{charge ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{t("Enregistrer")}</button>
-            {actuel && <button className="cc-btn cc-btn-ghost cc-btn-sm" disabled={charge} onClick={() => enregistrer(true)} aria-label={t("Supprimer la programmation")}><Trash2 size={13} /></button>}
+            <button className="cc-btn cc-btn-primary cc-btn-sm" disabled={charge} onClick={() => enregistrer()}>{charge ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{t("Enregistrer la programmation")}</button>
+            {actuel && <button className="cc-btn cc-btn-ghost cc-btn-sm cc-bad" disabled={charge} onClick={() => enregistrer(true)} aria-label={t("Supprimer la programmation")}><Trash2 size={13} aria-hidden /></button>}
           </div>
+          {dialogue}
           <p className="cc-faint text-[11.5px] sm:col-span-3">{t("Envoi vers 7 h (heure de Douala), données réelles uniquement. Hebdomadaire : le lundi ; mensuel : le 1er.")}</p>
         </div>
       )}

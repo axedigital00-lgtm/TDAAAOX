@@ -5,6 +5,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { getAdminSessionPour } from "@/lib/admin-auth";
 import { etatIntegrations } from "@/lib/integrations";
 import { getT } from "@/lib/i18n/serveur";
+import { EnTetePage, Carte, Badge } from "@/components/command-center/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -15,52 +16,38 @@ export default async function AdminIntegrationsPage() {
   const etats = etatIntegrations();
   const manquantes = etats.filter((e) => !e.active);
 
+  const bloquant = manquantes.some((e) => e.indispensable);
+
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold">{t("État des intégrations")}</h1>
-        <p className="text-sm mt-1" style={{ color: "#AAAAAA" }}>
-          {t("Ce que ce serveur a de configuré. Les valeurs ne sont jamais affichées : elles se règlent dans Vercel → Settings → Environment Variables, puis un redéploiement.")}
-        </p>
-      </div>
-      <p className="text-sm font-semibold" style={{ color: manquantes.some((e) => e.indispensable) ? "#F87171" : "#F5A623" }}>
+    <div className="space-y-5 max-w-4xl">
+      <EnTetePage titre={t("État des intégrations")} sousTitre={t("Ce que ce serveur a de configuré. Les valeurs ne sont jamais affichées : elles se règlent dans Vercel → Settings → Environment Variables, puis un redéploiement.")} />
+      <p role={bloquant ? "alert" : undefined} className={`text-[13px] font-semibold ${manquantes.length === 0 ? "cc-good" : bloquant ? "cc-bad" : "cc-warn"}`}>
         {manquantes.length === 0 ? t("Tout est configuré.")
-          : manquantes.some((e) => e.indispensable) ? t("Une intégration indispensable est incomplète : l'application ne peut pas fonctionner correctement.")
+          : bloquant ? t("Une intégration indispensable est incomplète : l'application ne peut pas fonctionner correctement.")
           : t("{0} fonction(s) facultative(s) non configurée(s) : elles sont masquées ou marquées « bientôt disponible » pour les marchands.", manquantes.length)}
       </p>
-      <div className="rounded-2xl border overflow-x-auto" style={{ borderColor: "rgba(255,255,255,0.08)", background: "#1A1A1A" }}>
-        <table className="w-full text-sm min-w-[560px]">
-          <thead>
-            <tr className="text-left" style={{ color: "#888888" }}>
-              <th className="px-4 py-3 font-semibold">{t("Intégration")}</th>
-              <th className="px-4 py-3 font-semibold">{t("Ce qu'elle active")}</th>
-              <th className="px-4 py-3 font-semibold">{t("Variables")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {etats.map((e) => (
-              <tr key={e.cle} className="border-t align-top" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                <td className="px-4 py-3 font-semibold text-white">
-                  {t(e.nom)}
-                  <span className="block text-xs font-normal" style={{ color: e.indispensable ? "#F5A623" : "#888888" }}>{t(e.indispensable ? "Indispensable" : "Facultative")}</span>
-                </td>
-                <td className="px-4 py-3" style={{ color: "#CCCCCC" }}>{t(e.fonction)}</td>
-                <td className="px-4 py-3">
-                  <ul className="space-y-1">
-                    {e.variables.map((v) => (
-                      <li key={v.nom} className="flex items-center gap-2" style={{ color: v.configuree ? "#4ADE80" : "#F87171" }}>
-                        {v.configuree ? <CheckCircle2 size={14} aria-hidden /> : <XCircle size={14} aria-hidden />}
-                        <code className="text-xs">{v.nom}</code>
-                        <span className="text-xs">{t(v.configuree ? "configurée" : "absente")}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Carte pad={false}>
+        <ul className="divide-y cc-sep">
+          {etats.map((e) => (
+            <li key={e.cle} className="p-4 grid gap-2 md:grid-cols-[1fr_1.4fr_1.2fr] md:gap-4 text-[13px]">
+              <div className="flex md:flex-col items-start gap-2 md:gap-1">
+                <span className="font-semibold">{t(e.nom)}</span>
+                <Badge ton={e.active ? "good" : e.indispensable ? "bad" : "warn"}>{t(e.active ? "Active" : e.indispensable ? "Indispensable · incomplète" : "Facultative · inactive")}</Badge>
+              </div>
+              <p className="cc-muted">{t(e.fonction)}</p>
+              <ul className="space-y-1">
+                {e.variables.map((v) => (
+                  <li key={v.nom} className={`flex items-center gap-2 min-w-0 ${v.configuree ? "cc-good" : "cc-bad"}`}>
+                    {v.configuree ? <CheckCircle2 size={14} className="shrink-0" aria-hidden /> : <XCircle size={14} className="shrink-0" aria-hidden />}
+                    <code className="text-[12px] [overflow-wrap:anywhere]">{v.nom}</code>
+                    <span className="text-[12px]">{t(v.configuree ? "configurée" : "absente")}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </Carte>
     </div>
   );
 }

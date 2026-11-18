@@ -54,6 +54,9 @@ model Tenant {
   snapActif             Boolean  @default(false)
   parametresAffiliation Json?    @default("{}")
   parametresCommande    Json     @default("{}") // formulaire "Commander maintenant" : champs actifs/personnalisés
+  politiques            Json     @default("{}") // 4 politiques (livraison, retours, confidentialite, cgv) : lib/politiques.ts
+  demarrage             Json     @default("{}") // suivi des étapes de démarrage et relances de complétude : lib/demarrage-regles.ts
+  horaires              String?  // horaires d'ouverture affichés sur la page Contact
   metaPixelId           String? // Meta Pixel ID du marchand, injecté sur la vitrine
   tiktokPixelId         String? // TikTok Pixel ID, injecté sur la vitrine
   snapPixelId           String? // Snapchat Pixel ID, injecté sur la vitrine
@@ -117,6 +120,7 @@ model Produit {
   poids           Float?
   actif           Boolean  @default(true)
   featured        Boolean  @default(false)
+  exempleAxia     Boolean  @default(false) // produit d'exemple créé par Axia à l'inscription : inactif, jamais visible des clients ; « Activer ce produit » le passe à false
   metaTitle       String?
   metaDesc        String?
   ogImage         String?   // Image Open Graph dédiée (sinon images[0])

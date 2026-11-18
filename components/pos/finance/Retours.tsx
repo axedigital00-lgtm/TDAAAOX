@@ -8,7 +8,7 @@
 // Un remboursement Mobile Money ou carte reste DÉCLARATIF : AXSO n'envoie pas
 // l'argent, le caissier le rend lui-même — l'écran le dit (« Non vérifié »).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Plus, Printer, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Printer, RotateCcw, Search, Trash2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { Badge, BadgePaiement, Bouton, BoutonIcone, CLASSE_SAISIE, Champ, EtatChargement, EtatNonAutorise, EtatPos, EtatVide, Saisie } from "@/components/pos/ui";
@@ -41,7 +41,8 @@ const TYPES = [["remboursement", "Rembourser"], ["avoir", "Émettre un avoir"], 
 const LIBELLES_TYPE: Record<string, string> = { remboursement: "Remboursement", avoir: "Avoir", echange: "Échange" };
 const BOUTON_CHOIX = "min-h-11 rounded-xl border px-3 text-[12.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] disabled:opacity-50 disabled:cursor-not-allowed";
 
-export function Retours() {
+/** `lienCaisse` : page du tableau de bord (hors kiosque, qui a ses propres onglets) — bouton de retour à l'écran de vente. */
+export function Retours({ lienCaisse = false }: { lienCaisse?: boolean } = {}) {
   const t = useT();
   const { fmt } = useDevise();
   const [caisseId] = useCaisse();
@@ -71,9 +72,10 @@ export function Retours() {
         <div role="tablist" className="flex rounded-xl bg-[#F5F5F5] p-1">
           {([["nouveau", "Nouveau retour"], ["historique", "Historique"]] as const).map(([id, label]) => (
             <button key={id} role="tab" aria-selected={onglet === id} onClick={() => setOnglet(id)}
-              className={`min-h-9 rounded-lg px-3 text-[12px] font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#111111] ${onglet === id ? "bg-white shadow-sm" : "text-[#666666]"}`}>{t(label)}</button>
+              className={`min-h-11 rounded-lg px-3 text-[12.5px] font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#111111] ${onglet === id ? "bg-white shadow-sm" : "text-[#666666]"}`}>{t(label)}</button>
           ))}
         </div>
+        {lienCaisse && <Bouton variante="secondaire" href="/dashboard/pos/caisse" icone={<ArrowLeft size={15} aria-hidden />}>{t("Retour à la caisse")}</Bouton>}
       </EnTete>
 
       {onglet === "historique" && <HistoriqueRetours caisseId={caisseId} />}

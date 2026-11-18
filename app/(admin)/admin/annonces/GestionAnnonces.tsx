@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
 import { ContenuAnnonce } from "@/components/dashboard/BannierePub";
 import { Badge, Carte, EtatVide } from "@/components/command-center/ui";
+import { useConfirmation } from "@/components/command-center/Confirmation";
 import { PAYS } from "@/lib/command-center/types";
 import { NOMS_PALIERS } from "@/lib/plans";
 import { PLANS_ANNONCE } from "@/lib/annonces";
@@ -47,6 +48,7 @@ export function GestionAnnonces({ initial, lecture }: { initial: AnnonceAdmin[];
   const router = useRouter();
   const [edition, setEdition] = useState<string | null>(null); // id, "nouvelle" ou null
   const [charge, setCharge] = useState<string | null>(null);
+  const { confirmer, dialogue } = useConfirmation();
 
   const agir = async (id: string, url: string, method: string, corps?: unknown) => {
     setCharge(id);
@@ -62,7 +64,7 @@ export function GestionAnnonces({ initial, lecture }: { initial: AnnonceAdmin[];
   return (
     <div className="space-y-3">
       {!lecture && edition !== "nouvelle" && (
-        <button className="cc-btn cc-btn-primary cc-btn-sm" onClick={() => setEdition("nouvelle")}><Plus size={13} />{t("Nouvelle annonce")}</button>
+        <button className="cc-btn cc-btn-primary cc-btn-sm" onClick={() => setEdition("nouvelle")}><Plus size={13} aria-hidden />{t("Créer une annonce")}</button>
       )}
       {edition === "nouvelle" && (
         <Carte titre={t("Nouvelle annonce")}>
@@ -70,18 +72,21 @@ export function GestionAnnonces({ initial, lecture }: { initial: AnnonceAdmin[];
             onEnregistrer={async (c) => { if (await agir("nouvelle", "/api/admin/annonces", "POST", c)) setEdition(null); }} />
         </Carte>
       )}
-      {!initial.length && edition !== "nouvelle" && <Carte><EtatVide titre={t("Aucune annonce")} explication={t("Sans annonce active, la bannière n'apparaît pas chez les marchands.")} /></Carte>}
+      {!initial.length && edition !== "nouvelle" && <Carte><EtatVide titre={t("Aucune annonce pour l'instant.")} explication={t("Sans annonce active, la bannière n'apparaît pas chez les marchands.")} /></Carte>}
       {initial.map((a) => (
         <Carte key={a.id} titre={<span className="flex items-center gap-2">#{a.ordre} · {a.marque} {statut(a, t)}</span>}
           sousTitre={t("{0} affichages · {1} clics · taux de clic {2}", a.affichages.toLocaleString(t.loc), a.clics.toLocaleString(t.loc), a.affichages ? `${((a.clics / a.affichages) * 100).toLocaleString(t.loc, { maximumFractionDigits: 1 })} %` : "—")}
           actions={!lecture && edition !== a.id && (
             <>
               <button className="cc-btn cc-btn-sm" disabled={charge === a.id} onClick={() => agir(a.id, `/api/admin/annonces/${a.id}`, "PATCH", { ...champs(a), active: !a.active })}>
-                {charge === a.id ? <Loader2 size={12} className="animate-spin" /> : a.active ? <Pause size={12} /> : <Play size={12} />}{t(a.active ? "Désactiver" : "Activer")}
+                {charge === a.id ? <Loader2 size={12} className="animate-spin" /> : a.active ? <Pause size={12} /> : <Play size={12} />}{t(a.active ? "Mettre en pause" : "Diffuser")}
               </button>
-              <button className="cc-btn cc-btn-ghost cc-btn-sm" onClick={() => setEdition(a.id)} aria-label={t("Modifier")}><Pencil size={12} /></button>
-              <button className="cc-btn cc-btn-ghost cc-btn-sm" disabled={charge === a.id} aria-label={t("Supprimer")}
-                onClick={() => { if (confirm(t("Supprimer définitivement l'annonce « {0} » ? Ses compteurs seront perdus.", a.marque))) agir(a.id, `/api/admin/annonces/${a.id}`, "DELETE"); }}><Trash2 size={12} /></button>
+              <button className="cc-btn cc-btn-ghost cc-btn-sm" onClick={() => setEdition(a.id)} aria-label={t("Modifier l'annonce « {0} »", a.marque)}><Pencil size={12} aria-hidden /></button>
+              <button className="cc-btn cc-btn-ghost cc-btn-sm cc-bad" disabled={charge === a.id} aria-label={t("Supprimer l'annonce « {0} »", a.marque)}
+                onClick={async () => {
+                  const ok = await confirmer({ titre: t("Supprimer l'annonce « {0} » ?", a.marque), message: t("Elle disparaît de la bannière des marchands et ses compteurs ({0} affichages, {1} clics) sont perdus. Pour l'arrêter sans la perdre, désactivez-la.", a.affichages.toLocaleString(t.loc), a.clics.toLocaleString(t.loc)), action: t("Supprimer l'annonce"), danger: true });
+                  if (ok) agir(a.id, `/api/admin/annonces/${a.id}`, "DELETE");
+                }}><Trash2 size={12} aria-hidden /></button>
             </>
           )}>
           {edition === a.id
@@ -99,6 +104,7 @@ export function GestionAnnonces({ initial, lecture }: { initial: AnnonceAdmin[];
               </>}
         </Carte>
       ))}
+      {dialogue}
     </div>
   );
 }
@@ -169,7 +175,7 @@ function Formulaire({ initial, charge, onAnnuler, onEnregistrer }: { initial: Ch
         <label className="flex items-center gap-1.5 text-[12.5px]"><input type="checkbox" checked={c.active} onChange={(e) => maj({ active: e.target.checked })} />{t("Active (diffusée)")}</label>
         <span className="flex-1" />
         <button type="button" className="cc-btn cc-btn-ghost cc-btn-sm" onClick={onAnnuler}><X size={12} />{t("Annuler")}</button>
-        <button className="cc-btn cc-btn-primary cc-btn-sm" disabled={charge}>{charge ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}{t("Enregistrer")}</button>
+        <button className="cc-btn cc-btn-primary cc-btn-sm" disabled={charge}>{charge ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}{t("Enregistrer l'annonce")}</button>
       </div>
     </form>
   );

@@ -18,7 +18,9 @@ import { formatMontant, slugify } from "./utils";
 import { MANIFESTE_LIBRAIRIE } from "./axso-design-manifest";
 import { fichierDepuisSlugTheme } from "./axso-design-library";
 import { remplacerTokensCarte } from "./theme-import-clone";
-import { corrigerLiensDesign } from "./liens-design";
+import { corrigerLiensDesign, faqBoutique } from "./liens-design";
+import { panierActif } from "./mode-achat";
+import { politiquesPubliees } from "./politiques";
 import { convertirMontant } from "./devise-convert";
 import { deviseVisiteur } from "./devise-visiteur";
 import { tauxDuJour } from "./taux-change";
@@ -103,7 +105,34 @@ function reconstruireFiltres(racine: ParsedElement, categories: Catalogue["categ
   });
 }
 
+// Tri (récents / prix) et message « aucun résultat » (recherche, filtre) : ajoutés aux designs qui
+// n'en ont pas, juste avant la grille ; le comportement est dans components/storefront/FiltresCatalogue.tsx.
+function ajouterTriEtVide(racine: ParsedElement) {
+  const grille = racine.querySelector("#plpGrid");
+  if (!grille) return;
+  if (!racine.querySelector("select[data-axs-tri]")) {
+    grille.insertAdjacentHTML("beforebegin", `<div data-axs-tri-barre style="display:flex;justify-content:flex-end;margin:0 0 16px"><label style="display:inline-flex;align-items:center;gap:8px;font-size:14px">Trier <select data-axs-tri style="font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;min-height:40px"><option value="recent">Nouveautés</option><option value="asc">Prix croissant</option><option value="desc">Prix décroissant</option></select></label></div>`);
+  }
+  if (!racine.querySelector("#plpEmpty")) {
+    grille.insertAdjacentHTML("afterend", `<p id="plpEmpty" style="display:none;text-align:center;padding:48px 16px;opacity:.7">Aucun produit ne correspond à votre recherche.</p>`);
+  }
+}
+
 const CARTES_ACCUEIL = 8;
+
+// Mode panier : « Ajouter au panier » sur la carte (produit physique en stock, sans variante à choisir —
+// sinon la carte mène à la fiche). Le clic est capté par components/storefront/Panier.tsx ; le prix
+// (devise de la boutique) n'est qu'indicatif, la page de commande le recalcule.
+function boutonAjoutCarte(html: string, p: { id: string; nom: string; images: string[]; stock: number }, prix: number): string {
+  const racine = parse(html);
+  const carte = racine.childNodes.find((n) => (n as ParsedElement).tagName) as ParsedElement | undefined;
+  if (!carte) return html;
+  const attrs = `data-axs-ajout="${esc(p.id)}" data-nom="${esc(p.nom)}" data-prix="${prix}" data-image="${esc(p.images[0] ?? "")}" data-stock="${p.stock}" role="button" tabindex="0"`;
+  const cta = carte.querySelector(".pcard-cta");
+  if (cta) cta.replaceWith(`<span class="pcard-cta" ${attrs}>Ajouter au panier</span>`);
+  else carte.insertAdjacentHTML("beforeend", `<span class="pcard-cta" ${attrs} style="display:block;margin-top:8px;padding:10px 0;font-weight:600;text-decoration:underline">Ajouter au panier</span>`);
+  return racine.toString();
+}
 
 function remplirGrilles(html: string | undefined, cat: Catalogue): string | undefined {
   if (!html || !RE_GRILLE.test(html)) return html;
@@ -116,7 +145,7 @@ function remplirGrilles(html: string | undefined, cat: Catalogue): string | unde
     const mot = el.text.trim().match(/^\d+\s+(.+?)s?$/)?.[1];
     if (mot) el.set_content(`${cat.nb} ${mot}${cat.nb > 1 ? "s" : ""}`);
   });
-  if (racine.querySelector("#plpGrid")) reconstruireFiltres(racine, cat.categories);
+  if (racine.querySelector("#plpGrid")) { reconstruireFiltres(racine, cat.categories); ajouterTriEtVide(racine); }
   return racine.toString();
 }
 
@@ -137,8 +166,8 @@ async function rafraichirGrillesProduits(cfg: ThemeConfig, themeId: string, tena
   if (!RE_GRILLE.test((cfg.builderHtml ?? "") + (cfg.builderHtmlProduits ?? "") + JSON.stringify(tree))) return cfg;
   const [theme, tenant, produits, ordreCategories] = await Promise.all([
     prisma.theme.findUnique({ where: { id: themeId }, select: { slug: true } }),
-    prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, devise: true, commissionRate: true } }),
-    prisma.produit.findMany({ where: { tenantId, actif: true }, orderBy: { createdAt: "desc" }, take: 500 }), // ponytail: tout le catalogue en HTML, paginer au-delà de 500
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, devise: true, commissionRate: true, parametresCommande: true } }),
+    prisma.produit.findMany({ where: { tenantId, actif: true }, orderBy: { createdAt: "desc" }, take: 500, include: { _count: { select: { variantes: { where: { actif: true } } } } } }), // ponytail: tout le catalogue en HTML, paginer au-delà de 500
     prisma.categorieProduit.findMany({ where: { tenantId }, orderBy: [{ ordre: "asc" }, { createdAt: "asc" }], select: { nom: true } }),
   ]);
   const fichier = theme ? fichierDepuisSlugTheme(theme.slug) : null;
@@ -147,6 +176,7 @@ async function rafraichirGrillesProduits(cfg: ThemeConfig, themeId: string, tena
   // Sans produit, on garde les cartes de démonstration du design.
   if (!tenant || !carte || produits.length === 0) return cfg;
   const taux = tenant.commissionRate ?? 0.1;
+  const panier = panierActif(tenant.parametresCommande, cfg.modeBoutique === "digital");
   const [devise, tauxChange] = await Promise.all([deviseVisiteur(tenant.devise), tauxDuJour()]); // prix des cartes dans la devise du visiteur, aux taux du jour
   // Filtres : catégories qui ont des produits, dans l'ordre choisi sur la page Catalogue → Catégories.
   const rang = (label: string) => { const i = ordreCategories.findIndex((c) => c.nom === label); return i < 0 ? Infinity : i; };
@@ -156,7 +186,8 @@ async function rafraichirGrillesProduits(cfg: ThemeConfig, themeId: string, tena
   // Catégorie, prix et rang (nouveautés) sur chaque carte : de quoi filtrer et trier dans le navigateur.
   const cartes = produits.map((p, rang) => {
     const prix = convertirMontant(prixClient(p.prix, taux, p.type), tenant.devise, devise, tauxChange);
-    const html = remplacerTokensCarte(carte, { id: p.id, nom: p.nom, prixAffiche: formatMontant(prix, devise), image: p.images[0] ?? null, description: p.description }, tenant.slug);
+    let html = remplacerTokensCarte(carte, { id: p.id, nom: p.nom, prixAffiche: formatMontant(prix, devise), image: p.images[0] ?? null, description: p.description }, tenant.slug);
+    if (panier && p.type === "physique" && p.stock > 0 && p._count.variantes === 0) html = boutonAjoutCarte(html, p, prixClient(p.prix, taux, p.type));
     return html.replace(/^(\s*<[a-zA-Z0-9]+)/, `$1 data-cat="${esc(slugify(p.categorie ?? ""))}" data-prix="${prix}" data-rang="${rang}"`);
   });
   const cat: Catalogue = { cartes, nb: produits.length, categories };
@@ -193,7 +224,13 @@ export async function resolveConfigVitrine(themeId: string, tenantId: string, sa
     resolveThemeConfigAsync(themeId, tenantId, apercu ?? (variante ? { ...savedConfig, ...variante } : savedConfig)),
     // Liens du pied de page vers chaque collection (voir lib/liens-design.ts).
     prisma.collection.findMany({ where: { tenantId, actif: true }, orderBy: { createdAt: "desc" }, select: { slug: true, nom: true } }),
-    prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, nomBoutique: true, logoUrl: true } }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, nomBoutique: true, logoUrl: true, parametresCommande: true, politiques: true } }),
   ]);
-  return appliquerConstructeur(corrigerLiensDesign(await rafraichirGrillesProduits(cfg, themeId, tenantId), { slug: tenant?.slug, collections, digital: cfg.modeBoutique === "digital", nom: tenant?.nomBoutique, logoUrl: tenant?.logoUrl }));
+  const digital = cfg.modeBoutique === "digital";
+  return appliquerConstructeur(corrigerLiensDesign(await rafraichirGrillesProduits(cfg, themeId, tenantId), {
+    slug: tenant?.slug, collections, digital, nom: tenant?.nomBoutique, logoUrl: tenant?.logoUrl,
+    panier: panierActif(tenant?.parametresCommande, digital),
+    politiques: politiquesPubliees(tenant?.politiques).map((p) => p.type),
+    faq: faqBoutique(cfg).length > 0,
+  }));
 }

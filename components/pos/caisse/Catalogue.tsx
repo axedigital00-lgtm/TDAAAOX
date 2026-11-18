@@ -104,8 +104,10 @@ export function Catalogue({ caisseId, modeSimple, champRef, onAjouter, actions, 
     else if (/^\d{6,}$/.test(terme)) { setQ(""); emettreLocal(terme, "clavier", { contexte: "vente", caisseId }); }
   };
 
+  // @container : le nombre de colonnes suit la largeur réelle du catalogue (menu et panier
+  // ouverts à côté sur tablette), pas celle de l'écran.
   return (
-    <section aria-label={t("Catalogue")} className="flex min-w-0 flex-col gap-3">
+    <section aria-label={t("Catalogue")} className="@container flex min-w-0 flex-col gap-3">
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
@@ -143,7 +145,7 @@ export function Catalogue({ caisseId, modeSimple, champRef, onAjouter, actions, 
           </EtatVide>
         ) : (
           <>
-            <ul className={cn("grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5", etat === "chargement" && "opacity-60")} aria-busy={etat === "chargement"}>
+            <ul className={cn("grid grid-cols-2 gap-2 @md:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-5", etat === "chargement" && "opacity-60")} aria-busy={etat === "chargement"}>
               {articles.map((a) => {
                 const stock = a.stockMagasin ?? a.stock;
                 return (

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useWishlistStore } from "@/store/wishlistStore";
-import { Menu, X, Search, BadgeCheck, Heart, ChevronDown, Package, User } from "lucide-react";
+import { Menu, X, Search, BadgeCheck, Heart, ChevronDown, Package, User, ShoppingBag } from "lucide-react";
+import { usePanierVitrine } from "@/components/storefront/Panier";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ThemeNavigationCfg } from "@/lib/theme-config";
 import { usePrix, PastillePays } from "@/components/storefront/DeviseVitrine";
@@ -67,6 +68,7 @@ export function StorefrontNavbar({ slug, nomBoutique, logoUrl, accent, fond, tex
   const { fmt } = usePrix();
   const menu = useContext(MenuVitrine);
   const wishlistCount = useWishlistStore((s) => s.produitIds.length);
+  const panier = usePanierVitrine(); // mode d'achat « panier » : bouton Panier (panneau latéral, components/storefront/Panier.tsx)
   const [menuOuvert, setMenuOuvert] = useState(false);
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const [megaOuvert, setMegaOuvert] = useState(false);
@@ -306,6 +308,13 @@ export function StorefrontNavbar({ slug, nomBoutique, logoUrl, accent, fond, tex
             </button>
           )}
         </div>
+      )}
+
+      {panier && (
+        <Link href={`/${slug}/panier`} data-axs-panier="" className="flex items-center justify-center w-9 h-9 rounded-xl transition-all hover:opacity-80"
+          style={{ backgroundColor: `${accent}12`, color: txt }} aria-label={t("Panier")}>
+          <ShoppingBag size={16} />
+        </Link>
       )}
 
       {showWishlist && (

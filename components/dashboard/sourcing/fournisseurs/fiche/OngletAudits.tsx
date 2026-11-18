@@ -78,7 +78,7 @@ export function OngletAudits({ fiche, recharger }: PropsOnglet) {
                   onChange={(e) => executer(() => envoyer(api, "PATCH", { id: a.id, statut: e.target.value }))}>
                   {Object.entries(STATUTS_AUDIT).map(([cle, libelle]) => <option key={cle} value={cle}>{t(libelle)}</option>)}
                 </select>
-                <BoutonSupprimer disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${a.id}`, "DELETE"))} />
+                <BoutonSupprimer objet={`${t(TYPES_AUDIT[a.type] ?? a.type)} — ${dateCourte(a.dateAudit, t.loc)}`} disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${a.id}`, "DELETE"))} />
               </li>
             );
           })}

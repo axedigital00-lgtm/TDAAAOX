@@ -24,34 +24,36 @@ export default function DashboardError({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 px-4">
-      <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
-        <AlertTriangle size={28} className="text-red-500" />
+      <div className="w-16 h-16 rounded-2xl bg-erreur-fond border border-erreur-bordure flex items-center justify-center">
+        <AlertTriangle size={28} className="text-erreur" />
       </div>
       <div className="text-center max-w-md">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">
-          {t("Une erreur s'est produite")}
-        </h2>
-        <p className="text-gray-500 text-sm leading-relaxed">
-          {t("Le tableau de bord n'a pas pu se charger. Réessaie dans un instant.")}
+        <h1 className="text-xl font-bold text-encre mb-2">
+          {t("Cette page n'a pas pu s'afficher")}
+        </h1>
+        <p className="text-doux text-sm leading-relaxed">
+          {t("Tes données ne sont pas perdues. Réessaie ; si la page ne revient pas, recharge-la ou signale le problème (le détail ci-dessous est joint automatiquement).")}
         </p>
         {/* Texte exact de l'erreur : à envoyer au support (capture d'écran). */}
-        {error.message && <p className="text-xs text-gray-500 mt-3 font-mono break-words">{error.message}</p>}
-        {error.digest && (
-          <p className="text-xs text-gray-400 mt-2 font-mono">#{error.digest}</p>
+        {(error.message || error.digest) && (
+          <p className="text-xs text-doux mt-3 break-words">
+            <span className="font-semibold">{t("Détail pour le support :")}</span>{" "}
+            <span className="font-mono">{error.message}{error.digest ? ` #${error.digest}` : ""}</span>
+          </p>
         )}
       </div>
       <button
         onClick={reset}
-        className="flex items-center gap-2 px-6 py-3 bg-[#F5A623] text-white font-semibold rounded-2xl hover:bg-[#e8950f] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-[#F5A623]/20"
+        className="flex min-h-11 items-center gap-2 px-6 bg-primaire text-sur-primaire font-semibold rounded-controle hover:bg-primaire-hover transition-colors"
       >
         <RefreshCw size={15} />
-        {t("Réessayer")}
+        {t("Réessayer d'afficher la page")}
       </button>
       {/* Nouvelle version mise en ligne pendant que la page était ouverte : seul un vrai rechargement récupère ses fichiers. */}
-      <button onClick={() => window.location.reload()} className="text-sm text-gray-500 underline hover:text-gray-800">
+      <button onClick={() => window.location.reload()} className="min-h-10 text-sm text-doux underline hover:text-encre">
         {t("Recharger la page")}
       </button>
-      <Link href={lienSignalement(pathname)} className="flex items-center gap-1.5 text-sm text-gray-500 underline hover:text-gray-800">
+      <Link href={lienSignalement(pathname)} className="flex min-h-10 items-center gap-1.5 text-sm text-doux underline hover:text-encre">
         <LifeBuoy size={14} />{t("Signaler ce problème")}
       </Link>
     </div>

@@ -19,6 +19,7 @@ import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicato
 import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { MarketingTutorial } from "@/components/dashboard/tutorials/MarketingTutorial";
 import { getT } from "@/lib/i18n/serveur";
+import { Badge, Bouton, EnTetePage, EtatVide, type Ton } from "@/components/ui";
 
 export default async function MarketingPage() {
   const t = await getT();
@@ -51,7 +52,7 @@ export default async function MarketingPage() {
       href: "/dashboard/marketing/codes-promo",
       accent: "#F5A623",
       stat: codesActifs > 0 ? t("{0} code(s) actif(s)", codesActifs) : t("Aucun code actif"),
-      statClass: codesActifs > 0 ? "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]" : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]",
+      ton: (codesActifs > 0 ? "attention" : "neutre") as Ton,
     },
     {
       icone: Mail,
@@ -60,7 +61,7 @@ export default async function MarketingPage() {
       href: "/dashboard/marketing/email",
       accent: "#16A34A",
       stat: t("{0} client(s) à contacter", totalClients),
-      statClass: "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]",
+      ton: "succes" as Ton,
     },
     {
       icone: Megaphone,
@@ -69,7 +70,7 @@ export default async function MarketingPage() {
       href: "/dashboard/campagnes",
       accent: "#7C3AED",
       stat: t("Popups et automatisations"),
-      statClass: "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]",
+      ton: "neutre" as Ton,
     },
     {
       icone: TrendingUp,
@@ -78,7 +79,7 @@ export default async function MarketingPage() {
       href: "/dashboard/produits",
       accent: "#D97706",
       stat: t("Optimisez vos fiches"),
-      statClass: "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]",
+      ton: "neutre" as Ton,
     },
     {
       icone: Target,
@@ -87,27 +88,18 @@ export default async function MarketingPage() {
       href: "/dashboard/marketing/tracking",
       accent: "#1877F2",
       stat: pixelsActifs > 0 ? t("{0} pixel(s) actif(s)", pixelsActifs) : t("Aucun pixel actif"),
-      statClass: pixelsActifs > 0 ? "bg-[#EFF6FF] text-[#1877F2] border border-[#BFDBFE]" : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]",
+      ton: (pixelsActifs > 0 ? "info" : "neutre") as Ton,
     },
   ];
 
   return (
     <div className="space-y-6">
       <MarketingTutorial />
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-[#111111] font-poppins inline-flex items-center gap-2">{t("Marketing")}{" "}<AgentActiveIndicator label={t("Agent Marketing actif")} /></h1>
-            <BoutonRevoirTutoriel moduleKey="marketing" />
-          </div>
-          <p className="text-[#717171] text-sm mt-1">{t("Boostez vos ventes avec des outils ciblés")}</p>
-        </div>
-        <div className="flex items-center gap-2 bg-white border border-[#E8E8E8] rounded-xl px-4 py-2">
-          <Users size={14} className="text-[#717171]" />
-          <span className="text-[#717171] text-sm">{t("{0} client(s)", totalClients)}</span>
-        </div>
-      </div>
+      <EnTetePage className="mb-0"
+        titre={<span className="inline-flex items-center gap-2">{t("Marketing")}{" "}<AgentActiveIndicator label={t("Agent Marketing actif")} /></span>}
+        description={t("Boostez vos ventes avec des outils ciblés")}
+        indicateurs={<BoutonRevoirTutoriel moduleKey="marketing" />}
+        actions={<Bouton href="/dashboard/marketing/codes-promo" icone={<Tag className="size-4" aria-hidden />}>{t("Créer un code promo")}</Bouton>} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -115,16 +107,16 @@ export default async function MarketingPage() {
           { label: "Codes actifs",    value: codesActifs.toString(),                                                              icon: Tag,      accent: "#F5A623" },
           { label: "Total codes",     value: totalCodes.toString(),                                                              icon: Zap,      accent: "#7C3AED" },
           { label: "Base clients",    value: totalClients.toString(),                                                              icon: Users,    accent: "#16A34A" },
-          { label: "Taux activation", value: totalCodes > 0 ? `${Math.round((codesActifs / totalCodes) * 100)}%` : "—", icon: TrendingUp, accent: "#D97706" },
+          { label: "Part de codes actifs", value: totalCodes > 0 ? `${Math.round((codesActifs / totalCodes) * 100)}%` : "—", icon: TrendingUp, accent: "#D97706" },
         ].map((stat, i) => {
           const Icone = stat.icon;
           return (
-            <div key={i} className="bg-white border border-[#E8E8E8] rounded-2xl p-4">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4] mb-3">
+            <div key={i} className="ax-card p-4">
+              <div className="w-8 h-8 rounded-controle flex items-center justify-center bg-carte-2 mb-3" aria-hidden>
                 <Icone size={15} style={{ color: stat.accent }} />
               </div>
-              <p className="text-[#111111] text-xl font-bold font-poppins">{stat.value}</p>
-              <p className="text-[#717171] text-xs mt-0.5">{t(stat.label)}</p>
+              <p className="text-encre text-xl font-bold tabular-nums">{stat.value}</p>
+              <p className="ax-aide mt-0.5">{t(stat.label)}</p>
             </div>
           );
         })}
@@ -135,28 +127,21 @@ export default async function MarketingPage() {
         {tools.map((tool, i) => {
           const Icone = tool.icone;
           return (
-            <Link key={i} href={tool.href}>
-              <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6 hover:border-[#D0D0D0] transition-colors group cursor-pointer h-full flex flex-col">
+            <Link key={i} href={tool.href} className="group rounded-carte focus-visible:outline-2 focus-visible:outline-focus">
+              <div className="ax-card p-6 group-hover:border-bordure-forte transition-colors h-full flex flex-col">
                 <div className="flex items-start justify-between mb-5">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#F4F4F4]">
+                  <div className="w-11 h-11 rounded-controle flex items-center justify-center bg-carte-2" aria-hidden>
                     <Icone size={20} style={{ color: tool.accent }} />
                   </div>
-                  <ArrowRight
-                    size={16}
-                    className="text-[#717171] group-hover:text-[#111111] group-hover:translate-x-0.5 transition-all duration-200 mt-1"
-                  />
+                  <ArrowRight size={16} aria-hidden className="text-doux group-hover:text-encre group-hover:translate-x-0.5 transition-all duration-200 mt-1" />
                 </div>
 
-                <p className="text-[#111111] font-semibold text-sm">{t(tool.titre)}</p>
-                <p className="text-[#717171] text-sm mt-1 leading-relaxed flex-1">{t(tool.description)}</p>
+                <h2 className="ax-sous-titre">{t(tool.titre)}</h2>
+                <p className="ax-texte-secondaire mt-1 flex-1">{t(tool.description)}</p>
 
-                <div className="mt-4 pt-4 border-t border-[#E8E8E8] flex items-center justify-between">
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tool.statClass}`}>
-                    {tool.stat}
-                  </span>
-                  <span className="text-xs font-medium text-[#717171] md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                    {t("Accéder →")}
-                  </span>
+                <div className="mt-4 pt-4 border-t border-bordure flex items-center justify-between gap-2">
+                  <Badge ton={tool.ton}>{tool.stat}</Badge>
+                  <span className="text-xs font-semibold text-encre">{t("Ouvrir")} →</span>
                 </div>
               </div>
             </Link>
@@ -166,36 +151,31 @@ export default async function MarketingPage() {
 
       {/* Codes promo récents */}
       {codesPromo.length > 0 && (
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-5">
+        <div className="ax-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
-                <Tag size={15} className="text-[#F5A623]" />
+              <div className="w-8 h-8 rounded-controle flex items-center justify-center bg-carte-2" aria-hidden>
+                <Tag size={15} className="text-attention" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-[#111111]">{t("Codes promo récents")}</h2>
-                <p className="text-[#717171] text-xs">{t("{0} actif(s) sur {1}", codesActifs, totalCodes)}</p>
+                <h2 className="ax-sous-titre">{t("Codes promo récents")}</h2>
+                <p className="ax-aide">{t("{0} actif(s) sur {1}", codesActifs, totalCodes)}</p>
               </div>
             </div>
-            <Link
-              href="/dashboard/marketing/codes-promo"
-              className="flex items-center gap-1 text-sm font-medium text-[#F5A623] hover:text-[#D97706] transition-colors"
-            >
-              {t("Voir tout")}{" "}<ArrowRight size={14} />
-            </Link>
+            <Bouton variante="fantome" taille="compact" href="/dashboard/marketing/codes-promo">{t("Voir tous les codes")} →</Bouton>
           </div>
 
           <div className="space-y-2">
             {codesPromo.map((code) => (
               <div
                 key={code.id}
-                className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-[#F4F4F4] border border-[#E8E8E8] hover:border-[#D0D0D0] transition-colors"
+                className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-controle bg-carte-2 border border-bordure"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <code className="text-sm font-mono font-bold px-3 py-1 rounded-lg bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
+                  <code className="text-sm font-mono font-bold px-3 py-1 rounded-controle bg-primaire-fond text-encre border border-attention-bordure">
                     {code.code}
                   </code>
-                  <span className="text-[#717171] text-sm">
+                  <span className="ax-texte-secondaire">
                     {code.type === "pourcentage"
                       ? t("{0}% de remise", code.valeur)
                       : t("{0} de remise", formatMontant(code.valeur, tenant.devise))}
@@ -203,16 +183,10 @@ export default async function MarketingPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[#717171] text-xs">
-                    {code.utilisations}/{code.maxUtilisations ?? "∞"} {t("util.")}
+                  <span className="ax-aide">
+                    {code.utilisations}/{code.maxUtilisations ?? "∞"} {t("utilisations")}
                   </span>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    code.actif
-                      ? "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]"
-                      : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]"
-                  }`}>
-                    {code.actif ? t("Actif") : t("Inactif")}
-                  </span>
+                  <Badge ton={code.actif ? "succes" : "neutre"}>{code.actif ? t("Actif") : t("Inactif")}</Badge>
                 </div>
               </div>
             ))}
@@ -222,21 +196,10 @@ export default async function MarketingPage() {
 
       {/* Empty state */}
       {codesPromo.length === 0 && totalClients === 0 && (
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-10 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#F4F4F4] border border-[#E8E8E8] flex items-center justify-center mx-auto mb-4">
-            <Megaphone size={24} className="text-[#717171]" />
-          </div>
-          <p className="text-[#111111] font-semibold text-base mb-2">{t("Prêt à booster vos ventes ?")}</p>
-          <p className="text-[#717171] text-sm mb-6 max-w-sm mx-auto">
-            {t("Commencez par créer un code promo pour attirer vos premiers clients.")}
-          </p>
-          <Link href="/dashboard/marketing/codes-promo">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#111111] text-white">
-              <Tag size={14} />
-              {t("Créer un code promo")}
-            </span>
-          </Link>
-        </div>
+        <EtatVide icone={<Megaphone />} titre={t("Prêt à booster vos ventes ?")}
+          texte={t("Commencez par créer un code promo pour attirer vos premiers clients.")}>
+          <Bouton variante="secondaire" href="/dashboard/marketing/codes-promo" icone={<Tag className="size-4" aria-hidden />}>{t("Créer un code promo")}</Bouton>
+        </EtatVide>
       )}
     </div>
   );

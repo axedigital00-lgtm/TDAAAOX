@@ -6,6 +6,7 @@ import { formatDate, formatMontant } from "@/lib/utils";
 import {
   Users, TrendingUp, ShoppingBag, Star, ChevronRight, ArrowUpRight,
 } from "lucide-react";
+import { Badge, Bouton, EnTetePage, EtatVide } from "@/components/ui";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
 import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { ClientsTutorial } from "@/components/dashboard/tutorials/ClientsTutorial";
@@ -33,22 +34,9 @@ async function Avatar({ nom, idx }: { nom: string; idx: number }) {
 async function SegmentBadge({ nbCommandes, total, devise }: { nbCommandes: number; total: number; devise: string }) {
   const tx = await getT();
   if (estVip(nbCommandes, total, devise))
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A]">
-        <Star size={9} fill="currentColor" /> VIP
-      </span>
-    );
-  if (nbCommandes >= 2)
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0]">
-        <span className="w-[5px] h-[5px] rounded-full bg-current" />{" "}{tx("Régulier")}
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold bg-[#F5F5F7] text-[#888888] border border-[#EBEBEB]">
-      <span className="w-[5px] h-[5px] rounded-full bg-current" />{" "}{tx("Nouveau")}
-    </span>
-  );
+    return <Badge ton="accent" icone={<Star fill="currentColor" aria-hidden />}>VIP</Badge>;
+  if (nbCommandes >= 2) return <Badge ton="succes">{tx("Régulier")}</Badge>;
+  return <Badge ton="neutre">{tx("Nouveau")}</Badge>;
 }
 
 export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
@@ -138,30 +126,17 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
       <ClientsTutorial />
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap pt-1">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5 mb-1">
-            <h1 className="text-[20px] font-bold text-[#111111] tracking-tight inline-flex items-center gap-2">{tx("Clients")}{" "}<AgentActiveIndicator label={tx("Agent Clients actif")} /></h1>
-            <BoutonRevoirTutoriel moduleKey="clients" />
-            <span className="text-[11px] font-bold bg-[#F5F5F7] text-[#888888] border border-[#E8E8E8] px-2.5 py-0.5 rounded-full">
-              {tx(totalClients)}
-            </span>
-            {vipCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] px-2.5 py-0.5 rounded-full">
-                <Star size={9} fill="currentColor" /> {vipCount} VIP
-              </span>
-            )}
-          </div>
-          <p className="text-[12.5px] text-[#AAAAAA]">{tx("Analysez et fidélisez votre base clients")}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 text-[12px] bg-white border border-[#E8E8E8] rounded-2xl px-3.5 py-2">
-            <span className="text-[#AAAAAA]">{tx("Taux actifs")}</span>
-            <span className="font-bold text-[#111111]">{tx(tauxActifs)}%</span>
-          </div>
-        </div>
-      </div>
+      <EnTetePage
+        className="mb-0 pt-1"
+        titre={<span className="inline-flex items-center gap-2">{tx("Clients")}{" "}<AgentActiveIndicator label={tx("Agent Clients actif")} /></span>}
+        description={tx("Analysez et fidélisez votre base clients")}
+        indicateurs={<>
+          <BoutonRevoirTutoriel moduleKey="clients" />
+          <Badge>{totalClients}</Badge>
+          {vipCount > 0 && <Badge ton="accent" icone={<Star fill="currentColor" aria-hidden />}>{vipCount} VIP</Badge>}
+          <Badge>{tx("Taux actifs")} {tauxActifs}%</Badge>
+        </>}
+      />
 
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -198,17 +173,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           </div>
           {/* Legend */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            {[
-              { label: "VIP",      bg: "#FFFBEB", text: "#B45309", dot: "#F59E0B", border: "#FDE68A"  },
-              { label: "Régulier", bg: "#F0FDF4", text: "#15803D", dot: "#22C55E", border: "#BBF7D0"  },
-              { label: "Nouveau",  bg: "#F5F5F7", text: "#888888", dot: "#BBBBBB", border: "#EBEBEB"  },
-            ].map(s => (
-              <span key={s.label} className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
-                <span className="w-[5px] h-[5px] rounded-full" style={{ background: s.dot }} />
-                {tx(s.label)}
-              </span>
-            ))}
+            <Badge ton="accent">VIP</Badge>
+            <Badge ton="succes">{tx("Régulier")}</Badge>
+            <Badge ton="neutre">{tx("Nouveau")}</Badge>
           </div>
         </div>
 
@@ -219,17 +186,10 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           </div>
         )}
         {totalClients === 0 ? (
-          <div className="p-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#F5F5F7] flex items-center justify-center mx-auto mb-4">
-              <Users size={24} className="text-[#CCCCCC]" />
-            </div>
-            <p className="text-[14px] font-semibold text-[#111111] mb-1">{tx("Aucun client encore")}</p>
-            <p className="text-[12px] text-[#AAAAAA] mb-6">{tx("Vos clients apparaîtront ici dès leur première commande.")}</p>
-            <a href="/dashboard/boutique"
-              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-2xl bg-[#111111] text-white hover:bg-[#2a2a2a] transition-colors">
-              {tx("Voir ma boutique")}{" "}<ArrowUpRight size={13} />
-            </a>
-          </div>
+          <EtatVide className="border-0" icone={<Users />} titre={tx("Aucun client encore")}
+            texte={tx("Vos clients apparaîtront ici dès leur première commande.")}>
+            <Bouton variante="sombre" href="/dashboard/boutique">{tx("Voir ma boutique")}<ArrowUpRight className="size-4" aria-hidden /></Bouton>
+          </EtatVide>
         ) : (
           <>
             {/* Desktop table */}
@@ -329,11 +289,11 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             {nbPages > 1 && (
               <div className="px-6 py-3 border-t border-[#F3F3F3] flex items-center justify-between text-[12px] font-semibold">
                 {page > 1
-                  ? <a href={`/dashboard/clients?page=${page - 1}`} className="text-[#111] hover:underline">← {tx("Précédent")}</a>
+                  ? <Bouton variante="fantome" taille="compact" href={`/dashboard/clients?page=${page - 1}`}>← {tx("Précédent")}</Bouton>
                   : <span />}
-                <span className="text-[#AAAAAA]">{page} / {nbPages}</span>
+                <span className="text-doux">{page} / {nbPages}</span>
                 {page < nbPages
-                  ? <a href={`/dashboard/clients?page=${page + 1}`} className="text-[#111] hover:underline">{tx("Suivant")} →</a>
+                  ? <Bouton variante="fantome" taille="compact" href={`/dashboard/clients?page=${page + 1}`}>{tx("Suivant")} →</Bouton>
                   : <span />}
               </div>
             )}

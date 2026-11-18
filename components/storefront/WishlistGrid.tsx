@@ -9,7 +9,7 @@ import { usePrix } from "@/components/storefront/DeviseVitrine";
 import { useT } from "@/components/I18nProvider";
 
 interface Produit {
-  id: string; nom: string; images: string[]; categorie: string | null;
+  id: string; nom: string; images: string[]; categorie: string | null; type?: string;
   stock: number; ventes: number; prixAffiche: number; prixCompareAffiche: number | null;
 }
 
@@ -68,11 +68,11 @@ export function WishlistGrid({
                     ) : (
                       <div className="w-full h-full flex items-center justify-center"><Package size={40} className="opacity-20" /></div>
                     )}
-                    <WishlistHeartButton produitId={p.id} accent={accent} fond={fond} className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full" />
+                    <WishlistHeartButton produitId={p.id} accent={accent} fond={fond} className="absolute top-2.5 right-2 w-10 h-10 rounded-full" />
                     {remise > 0 && (
                       <span className="absolute top-2.5 left-2.5 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-500 text-white">-{t(remise)}%</span>
                     )}
-                    {p.stock === 0 && (
+                    {p.stock === 0 && (p.type ?? "physique") === "physique" && (
                       <span className="absolute bottom-2.5 left-2.5 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-black/60 text-white">{t("Épuisé")}</span>
                     )}
                   </div>

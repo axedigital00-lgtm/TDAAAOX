@@ -93,7 +93,7 @@ function Ajustement({ produit, lieux, lieuDefaut, caisseId, onFermer, onFait }: 
 
   return (
     <Modale ouverte onFermer={onFermer} titre="Ajuster le stock" description={produit.nom} verrouillee={envoi}
-      actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={envoyer} charge={envoi}>{t("Enregistrer")}</Bouton></>}>
+      actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={envoyer} charge={envoi}>{t("Enregistrer l'ajustement")}</Bouton></>}>
       <div className="space-y-3">
         <Champ label="Opération" aide={TYPES[type].aide}>
           {(a) => <select {...a} value={type} onChange={(e) => { setType(e.target.value); setDepuis(""); }} className={CLASSE_SAISIE}>{Object.entries(TYPES).map(([id, x]) => <option key={id} value={id}>{t(x.libelle)}</option>)}</select>}

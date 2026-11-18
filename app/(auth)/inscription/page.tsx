@@ -8,38 +8,40 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { Package, Download, Eye, EyeOff, Copy, Check, ExternalLink, Globe, Star } from "lucide-react";
+import { Package, Download, Eye, EyeOff, Copy, Check, ExternalLink, Globe, Star, ChevronDown } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import type { PlanBoutique } from "@/lib/ai-agent";
 import { PAYS_DEVISES, PAYS_OPTIONS } from "@/lib/ai-agent";
 import { exempleTelephone } from "@/lib/devise-convert";
 import { SelectPays, Drapeau } from "@/components/ui/SelectPays";
+import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
 import { MANIFESTE_LIBRAIRIE, choisir4Themes } from "@/lib/axso-design-manifest";
 import { demanderCodeConnexion } from "@/components/auth/BoutonRenvoyerCode";
 import { EcranCode } from "@/components/auth/EcranCode";
 import { HeroFond } from "@/components/marketing/HeroSection";
-import { adresseBoutique } from "@/lib/utils";
+import { adresseBoutique, slugify } from "@/lib/utils";
 import {
-  CLE_PROGRESSION, emailValide, lireParametresInscription, lireProgression, poussee, signatureReponses,
+  CHARTE_VIDE, CLE_PROGRESSION, emailValide, lireParametresInscription, lireProgression, poussee, signatureReponses,
   type Etape, type Progression,
 } from "@/lib/inscription";
 import { activerAudio, arreterSons, couperSon, jouerDecollage, jouerPoussee, sonCoupe, vibrer } from "@/lib/son-fusee";
 import { suivre, suivreEtape, surveillerAbandon } from "@/lib/inscription-suivi";
 import { PAYS_LIST, VENTE_EXEMPLES, VENTE_PLACEHOLDER, raisonTheme, urlApercu, miniatureTheme, type TypeBoutique } from "./donnees";
 import { ApercuBoutique } from "./ApercuBoutique";
+import { EcranCharte } from "./Charte";
 import { Decollage } from "./Decollage";
-import { AMBRE, Axia, BoutonNoir, BoutonSon, Carte, CSS, Erreur, Jauge, Question, Retour } from "./ui";
+import { AMBRE, Axia, BoutonNoir, BoutonSon, Carte, CSS, Erreur, Jauge, Question, Retour, garderBoutonVisible } from "./ui";
 
 type Plan = PlanBoutique & { messageIA?: string };
 
 const DEPART: Progression = {
   etape: "type", typeBoutique: "", vente: "", nom: "", paysCode: "", paysNom: "", devise: "XAF",
-  planPour: "", plan: null, themeIds: [], messageIA: "", prenom: "", whatsapp: "", email: "", planParam: "", creee: null, le: 0,
+  planPour: "", plan: null, themeIds: [], messageIA: "", prenom: "", whatsapp: "", email: "", planParam: "", charte: CHARTE_VIDE, creee: null, le: 0,
 };
 
 // Écran précédent de chaque écran (bouton Retour et bouton retour du téléphone).
 const PRECEDENT: Partial<Record<Etape, Etape>> = {
-  vente: "type", nom: "vente", pays: "nom", analyse: "pays", design: "pays", identite: "design", acces: "identite",
+  vente: "type", nom: "vente", pays: "nom", analyse: "pays", design: "pays", charte: "design", identite: "charte", acces: "identite",
 };
 // Écrans qu'on ne quitte pas en arrière : la création est lancée.
 const SANS_RETOUR: Etape[] = ["decollage", "code", "revelation"];
@@ -194,12 +196,19 @@ export default function InscriptionPage() {
         }));
         aller("design", "remplacer");
       })
-      .catch((e) => {
+      .catch(() => {
         if (ctrl.signal.aborted) return;
         suivre("erreur", "analyse");
-        setErreurGlobale(e?.message && e.message !== "Failed to fetch" ? e.message : "Erreur réseau.");
-        setP((x) => ({ ...x, etape: "pays" }));
-        try { history.replaceState({ insc: "pays" }, ""); } catch {}
+        // Repli : plan par défaut (designs du secteur, aucun produit) plutôt qu'un retour au pays.
+        // Les produits s'ajoutent ensuite depuis le tableau de bord.
+        const ids = choisir4Themes(p.vente, undefined, p.typeBoutique === "digital");
+        const plan: Plan = {
+          nomBoutique: p.nom, slug: slugify(p.nom) || "boutique", categorie: p.vente.slice(0, 80), pays: p.paysCode,
+          devise: PAYS_DEVISES[p.paysCode] || p.devise, themeId: ids[0], description: "", produits: [],
+          livraison: { locale: 0, nationale: 0, gratuite: 0 },
+        };
+        setP((x) => ({ ...x, plan, themeIds: ids, planPour: sig, messageIA: "Je n'ai pas pu tout préparer, mais voici des designs adaptés à ton activité. Tu ajouteras tes produits ensuite." }));
+        aller("design", "remplacer");
       })
       .finally(() => clearInterval(iv));
     return () => { ctrl.abort(); clearInterval(iv); };
@@ -220,7 +229,7 @@ export default function InscriptionPage() {
       const res = await fetch("/api/ai/onboarding", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phase: "executer", plan: p.plan, typeBoutique: p.typeBoutique || undefined, designsProposes: p.themeIds,
+          phase: "executer", plan: p.plan, typeBoutique: p.typeBoutique || undefined, designsProposes: p.themeIds, charte: p.charte,
           compte: { name: p.prenom.trim(), email: identifiants.email, password: motDePasse, whatsapp: p.whatsapp.trim() },
         }),
       });
@@ -296,19 +305,25 @@ export default function InscriptionPage() {
 
   // ─── Aperçu ───
   const planAJour = !!p.plan && p.planPour === signatureReponses(p);
-  const apercuVisible = ["vente", "nom", "pays", "analyse", "design", "identite", "acces"].includes(p.etape);
+  const apercuVisible = ["vente", "nom", "pays", "analyse", "design", "charte", "identite", "acces"].includes(p.etape);
+  // Identité visuelle choisie : prioritaire sur le design dès l'écran « charte ».
+  const avecCharte = ["charte", "identite", "acces"].includes(p.etape);
   const apercu = {
     nom: p.etape === "nom" ? nomSaisi : p.nom,
     digital: p.typeBoutique === "digital",
-    themeId: planAJour && ["design", "identite", "acces"].includes(p.etape) ? p.plan!.themeId : undefined,
+    themeId: planAJour && ["design", "charte", "identite", "acces"].includes(p.etape) ? p.plan!.themeId : undefined,
+    logoUrl: avecCharte ? p.charte.logoUrl : undefined,
+    couleurs: avecCharte ? p.charte.couleurs : undefined,
+    polices: avecCharte ? p.charte.polices : undefined,
     produits: planAJour ? p.plan!.produits : undefined,
     devise: p.plan?.devise || p.devise,
   };
+  const avecApercu = apercuVisible || p.etape === "type"; // colonne de droite sur ordinateur
   const slug = creation.slug || p.creee?.slug || "";
 
   const champ = (id: string, label: string, props: React.InputHTMLAttributes<HTMLInputElement>, apres?: React.ReactNode) => (
     <div>
-      <label htmlFor={`champ-${id}`} className="block text-[13px] font-bold text-[#111111] mb-2">{tr(label)}</label>
+      <label htmlFor={`champ-${id}`} className="block text-[14px] font-bold text-[#111111] mb-2">{tr(label)}</label>
       <div className="relative">
         <input id={`champ-${id}`} className="insc-champ" aria-invalid={!!erreurs[id]} aria-describedby={erreurs[id] ? `err-${id}` : undefined} {...props} />
         {apres}
@@ -353,8 +368,8 @@ export default function InscriptionPage() {
                   onClick={() => { setVenteSaisie(ex); valider("nom", { vente: ex }, "suggestion"); }} />
               ))}
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); validerVente(); }} className="space-y-3">
-              <label htmlFor="champ-vente" className="block text-[13px] font-bold text-[#111111]">{tr("Ou décris-le avec tes mots")}</label>
+            <form onSubmit={(e) => { e.preventDefault(); validerVente(); }} onFocus={garderBoutonVisible} className="space-y-3">
+              <label htmlFor="champ-vente" className="block text-[14px] font-bold text-[#111111]">{tr("Ou décris-le avec tes mots")}</label>
               <textarea id="champ-vente" rows={3} className="insc-champ" value={venteSaisie} placeholder={tr(VENTE_PLACEHOLDER[type])}
                 aria-invalid={!!erreurs.vente} aria-describedby={erreurs.vente ? "err-vente" : undefined}
                 onChange={(e) => setVenteSaisie(e.target.value)}
@@ -370,7 +385,7 @@ export default function InscriptionPage() {
         <>
           <Axia>{tr("Bien noté. Maintenant, le plus important :")}</Axia>
           <Question id="q-nom">{tr("Comment s'appelle ta boutique ?")}</Question>
-          <form onSubmit={(e) => { e.preventDefault(); validerNom(); }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); validerNom(); }} onFocus={garderBoutonVisible} className="space-y-4">
             {champ("nom", "Nom de ta boutique", {
               value: nomSaisi, maxLength: 60, autoComplete: "organization", placeholder: tr("Ex : Adama Store, Kente & Co…"),
               onChange: (e) => setNomSaisi(e.target.value), style: { fontWeight: 700, fontSize: 18 },
@@ -396,7 +411,7 @@ export default function InscriptionPage() {
           </div>
           {afrique && (
             <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-2">
-              <p className="text-[13px] font-bold text-[#111111]">{tr("Choisis ton pays parmi les 54 pays d'Afrique")}</p>
+              <p className="text-[14px] font-bold text-[#111111]">{tr("Choisis ton pays parmi les 54 pays d'Afrique")}</p>
               <SelectPays value={PAYS_LIST.some((x) => x.code === p.paysCode) ? "" : p.paysCode} options={PAYS_OPTIONS}
                 placeholder={tr("Sélectionne un pays…")}
                 onChange={(code) => { const x = PAYS_OPTIONS.find((o) => o.code === code); if (x) choisirPays(x.code, x.nom); }} />
@@ -417,7 +432,7 @@ export default function InscriptionPage() {
               </div>
             ))}
           </div>
-          <p className="text-[13px] text-gray-500">{tr("Ça peut prendre jusqu'à une minute.")}</p>
+          <p className="text-[14px] text-gray-500">{tr("Ça peut prendre jusqu'à une minute.")}</p>
         </>
       );
 
@@ -448,22 +463,29 @@ export default function InscriptionPage() {
                     </div>
                     <div className="px-4 py-3">
                       <p className={`text-[14px] font-extrabold ${sel ? "text-white" : "text-[#111111]"}`}>{tr(e.nom)}</p>
-                      <p className={`text-[12.5px] mt-0.5 leading-snug ${sel ? "text-white/70" : "text-gray-500"}`}>{tr(raisonTheme(id, p.nom, p.vente))}</p>
+                      <p className={`text-[14px] sm:text-[13px] mt-0.5 leading-snug ${sel ? "text-white/70" : "text-gray-500"}`}>{tr(raisonTheme(id, p.nom, p.vente))}</p>
                     </div>
                   </button>
                 );
               })}
             </div>
-            <BoutonNoir onClick={() => valider("identite", {}, p.plan!.themeId)}>{tr("Continuer avec ce design")}</BoutonNoir>
+            <BoutonNoir onClick={() => valider("charte", {}, p.plan!.themeId)}>{tr("Continuer avec ce design")}</BoutonNoir>
           </>
         );
       }
+
+      case "charte": return p.plan ? (
+        <EcranCharte nom={p.nom} themeId={p.plan.themeId} themeIds={p.themeIds} charte={p.charte}
+          setCharte={(f) => setP((x) => ({ ...x, charte: f(x.charte) }))}
+          onContinuer={() => valider("identite", {}, p.charte.logoUrl ? "logo" : p.charte.sansLogo ? "sans-logo" : "")}
+          onPasser={() => valider("identite", {}, "passe")} />
+      ) : null;
 
       case "identite": return (
         <>
           <Axia>{tr("Excellent choix. Plus que deux petites étapes avant le décollage.")}</Axia>
           <Question id="q-identite">{tr("Faisons connaissance")}</Question>
-          <form onSubmit={(e) => { e.preventDefault(); validerIdentite(); }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); validerIdentite(); }} onFocus={garderBoutonVisible} className="space-y-4">
             {champ("prenom", "Ton prénom", { value: p.prenom, autoComplete: "given-name", placeholder: "Aminata", onChange: (e) => setP((x) => ({ ...x, prenom: e.target.value })) })}
             {champ("whatsapp", "Ton numéro WhatsApp", { value: p.whatsapp, type: "tel", inputMode: "tel", autoComplete: "tel", placeholder: exempleTelephone(p.paysCode), onChange: (e) => setP((x) => ({ ...x, whatsapp: e.target.value })) })}
             <BoutonNoir type="submit">{tr("Continuer")}</BoutonNoir>
@@ -479,7 +501,7 @@ export default function InscriptionPage() {
             {tr("En bonus, je te proposerai d'essayer")}{" "}<strong className="text-[#111111]">{tr("Illimité")}</strong>{" "}{tr("pendant 7 jours, sans payer et sans carte.")}
           </Axia>
           <Question id="q-acces">{tr("Crée tes accès")}</Question>
-          <form onSubmit={(e) => { e.preventDefault(); validerAcces(); }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); validerAcces(); }} onFocus={garderBoutonVisible} className="space-y-4">
             {champ("email", "Adresse email", { value: p.email, type: "email", inputMode: "email", autoComplete: "email", placeholder: "aminata@exemple.com", onChange: (e) => setP((x) => ({ ...x, email: e.target.value })) })}
             {champ("password", "Mot de passe", {
               value: motDePasse, type: voirMdp ? "text" : "password", autoComplete: "new-password", placeholder: tr("Minimum 6 caractères"),
@@ -504,13 +526,13 @@ export default function InscriptionPage() {
       );
 
       case "code": return creeeSansCompte ? (
-        <>
+        <div className="text-center space-y-6">
           <Question id="q-code">{tr("Ta boutique est créée.")}</Question>
           <p className="text-[16px] text-gray-500">{tr("Connecte-toi pour la retrouver et la personnaliser.")}</p>
           <div><Link href="/connexion?inscription=success" className="insc-sombre inline-flex items-center justify-center rounded-full px-7 h-14 text-[15px] font-bold text-white bg-[#111111]">{tr("Me connecter")}</Link></div>
-        </>
+        </div>
       ) : compte ? (
-        <div className="max-w-md">
+        <div className="max-w-md mx-auto">
           <h1 id="q-code" tabIndex={-1} className="sr-only">{tr("Vérifie ton email")}</h1>
           <EcranCode email={compte.email} titre="Ta boutique est prête ! Vérifie ton email" erreurInitiale={erreurCode}
             onValider={(code) => connecter(compte, code)}
@@ -531,14 +553,15 @@ export default function InscriptionPage() {
       <style>{CSS}</style>
       <div className="fixed inset-0 pointer-events-none"><HeroFond /></div>
 
-      <header className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-8 pt-4 flex items-center justify-between gap-3">
+      <header className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-8 pt-[max(1rem,env(safe-area-inset-top))] flex items-center justify-between gap-3">
         <Link href="/" aria-label={tr("Accueil Axso")}><img src="/logo.png" alt="Axso" className="h-10 sm:h-12 w-auto" /></Link>
         <div className="flex items-center gap-2 sm:gap-3">
           {!SANS_RETOUR.includes(p.etape) && (
-            <Link href="/connexion" className="inline-flex items-center min-h-[44px] text-[13px] sm:text-[14px] text-gray-600 font-medium text-right leading-tight px-1">
-              {tr("Déjà un compte ?")}{" "}<span className="font-bold text-[#111111] underline decoration-[#F5A623] decoration-2 underline-offset-4">{tr("Connexion")}</span>
+            <Link href="/connexion" className="inline-flex items-center min-h-[44px] text-[14px] text-gray-600 font-medium text-right leading-tight px-1">
+              <span className="hidden sm:inline">{tr("Déjà un compte ?")}&nbsp;</span><span className="font-bold text-[#111111] underline decoration-[#F5A623] decoration-2 underline-offset-4">{tr("Connexion")}</span>
             </Link>
           )}
+          <LangueSelecteur ouvrirVers="bas" aligner="droite" />
           <BoutonSon coupe={coupe} onClick={basculerSon} />
         </div>
       </header>
@@ -547,13 +570,28 @@ export default function InscriptionPage() {
         <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-8 mt-5"><Jauge p={poussee(p.etape)} /></div>
       )}
 
-      <main className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-8 pt-6 pb-16 sm:pt-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-10 lg:gap-16 items-start">
-        <div className="min-w-0 w-full max-w-[620px]">
-          {apercuVisible && <div className="lg:hidden mb-6"><ApercuBoutique compact {...apercu} /></div>}
+      {/* Écran avec aperçu (ordinateur) : deux colonnes ; sans aperçu : contenu centré. */}
+      <main className={`relative z-10 max-w-[1200px] mx-auto px-4 sm:px-8 pt-6 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pt-10 ${avecApercu ? "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-10 lg:gap-16 items-start" : ""}`}>
+        <div className={`min-w-0 w-full max-w-[620px] ${avecApercu ? "" : "mx-auto"}`}>
           {PRECEDENT[p.etape] && <div className="mb-2"><Retour onClick={retour} /></div>}
           {charge && <div key={p.etape} className="insc-ecran space-y-6">{ecran}</div>}
+          {/* Téléphone : l'aperçu replié sous l'écran, déplié à la demande (le téléphone entier ne tient pas au-dessus du formulaire). */}
+          {charge && apercuVisible && (
+            <details className="group lg:hidden mt-8">
+              <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer rounded-2xl">
+                <ApercuBoutique compact {...apercu}>
+                  <span className="flex-shrink-0 inline-flex items-center gap-1 min-h-[44px] pl-2 text-[14px] font-bold text-[#111111]">
+                    <span className="group-open:hidden">{tr("Voir l'aperçu")}</span>
+                    <span className="hidden group-open:inline">{tr("Masquer")}</span>
+                    <ChevronDown size={16} aria-hidden className="transition-transform group-open:rotate-180" />
+                  </span>
+                </ApercuBoutique>
+              </summary>
+              <div className="flex justify-center pt-5"><ApercuBoutique {...apercu} /></div>
+            </details>
+          )}
         </div>
-        {(apercuVisible || p.etape === "type") && (
+        {avecApercu && (
           <div className="hidden lg:flex justify-center sticky top-8">
             <ApercuBoutique {...apercu} />
           </div>
@@ -592,32 +630,37 @@ function Revelation({ nom, slug, leger, themeId, copie, onCopier }: {
   const lien = adresseBoutique(slug) ?? `${origine}/${slug}`;
   return (
     <>
-      <Axia>{tr("Décollage réussi. Voici ta boutique.")}</Axia>
-      <Question id="q-revelation">
-        <span style={{ color: AMBRE }}>{nom}</span>{" "}{tr("est en ligne… presque.")}
-      </Question>
-      <p className="text-[16px] sm:text-[18px] text-gray-500 leading-relaxed">
+      <div className="flex justify-center"><Axia>{tr("Décollage réussi. Voici ta boutique.")}</Axia></div>
+      <div className="text-center">
+        <Question id="q-revelation">
+          <span style={{ color: AMBRE }}>{nom}</span>{" "}{tr("est en ligne… presque.")}
+        </Question>
+      </div>
+      <p className="text-[16px] sm:text-[18px] text-gray-500 leading-relaxed text-center">
         {tr("Elle reste privée tant que tu ne la publies pas. Vérifie tes produits proposés par Axia (prix, photos, stock), personnalise ton design, puis publie-la.")}
       </p>
-      <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-[28px] overflow-hidden border border-gray-200 bg-gray-50 shadow-[0_40px_80px_-30px_rgba(17,17,17,0.45)]">
+      <div className="relative mx-auto w-full max-w-[560px] aspect-[16/10] rounded-[28px] overflow-hidden border border-gray-200 bg-gray-50 shadow-[0_40px_80px_-30px_rgba(17,17,17,0.45)]">
         {themeId && <img src={miniatureTheme(themeId)} alt="" className="absolute inset-0 w-full h-full object-cover object-top" />}
         {!leger && slug && (
           <iframe src={`/${slug}`} title={tr("Aperçu de {0}", nom)} tabIndex={-1} aria-hidden scrolling="no"
             className="insc-fondu absolute top-0 left-0 border-0 pointer-events-none origin-top-left" style={{ width: 1280, height: 800, transform: "scale(0.4375)" }} />
         )}
       </div>
-      <div className="flex items-center gap-2 max-w-[560px] rounded-full border border-gray-200 bg-white pl-5 pr-1.5 py-1.5">
-        <span className="flex-1 min-w-0 truncate text-[14px] font-semibold text-[#111111]">{lien.replace(/^https?:\/\//, "")}</span>
-        <button type="button" onClick={onCopier} className="inline-flex items-center gap-1.5 h-[44px] px-4 rounded-full text-[13px] font-bold bg-gray-100 text-[#111111]">
+      {/* Lien de la boutique : l'ouvrir ou le copier (actions secondaires). */}
+      <div className="mx-auto flex items-center gap-1 w-full max-w-[560px] rounded-full border border-gray-200 bg-white pl-2 pr-1.5 py-1.5">
+        <a href={`/${slug}`} target="_blank" rel="noopener noreferrer" title={tr("Voir ma boutique")}
+          className="flex-1 min-w-0 inline-flex items-center gap-2 min-h-[44px] px-3 rounded-full text-[14px] font-semibold text-[#111111] hover:underline">
+          <ExternalLink size={15} aria-hidden className="flex-shrink-0" />
+          <span className="truncate">{lien.replace(/^https?:\/\//, "")}</span>
+          <span className="sr-only">{tr("Voir ma boutique")}</span>
+        </a>
+        <button type="button" onClick={onCopier} className="flex-shrink-0 inline-flex items-center gap-1.5 h-[44px] px-4 rounded-full text-[14px] font-bold bg-gray-100 text-[#111111]">
           {copie ? <Check size={15} /> : <Copy size={15} />} {copie ? tr("Copié") : tr("Copier")}
         </button>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3">
-        <BoutonNoir onClick={() => { window.location.href = "/dashboard/builder?bienvenue=1"; }}>{tr("Personnaliser ma boutique")}</BoutonNoir>
-        <a href={`/${slug}`} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-full px-7 h-14 text-[15px] font-bold text-[#111111] border border-gray-200 bg-white hover:border-[#F5A623] transition-colors">
-          <ExternalLink size={16} /> {tr("Voir ma boutique")}
-        </a>
+      {/* Une seule suite : l'espace marchand, page Démarrer (qui propose déjà « Construire ma boutique »). */}
+      <div className="flex justify-center">
+        <BoutonNoir onClick={() => { window.location.href = "/dashboard/demarrer"; }}>{tr("Accéder à mon espace")}</BoutonNoir>
       </div>
     </>
   );

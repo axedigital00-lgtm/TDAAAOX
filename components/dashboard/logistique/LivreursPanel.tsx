@@ -2,18 +2,20 @@
 import { exempleTelephone } from "@/lib/devise-convert";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Truck, Plus, Phone, MapPin, Loader2, Globe } from "lucide-react";
+import { Truck, Plus, Phone, MapPin, Globe, Bike, Car, User } from "lucide-react";
 import { LiveFleetMap } from "@/components/dashboard/logistique/LiveFleetMap";
 import { RemunerationLivreur } from "@/components/dashboard/logistique/RemunerationLivreur";
 import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
 import { lireReglagesLivraison, normaliserZone } from "@/lib/livraison-reglages";
+import { Alerte, Badge, Bouton, Champ, CLASSE_SAISIE, EtatErreur, EtatVide, Saisie, SqueletteListe } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
 const LIVREURS_TUTORIAL_STEPS = [
   { Icon: Plus,   titre: "Crée un compte livreur",         description: "Ajoute un livreur à ton équipe avec nom, téléphone, véhicule et zone de couverture." },
   { Icon: Globe,  titre: "Livreurs de la plateforme",       description: "Bascule sur l'onglet Plateforme pour voir les livreurs indépendants disponibles à assigner." },
   { Icon: MapPin, titre: "Suis la flotte en direct",        description: "La carte en haut de page affiche la position en temps réel de tes livreurs actifs." },
-  { Icon: Truck,  titre: "Disponibilité en un coup d'œil",  description: "Le point vert indique qu'un livreur est disponible pour prendre une nouvelle livraison." },
+  { Icon: Truck,  titre: "Disponibilité en un coup d'œil",  description: "Le badge « Disponible » indique qu'un livreur peut prendre une nouvelle livraison." },
 ];
 
 type Livreur = {
@@ -29,21 +31,25 @@ type Livreur = {
   _count: { commandes: number };
 };
 
-const VEHICULE_EMOJI: Record<string, string> = {
-  moto: "🏍️", voiture: "🚗", velo: "🚲", a_pied: "🚶",
+const VEHICULES: Record<string, { label: string; Icon: typeof Bike }> = {
+  moto: { label: "Moto", Icon: Bike }, voiture: { label: "Voiture", Icon: Car },
+  velo: { label: "Vélo", Icon: Bike }, a_pied: { label: "À pied", Icon: User },
 };
+
+const FORM_VIDE = { nom: "", email: "", telephone: "", password: "", vehicule: "moto", zone: "" };
+type Erreurs = Partial<Record<"nom" | "email" | "telephone" | "password", string>>;
 
 export function LivreursPanel() {
   const t = useT();
   const [mesPlateforme, setMesPlateforme] = useState<Livreur[]>([]);
   const [plateforme, setPlateforme] = useState<Livreur[]>([]);
   const [loading, setLoading] = useState(true);
+  const [echec, setEchec] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [onglet, setOnglet] = useState<"miens" | "plateforme">("miens");
-  const [form, setForm] = useState({
-    nom: "", email: "", telephone: "", password: "", vehicule: "moto", zone: "",
-  });
+  const [form, setForm] = useState(FORM_VIDE);
+  const [erreurs, setErreurs] = useState<Erreurs>({});
   const [pays, setPays] = useState("");
   const [zonesBoutique, setZonesBoutique] = useState<string[]>([]);
   useEffect(() => {
@@ -56,6 +62,7 @@ export function LivreursPanel() {
   // Une erreur (droits, réseau) est dite : sinon elle passait pour « aucun livreur », ou le chargement ne finissait jamais.
   async function charger() {
     setLoading(true);
+    setEchec(null);
     const lire = (url: string) => fetch(url).then(async r => {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || "Impossible de charger les livreurs");
@@ -66,7 +73,7 @@ export function LivreursPanel() {
       setMesPlateforme(miens);
       setPlateforme(autres);
     } catch (err: any) {
-      toast.error(t(err.message || "Impossible de charger les livreurs"));
+      setEchec(err?.message === "Failed to fetch" ? "Vérifie ta connexion puis réessaie." : err?.message || "Impossible de charger les livreurs");
     } finally {
       setLoading(false);
     }
@@ -74,8 +81,21 @@ export function LivreursPanel() {
 
   useEffect(() => { charger(); }, []);
 
+  // Mêmes exigences que le serveur (app/api/livreurs), dites en clair sous chaque champ.
+  function verifier(): Erreurs {
+    const e: Erreurs = {};
+    if (form.nom.trim().length < 2) e.nom = t("Indique le nom du livreur (2 caractères au moins).");
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) e.email = t("Indique une adresse e-mail valide, par exemple nom@exemple.com.");
+    if (form.telephone.trim().length < 8) e.telephone = t("Indique un numéro de téléphone complet (8 chiffres au moins).");
+    if (form.password.length < 6) e.password = t("Choisis un mot de passe d'au moins 6 caractères.");
+    return e;
+  }
+
   async function creerLivreur(e: React.FormEvent) {
     e.preventDefault();
+    const err = verifier();
+    setErreurs(err);
+    if (Object.keys(err).length) return;
     setSaving(true);
     try {
       const res = await fetch("/api/livreurs", {
@@ -83,11 +103,12 @@ export function LivreursPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
-      toast.success(t("Livreur créé avec succès !"));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Le compte du livreur n'a pas pu être créé. Réessaie.");
+      toast.success(t("Compte de {0} créé : il peut se connecter avec son e-mail et son mot de passe.", form.nom.trim()));
       setShowForm(false);
-      setForm({ nom: "", email: "", telephone: "", password: "", vehicule: "moto", zone: "" });
+      setForm(FORM_VIDE);
+      setOnglet("miens");
       charger();
     } catch (err: any) {
       toast.error(t(err.message));
@@ -97,133 +118,53 @@ export function LivreursPanel() {
   }
 
   const listeAffichee = onglet === "miens" ? mesPlateforme : plateforme;
+  const champ = (cle: keyof Erreurs) => ({
+    value: form[cle], erreur: erreurs[cle],
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => { setForm({ ...form, [cle]: e.target.value }); setErreurs((x) => ({ ...x, [cle]: undefined })); },
+  });
 
   return (
     <div className="space-y-5">
       <ModuleTutorial moduleKey="logistique-livreurs" titre={t("Livreurs")} sousTitre={t("Ta flotte de livraison")} steps={LIVREURS_TUTORIAL_STEPS} />
-      <div className="flex items-center justify-end">
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-[#F5A623] text-black font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-[#d4820a] transition-colors"
-        >
-          <Plus size={16} />
-          {t("Nouveau livreur")}
-        </button>
-      </div>
-
-      {/* Carte flotte en direct */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-4">
-        <p className="text-sm font-bold text-gray-900 mb-3">{t("Position en temps réel")}</p>
-        <LiveFleetMap />
-      </div>
-
-      {/* Onglets */}
-      <div className="flex gap-2 bg-white border border-gray-100 rounded-xl p-1">
-        <button
-          onClick={() => setOnglet("miens")}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-            onglet === "miens"
-              ? "bg-[#F5A623] text-black"
-              : "text-gray-400 hover:text-gray-900"
-          }`}
-        >
-          {t("Mon équipe (")}{mesPlateforme.length})
-        </button>
-        <button
-          onClick={() => setOnglet("plateforme")}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-            onglet === "plateforme"
-              ? "bg-[#F5A623] text-black"
-              : "text-gray-400 hover:text-gray-900"
-          }`}
-        >
-          <Globe size={14} />
-          {t("Plateforme (")}{plateforme.length})
-        </button>
-      </div>
-
-      {/* Info plateforme */}
-      {onglet === "plateforme" && (
-        <div className="bg-[#F5A623]/5 border border-[#F5A623]/20 rounded-xl px-4 py-3">
-          <p className="text-[#F5A623] text-xs">
-            {t("Ces livreurs sont indépendants et disponibles sur toute la plateforme Axso. Vous pouvez les assigner à vos commandes depuis l'onglet Livraison.")}
-          </p>
+      {!showForm && (
+        <div className="flex items-center justify-end">
+          <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{t("Ajouter un livreur")}</Bouton>
         </div>
       )}
 
       {/* Formulaire création */}
       {showForm && (
-        <div className="bg-white border border-[#F5A623]/20 rounded-2xl p-6">
-          <h2 className="text-gray-800 font-semibold mb-4">{t("Créer un compte livreur")}</h2>
-          <form onSubmit={creerLivreur} className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
+        <section className="rounded-carte border border-bordure bg-carte p-carte">
+          <h2 className="ax-sous-titre mb-4">{t("Créer un compte livreur")}</h2>
+          <form onSubmit={creerLivreur} className="space-y-champs" noValidate>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Saisie label={t("Nom complet")} mention="obligatoire" placeholder={t("Mamadou Diallo")} autoComplete="off" {...champ("nom")} />
+              <Saisie label={t("E-mail de connexion")} mention="obligatoire" type="email" placeholder="mamadou@exemple.com" autoComplete="off" {...champ("email")} />
+              <Saisie label={t("Téléphone")} mention="obligatoire" type="tel" inputMode="tel" placeholder={exempleTelephone(pays)} {...champ("telephone")} />
+              <Saisie label={t("Mot de passe")} mention="obligatoire" type="password" autoComplete="new-password" aide={t("6 caractères au moins. Donne-le au livreur.")} {...champ("password")} />
+              <Champ label={t("Véhicule")}>
+                {(a) => (
+                  <select {...a} value={form.vehicule} onChange={(e) => setForm({ ...form, vehicule: e.target.value })} className={CLASSE_SAISIE}>
+                    {Object.entries(VEHICULES).map(([v, { label }]) => <option key={v} value={v}>{t(label)}</option>)}
+                  </select>
+                )}
+              </Champ>
               <div>
-                <label className="text-gray-400 text-xs block mb-1.5">{t("Nom complet *")}</label>
-                <input
-                  required value={form.nom}
-                  onChange={(e) => setForm({ ...form, nom: e.target.value })}
-                  placeholder={t("Mamadou Diallo")}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1.5">{t("Email *")}</label>
-                <input
-                  required type="email" value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="mamadou@exemple.com"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1.5">{t("Téléphone *")}</label>
-                <input
-                  required value={form.telephone}
-                  onChange={(e) => setForm({ ...form, telephone: e.target.value })}
-                  placeholder={exempleTelephone(pays)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1.5">{t("Mot de passe *")}</label>
-                <input
-                  required type="password" value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  placeholder={t("Min. 6 caractères")}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1.5">{t("Véhicule")}</label>
-                <select
-                  value={form.vehicule}
-                  onChange={(e) => setForm({ ...form, vehicule: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50"
-                >
-                  <option value="moto">{t("🏍️ Moto")}</option>
-                  <option value="voiture">{t("🚗 Voiture")}</option>
-                  <option value="velo">{t("🚲 Vélo")}</option>
-                  <option value="a_pied">{t("🚶 À pied")}</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1.5">{t("Zone de couverture")}</label>
-                <input
-                  value={form.zone}
-                  onChange={(e) => setForm({ ...form, zone: e.target.value })}
-                  placeholder={zonesBoutique.length ? zonesBoutique.slice(0, 2).join(", ") : t("Dakar centre, Plateau...")}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50"
-                />
+                <Saisie label={t("Zone de couverture")} mention="facultatif"
+                  aide={zonesBoutique.length ? t("Touche les zones de ta boutique qu'il couvre : il sera proposé en premier pour ces commandes.") : undefined}
+                  value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                  placeholder={zonesBoutique.length ? zonesBoutique.slice(0, 2).join(", ") : t("Dakar centre, Plateau...")} />
                 {/* Les mêmes noms que les zones de la boutique : le livreur est alors proposé en tête pour ces commandes. */}
                 {zonesBoutique.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {zonesBoutique.map(z => {
                       const choisies = form.zone.split(",").map(x => x.trim()).filter(Boolean);
                       const actif = choisies.some(x => normaliserZone(x) === normaliserZone(z));
                       return (
-                        <button key={z} type="button"
+                        <button key={z} type="button" aria-pressed={actif}
                           onClick={() => setForm({ ...form, zone: (actif ? choisies.filter(x => normaliserZone(x) !== normaliserZone(z)) : [...choisies, z]).join(", ") })}
-                          className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${actif ? "bg-[#F5A623] border-[#F5A623] text-[#111111] font-semibold" : "border-gray-200 text-gray-600 hover:border-[#F5A623]"}`}>
+                          className={cn("min-h-10 rounded-full border px-3 text-sm transition-colors sm:min-h-8",
+                            actif ? "border-primaire bg-primaire font-semibold text-sur-primaire" : "border-bordure text-doux hover:border-bordure-forte")}>
                           {z}
                         </button>
                       );
@@ -233,84 +174,90 @@ export function LivreursPanel() {
               </div>
             </div>
 
-            <div className="bg-[#F5A623]/10 border border-[#F5A623]/20 rounded-xl p-3">
-              <p className="text-[#F5A623] text-xs">
-                {t("Le livreur pourra se connecter sur")}{" "}<strong>/connexion</strong>{" "}{t("avec cet email et mot de passe. Il sera redirigé vers son interface dédiée.")}
-              </p>
-            </div>
+            <Alerte ton="info" titre={t("Comment le livreur se connecte")}>
+              {t("Le livreur pourra se connecter sur")}{" "}<strong>/connexion</strong>{" "}{t("avec cet email et mot de passe. Il sera redirigé vers son interface dédiée.")}
+            </Alerte>
 
-            <div className="flex gap-3">
-              <button
-                type="submit" disabled={saving}
-                className="flex items-center gap-2 bg-[#F5A623] text-black font-semibold px-6 py-3 rounded-xl text-sm hover:bg-[#d4820a] transition-colors disabled:opacity-50"
-              >
-                {saving && <Loader2 size={14} className="animate-spin" />}
-                {t("Créer le compte")}
-              </button>
-              <button
-                type="button" onClick={() => setShowForm(false)}
-                className="px-6 py-3 rounded-xl text-sm text-gray-400 border border-gray-200 hover:border-[#F5A623]/30 transition-all"
-              >
-                {t("Annuler")}
-              </button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Bouton variante="secondaire" onClick={() => { setShowForm(false); setErreurs({}); }}>{t("Annuler")}</Bouton>
+              <Bouton type="submit" charge={saving} texteCharge={t("Création du compte…")}>{t("Créer le compte livreur")}</Bouton>
             </div>
           </form>
-        </div>
+        </section>
+      )}
+
+      {/* Carte flotte en direct */}
+      <section className="rounded-carte border border-bordure bg-carte p-4">
+        <h2 className="ax-titre-section mb-3">{t("Position en temps réel")}</h2>
+        <LiveFleetMap />
+      </section>
+
+      {/* Onglets */}
+      <div role="tablist" aria-label={t("Livreurs")} className="flex gap-1 rounded-controle border border-bordure bg-carte-2 p-1">
+        {([["miens", t("Mon équipe"), mesPlateforme.length], ["plateforme", t("Plateforme"), plateforme.length]] as const).map(([cle, libelle, n]) => (
+          <button key={cle} type="button" role="tab" aria-selected={onglet === cle} onClick={() => setOnglet(cle)}
+            className={cn("flex min-h-10 flex-1 items-center justify-center gap-2 rounded-controle text-sm font-semibold transition-colors",
+              onglet === cle ? "bg-secondaire text-carte" : "text-doux hover:text-encre")}>
+            {cle === "plateforme" && <Globe className="size-4" aria-hidden />}
+            {libelle} ({n})
+          </button>
+        ))}
+      </div>
+
+      {/* Info plateforme */}
+      {onglet === "plateforme" && (
+        <Alerte ton="info" titre={t("Livreurs indépendants")}>
+          {t("Ces livreurs sont indépendants et disponibles sur toute la plateforme Axso. Vous pouvez les assigner à vos commandes depuis l'onglet Livraison.")}
+        </Alerte>
       )}
 
       {/* Liste */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-[#F5A623]" />
-        </div>
+        <SqueletteListe lignes={3} libelle={t("Chargement des livreurs…")} />
+      ) : echec ? (
+        <EtatErreur titre={t("Les livreurs n'ont pas pu être chargés")} texte={t(echec)} onReessayer={charger} />
       ) : listeAffichee.length === 0 ? (
-        <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center">
-          <Truck size={32} className="text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">
-            {onglet === "miens" ? t("Aucun livreur dans votre équipe") : t("Aucun livreur indépendant disponible")}
-          </p>
-          <p className="text-gray-600 text-sm mt-1">
-            {onglet === "miens" ? t("Créez votre première équipe de livraison") : t("Les livreurs indépendants apparaîtront ici")}
-          </p>
-        </div>
+        onglet === "miens" ? (
+          <EtatVide icone={<Truck />} titre={t("Aucun livreur dans votre équipe")}
+            texte={t("Crée un compte pour chaque livreur : tu pourras ensuite lui assigner des commandes et suivre sa position.")}>
+            {!showForm && <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{t("Ajouter un livreur")}</Bouton>}
+          </EtatVide>
+        ) : (
+          <EtatVide icone={<Globe />} titre={t("Aucun livreur indépendant disponible")} texte={t("Les livreurs indépendants apparaîtront ici")} />
+        )
       ) : (
-        <div className="space-y-3">
-          {listeAffichee.map((l) => (
-            <div key={l.id} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl bg-[#F5A623]/10 border border-[#F5A623]/20 flex items-center justify-center flex-shrink-0 text-lg">
-                {t(VEHICULE_EMOJI[l.vehicule]) || "🚚"}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1">
-                  <p className="text-gray-800 font-semibold">{t(l.nom)}</p>
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${l.disponible ? "bg-green-400 animate-pulse" : "bg-gray-600"}`} />
-                  <span className={`text-xs ${l.disponible ? "text-green-400" : "text-gray-500"}`}>
-                    {l.disponible ? t("Disponible") : t("Hors service")}
+        <ul className="space-y-3">
+          {listeAffichee.map((l) => {
+            const v = VEHICULES[l.vehicule] ?? { label: l.vehicule, Icon: Truck };
+            return (
+              <li key={l.id} className="space-y-3 rounded-carte border border-bordure bg-carte p-4 sm:p-5">
+                <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-controle bg-primaire-fond text-attention" title={t(v.label)}>
+                    <v.Icon className="size-5" aria-hidden /><span className="sr-only">{t(v.label)}</span>
                   </span>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                  <span className="flex items-center gap-1"><Phone size={10} />{l.telephone}</span>
-                  {l.zone && <span className="flex items-center gap-1"><MapPin size={10} />{t(l.zone)}</span>}
-                  {onglet === "plateforme" && l.tenant && (
-                    <span className="text-[#F5A623]/60">{t(l.tenant.nomBoutique)}</span>
-                  )}
-                  {onglet === "plateforme" && !l.tenant && (
-                    <span className="text-gray-500 italic">{t("Indépendant")}</span>
-                  )}
-                </div>
-              </div>
 
-              <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <span className="text-[#F5A623] font-bold text-sm">{t(l._count.commandes)}</span>
-                <span className="text-gray-500 text-xs">{onglet === "plateforme" ? t("en cours") : t("livraisons")}</span>
-              </div>
-            </div>
-            <RemunerationLivreur livreurId={l.id} />
-            </div>
-          ))}
-        </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="font-semibold text-encre">{t(l.nom)}</p>
+                      <Badge ton={l.disponible ? "succes" : "neutre"}>{l.disponible ? t("Disponible") : t("Hors service")}</Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 ax-aide">
+                      <a href={`tel:${l.telephone}`} className="flex min-h-8 items-center gap-1 hover:text-encre"><Phone className="size-3.5" aria-hidden />{l.telephone}</a>
+                      {l.zone && <span className="flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{t(l.zone)}</span>}
+                      {onglet === "plateforme" && (l.tenant ? <span>{t(l.tenant.nomBoutique)}</span> : <span className="italic">{t("Indépendant")}</span>)}
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-end">
+                    <span className="text-lg font-bold tabular-nums text-encre">{l._count.commandes}</span>
+                    <span className="ax-aide">{onglet === "plateforme" ? t("en cours") : t("livraisons")}</span>
+                  </div>
+                </div>
+                <RemunerationLivreur livreurId={l.id} />
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

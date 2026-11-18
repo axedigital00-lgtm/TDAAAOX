@@ -2,15 +2,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, useConfirmation } from "@/components/ui";
 
-export function MarquerRemisButton({ commandeIds }: { commandeIds: string[] }) {
+/** `objet` : ce qui est confirmé, nommé (« Moussa — 3 commandes — 45 000 FCFA »). */
+export function MarquerRemisButton({ commandeIds, objet }: { commandeIds: string[]; objet: string }) {
   const t = useT();
   const router = useRouter();
+  const { confirmer, dialogue } = useConfirmation();
   const [loading, setLoading] = useState(false);
 
   async function marquerRemis() {
+    const ok = await confirmer({
+      titre: t("Confirmer que tu as reçu cet argent ?"),
+      objet,
+      description: t("Ces commandes sortiront de la liste des encaissements à recevoir. Ne confirme qu'une fois l'argent réellement en main."),
+      libelleConfirmer: t("Oui, j'ai reçu l'argent"),
+      destructive: false,
+    });
+    if (!ok) return;
     setLoading(true);
     try {
       const res = await fetch("/api/commandes/remise-cod", {
@@ -19,24 +30,21 @@ export function MarquerRemisButton({ commandeIds }: { commandeIds: string[] }) {
         body: JSON.stringify({ commandeIds }),
       });
       if (!res.ok) throw new Error();
-      toast.success(t("Encaissement confirmé"));
+      toast.success(t("Remise enregistrée : {0} commande(s) réconciliée(s).", commandeIds.length));
       router.refresh();
     } catch {
-      toast.error(t("Erreur lors de la confirmation"));
+      toast.error(t("La remise n'a pas pu être enregistrée. Vérifie ta connexion puis réessaie."));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <button
-      onClick={marquerRemis}
-      disabled={loading}
-      className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold disabled:opacity-50"
-      style={{ background: "#10b981" }}
-    >
-      {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-      {loading ? t("Confirmation...") : t("Marquer comme remis")}
-    </button>
+    <>
+      {dialogue}
+      <Bouton onClick={marquerRemis} charge={loading} texteCharge={t("Enregistrement…")} icone={<CheckCircle2 className="size-4" aria-hidden />}>
+        {t("J'ai reçu l'argent")}
+      </Bouton>
+    </>
   );
 }

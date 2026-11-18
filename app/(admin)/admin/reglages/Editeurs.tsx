@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { Format } from "@/lib/command-center/moteur";
 import { CRITERES_SANTE, NOM_CRITERE, NOM_ETAPE, type Seuil, type Objectif, type PoidsSante, type Reglages } from "@/lib/command-center/reglages";
 import { useT } from "@/components/I18nProvider";
+import { useConfirmation } from "@/components/command-center/Confirmation";
 
 export interface MetriqueOption { id: string; nom: string; format: Format }
 
@@ -182,6 +183,7 @@ export function EditeurPromo({ initial, lecture }: { initial: Reglages["promo"];
   const [champ, setChamp] = useState<string | null>(null);
   useEffect(() => { setChamp(versChamp(initial.finLe)); }, [initial.finLe]);
   const { charge, enregistrer } = useEnregistrer("promo");
+  const { confirmer, dialogue } = useConfirmation();
   if (champ === null) return <p className="text-[13px] cc-faint">{t("Chargement…")}</p>;
   const finLe = champ ? new Date(champ).toISOString() : null;
   const enCours = !!finLe && new Date(finLe) > new Date();
@@ -199,12 +201,21 @@ export function EditeurPromo({ initial, lecture }: { initial: Reglages["promo"];
       </p>
       <fieldset className="flex flex-wrap items-center gap-2" disabled={lecture}>
         <legend className="sr-only">{t("Fin de la promo")}</legend>
-        <input type="datetime-local" value={champ} onChange={(e) => setChamp(e.target.value)} className="cc-input" aria-label={t("Fin de la promo")} />
+        <input type="datetime-local" value={champ} onChange={(e) => setChamp(e.target.value)} className="cc-input h-10 sm:h-8" aria-label={t("Fin de la promo")} />
         <button type="button" className="cc-btn cc-btn-sm" onClick={() => prolonger(1)}>{t("+1 jour")}</button>
         <button type="button" className="cc-btn cc-btn-sm" onClick={() => prolonger(7)}>{t("+7 jours")}</button>
         <button type="button" className="cc-btn cc-btn-sm" onClick={() => setChamp("")}>{t("Arrêter la promo")}</button>
       </fieldset>
-      {!lecture && <BoutonEnregistrer charge={charge} desactive={finLe === initial.finLe} onClick={() => enregistrer({ finLe })} />}
+      {!lecture && <BoutonEnregistrer charge={charge} desactive={finLe === initial.finLe} onClick={async () => {
+        // Réglage visible par tous les marchands et sur la landing : on fait relire avant d'enregistrer.
+        const fin = finLe ? new Date(finLe).toLocaleString(t.loc, { dateStyle: "full", timeStyle: "short" }) : null;
+        const actif = !!finLe && new Date(finLe) > new Date();
+        const ok = await confirmer(actif
+          ? { titre: t("Faire durer la promo de lancement jusqu'au {0} ?", fin!), message: t("Jusqu'à cette date, les packs payants restent fermés et tout compte profite de l'Illimité. Le compteur de la landing et du tableau de bord est mis à jour."), action: t("Enregistrer la date de fin") }
+          : { titre: t("Arrêter la promo de lancement ?"), message: t("Les packs payants rouvrent tout de suite et le compteur disparaît de la landing et du tableau de bord."), action: t("Arrêter la promo"), danger: true });
+        if (ok) enregistrer({ finLe });
+      }} />}
+      {dialogue}
     </div>
   );
 }

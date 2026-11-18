@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Package, Download, LogOut, User, Eye, GraduationCap, Award } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { useVitrine } from "@/components/storefront/Panier";
+import { formatMontant } from "@/lib/utils";
 
 interface Compte {
   id: string | null;
@@ -56,6 +58,8 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
   const t = useT();
   const params = useParams();
   const slug = params?.slug as string;
+  // Couleur de la boutique (fournie par le layout de la vitrine), pas celle d'Axso.
+  const accent = useVitrine()?.accent ?? "#111111";
 
   // Connexion sans mot de passe : lien personnel (depuis le suivi de commande), ou email → code par email.
   const [view, setView] = useState<"identifiant" | "code" | "compte">("identifiant");
@@ -89,31 +93,37 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
           if (res.ok && data.token) { localStorage.setItem(`axso_buyer_token_${slug}`, data.token); await loadData(data.token); }
-          else setError(data.error ?? "Lien invalide ou expiré");
+          else setError(data.error ?? "Ce lien de suivi n'est plus valide. Connectez-vous avec l'e-mail utilisé lors de l'achat.");
         })
+        .catch(() => setError("Connexion impossible. Vérifiez votre connexion internet puis rechargez la page."))
         .finally(() => setLoading(false));
       return;
     }
     const token = localStorage.getItem(`axso_buyer_token_${slug}`);
-    if (token) loadData(token);
+    if (token) loadData(token).catch(() => {});
   }, [slug, lien, loadData]);
 
   async function envoyer(avecCode: boolean) {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/clients-acheteurs/connexion", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, email, ...(avecCode ? { code } : {}) }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) setError(data.error ?? "Erreur inconnue");
-    else if (!avecCode) { setView("code"); setCode(""); }
-    else if (data.token) {
-      localStorage.setItem(`axso_buyer_token_${slug}`, data.token);
-      await loadData(data.token);
+    try {
+      const res = await fetch("/api/clients-acheteurs/connexion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, email, ...(avecCode ? { code } : {}) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setError(data.error ?? (avecCode ? "Code incorrect ou expiré. Vérifiez-le ou demandez un nouveau code." : "Le code n'a pas pu être envoyé. Vérifiez votre e-mail puis réessayez."));
+      else if (!avecCode) { setView("code"); setCode(""); }
+      else if (data.token) {
+        localStorage.setItem(`axso_buyer_token_${slug}`, data.token);
+        await loadData(data.token);
+      }
+    } catch {
+      setError("Connexion impossible. Vérifiez votre connexion internet puis réessayez.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   function logout() {
@@ -129,32 +139,32 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
       <div className={`flex items-center justify-center px-4 ${habille ? "py-20" : "min-h-screen bg-[#FAFAFA]"}`}>
         <div className="bg-white rounded-2xl border border-[#F0F0F0] p-8 w-full max-w-sm shadow-sm">
           <div className="mb-6 text-center">
-            <p className="text-xl font-bold text-[#111]">{t("Mon compte")}</p>
-            <p className="text-[12px] text-[#888] mt-1">
+            <h1 className="text-xl font-bold text-[#111]">{t("Mon compte")}</h1>
+            <p className="text-[13px] text-[#666] mt-1">
               {view === "identifiant" ? t("Vos achats et vos téléchargements, avec votre email") : t("Code envoyé à {0}", email)}
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-lg text-[12px] text-red-600">{t(error)}</div>
+            <div role="alert" className="mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-lg text-[13px] text-red-700">{t(error)}</div>
           )}
 
           <form onSubmit={(e) => { e.preventDefault(); envoyer(view === "code"); }} className="space-y-3">
             {view === "identifiant" ? (
               <div>
-                <label className="block text-[11px] text-[#888] mb-1">{t("Email utilisé lors de l'achat")}</label>
-                <input type="email" required autoFocus autoComplete="email" className="w-full border border-[#E5E5E5] rounded-xl px-3 py-2.5 text-base sm:text-[13px]" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <label htmlFor="mc-email" className="block text-[12px] font-medium text-[#444] mb-1">{t("E-mail utilisé lors de l'achat")}</label>
+                <input id="mc-email" type="email" required autoFocus autoComplete="email" className="w-full border border-[#E5E5E5] rounded-xl px-3 py-2.5 text-base sm:text-[13px]" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
             ) : (
               <div>
-                <label className="block text-[11px] text-[#888] mb-1">{t("Code à 6 chiffres")}</label>
-                <input inputMode="numeric" required autoFocus autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}"
+                <label htmlFor="mc-code" className="block text-[12px] font-medium text-[#444] mb-1">{t("Code à 6 chiffres reçu par e-mail")}</label>
+                <input id="mc-code" inputMode="numeric" required autoFocus autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}"
                   className="w-full border border-[#E5E5E5] rounded-xl px-3 py-2.5 text-[18px] tracking-[0.5em] text-center font-semibold" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
               </div>
             )}
             <button type="submit" disabled={loading}
-              className="w-full mt-2 py-3 rounded-xl text-white font-semibold text-[14px] disabled:opacity-50" style={{ background: "#F5A623" }}>
-              {loading ? "..." : view === "identifiant" ? t("Recevoir mon code") : t("Accéder à mes achats")}
+              className="w-full mt-2 min-h-11 py-3 rounded-xl text-white font-semibold text-[14px] disabled:opacity-50" style={{ background: accent }}>
+              {loading ? (view === "identifiant" ? t("Envoi du code…") : t("Vérification du code…")) : view === "identifiant" ? t("Recevoir mon code") : t("Accéder à mes achats")}
             </button>
           </form>
 
@@ -166,9 +176,9 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
 
           {view === "code" && (
             <p className="text-center text-[12px] text-[#888] mt-4">
-              <button className="text-[#F5A623] font-semibold" onClick={() => envoyer(false)} disabled={loading}>{t("Renvoyer le code")}</button>
+              <button type="button" className="min-h-10 font-semibold" style={{ color: accent }} onClick={() => envoyer(false)} disabled={loading}>{t("Renvoyer le code")}</button>
               {" · "}
-              <button className="hover:text-[#111]" onClick={() => { setView("identifiant"); setError(""); }}>{t("Changer d'email")}</button>
+              <button type="button" className="min-h-10 hover:text-[#111]" onClick={() => { setView("identifiant"); setError(""); }}>{t("Changer d'e-mail")}</button>
             </p>
           )}
 
@@ -187,20 +197,20 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#F5A623] flex items-center justify-center">
+            <div className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center" style={{ background: accent }}>
               <User size={18} className="text-white" />
             </div>
             <div className="min-w-0">
-              <p className="text-[15px] font-semibold text-[#111]">{t(compte?.nom)}</p>
+              <h1 className="text-[15px] font-semibold text-[#111]">{t(compte?.nom)}</h1>
               <p className="text-[12px] text-[#888] break-all">{compte?.email ?? compte?.telephone}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/${slug}`} className="text-[12px] text-[#888] hover:text-[#111] px-3 py-1.5 rounded-lg border border-[#E5E5E5]">
-              {t("Boutique")}
+            <Link href={`/${slug}`} className="inline-flex items-center min-h-10 text-[13px] text-[#555] hover:text-[#111] px-3 rounded-lg border border-[#E5E5E5]">
+              {t("Retour à la boutique")}
             </Link>
-            <button onClick={logout} className="flex items-center gap-1.5 text-[12px] text-[#888] hover:text-red-500 px-3 py-1.5 rounded-lg border border-[#E5E5E5]">
-              <LogOut size={12} />{" "}{t("Déconnexion")}
+            <button type="button" onClick={logout} className="inline-flex items-center gap-1.5 min-h-10 text-[13px] text-[#555] hover:text-red-600 px-3 rounded-lg border border-[#E5E5E5]">
+              <LogOut size={13} />{" "}{t("Se déconnecter")}
             </button>
           </div>
         </div>
@@ -214,10 +224,9 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
           <div className="bg-white rounded-xl border border-[#F0F0F0] p-4">
             <p className="text-[11px] text-[#888]">{t("Total dépensé")}</p>
             <p className="text-xl sm:text-2xl font-bold text-[#111] break-words">
-              {commandes
+              {formatMontant(commandes
                 .filter((c) => !["annulee", "remboursee"].includes(c.statut))
-                .reduce((s, c) => s + c.montantTotal, 0)
-                .toLocaleString()}
+                .reduce((s, c) => s + c.montantTotal, 0), commandes[0]?.devise)}
             </p>
           </div>
         </div>
@@ -233,7 +242,7 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold text-[#111] truncate">{f.nom}</p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 h-1.5 rounded-full bg-[#F0F0F0] overflow-hidden"><div className="h-full bg-[#F5A623]" style={{ width: `${f.pct}%` }} /></div>
+                      <div className="flex-1 h-1.5 rounded-full bg-[#F0F0F0] overflow-hidden"><div className="h-full" style={{ width: `${f.pct}%`, background: accent }} /></div>
                       <span className="text-[11px] text-[#888] whitespace-nowrap">{f.terminees}/{f.total} · {f.pct}%</span>
                     </div>
                     {f.certificat && <p className="text-[11px] text-[#B45309] mt-1 flex items-center gap-1"><Award size={11} />{" "}{t("Attestation obtenue")}</p>}
@@ -252,8 +261,9 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
         {commandes.length === 0 ? (
           <div className="bg-white border border-dashed border-[#E5E5E5] rounded-xl p-10 text-center">
             <Package size={28} className="mx-auto mb-3 text-[#DDD]" />
-            <p className="text-[13px] text-[#888]">{t("Aucune commande pour l'instant.")}</p>
-            <Link href={`/${slug}`} className="mt-4 inline-block px-4 py-2 rounded-xl text-white text-[13px] font-semibold" style={{ background: "#F5A623" }}>
+            <p className="text-[14px] font-semibold text-[#111]">{t("Aucune commande pour l'instant")}</p>
+            <p className="text-[13px] text-[#666] mt-1">{t("Vos commandes passées dans cette boutique apparaîtront ici, avec leur suivi de livraison.")}</p>
+            <Link href={`/${slug}/produits`} className="mt-4 inline-flex items-center min-h-11 px-4 rounded-xl text-white text-[13px] font-semibold" style={{ background: accent }}>
               {t("Découvrir la boutique")}
             </Link>
           </div>
@@ -270,7 +280,7 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
                     </div>
                     <div className="text-right">
                       <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background: sc.color }}>{t(sc.label)}</span>
-                      <p className="text-[13px] font-bold text-[#111] mt-1">{c.montantTotal.toLocaleString()} {t(c.devise)}</p>
+                      <p className="text-[13px] font-bold text-[#111] mt-1">{formatMontant(c.montantTotal, c.devise)}</p>
                     </div>
                   </div>
 
@@ -283,7 +293,7 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-[12px] text-[#444] truncate">{t(l.nom)}</p>
-                          <p className="text-[10px] text-[#888]">x{l.quantite} · {l.prix.toLocaleString()} {t(c.devise)}</p>
+                          <p className="text-[11px] text-[#666]">{l.quantite}{" × "}{formatMontant(l.prix, c.devise)}</p>
                         </div>
                       </div>
                     ))}
@@ -299,11 +309,11 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
                   {/* Footer */}
                   <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#F0F0F0]">
                     {c.facture && (
-                      <span className="text-[11px] text-[#888]">{t("Facture")}{" "}{c.facture.numero}</span>
+                      <span className="text-[12px] text-[#666]">{t("Facture")}{" "}{c.facture.numero}</span>
                     )}
                     {c.trackingToken && (
-                      <Link href={`/${slug}/tracking/${c.trackingToken}`} className="flex items-center gap-1.5 text-[11px] text-[#F5A623] font-semibold ml-auto">
-                        <Eye size={11} />{" "}{t("Suivre")}
+                      <Link href={`/${slug}/tracking/${c.trackingToken}`} className="flex items-center gap-1.5 min-h-10 text-[13px] font-semibold ml-auto" style={{ color: accent }}>
+                        <Eye size={13} />{" "}{t("Suivre la livraison")}
                       </Link>
                     )}
                   </div>

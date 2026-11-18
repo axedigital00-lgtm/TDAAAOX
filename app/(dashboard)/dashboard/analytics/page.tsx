@@ -24,6 +24,9 @@ import { aAcces } from "@/lib/plans";
 import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { AnalyticsTutorial } from "@/components/dashboard/tutorials/AnalyticsTutorial";
 import { getT } from "@/lib/i18n/serveur";
+import { variation } from "@/lib/tableau-de-bord";
+import { statutCommande } from "../commandes/statuts";
+import { Badge, EnTetePage, EtatVide } from "@/components/ui";
 
 export default async function AnalyticsPage() {
   const t = await getT();
@@ -127,34 +130,27 @@ export default async function AnalyticsPage() {
   const commandesActuel    = commandesPeriode._count;
   const commandesPrecedentCount = commandesPrecedente._count;
 
-  const delta = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return Math.round(((current - previous) / previous) * 100);
-  };
+  // Même règle que le Tableau de bord : sans valeur sur la période précédente, pas de pourcentage
+  // inventé (« +100 % ») mais « pas de comparaison possible ».
+  const delta = variation;
 
-  const tauxConversion = pageViews > 0 ? ((commandesActuel / pageViews) * 100).toFixed(1) : "0";
+  const tauxConversion = pageViews > 0 ? ((commandesActuel / pageViews) * 100).toFixed(1) : null;
 
-  const statutStyles: Record<string, { label: string; badgeClass: string }> = {
-    en_attente:     { label: "En attente",     badgeClass: "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]" },
-    confirmee:      { label: "Confirmée",      badgeClass: "bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]" },
-    en_preparation: { label: "En préparation", badgeClass: "bg-[#EEF1F6] text-[#7C3AED] border border-[#DDD6FE]" },
-    en_livraison:   { label: "En livraison",   badgeClass: "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]" },
-    livree:         { label: "Livrée",         badgeClass: "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]" },
-    annulee:        { label: "Annulée",        badgeClass: "bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]" },
-  };
 
   const totalCommandes = statutDistribution.reduce((s, x) => s + x._count, 0);
 
   const kpis = [
     {
       label: "Chiffre d'affaires",
+      aide: "Commandes payées",
       valeur: formatMontant(revenuActuel, tenant?.devise || "XOF"),
       delta: delta(revenuActuel, revenuPrecedent),
       accent: "#16A34A",
       icone: TrendingUp,
     },
     {
-      label: "Commandes",
+      label: "Commandes payées",
+      aide: "",
       valeur: commandesActuel.toString(),
       delta: delta(commandesActuel, commandesPrecedentCount),
       accent: "#2563EB",
@@ -162,6 +158,7 @@ export default async function AnalyticsPage() {
     },
     {
       label: "Visiteurs",
+      aide: "Pages vues de la boutique",
       valeur: Math.round(pageViews).toLocaleString(t.loc),
       delta: delta(pageViews, pageViewsPrev),
       accent: "#F5A623",
@@ -169,7 +166,8 @@ export default async function AnalyticsPage() {
     },
     {
       label: "Conversion",
-      valeur: `${tauxConversion}%`,
+      aide: tauxConversion === null ? "Aucune visite sur la période" : "Commandes payées / visites",
+      valeur: tauxConversion === null ? "—" : `${tauxConversion}%`,
       delta: null as number | null,
       accent: "#7C3AED",
       icone: BarChart3,
@@ -179,23 +177,18 @@ export default async function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <AnalyticsTutorial />
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-[#111111] font-poppins inline-flex items-center gap-2">{t("Analytics")}{" "}<AgentActiveIndicator label={t("Agent Analytics actif")} /> <BoutonRevoirTutoriel moduleKey="analytics" /></h1>
-          <p className="text-[#717171] text-sm mt-1">{t("Activité réelle de votre boutique")}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-white border border-[#E8E8E8] rounded-xl px-4 py-2">
-            <Calendar size={14} className="text-[#717171]" />
-            <span className="text-[#111111] text-sm font-medium">{t(fenetre)}{" "}{t("derniers jours")}</span>
-            <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
-              {t("vs J-")}{t(fenetre)}
-            </span>
-          </div>
+      <EnTetePage className="mb-0"
+        titre={<span className="inline-flex items-center gap-2">{t("Analytics")}{" "}<AgentActiveIndicator label={t("Agent Analytics actif")} /></span>}
+        description={t("Activité réelle de votre boutique")}
+        indicateurs={<BoutonRevoirTutoriel moduleKey="analytics" />}
+        actions={<>
+          <span className="inline-flex min-h-10 items-center gap-2 rounded-controle border border-bordure bg-carte px-3 text-sm text-encre">
+            <Calendar className="size-4 text-doux" aria-hidden />
+            {t("{0} derniers jours", fenetre)}
+            <span className="text-doux">· {t("comparés aux {0} jours d'avant", fenetre)}</span>
+          </span>
           {tempsReel && <LiveRefreshBadge intervalMs={30000} />}
-        </div>
-      </div>
+        </>} />
 
       {/* 4 KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -203,26 +196,25 @@ export default async function AnalyticsPage() {
           const Icon = k.icone;
           const d = k.delta;
           return (
-            <div key={i} className="bg-white border border-[#E8E8E8] rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
+            <div key={i} className="ax-card p-5 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="w-9 h-9 rounded-controle flex items-center justify-center bg-carte-2" aria-hidden>
                   <Icon size={16} style={{ color: k.accent }} />
                 </div>
                 {d !== null && (
-                  <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${
-                    d > 0 ? "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]"
-                    : d < 0 ? "bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]"
-                    : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]"
-                  }`}>
-                    {d > 0 ? <ArrowUpRight size={12} /> : d < 0 ? <ArrowDownRight size={12} /> : <Minus size={12} />}
-                    {Math.abs(d)}%
-                  </div>
+                  <Badge ton={d > 0 ? "succes" : d < 0 ? "erreur" : "neutre"}
+                    icone={d > 0 ? <ArrowUpRight aria-hidden /> : d < 0 ? <ArrowDownRight aria-hidden /> : <Minus aria-hidden />}>
+                    {d > 0 ? "+" : d < 0 ? "−" : ""}{Math.abs(d)} %
+                  </Badge>
                 )}
               </div>
-              <p className="text-2xl font-bold text-[#111111] font-poppins leading-tight">{t(k.valeur)}</p>
-              <p className="text-[#717171] text-xs mt-1">{t(k.label)}</p>
-              {d !== null && (
-                <p className="text-[#717171] text-[10px] mt-2 border-t border-[#F3F3F3] pt-2">vs. {t(fenetre)}{" "}{t("jours précédents")}</p>
+              <p className="text-2xl font-bold text-encre leading-tight tabular-nums break-words">{t(k.valeur)}</p>
+              <p className="ax-libelle mt-1">{t(k.label)}</p>
+              {k.aide && <p className="ax-aide">{t(k.aide)}</p>}
+              {k.label !== "Conversion" && (
+                <p className="ax-aide mt-2 border-t border-bordure pt-2">
+                  {d !== null ? t("vs les {0} jours précédents", fenetre) : t("Pas de comparaison possible")}
+                </p>
               )}
             </div>
           );
@@ -232,31 +224,24 @@ export default async function AnalyticsPage() {
       {avance ? (
       <>
       {/* Graphique des ventes */}
-      <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
-        <h2 className="text-sm font-semibold text-[#111111] mb-1">{t("Évolution du chiffre d'affaires")}</h2>
-        <p className="text-[#717171] text-xs mb-5">{t("Revenus journaliers des")}{" "}{t(fenetre)}{" "}{t("derniers jours (commandes complétées)")}</p>
-        <SalesChart donnees={donnees30Jours} devise={tenant?.devise || "XOF"} />
-      </div>
+      {/* La carte du graphique porte déjà son titre et ses onglets 7/14/30 j. */}
+      <SalesChart donnees={donnees30Jours} devise={tenant?.devise || "XOF"} />
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Top produits */}
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
+        <div className="ax-card p-6">
           <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-carte-2">
               <TrendingUp size={15} className="text-[#F5A623]" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[#111111]">{t("Top produits")}</h3>
-              <p className="text-[#717171] text-xs">{t("Classés par nombre de ventes")}</p>
+              <h2 className="ax-sous-titre">{t("Top produits")}</h2>
+              <p className="ax-aide">{t("Classés par nombre de ventes, depuis l'ouverture de la boutique")}</p>
             </div>
           </div>
           {topProduits.length === 0 ? (
-            <div className="py-10 flex flex-col items-center gap-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-[#F4F4F4] border border-[#E8E8E8] flex items-center justify-center">
-                <Package size={20} className="text-[#717171]" />
-              </div>
-              <p className="text-[#717171] text-sm">{t("Aucune vente pour le moment")}</p>
-            </div>
+            <EtatVide compact className="border-0" icone={<Package />} titre={t("Aucune vente pour le moment")}
+              texte={t("Tes produits les plus vendus apparaîtront ici.")} />
           ) : (
             <div className="space-y-4">
               {topProduits.map((p, i) => {
@@ -275,24 +260,24 @@ export default async function AnalyticsPage() {
                     >
                       {i + 1}
                     </div>
-                    <div className="w-9 h-9 rounded-xl bg-[#F4F4F4] overflow-hidden flex-shrink-0 border border-[#E8E8E8]">
+                    <div className="w-9 h-9 rounded-xl bg-carte-2 overflow-hidden flex-shrink-0 border border-bordure">
                       {p.images[0] ? (
                         <img src={p.images[0]} alt={p.nom} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Package size={14} className="text-[#717171]" />
+                          <Package size={14} className="text-doux" />
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[#111111] text-sm font-medium truncate">{t(p.nom)}</p>
-                      <div className="w-full bg-[#F4F4F4] rounded-full h-1.5 mt-1.5">
+                      <p className="text-encre text-sm font-medium truncate">{t(p.nom)}</p>
+                      <div className="w-full bg-carte-2 rounded-full h-1.5 mt-1.5">
                         <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, backgroundColor: "#F5A623" }} />
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-[#111111] text-sm font-bold font-poppins">{t(p.ventes)}</p>
-                      <p className="text-[#717171] text-[10px]">ventes</p>
+                      <p className="text-encre text-sm font-bold">{t(p.ventes)}</p>
+                      <p className="text-doux text-xs">{t("ventes")}</p>
                     </div>
                   </div>
                 );
@@ -302,29 +287,25 @@ export default async function AnalyticsPage() {
         </div>
 
         {/* Distribution statuts */}
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
+        <div className="ax-card p-6">
           <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-carte-2">
               <BarChart3 size={15} className="text-[#2563EB]" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[#111111]">{t("Statuts des commandes")}</h3>
-              <p className="text-[#717171] text-xs">{t(totalCommandes)}{" "}{t("commandes au total")}</p>
+              <h2 className="ax-sous-titre">{t("Statuts des commandes")}</h2>
+              <p className="text-doux text-xs">{t(totalCommandes)}{" "}{t("commandes au total")}</p>
             </div>
           </div>
           {totalCommandes === 0 ? (
-            <div className="py-10 flex flex-col items-center gap-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-[#F4F4F4] border border-[#E8E8E8] flex items-center justify-center">
-                <BarChart3 size={20} className="text-[#717171]" />
-              </div>
-              <p className="text-[#717171] text-sm">{t("Aucune commande pour le moment")}</p>
-            </div>
+            <EtatVide compact className="border-0" icone={<BarChart3 />} titre={t("Aucune commande pour le moment")}
+              texte={t("La répartition par statut apparaîtra dès ta première commande.")} />
           ) : (
             <div className="space-y-3">
               {statutDistribution
                 .sort((a, b) => b._count - a._count)
                 .map((s) => {
-                  const info = statutStyles[s.statut] ?? { label: s.statut, badgeClass: "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]" };
+                  const info = statutCommande(s.statut);
                   const pct = Math.round((s._count / totalCommandes) * 100);
                   const barColor = s.statut === "livree" ? "#16A34A"
                     : s.statut === "annulee" ? "#DC2626"
@@ -334,15 +315,13 @@ export default async function AnalyticsPage() {
                   return (
                     <div key={s.statut}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${info.badgeClass}`}>
-                          {t(info.label)}
-                        </span>
+                        <Badge ton={info.ton}>{t(info.label)}</Badge>
                         <div className="flex items-center gap-2">
-                          <span className="text-[#111111] text-sm font-bold font-poppins">{t(s._count)}</span>
-                          <span className="text-[#717171] text-xs">({pct}%)</span>
+                          <span className="text-encre text-sm font-bold">{t(s._count)}</span>
+                          <span className="text-doux text-xs">({pct}%)</span>
                         </div>
                       </div>
-                      <div className="w-full bg-[#F4F4F4] rounded-full h-1.5">
+                      <div className="w-full bg-carte-2 rounded-full h-1.5">
                         <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                       </div>
                     </div>
@@ -354,15 +333,15 @@ export default async function AnalyticsPage() {
       </div>
 
       {/* Entonnoir de conversion */}
-      <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
+      <div className="ax-card p-6">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-[#111111]">{t("Entonnoir de conversion")}</h3>
-            <p className="text-[#717171] text-xs mt-0.5">{t("30 derniers jours")}</p>
+            <h2 className="ax-sous-titre">{t("Entonnoir de conversion")}</h2>
+            <p className="ax-aide mt-0.5">{t("{0} derniers jours", fenetre)}{" · "}{t("en % des visites")}</p>
           </div>
-          <div className="flex items-center gap-2 bg-[#F4F4F4] border border-[#E8E8E8] rounded-xl px-4 py-2">
-            <span className="text-[#717171] text-sm">{t("Taux global")}</span>
-            <span className="font-bold text-[#111111] font-poppins text-lg">{t(tauxConversion)}%</span>
+          <div className="flex items-center gap-2 bg-carte-2 border border-bordure rounded-xl px-4 py-2">
+            <span className="text-doux text-sm">{t("Taux global")}</span>
+            <span className="font-bold text-encre text-lg tabular-nums">{tauxConversion === null ? "—" : `${tauxConversion}%`}</span>
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -377,7 +356,7 @@ export default async function AnalyticsPage() {
             return (
               <div key={i} className="flex flex-col items-center gap-2">
                 <div
-                  className="w-full rounded-xl flex items-end justify-center overflow-hidden border border-[#E8E8E8]"
+                  className="w-full rounded-xl flex items-end justify-center overflow-hidden border border-bordure"
                   style={{ height: "72px", backgroundColor: "#F4F4F4" }}
                 >
                   <div
@@ -385,12 +364,12 @@ export default async function AnalyticsPage() {
                     style={{ height: `${heightPct}%`, backgroundColor: step.color, opacity: 0.4 }}
                   />
                 </div>
-                <p className="text-[#111111] font-bold font-poppins text-lg leading-tight">
+                <p className="text-encre font-bold text-lg leading-tight">
                   {step.val.toLocaleString(t.loc)}
                 </p>
-                <p className="text-[#717171] text-xs text-center">{t(step.label)}</p>
+                <p className="text-doux text-xs text-center">{t(step.label)}</p>
                 {ratio !== null && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-carte-2 text-doux border border-bordure">
                     {t(ratio)}%
                   </span>
                 )}
@@ -402,30 +381,30 @@ export default async function AnalyticsPage() {
 
       {/* Derniers avis */}
       {derniersAvis.length > 0 && (
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
+        <div className="ax-card p-6">
           <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-carte-2">
               <Star size={15} className="text-[#F5A623]" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[#111111]">{t("Derniers avis clients")}</h3>
-              <p className="text-[#717171] text-xs">{t("Les 5 plus récents")}</p>
+              <h2 className="ax-sous-titre">{t("Derniers avis clients")}</h2>
+              <p className="text-doux text-xs">{t("Les 5 plus récents")}</p>
             </div>
           </div>
           <div className="space-y-2">
             {derniersAvis.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 p-3.5 rounded-xl bg-[#F4F4F4] border border-[#E8E8E8]">
-                <div className="w-9 h-9 rounded-xl bg-white border border-[#E8E8E8] overflow-hidden flex-shrink-0">
+              <div key={a.id} className="flex items-start gap-3 p-3.5 rounded-xl bg-carte-2 border border-bordure">
+                <div className="w-9 h-9 rounded-xl bg-white border border-bordure overflow-hidden flex-shrink-0">
                   {a.produit.images[0] ? (
                     <img src={a.produit.images[0]} alt={a.produit.nom} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Package size={12} className="text-[#717171]" />
+                      <Package size={12} className="text-doux" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[#717171] text-xs truncate mb-1">{t(a.produit.nom)}</p>
+                  <p className="text-doux text-xs truncate mb-1">{t(a.produit.nom)}</p>
                   <div className="flex items-center gap-0.5 mb-1">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
@@ -436,7 +415,7 @@ export default async function AnalyticsPage() {
                     ))}
                   </div>
                   {a.commentaire && (
-                    <p className="text-[#717171] text-xs line-clamp-2">{t(a.commentaire)}</p>
+                    <p className="text-doux text-xs line-clamp-2">{t(a.commentaire)}</p>
                   )}
                 </div>
               </div>

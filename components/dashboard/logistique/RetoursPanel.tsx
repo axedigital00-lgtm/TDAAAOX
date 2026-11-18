@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { RefreshCw, CheckCircle, XCircle, Clock, Plus, ChevronDown } from "lucide-react";
 import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
+import { formatMontant, cn } from "@/lib/utils";
+import {
+  Badge, Bouton, Champ, CLASSE_SAISIE, EtatErreur, EtatVide, Saisie, SqueletteListe, ZoneTexte, useConfirmation, type Ton,
+} from "@/components/ui";
 
 const RETOURS_TUTORIAL_STEPS = [
   { Icon: Plus,         titre: "Crée un retour",       description: "Renseigne le numéro d'une commande livrée, la raison et le type de résolution (remboursement, échange, avoir)." },
@@ -34,12 +39,12 @@ interface Stats {
   acceptes: number;
 }
 
-const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
-  ouvert: { label: "Ouvert", color: "#f59e0b" },
-  en_cours: { label: "En cours", color: "#111111" },
-  accepte: { label: "Accepté", color: "#10b981" },
-  rejete: { label: "Rejeté", color: "#ef4444" },
-  clos: { label: "Clos", color: "#6b7280" },
+const STATUT_CONFIG: Record<string, { label: string; ton: Ton }> = {
+  ouvert: { label: "Ouvert", ton: "attention" },
+  en_cours: { label: "En cours", ton: "info" },
+  accepte: { label: "Accepté", ton: "succes" },
+  rejete: { label: "Rejeté", ton: "erreur" },
+  clos: { label: "Clos", ton: "neutre" },
 };
 
 const RAISON_LABELS: Record<string, string> = {
@@ -56,188 +61,224 @@ const TYPE_LABELS: Record<string, string> = {
   avoir: "Avoir",
 };
 
+const FORM_VIDE = { commande: "", raison: "defaut", description: "", type: "remboursement" };
+
 export function RetoursPanel() {
   const t = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const [retours, setRetours] = useState<Retour[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, ouverts: 0, enCours: 0, acceptes: 0 });
   const [loading, setLoading] = useState(true);
+  const [echec, setEchec] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    commande: "", raison: "defaut", description: "", type: "remboursement",
-  });
+  const [form, setForm] = useState(FORM_VIDE);
+  const [erreurCommande, setErreurCommande] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [enCours, setEnCours] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/retours")
-      .then((r) => r.json())
+  function charger() {
+    setEchec(false);
+    return fetch("/api/retours")
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => { setRetours(d.retours ?? []); setStats(d.stats ?? {}); })
+      .catch(() => setEchec(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
+  useEffect(() => { charger(); }, []);
 
-  async function updateStatut(id: string, statut: string) {
-    const res = await fetch("/api/retours", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, statut }),
-    });
-    const data = await res.json();
-    if (data.retour) setRetours((prev) => prev.map((r) => r.id === id ? { ...r, statut } : r));
-    else alert(t(data.error || "Erreur"));
+  async function updateStatut(r: Retour, statut: string) {
+    const nomRetour = t("Retour de {0} — commande #{1}", r.clientNom, r.commande.numero);
+    if (statut === "accepte") {
+      const remb = r.type === "remboursement";
+      const ok = await confirmer({
+        titre: t("Accepter ce retour ?"),
+        objet: nomRetour,
+        description: remb
+          ? t("Toute la commande est remboursée : l'argent est rendu au client, le stock est remis et les accès digitaux sont retirés. Ce n'est pas annulable.")
+          : t("Le retour est marqué accepté ({0}). Tu règles l'échange ou l'avoir avec le client.", t(TYPE_LABELS[r.type] ?? r.type)),
+        libelleConfirmer: remb ? t("Accepter et rembourser") : t("Accepter le retour"),
+        destructive: false,
+      });
+      if (!ok) return;
+    }
+    if (statut === "rejete" && !(await confirmer({
+      titre: t("Rejeter ce retour ?"),
+      objet: nomRetour,
+      description: t("Le client ne sera pas remboursé pour cette demande."),
+      libelleConfirmer: t("Rejeter le retour"),
+    }))) return;
+
+    setEnCours(r.id + statut);
+    try {
+      const res = await fetch("/api/retours", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: r.id, statut }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.retour) throw new Error(data.error);
+      setRetours((prev) => prev.map((x) => x.id === r.id ? { ...x, statut } : x));
+      toast.success(t("Retour de {0} : « {1} ».", r.clientNom, t(STATUT_CONFIG[statut]?.label ?? statut)));
+      charger(); // compteurs à jour
+    } catch (e: any) {
+      toast.error(e?.message ? t(e.message) : t("Le statut du retour n'a pas pu être changé. Réessaie."));
+    } finally {
+      setEnCours(null);
+    }
   }
 
   async function createRetour() {
+    if (!form.commande.trim()) { setErreurCommande(t("Indique le numéro de la commande livrée, par exemple AX-20261007-1234.")); return; }
     setSaving(true);
-    const res = await fetch("/api/retours", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    if (data.retour) {
-      setRetours((prev) => [data.retour, ...prev]);
+    try {
+      const res = await fetch("/api/retours", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.retour) throw new Error(data.error);
+      setForm(FORM_VIDE);
       setShowForm(false);
-    } else alert(t(data.error || "Erreur"));
-    setSaving(false);
+      toast.success(t("Retour créé pour la commande {0}.", form.commande.trim()));
+      charger();
+    } catch (e: any) {
+      // Le serveur dit pourquoi (commande introuvable, non livrée…) : on l'affiche sous le champ.
+      setErreurCommande(e?.message ? t(e.message) : t("Le retour n'a pas pu être créé. Réessaie."));
+    } finally {
+      setSaving(false);
+    }
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (loading) return <SqueletteListe lignes={4} libelle={t("Chargement des retours…")} />;
+  if (echec) return <EtatErreur titre={t("Les retours n'ont pas pu être chargés")} texte={t("Vérifie ta connexion puis réessaie.")} onReessayer={charger} />;
 
   return (
     <div className="space-y-5">
+      {dialogue}
       <ModuleTutorial moduleKey="logistique-retours" titre={t("Retours")} sousTitre={t("Gestion des retours & RMA")} steps={RETOURS_TUTORIAL_STEPS} />
-      <div className="flex items-center justify-end">
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold"
-          style={{ background: "#F5A623" }}
-        >
-          <Plus size={14} />{" "}{t("Créer un retour")}
-        </button>
-      </div>
+      {!showForm && (
+        <div className="flex items-center justify-end">
+          <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{t("Créer un retour")}</Bouton>
+        </div>
+      )}
 
-      {/* Stats */}
+      {/* Compteurs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total", value: stats.total, color: "#111" },
-          { label: "Ouverts", value: stats.ouverts, color: "#f59e0b" },
-          { label: "En cours", value: stats.enCours, color: "#111111" },
-          { label: "Acceptés", value: stats.acceptes, color: "#10b981" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-            <p className="text-[11px] text-[#888] mb-1">{t(label)}</p>
-            <p className="text-2xl font-bold" style={{ color }}>{t(value)}</p>
+          { label: "Total", value: stats.total },
+          { label: "Ouverts", value: stats.ouverts },
+          { label: "En cours", value: stats.enCours },
+          { label: "Acceptés", value: stats.acceptes },
+        ].map(({ label, value }) => (
+          <div key={label} className="rounded-carte border border-bordure bg-carte p-4">
+            <p className="ax-aide">{t(label)}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-encre">{value ?? 0}</p>
           </div>
         ))}
       </div>
 
       {/* Formulaire création */}
       {showForm && (
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-          <h3 className="text-[14px] font-semibold text-[#111] mb-4">{t("Nouveau retour")}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-[11px] text-[#888] mb-1">{t("N° de commande (livrée)")}</label>
-              <input className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" placeholder="AX-20261007-1234" value={form.commande} onChange={(e) => setForm((f) => ({ ...f, commande: e.target.value }))} />
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Raison")}</label>
-              <select className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.raison} onChange={(e) => setForm((f) => ({ ...f, raison: e.target.value }))}>
-                {Object.entries(RAISON_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Type de résolution")}</label>
-              <select className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-                {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-[11px] text-[#888] mb-1">{t("Description (optionnel)")}</label>
-              <textarea className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" rows={2} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
+        <form className="rounded-carte border border-bordure bg-carte p-carte space-y-champs" noValidate onSubmit={(e) => { e.preventDefault(); createRetour(); }}>
+          <h3 className="ax-sous-titre">{t("Nouveau retour")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Saisie className="sm:col-span-2" label={t("N° de commande (livrée)")} mention="obligatoire" placeholder="AX-20261007-1234"
+              value={form.commande} erreur={erreurCommande}
+              onChange={(e) => { setErreurCommande(null); setForm((f) => ({ ...f, commande: e.target.value })); }} />
+            <Champ label={t("Raison")}>
+              {(a) => (
+                <select {...a} className={CLASSE_SAISIE} value={form.raison} onChange={(e) => setForm((f) => ({ ...f, raison: e.target.value }))}>
+                  {Object.entries(RAISON_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
+                </select>
+              )}
+            </Champ>
+            <Champ label={t("Type de résolution")} aide={form.type === "remboursement" ? t("Accepter le retour remboursera toute la commande.") : undefined}>
+              {(a) => (
+                <select {...a} className={CLASSE_SAISIE} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+                  {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
+                </select>
+              )}
+            </Champ>
+            <ZoneTexte className="sm:col-span-2" label={t("Description")} mention="facultatif" rows={2}
+              value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={createRetour} disabled={saving} className="px-4 py-2 rounded-lg text-white text-[13px] font-semibold" style={{ background: "#F5A623" }}>
-              {saving ? t("Enregistrement...") : t("Créer le retour")}
-            </button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-[13px] text-[#666] border border-[#E5E5E5]">{t("Annuler")}</button>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Bouton variante="secondaire" onClick={() => { setShowForm(false); setErreurCommande(null); }}>{t("Annuler")}</Bouton>
+            <Bouton type="submit" charge={saving} texteCharge={t("Enregistrement…")}>{t("Créer le retour")}</Bouton>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Liste des retours */}
       {retours.length === 0 ? (
-        <div className="bg-white border border-dashed border-[#E5E5E5] rounded-xl p-10 text-center">
-          <RefreshCw size={32} className="mx-auto mb-3 text-[#DDD]" />
-          <p className="text-[13px] text-[#888]">{t("Aucun retour pour l'instant. C'est bon signe !")}</p>
-        </div>
+        <EtatVide icone={<RefreshCw />} titre={t("Aucun retour pour l'instant. C'est bon signe !")}
+          texte={t("Quand un client renvoie un produit, crée le retour ici à partir du numéro de sa commande.")} />
       ) : (
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {retours.map((r) => {
-            const sc = STATUT_CONFIG[r.statut] ?? { label: r.statut, color: "#888" };
+            const sc = STATUT_CONFIG[r.statut] ?? { label: r.statut, ton: "neutre" as Ton };
             const isExpanded = expanded === r.id;
             return (
-              <div key={r.id} className="bg-white border border-[#F0F0F0] rounded-xl overflow-hidden">
-                <div
-                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-[#FAFAFA] transition-colors"
-                  onClick={() => setExpanded(isExpanded ? null : r.id)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[13px] font-semibold text-[#111]">{t(r.clientNom)}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold text-white" style={{ background: sc.color }}>{t(sc.label)}</span>
-                      <span className="text-[10px] text-[#AAA]">{t(TYPE_LABELS[r.type]) ?? t(r.type)}</span>
-                    </div>
-                    <p className="text-[11px] text-[#888] mt-0.5">
-                      {t("Cmd")}{" "}{r.commande.numero} · {t(RAISON_LABELS[r.raison]) ?? t(r.raison)}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    {r.montant && <p className="text-[13px] font-bold text-[#111]">{r.montant.toLocaleString()} {t(r.commande.devise)}</p>}
-                    <p className="text-[10px] text-[#AAA]">{new Date(r.createdAt).toLocaleDateString("fr")}</p>
-                  </div>
-                  <ChevronDown size={14} className="text-[#CCC] shrink-0" style={{ transform: isExpanded ? "rotate(180deg)" : "none" }} />
-                </div>
+              <li key={r.id} className="overflow-hidden rounded-carte border border-bordure bg-carte">
+                <button type="button" aria-expanded={isExpanded}
+                  className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-carte-2 sm:gap-4"
+                  onClick={() => setExpanded(isExpanded ? null : r.id)}>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-encre">{t(r.clientNom)}</span>
+                      <Badge ton={sc.ton}>{t(sc.label)}</Badge>
+                      <span className="ax-aide">{t(TYPE_LABELS[r.type] ?? r.type)}</span>
+                    </span>
+                    <span className="mt-0.5 block ax-aide">
+                      {t("Commande")}{" "}#{r.commande.numero} · {t(RAISON_LABELS[r.raison] ?? r.raison)}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    {r.montant ? <span className="block text-sm font-bold text-encre">{formatMontant(r.montant, r.commande.devise)}</span> : null}
+                    <span className="block ax-aide">{new Date(r.createdAt).toLocaleDateString("fr")}</span>
+                  </span>
+                  <ChevronDown className={cn("size-4 shrink-0 text-doux transition-transform", isExpanded && "rotate-180")} aria-hidden />
+                </button>
 
                 {isExpanded && (
-                  <div className="border-t border-[#F0F0F0] p-4 bg-[#FAFAFA]">
-                    {r.description && <p className="text-[12px] text-[#555] mb-3">{t(r.description)}</p>}
-                    {r.clientEmail && <p className="text-[11px] text-[#888] mb-3 break-all">{t("Email client :")}{" "}{r.clientEmail}</p>}
-                    {r.statut === "accepte" && r.type === "remboursement" && <p className="text-[11px] text-[#10b981] mb-3">{t("Commande remboursée.")}</p>}
-                    {r.notes && <p className="text-[11px] text-[#666] mb-3 italic">{t("Note :")}{" "}{t(r.notes)}</p>}
-                    <div className="flex gap-2 flex-wrap">
+                  <div className="space-y-3 border-t border-bordure bg-carte-2 p-4">
+                    {r.description && <p className="ax-texte">{t(r.description)}</p>}
+                    {r.clientEmail && <p className="break-all ax-aide">{t("Email client :")}{" "}{r.clientEmail}</p>}
+                    {r.statut === "accepte" && r.type === "remboursement" && <p className="text-sm font-medium text-succes">{t("Commande remboursée.")}</p>}
+                    {r.notes && <p className="italic ax-aide">{t("Note :")}{" "}{t(r.notes)}</p>}
+                    <div className="flex flex-wrap gap-2">
                       {r.statut !== "accepte" && (
-                        <button onClick={() => updateStatut(r.id, "accepte")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-[12px] font-semibold" style={{ background: "#10b981" }}>
-                          <CheckCircle size={12} />{" "}{t("Accepter")}
-                        </button>
+                        <Bouton taille="compact" icone={<CheckCircle className="size-4" aria-hidden />} charge={enCours === r.id + "accepte"}
+                          onClick={() => updateStatut(r, "accepte")}>
+                          {r.type === "remboursement" ? t("Accepter et rembourser") : t("Accepter le retour")}
+                        </Bouton>
                       )}
                       {r.statut !== "accepte" && r.statut !== "en_cours" && r.statut !== "clos" && (
-                        <button onClick={() => updateStatut(r.id, "en_cours")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-[12px] font-semibold" style={{ background: "#111111" }}>
-                          <Clock size={12} />{" "}{t("En cours")}
-                        </button>
+                        <Bouton taille="compact" variante="secondaire" icone={<Clock className="size-4" aria-hidden />} charge={enCours === r.id + "en_cours"}
+                          onClick={() => updateStatut(r, "en_cours")}>
+                          {t("Passer en cours")}
+                        </Bouton>
                       )}
                       {r.statut !== "accepte" && r.statut !== "rejete" && (
-                        <button onClick={() => updateStatut(r.id, "rejete")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-[12px] font-semibold" style={{ background: "#ef4444" }}>
-                          <XCircle size={12} />{" "}{t("Rejeter")}
-                        </button>
+                        <Bouton taille="compact" variante="danger" icone={<XCircle className="size-4" aria-hidden />} charge={enCours === r.id + "rejete"}
+                          onClick={() => updateStatut(r, "rejete")}>
+                          {t("Rejeter le retour")}
+                        </Bouton>
                       )}
                       {r.statut !== "clos" && (
-                        <button onClick={() => updateStatut(r.id, "clos")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-[#666] border border-[#E5E5E5]">
-                          {t("Clore")}
-                        </button>
+                        <Bouton taille="compact" variante="fantome" charge={enCours === r.id + "clos"} onClick={() => updateStatut(r, "clos")}>
+                          {t("Clore le retour")}
+                        </Bouton>
                       )}
                     </div>
                   </div>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

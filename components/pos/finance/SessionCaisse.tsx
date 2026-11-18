@@ -10,7 +10,7 @@
 // il s'affiche toujours « Non vérifié ».
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowDownLeft, ArrowUpRight, History, Lock, Printer, Receipt, Scale, Unlock } from "lucide-react";
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, History, Lock, Printer, Receipt, Scale, Unlock } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { Badge, BadgePaiement, Bouton, CLASSE_SAISIE, Champ, EtatChargement, EtatNonAutorise, EtatPos, EtatVide, Modale, Saisie, Tiroir } from "@/components/pos/ui";
@@ -53,7 +53,8 @@ const signe = (m: Pick<Mouvement, "type" | "montant">) => (m.type === "depot" ? 
 
 const EVENEMENTS_SUIVIS = ["sale.created", "sale.cancelled", "return.created", "cash.movement", "cash.opened", "cash.closed"];
 
-export function SessionCaisse() {
+/** `lienCaisse` : page du tableau de bord (hors kiosque, qui a ses propres onglets) — bouton de retour à l'écran de vente. */
+export function SessionCaisse({ lienCaisse = false }: { lienCaisse?: boolean } = {}) {
   const t = useT();
   const { fmt } = useDevise();
   const [caisseId, choisirCaisse] = useCaisse();
@@ -97,6 +98,7 @@ export function SessionCaisse() {
         {ouverte
           ? <Badge ton="positif" icone={<Unlock size={11} aria-hidden />}>{t("Caisse ouverte")}</Badge>
           : <Badge ton="neutre" icone={<Lock size={11} aria-hidden />}>{t("Caisse fermée")}</Badge>}
+        {lienCaisse && <Bouton variante="secondaire" href="/dashboard/pos/caisse" icone={<ArrowLeft size={15} aria-hidden />}>{t("Retour à la caisse")}</Bouton>}
       </EnTete>
 
       {sessions.erreur && <EtatPos code={sessions.erreur.code} message={sessions.erreur.message} onReessayer={recharger} compact />}
@@ -255,7 +257,7 @@ function Ouverture({ defaut, autorise, caisseId, onOuverte }: { defaut: number; 
   return (
     <Carte titre="Ouvrir la caisse">
       <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); void ouvrir(); }}>
-        <Saisie label="Fonds initial" aide="Les espèces déjà dans le tiroir avant la première vente." inputMode="decimal" value={fonds} onChange={(e) => setFonds(e.target.value)} erreur={erreur} className="w-full sm:w-64" autoFocus />
+        <Saisie label="Fonds de caisse" aide="Les espèces déjà dans le tiroir avant la première vente (0 si le tiroir est vide)." inputMode="decimal" value={fonds} onChange={(e) => setFonds(e.target.value)} erreur={erreur} className="w-full sm:w-64" autoFocus />
         <Bouton type="submit" charge={envoi} icone={<Unlock size={15} aria-hidden />}>{t("Ouvrir la caisse")}</Bouton>
       </form>
     </Carte>
@@ -292,7 +294,7 @@ function ModaleMouvement({ caisseId, attendu, onFermer, onEnregistre }: { caisse
 
   return (
     <Modale ouverte onFermer={onFermer} titre="Nouveau mouvement de caisse" description={attendu !== null ? t("Espèces attendues dans le tiroir : {0}", fmt(attendu)) : undefined} verrouillee={envoi}
-      actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={() => void enregistrer()} charge={envoi}>{t("Enregistrer")}</Bouton></>}>
+      actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={() => void enregistrer()} charge={envoi}>{t("Enregistrer le mouvement")}</Bouton></>}>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void enregistrer(); }}>
         <div role="group" aria-label={t("Type de mouvement")} className="grid grid-cols-2 gap-2">
           {TYPES.map(({ id, label, Icone }) => (

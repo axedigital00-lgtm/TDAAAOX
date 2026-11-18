@@ -70,6 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data.type = body.type;
   }
   if (body.actif !== undefined) data.actif = Boolean(body.actif);
+  if (data.actif === true) data.exempleAxia = false; // exemple d'Axia activé = vrai produit (lib/boutique-completion.ts)
   if (body.featured !== undefined) data.featured = Boolean(body.featured);
   if (body.stock !== undefined) data.stock = Number(body.stock);
   if (body.masquerVentes !== undefined) data.masquerVentes = Boolean(body.masquerVentes);

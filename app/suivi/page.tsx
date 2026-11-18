@@ -74,6 +74,9 @@ export default function SuiviPage() {
 
   function chercher(e: React.FormEvent) {
     e.preventDefault();
+    // Mêmes conditions qu'avant (numéro + au moins 9 chiffres), expliquées au lieu d'un bouton grisé.
+    if (!numero.trim()) { setErreur("Indiquez le numéro de commande (il commence par AX-)."); return; }
+    if (telephone.replace(/\D/g, "").length < 9) { setErreur("Indiquez le numéro de téléphone utilisé pour commander (au moins 9 chiffres)."); return; }
     if (intervalSuivi.current) clearInterval(intervalSuivi.current);
     setCommande(null);
     telRef.current = telephone;
@@ -104,7 +107,7 @@ export default function SuiviPage() {
       {/* Header */}
       <header className="relative z-10 border-b border-white/5 px-5 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-white/30 hover:text-white/60 transition-colors text-[13px]">
+          <Link href="/" className="flex items-center gap-2 min-h-10 text-white/55 hover:text-white/80 transition-colors text-[13px]">
             <ArrowLeft size={14} />
             {t("Accueil")}
           </Link>
@@ -124,46 +127,48 @@ export default function SuiviPage() {
             <Package size={22} style={{ color: "#F5A623" }} />
           </div>
           <h1 className="text-[26px] font-bold mb-2 tracking-tight">{t("Suivre ma commande")}</h1>
-          <p className="text-white/30 text-[13px]">{t("Entrez votre numéro pour voir l'état en temps réel")}</p>
+          <p className="text-white/60 text-[14px]">{t("Entrez votre numéro de commande et votre téléphone pour voir où en est votre livraison.")}</p>
         </div>
 
         {/* Search form */}
         <form onSubmit={chercher}
           className="rounded-2xl p-5 space-y-3"
           style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block">
+          <label htmlFor="suivi-numero" className="text-[12px] font-semibold text-white/70 block">
             {t("Numéro de commande")}
           </label>
-          <div className="flex gap-2">
-            <input
+          <input
+              id="suivi-numero"
               value={numero}
               onChange={e => setNumero(e.target.value.toUpperCase())}
               placeholder={t("AX-20240101-XXXX")}
-              className="flex-1 min-w-0 rounded-xl px-4 py-3 text-white font-mono text-base sm:text-[13px] outline-none transition-all"
+              className="w-full rounded-xl px-4 py-3 text-white font-mono text-base sm:text-[13px] outline-none transition-all"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
               onFocus={e => (e.target.style.borderColor = "rgba(245,166,35,0.4)")}
               onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.07)")}
             />
-            <button
-              type="submit"
-              disabled={recherche || !numero.trim() || telephone.replace(/\D/g, "").length < 9}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-[13px] transition-all disabled:opacity-40"
-              style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", color: "#080808" }}>
-              {recherche
-                ? <div className="w-4 h-4 border-2 border-black/20 border-t-black/70 rounded-full animate-spin" />
-                : <Search size={14} />}
-              {recherche ? "…" : t("Suivre")}
-            </button>
-          </div>
+          <p className="text-white/50 text-[12px]">{t("Le numéro figure sur votre confirmation de commande.")}</p>
+          <label htmlFor="suivi-tel" className="text-[12px] font-semibold text-white/70 block pt-1">
+            {t("Téléphone utilisé pour commander")}
+          </label>
           <input
+            id="suivi-tel"
             value={telephone}
             onChange={e => setTelephone(e.target.value)}
             type="tel" inputMode="tel" autoComplete="tel"
-            placeholder={t("Téléphone utilisé pour commander")}
             className="w-full rounded-xl px-4 py-3 text-white text-base sm:text-[13px] outline-none"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
           />
-          <p className="text-white/20 text-[11px]">{t("Le numéro figure sur votre confirmation de commande.")}</p>
+          <button
+            type="submit"
+            disabled={recherche}
+            className="w-full flex items-center justify-center gap-2 min-h-11 px-5 py-3 rounded-xl font-bold text-[14px] transition-all disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", color: "#080808" }}>
+            {recherche
+              ? <div className="w-4 h-4 border-2 border-black/20 border-t-black/70 rounded-full animate-spin" />
+              : <Search size={14} />}
+            {recherche ? t("Recherche de la commande…") : t("Suivre ma commande")}
+          </button>
         </form>
 
         {/* Error */}
@@ -171,7 +176,7 @@ export default function SuiviPage() {
           <div className="flex items-start gap-3 rounded-2xl p-4"
             style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)" }}>
             <AlertCircle size={15} className="text-red-400 shrink-0 mt-0.5" />
-            <p className="text-red-300 text-[13px]">{t(erreur)}</p>
+            <p role="alert" className="text-red-300 text-[13px]">{t(erreur)}</p>
           </div>
         )}
 
@@ -186,7 +191,7 @@ export default function SuiviPage() {
               {/* Top row */}
               <div className="flex items-start justify-between mb-5">
                 <div>
-                  <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-1">{t("Commande")}</p>
+                  <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-1">{t("Commande")}</p>
                   <p className="font-mono font-bold text-[20px] text-white">{commande.numero}</p>
                   {commande.tenant?.nomBoutique && (
                     <p className="text-[11px] text-white/30 mt-0.5">{t(commande.tenant.nomBoutique)}</p>
@@ -211,10 +216,10 @@ export default function SuiviPage() {
                     </span>
                   )}
                   {/* Refresh */}
-                  <button onClick={() => charger(commande.numero, telRef.current, true)}
-                    className="flex items-center gap-1 text-[10px] text-white/25 hover:text-white/50 transition-colors">
-                    <RefreshCw size={10} className={refresh ? "animate-spin" : ""} />
-                    {lastUpdate ? `${lastUpdate.toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" })}` : ""}
+                  <button type="button" onClick={() => charger(commande.numero, telRef.current, true)}
+                    className="flex items-center gap-1.5 min-h-10 px-2 -mr-2 text-[12px] text-white/55 hover:text-white/80 transition-colors">
+                    <RefreshCw size={12} className={refresh ? "animate-spin" : ""} />
+                    {t("Actualiser")}{lastUpdate ? ` · ${lastUpdate.toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" })}` : ""}
                   </button>
                 </div>
               </div>
@@ -236,11 +241,11 @@ export default function SuiviPage() {
                                         { background: "rgba(255,255,255,0.03)", border: "1.5px solid rgba(255,255,255,0.07)" }
                             }>
                             <Icon size={12}
-                              style={{ color: fait ? "#F5A623" : courant ? "#080808" : "rgba(255,255,255,0.15)" }} />
+                              style={{ color: fait ? "#F5A623" : courant ? "#080808" : "rgba(255,255,255,0.4)" }} />
                           </div>
-                          <p className="text-[9px] text-center leading-tight max-w-[52px]"
+                          <p className="text-[10px] sm:text-[11px] text-center leading-tight max-w-[56px]"
                             style={{
-                              color: fait ? "rgba(245,166,35,0.65)" : courant ? "#F5A623" : "rgba(255,255,255,0.15)",
+                              color: fait ? "rgba(245,166,35,0.8)" : courant ? "#F5A623" : "rgba(255,255,255,0.45)",
                               fontWeight: courant ? 700 : 400,
                             }}>
                             {t(etape.label)}
@@ -300,7 +305,7 @@ export default function SuiviPage() {
             {/* Delivery info */}
             <div className="rounded-2xl p-5 space-y-4"
               style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest">{t("Livraison")}</p>
+              <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest">{t("Livraison")}</p>
               <div className="space-y-3">
                 {commande.adresseLivraison && (
                   <div className="flex items-start gap-3">
@@ -309,7 +314,7 @@ export default function SuiviPage() {
                       <MapPin size={11} style={{ color: "#F5A623" }} />
                     </div>
                     <div>
-                      <p className="text-[10px] text-white/25 mb-0.5">{t("Adresse")}</p>
+                      <p className="text-[10px] text-white/50 mb-0.5">{t("Adresse")}</p>
                       <p className="text-[13px] text-white">{t(commande.adresseLivraison)}{commande.ville ? `, ${commande.ville}` : ""}</p>
                     </div>
                   </div>
@@ -321,7 +326,7 @@ export default function SuiviPage() {
                       <Bike size={11} style={{ color: "#F5A623" }} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-[10px] text-white/25 mb-0.5">{t("Livreur")}</p>
+                      <p className="text-[10px] text-white/50 mb-0.5">{t("Livreur")}</p>
                       <p className="text-[13px] text-white">{t(commande.livreur.nom)}</p>
                       {commande.livreur.telephone && (
                         <a href={`tel:${commande.livreur.telephone}`}
@@ -340,7 +345,7 @@ export default function SuiviPage() {
                       <Package size={11} style={{ color: "#F5A623" }} />
                     </div>
                     <div>
-                      <p className="text-[10px] text-white/25 mb-0.5">{t("Numéro de suivi transporteur")}</p>
+                      <p className="text-[10px] text-white/50 mb-0.5">{t("Numéro de suivi transporteur")}</p>
                       <p className="text-[13px] text-white font-mono">{t(commande.numeroSuivi)}</p>
                       {commande.transporteur && (
                         <p className="text-[11px] text-white/30 mt-0.5">{t(commande.transporteur)}</p>
@@ -355,7 +360,7 @@ export default function SuiviPage() {
                       <Clock size={11} style={{ color: "#F5A623" }} />
                     </div>
                     <div>
-                      <p className="text-[10px] text-white/25 mb-0.5">{t("Commandé le")}</p>
+                      <p className="text-[10px] text-white/50 mb-0.5">{t("Commandé le")}</p>
                       <p className="text-[13px] text-white">{formatDate(commande.createdAt)}</p>
                     </div>
                   </div>
@@ -367,7 +372,7 @@ export default function SuiviPage() {
                       <ShoppingBag size={11} style={{ color: "#F5A623" }} />
                     </div>
                     <div>
-                      <p className="text-[10px] text-white/25 mb-0.5">{t("Montant total")}</p>
+                      <p className="text-[10px] text-white/50 mb-0.5">{t("Montant total")}</p>
                       <p className="text-[13px] font-bold text-white">{formatMontant(commande.montantTotal, commande.devise)}</p>
                     </div>
                   </div>
@@ -379,7 +384,7 @@ export default function SuiviPage() {
             {commande.lignes?.length > 0 && (
               <div className="rounded-2xl p-5"
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-4">{t("Articles (")}{commande.lignes.length})</p>
+                <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-4">{t("Articles ({0})", commande.lignes.length)}</p>
                 <div className="space-y-3">
                   {commande.lignes.map((ligne: any, i: number) => (
                     <div key={i} className="flex items-center gap-3">
@@ -413,11 +418,11 @@ export default function SuiviPage() {
                 style={{ background: "rgba(37,211,102,0.04)", border: "1px solid rgba(37,211,102,0.13)" }}>
                 <div>
                   <p className="text-[13px] font-semibold text-white">{t("Besoin d'aide ?")}</p>
-                  <p className="text-[11px] text-white/30 mt-0.5">{t("Contacter")}{" "}{t(commande.tenant.nomBoutique)}</p>
+                  <p className="text-[12px] text-white/55 mt-0.5">{t("Contacter")}{" "}{t(commande.tenant.nomBoutique)}</p>
                 </div>
                 <a href={`https://wa.me/${commande.tenant.whatsapp.replace(/\D/g, "")}?text=Bonjour, j'ai une question sur ma commande ${commande.numero}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-80"
+                  className="flex items-center gap-2 min-h-10 px-4 py-2 rounded-xl text-[13px] font-bold transition-all hover:opacity-80 shrink-0"
                   style={{ background: "rgba(37,211,102,0.12)", color: "#25D366", border: "1px solid rgba(37,211,102,0.22)" }}>
                   <Phone size={12} /> WhatsApp
                 </a>
@@ -425,8 +430,8 @@ export default function SuiviPage() {
             )}
 
             {/* Auto-refresh notice */}
-            <p className="text-center text-[10px] text-white/15 pb-4">
-              {t("Actualisation automatique toutes les 20 secondes")}
+            <p className="text-center text-[11px] text-white/45 pb-4">
+              {t("Actualisation automatique toutes les 10 secondes")}
             </p>
           </div>
         )}

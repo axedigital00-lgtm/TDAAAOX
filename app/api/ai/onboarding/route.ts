@@ -1,6 +1,6 @@
 import { aiLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { annoncerInscription } from "@/lib/push";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { analyserBusinessEtCreerPlan, deviseDuPays } from "@/lib/ai-agent";
@@ -10,6 +10,12 @@ import { generateStoreConfig } from "@/lib/generate-store-config";
 import { provisionerThemeInitial } from "@/lib/axso-design-library";
 import { notifierMarchand } from "@/lib/notifications-marchand";
 import { emailDejaPris } from "@/lib/unicite-email";
+import { schemaCharte } from "@/lib/inscription";
+import { logoTemporaireValide, themeDepuisCharte } from "@/lib/charte-visuelle";
+import { MANIFESTE_LIBRAIRIE } from "@/lib/axso-design-manifest";
+import { redigerPolitiques } from "@/lib/politiques-axia";
+import { CONFIG_PAYS, estCodePays } from "@/lib/sourcing/pays";
+import { exempleVille } from "@/lib/devise-convert";
 
 // Analyse IA (10-45 s quand Gemini bascule sur ses modèles de secours) : le défaut serverless coupe avant.
 export const maxDuration = 120;
@@ -28,6 +34,8 @@ const schemaExecuter = z.object({
   // Les 4 designs AXSO Design proposés à l'inscription — seuls designs
   // proposés ensuite dans le Constructeur (ThemeConfig.designsOrigine).
   designsProposes: z.array(z.string()).max(4).optional(),
+  // Identité visuelle (écran « charte ») : logo envoyé par /api/inscription/logo, couleurs, polices.
+  charte: schemaCharte.optional(),
   plan: z.object({
     nomBoutique: z.string(),
     slug: z.string(),
@@ -86,7 +94,7 @@ export async function POST(request: Request) {
     }
 
     if (body.phase === "executer") {
-      const { plan, compte, typeBoutique, designsProposes } = schemaExecuter.parse(body);
+      const { plan, compte, typeBoutique, designsProposes, charte } = schemaExecuter.parse(body);
       plan.devise = deviseDuPays(plan.pays, plan.devise);
       const modeBoutique = typeBoutique === "digital" ? "digital" : "catalogue";
       // Email normalisé : la connexion compare en minuscules, sans espaces.
@@ -106,10 +114,15 @@ export async function POST(request: Request) {
 
       // Clés lues par le calcul des frais (lib/livraison-reglages.ts) : avant, locale / nationale /
       // gratuiteA étaient enregistrées mais jamais lues, et la boutique démarrait avec 0 de frais.
-      const parametresLivraison = plan.livraison ? {
-        frais: plan.livraison.locale,
-        minimum: plan.livraison.gratuite,
-      } : {};
+      // Zones par défaut : villes principales du pays, au tarif standard proposé par Axia (modifiable).
+      // Non confirmées (Tenant.demarrage.livraisonConfirmeeLe) : le marchand les vérifie dans Ma boutique › Livraison.
+      // Pas de seuil de livraison gratuite inventé. Boutique 100 % digitale : aucune livraison.
+      const codePaysPlan = plan.pays.toUpperCase();
+      const villes = estCodePays(codePaysPlan) ? CONFIG_PAYS[codePaysPlan].zones : [exempleVille(codePaysPlan), "Autres villes"];
+      const parametresLivraison = modeBoutique === "digital" ? {} : {
+        frais: plan.livraison?.locale ?? 0,
+        zones: villes.map((nom) => ({ nom, frais: null, delai: "" })),
+      };
 
       // Transformer les sections du plan IA en CustomSection pour le themeConfig
       const customSections = (plan.sections ?? []).map((s: any, i: number) => ({
@@ -128,13 +141,20 @@ export async function POST(request: Request) {
         pays: plan.pays,
         devise: plan.devise,
         modeBoutique,
+        whatsapp: compte.whatsapp,
+        email: compte.email,
       });
+
+      // Charte de l'inscription : couleurs et polices par-dessus celles du design (modifiables dans le Constructeur).
+      const fondDesign = MANIFESTE_LIBRAIRIE.find((e) => e.fichier === plan.themeId)?.couleurs.fond;
+      const surchargeCharte = charte ? themeDepuisCharte(charte, fondDesign) : {};
 
       // Fusionner : structure générée + sections custom de l'IA.
       const themeConfig: Record<string, any> = {
         ...generatedConfig,
         ...(customSections.length > 0 && { customSections }),
         ...(designsProposes?.length && { designsOrigine: designsProposes }),
+        ...surchargeCharte,
       };
 
       // Transaction : créer tenant + user + produits
@@ -147,7 +167,10 @@ export async function POST(request: Request) {
             pays: plan.pays,
             devise: plan.devise,
             whatsapp: compte.whatsapp || "",
+            // Affiché dans le pied de page de la vitrine (CoordonneesPied) ; modifiable dans Paramètres.
+            telephone: compte.whatsapp || null,
             email: compte.email,
+            ...(charte && logoTemporaireValide(charte.logoUrl) && { logoUrl: charte.logoUrl }),
             description: plan.description || "",
             parametresLivraison,
             commissionRate: 0.1,
@@ -194,6 +217,7 @@ export async function POST(request: Request) {
               images: p.imageUrl ? [p.imageUrl] : [],
               type: p.type ?? "physique",
               actif: false,
+              exempleAxia: true, // badge « Exemple » + « Activer ce produit » dans Produits
               featured: true,
             },
           });
@@ -202,6 +226,9 @@ export async function POST(request: Request) {
 
         return { tenant, produitsCreees };
       });
+
+      // Politiques (livraison, retours, confidentialité, CGV) rédigées par Axia en brouillon, après la réponse.
+      after(() => redigerPolitiques(tenant.id));
 
       await annoncerInscription({ name: compte.name, email: compte.email, role: "owner", tenantId: tenant.id });
 

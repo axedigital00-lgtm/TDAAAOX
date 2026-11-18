@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  Film, Image, Plus, Loader2, Trash2, Download, Copy,
-  RefreshCw, Wand2, Play, CheckCircle2, XCircle, Clock, Sparkles, X
+  Film, Image, Loader2, Trash2, Download, Copy,
+  RefreshCw, Wand2, CheckCircle2, XCircle, Clock, Sparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { Alerte, Badge, Bouton, BoutonIcone, Confirmation, EnTetePage, EtatErreur, EtatVide, Modale, SqueletteListe, ZoneTexte } from "@/components/ui";
 
 interface Media {
   id: string; prompt: string; style: string;
@@ -29,81 +31,80 @@ const STYLES_IMAGE = ["product_photo", "lifestyle", "advertisement", "minimal", 
 
 function StatutBadge({ statut }: { statut: string }) {
   const tr = useT();
-  if (statut === "pret") return <span className="flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-medium"><CheckCircle2 size={10}/>{" "}{tr("Prêt")}</span>;
-  if (statut === "en_cours") return <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium"><Loader2 size={10} className="animate-spin"/>{" "}{tr("En cours")}</span>;
-  return <span className="flex items-center gap-1 text-xs bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-medium"><XCircle size={10}/>{" "}{tr("Erreur")}</span>;
+  if (statut === "pret") return <Badge ton="succes" icone={<CheckCircle2 aria-hidden />}>{tr("Prêt")}</Badge>;
+  if (statut === "en_cours") return <Badge ton="attention" icone={<Loader2 className="animate-spin" aria-hidden />}>{tr("En cours")}</Badge>;
+  return <Badge ton="erreur" icone={<XCircle aria-hidden />}>{tr("Échec")}</Badge>;
 }
 
-function MediaCard({ media, onDelete, onCopy }: { media: Media; onDelete: (id: string) => void; onCopy: (url: string) => void }) {
+function MediaCard({ media, onDelete, onCopy }: { media: Media; onDelete: (id: string) => Promise<void>; onCopy: (url: string) => void }) {
   const tr = useT();
+  const [confirmer, setConfirmer] = useState(false);
   const url = media.videoUrl ?? media.thumbnailUrl;
   const estVideo = !!media.videoUrl;
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden group hover:shadow-lg transition-all">
+    <div className="bg-carte border border-bordure rounded-carte overflow-hidden flex flex-col">
       {/* Aperçu */}
-      <div className="relative aspect-video bg-gray-50">
+      <div className="relative aspect-video bg-carte-2">
         {media.statut === "en_cours" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <Loader2 size={28} className="text-[#F5A623] animate-spin"/>
-            <p className="text-xs text-gray-400">{tr("Génération en cours…")}</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" role="status">
+            <Loader2 size={28} className="text-primaire animate-spin" aria-hidden />
+            <p className="text-xs text-doux">{tr("Génération en cours…")}</p>
           </div>
         ) : media.statut === "erreur" ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-            <XCircle size={24} className="text-red-400"/>
-            <p className="text-xs text-red-500 text-center line-clamp-2">{tr(media.erreur) ?? tr("Erreur de génération")}</p>
+            <XCircle size={24} className="text-erreur" aria-hidden />
+            <p className="text-xs text-erreur text-center line-clamp-2">{tr(media.erreur) ?? tr("La génération a échoué. Relancez-la avec une autre description.")}</p>
           </div>
         ) : url && estVideo ? (
-          <video src={url} className="w-full h-full object-cover" muted loop/>
+          <video src={url} className="w-full h-full object-cover" muted loop controls preload="metadata" />
         ) : url ? (
-          <img src={url} alt={media.prompt} className="w-full h-full object-cover"/>
+          <img src={url} alt={media.prompt} className="w-full h-full object-cover" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Wand2 size={24} className="text-gray-300"/>
-          </div>
-        )}
-
-        {/* Overlay actions */}
-        {url && media.statut === "pret" && (
-          <div className="absolute inset-0 bg-black/40 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-            {estVideo && (
-              <button className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all">
-                <Play size={16} className="text-white ml-0.5"/>
-              </button>
-            )}
-            <a href={url} download className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all">
-              <Download size={16} className="text-white"/>
-            </a>
-            <button onClick={() => onCopy(url)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all">
-              <Copy size={16} className="text-white"/>
-            </button>
+          <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
+            <Wand2 size={24} className="text-discret" />
           </div>
         )}
 
         {/* Badge type */}
-        <div className="absolute top-2 left-2">
+        <div className="absolute top-2 left-2 pointer-events-none">
           <span className="text-xs bg-black/60 text-white px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1">
-            {estVideo ? <Film size={10}/> : <Image size={10}/>}
+            {estVideo ? <Film size={12} aria-hidden /> : <Image size={12} aria-hidden />}
             {estVideo ? tr("Vidéo") : tr("Image")}
           </span>
         </div>
       </div>
 
       {/* Infos */}
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <p className="text-xs text-gray-700 line-clamp-2 flex-1 leading-relaxed">{tr(media.prompt)}</p>
-          <button onClick={() => onDelete(media.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0">
-            <Trash2 size={12}/>
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <StatutBadge statut={media.statut}/>
-          <span className="text-[10px] text-gray-400">
+      <div className="p-3 flex-1 flex flex-col gap-2">
+        <p className="text-sm text-encre line-clamp-2 leading-snug" title={media.prompt}>{tr(media.prompt)}</p>
+        <div className="flex items-center justify-between gap-2">
+          <StatutBadge statut={media.statut} />
+          <span className="text-xs text-doux">
             {new Date(media.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })}
           </span>
         </div>
+        <div className="mt-auto flex items-center gap-1.5">
+          {url && media.statut === "pret" && (
+            <>
+              <a href={url} download aria-label={tr("Télécharger")} title={tr("Télécharger")}
+                className="inline-flex size-10 sm:size-8 items-center justify-center rounded-controle border border-bordure text-encre hover:bg-carte-2">
+                <Download size={14} aria-hidden />
+              </a>
+              <BoutonIcone variante="secondaire" label={tr("Copier le lien")} onClick={() => onCopy(url)} className="sm:size-8 sm:min-h-8">
+                <Copy size={14} aria-hidden />
+              </BoutonIcone>
+            </>
+          )}
+          <BoutonIcone variante="danger" label={tr("Supprimer")} onClick={() => setConfirmer(true)} className="ml-auto sm:size-8 sm:min-h-8">
+            <Trash2 size={14} aria-hidden />
+          </BoutonIcone>
+        </div>
       </div>
+      <Confirmation ouverte={confirmer} onFermer={() => setConfirmer(false)} onConfirmer={() => onDelete(media.id)}
+        titre={estVideo ? tr("Supprimer cette vidéo ?") : tr("Supprimer ce média ?")} objet={media.prompt}
+        description={tr("Il disparaît de la médiathèque. Les pages qui utilisent son lien ne l'afficheront plus.")}
+        libelleConfirmer={tr("Supprimer le média")} />
     </div>
   );
 }
@@ -113,9 +114,9 @@ export default function MediasPage() {
   const [medias, setMedias] = useState<Media[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, pretes: 0, enCours: 0, erreurs: 0 });
   const [loading, setLoading] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [filter, setFilter] = useState<"tous" | "video" | "image">("tous");
   const [showModal, setShowModal] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Formulaire génération
   const [type, setType] = useState<"video" | "image">("image");
@@ -128,10 +129,12 @@ export default function MediasPage() {
     try {
       const url = filter === "tous" ? "/api/medias" : `/api/medias?type=${filter}`;
       const res = await fetch(url);
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setMedias(data.medias ?? []);
       setStats(data.stats ?? { total: 0, pretes: 0, enCours: 0, erreurs: 0 });
-    } catch {}
+      setErreurChargement(false);
+    } catch { setErreurChargement(true); }
     finally { setLoading(false); }
   }, [filter]);
 
@@ -154,81 +157,80 @@ export default function MediasPage() {
     if (!prompt.trim()) return;
     setGenerating(true);
     try {
-      await fetch("/api/medias", {
+      const res = await fetch("/api/medias", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, prompt, model, style }),
       });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error);
+      }
       setShowModal(false);
       setPrompt("");
+      toast.success(type === "video" ? tr("Génération de la vidéo lancée : elle apparaît dans la liste dès qu'elle est prête.") : tr("Génération de l'image lancée : elle apparaît dans la liste dès qu'elle est prête."));
       await charger();
-    } catch {}
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? tr(e.message) : tr("La génération n'a pas pu être lancée. Réessayez dans un instant."));
+    }
     finally { setGenerating(false); }
   }
 
+  // Lève en cas d'échec : la fenêtre de confirmation reste ouverte.
   async function supprimer(id: string) {
-    await fetch(`/api/medias?id=${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/medias?id=${id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) { toast.error(tr("Le média n'a pas pu être supprimé. Réessayez dans un instant.")); throw new Error("suppression"); }
     setMedias(ms => ms.filter(m => m.id !== id));
+    toast.success(tr("Média supprimé."));
   }
 
   function copier(url: string) {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(url).then(() => toast.success(tr("Lien du média copié."))).catch(() => toast.error(tr("Copie impossible : ouvrez le média et copiez son adresse.")));
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{tr("Médiathèque IA")}</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{tr("Vidéos et images générées par IA")}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={charger} className="p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all">
-            <RefreshCw size={15}/>
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm text-white transition-all"
-            style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)", boxShadow: "0 4px 16px rgba(245,166,35,0.3)" }}
-          >
-            <Wand2 size={14}/>{" "}{tr("Générer")}
-          </button>
-        </div>
-      </div>
+    <div className="space-y-section">
+      <EnTetePage
+        className="mb-0"
+        titre={tr("Médiathèque IA")}
+        description={tr("Vidéos et images générées par IA")}
+        actions={<>
+          <Bouton variante="secondaire" onClick={charger} icone={<RefreshCw size={15} aria-hidden />}>{tr("Actualiser")}</Bouton>
+          <Bouton onClick={() => setShowModal(true)} icone={<Wand2 size={15} aria-hidden />}>{tr("Générer un média")}</Bouton>
+        </>}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total", value: stats.total, icon: Sparkles, color: "#6366f1", bg: "#eef2ff" },
-          { label: "Prêts", value: stats.pretes, icon: CheckCircle2, color: "#059669", bg: "#ecfdf5" },
-          { label: "En cours", value: stats.enCours, icon: Clock, color: "#d97706", bg: "#fffbeb" },
-          { label: "Erreurs", value: stats.erreurs, icon: XCircle, color: "#dc2626", bg: "#fef2f2" },
+          { label: "Total", value: stats.total, icon: Sparkles, cls: "bg-carte-2 text-doux" },
+          { label: "Prêts", value: stats.pretes, icon: CheckCircle2, cls: "bg-succes-fond text-succes" },
+          { label: "En cours", value: stats.enCours, icon: Clock, cls: "bg-attention-fond text-attention" },
+          { label: "Échecs", value: stats.erreurs, icon: XCircle, cls: "bg-erreur-fond text-erreur" },
         ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: s.bg }}>
-              <s.icon size={16} style={{ color: s.color }}/>
+          <div key={s.label} className="bg-carte border border-bordure rounded-carte p-4 flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 ${s.cls}`} aria-hidden>
+              <s.icon size={16} />
             </div>
             <div>
-              <p className="text-xl font-bold text-gray-900">{tr(s.value)}</p>
-              <p className="text-xs text-gray-400">{tr(s.label)}</p>
+              <p className="text-xl font-bold text-encre">{tr(s.value)}</p>
+              <p className="text-xs text-doux">{tr(s.label)}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={tr("Filtrer les médias")}>
         {(["tous", "image", "video"] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-all capitalize ${filter === f ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}
+            aria-pressed={filter === f}
+            className={`flex items-center gap-1.5 px-4 min-h-10 rounded-controle text-sm font-semibold border transition-all ${filter === f ? "bg-secondaire text-carte border-secondaire" : "bg-carte border-bordure text-doux hover:border-bordure-forte"}`}
           >
-            {f === "video" && <Film size={13}/>}
-            {f === "image" && <Image size={13}/>}
+            {f === "video" && <Film size={14} aria-hidden />}
+            {f === "image" && <Image size={14} aria-hidden />}
             {f === "tous" ? tr("Tous les médias") : f === "video" ? tr("Vidéos") : tr("Images")}
           </button>
         ))}
@@ -236,125 +238,99 @@ export default function MediasPage() {
 
       {/* Grille médias */}
       {loading ? (
-        <div className="flex justify-center py-20"><Loader2 size={28} className="text-gray-300 animate-spin"/></div>
+        <SqueletteListe lignes={3} libelle={tr("Chargement de la médiathèque…")} />
+      ) : erreurChargement && medias.length === 0 ? (
+        <EtatErreur titre={tr("La médiathèque n'a pas pu être chargée.")} texte={tr("Vérifiez votre connexion puis réessayez.")} onReessayer={charger} />
       ) : medias.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-16 text-center">
-          <Wand2 size={40} className="mx-auto text-gray-300 mb-4"/>
-          <h3 className="text-lg font-bold text-gray-700 mb-2">{tr("Médiathèque vide")}</h3>
-          <p className="text-gray-400 text-sm mb-6">{tr("Générez des vidéos et images IA pour vos produits et campagnes")}</p>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm text-white mx-auto" style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)" }}>
-            <Sparkles size={14}/>{" "}{tr("Générer mon premier média")}
-          </button>
-        </div>
+        <EtatVide icone={<Wand2 />} titre={filter === "tous" ? tr("Médiathèque vide") : filter === "video" ? tr("Aucune vidéo pour l'instant") : tr("Aucune image pour l'instant")}
+          texte={tr("Générez des vidéos et images IA pour vos produits et campagnes")}>
+          <Bouton onClick={() => setShowModal(true)} icone={<Sparkles size={15} aria-hidden />}>{tr("Générer mon premier média")}</Bouton>
+        </EtatVide>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {medias.map(m => (
-            <MediaCard key={m.id} media={m} onDelete={supprimer} onCopy={copier}/>
+            <MediaCard key={m.id} media={m} onDelete={supprimer} onCopy={copier} />
           ))}
         </div>
       )}
 
-      {/* Toast copié */}
-      {copied && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 z-50">
-          <CheckCircle2 size={14} className="text-green-400"/>{" "}{tr("URL copiée !")}
-        </div>
-      )}
-
-      {/* ── Modal Génération ── */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-              <div>
-                <h2 className="font-bold text-gray-900 text-lg">{tr("Générer un média IA")}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{tr("Higgsfield · Kling 3.0 · Recraft 4.1 · Veo 3.1")}</p>
-              </div>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-all">
-                <X size={18}/>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5">
-              {/* Type */}
-              <div className="grid grid-cols-2 gap-3">
-                {(["image", "video"] as const).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setType(t)}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-2xl border-2 font-semibold text-sm transition-all ${type === t ? "border-[#F5A623] bg-amber-50 text-[#F5A623]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                  >
-                    {t === "image" ? <Image size={16}/> : <Film size={16}/>}
-                    {t === "image" ? tr("Image") : tr("Vidéo")}
-                  </button>
-                ))}
-              </div>
-
-              {/* Prompt */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">{tr("Décrivez ce que vous voulez générer *")}</label>
-                <textarea
-                  value={prompt}
-                  onChange={e => setPrompt(e.target.value)}
-                  placeholder={type === "video"
-                    ? tr("Ex: Sac à main en cuir marron, fond blanc, rotation 360°, lumière studio professionnelle…")
-                    : tr("Ex: Photo produit robe wax premium sur fond blanc, ultra HD, éclairage professionnel…")}
-                  rows={3}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#F5A623]/60 resize-none"
-                />
-              </div>
-
-              {/* Modèle */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">{tr("Modèle")}</label>
-                <div className="space-y-1.5">
-                  {(type === "video" ? MODELES_VIDEO : MODELES_IMAGE).map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => setModel(m.id)}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all text-sm ${model === m.id ? "border-[#F5A623] bg-amber-50" : "border-gray-100 hover:border-gray-200"}`}
-                    >
-                      <span className={`font-semibold ${model === m.id ? "text-[#e8950f]" : "text-gray-700"}`}>{tr(m.label)}</span>
-                      <span className="text-xs text-gray-400">{tr(m.desc)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Style */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">{tr("Style")}</label>
-                <div className="flex flex-wrap gap-2">
-                  {(type === "video" ? STYLES_VIDEO : STYLES_IMAGE).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setStyle(s)}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all capitalize ${style === s ? "border-[#F5A623] bg-amber-50 text-[#e8950f]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                    >
-                      {s.replace(/_/g, " ")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Info Higgsfield requis */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 flex items-start gap-2">
-                <Sparkles size={13} className="flex-shrink-0 mt-0.5"/>
-                <span>{tr("Nécessite Higgsfield connecté dans")}{" "}<a href="/dashboard/connecteurs" className="font-bold underline">{tr("Connecteurs")}</a>{tr(". Sans connexion, une image placeholder sera générée.")}</span>
-              </div>
-
+      {/* ── Modale Génération ── */}
+      <Modale ouverte={showModal} onFermer={() => setShowModal(false)} verrouillee={generating}
+        titre={tr("Générer un média IA")} description={tr("Higgsfield · Kling 3.0 · Recraft 4.1 · Veo 3.1")}
+        actions={<>
+          <Bouton variante="secondaire" onClick={() => setShowModal(false)} disabled={generating}>{tr("Annuler")}</Bouton>
+          <Bouton onClick={generer} disabled={!prompt.trim()} charge={generating} texteCharge={tr("Lancement…")} icone={<Wand2 size={15} aria-hidden />}>
+            {type === "video" ? tr("Générer la vidéo") : tr("Générer l'image")}
+          </Bouton>
+        </>}>
+        <div className="space-y-5">
+          {/* Type */}
+          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={tr("Type de média")}>
+            {(["image", "video"] as const).map(t => (
               <button
-                onClick={generer}
-                disabled={generating || !prompt.trim()}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm transition-all disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)" }}
+                key={t}
+                type="button"
+                role="radio"
+                aria-checked={type === t}
+                onClick={() => setType(t)}
+                className={`flex items-center justify-center gap-2 min-h-12 rounded-controle border-2 font-semibold text-sm transition-all ${type === t ? "border-primaire bg-primaire-fond text-encre" : "border-bordure text-doux hover:border-bordure-forte"}`}
               >
-                {generating ? <><Loader2 size={14} className="animate-spin"/>{" "}{tr("Lancement…")}</> : <><Wand2 size={14}/>{" "}{tr("Générer")}{" "}{type === "video" ? tr("la vidéo") : "l'image"}</>}
+                {t === "image" ? <Image size={16} aria-hidden /> : <Film size={16} aria-hidden />}
+                {t === "image" ? tr("Image") : tr("Vidéo")}
               </button>
+            ))}
+          </div>
+
+          <ZoneTexte label={tr("Décrivez ce que vous voulez générer")} required rows={3} value={prompt} onChange={e => setPrompt(e.target.value)}
+            placeholder={type === "video"
+              ? tr("Ex: Sac à main en cuir marron, fond blanc, rotation 360°, lumière studio professionnelle…")
+              : tr("Ex: Photo produit robe wax premium sur fond blanc, ultra HD, éclairage professionnel…")} />
+
+          {/* Modèle */}
+          <div className="space-y-1.5">
+            <p className="ax-libelle" id="medias-modele">{tr("Modèle")}</p>
+            <div className="space-y-1.5" role="radiogroup" aria-labelledby="medias-modele">
+              {(type === "video" ? MODELES_VIDEO : MODELES_IMAGE).map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={model === m.id}
+                  onClick={() => setModel(m.id)}
+                  className={`w-full flex flex-wrap items-center justify-between gap-x-3 px-4 min-h-10 py-2 rounded-controle border transition-all text-sm ${model === m.id ? "border-primaire bg-primaire-fond" : "border-bordure hover:border-bordure-forte"}`}
+                >
+                  <span className="font-semibold text-encre">{tr(m.label)}</span>
+                  <span className="text-xs text-doux">{tr(m.desc)}</span>
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* Style */}
+          <div className="space-y-1.5">
+            <p className="ax-libelle" id="medias-style">{tr("Style")}</p>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="medias-style">
+              {(type === "video" ? STYLES_VIDEO : STYLES_IMAGE).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={style === s}
+                  onClick={() => setStyle(s)}
+                  className={`px-3 min-h-10 sm:min-h-8 rounded-controle border text-xs font-medium transition-all capitalize ${style === s ? "border-primaire bg-primaire-fond text-encre" : "border-bordure text-doux hover:border-bordure-forte"}`}
+                >
+                  {s.replace(/_/g, " ")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Alerte ton="info" titre={tr("Nécessite Higgsfield connecté dans les Connecteurs.")}
+            action={<a href="/dashboard/connecteurs" className="text-sm font-semibold underline">{tr("Ouvrir les Connecteurs")}</a>}>
+            {tr("Sans connexion, une image placeholder sera générée.")}
+          </Alerte>
         </div>
-      )}
+      </Modale>
     </div>
   );
 }

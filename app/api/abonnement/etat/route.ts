@@ -25,7 +25,7 @@ export async function GET() {
   });
 
   // Plan payé (sans l'essai Illimité) : on peut s'abonner pendant l'essai.
-  const [{ planPaye: planActuel }, essai] = await Promise.all([planActif(tenantId), etatEssai(tenantId)]);
+  const [{ planPaye: planActuel, promoFinLe }, essai] = await Promise.all([planActif(tenantId), etatEssai(tenantId)]);
   const pays = tenant?.pays ?? "CM";
   const devise = tenant?.devise ?? PAYS_DEVISES[pays] ?? "XAF";
 
@@ -35,5 +35,7 @@ export async function GET() {
     nomBoutique: tenant?.nomBoutique ?? null,
     devise,
     essai: { phase: essai.phase, finLe: essai.finLe?.toISOString() ?? null },
+    // Promo de lancement : mêmes packs payants fermés que la page Abonnement.
+    promo: !!promoFinLe,
   });
 }

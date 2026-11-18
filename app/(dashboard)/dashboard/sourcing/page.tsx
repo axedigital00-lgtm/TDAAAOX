@@ -144,7 +144,7 @@ function Conversation({ iaDisponible, dossierId, onReponse }: { iaDisponible: bo
               <div key={j} className="rounded-2xl border border-[#FDE68A] bg-[#FFFBEB] p-3">
                 <p className="text-[13px] font-bold text-[#111111]">{p.libelle}</p>
                 <p className="text-[12px] text-[#666666] mt-0.5 leading-relaxed">{p.detail}</p>
-                {p.etat === "erreur" && <p role="alert" className="text-[12px] text-[#B91C1C] font-semibold mt-1.5">{t(p.message ?? "Erreur")}</p>}
+                {p.etat === "erreur" && <p role="alert" className="text-[12px] text-[#B91C1C] font-semibold mt-1.5">{t(p.message ?? "Cette étape n'a pas abouti. Réessaie.")}</p>}
                 <div className="mt-2">
                   {p.etat === "fait"
                     ? <Pastille ton="positif"><Check size={11} />{t("Fait")}</Pastille>
@@ -335,7 +335,7 @@ function CalculRapide() {
   const [fiche, setFiche] = useState<FicheCalcul>({ prixFournisseur: 0, deviseFournisseur: "USD", modeAppro: "dropshipping", parametresCout: {}, tarification: {} });
   const mode = MODES_APPRO.find((m) => m.cle === fiche.modeAppro) ?? MODES_APPRO[0];
   if (chargement && !contexte) return <Chargement />;
-  if (erreur || !contexte) return <Erreur message={erreur ?? "Erreur"} />;
+  if (erreur || !contexte) return <Erreur message={erreur ?? "Les données du sourcing n'ont pas pu être chargées. Recharge la page."} />;
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-[#666666] leading-relaxed">{t("Entrez le prix du fournisseur et vos frais : Axso calcule votre coût réel, le prix à afficher et votre bénéfice par commande.")}</p>

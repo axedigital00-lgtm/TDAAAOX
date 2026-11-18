@@ -5,6 +5,8 @@ import { Handshake, Users, Clock, CheckCircle } from "lucide-react";
 import { getAdminSessionPour, estAdminComplet } from "@/lib/admin-auth";
 import { AdminRetraitsManuels } from "@/components/admin/AdminRetraitsManuels";
 import { getT } from "@/lib/i18n/serveur";
+import { EnTetePage, Carte, Badge, EtatVide } from "@/components/command-center/ui";
+import { TableauInteractif, type Colonne, type Ligne } from "@/components/command-center/client";
 
 // Affiliés de toutes les boutiques : retraits d'affiliés à faire à la main (validation par Axso,
 // lib/affiliation.ts), vue d'ensemble des partenariats et derniers retraits traités.
@@ -25,69 +27,65 @@ export default async function AdminAffiliesPage() {
     prisma.retraitAffilie.findMany({ where: { statut: { in: ["complete", "echoue"] } }, orderBy: { updatedAt: "desc" }, take: 20, include: { user: { select: { name: true, email: true } } } }),
   ]);
 
-  const carte = { background: "#1A1A1A", borderColor: "rgba(255,255,255,0.08)" };
-  const STATUTS: Record<string, string> = { actif: "#16A34A", en_attente: "#D97706", suspendu: "#DC2626" };
+  const NOM_STATUT: Record<string, string> = { actif: "Actif", en_attente: "En attente", suspendu: "Suspendu" };
+  const tons = { [tx("Actif")]: "good", [tx("En attente")]: "warn", [tx("Suspendu")]: "bad" };
+  const colonnes: Colonne[] = [
+    { cle: "nom", nom: tx("Affilié"), format: "texte" },
+    { cle: "contact", nom: tx("Contact"), format: "texte" },
+    { cle: "boutique", nom: tx("Boutique"), format: "texte", filtrable: true },
+    { cle: "statut", nom: tx("Statut"), format: "badge", filtrable: true, tons },
+    { cle: "clics", nom: tx("Clics"), format: "nombre", droite: true },
+    { cle: "ventes", nom: tx("Ventes"), format: "nombre", droite: true },
+    { cle: "gagne", nom: tx("Gagné"), format: "nombre", droite: true },
+    { cle: "attente", nom: tx("En attente"), format: "nombre", droite: true },
+    { cle: "devise", nom: tx("Devise"), format: "texte" },
+  ];
+  const lignes: Ligne[] = affilies.map((a) => ({
+    _id: a.id, nom: a.nom, contact: [a.email, a.telephone].filter(Boolean).join(" · "), boutique: a.tenant.nomBoutique,
+    statut: tx(NOM_STATUT[a.statut] ?? a.statut), clics: a.clics, ventes: a.conversions,
+    gagne: Math.round(a.commissionTotal), attente: a.commissionPending > 0 ? Math.round(a.commissionPending) : null, devise: a.tenant.devise,
+  }));
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--cc-text)" }}>{tx("Affiliés")}</h1>
-        <p className="text-sm mt-1" style={{ color: "#AAAAAA" }}>{tx("Retraits d'affiliés à valider et partenariats de toutes les boutiques")}</p>
-      </div>
+    <div className="space-y-5">
+      <EnTetePage titre={tx("Affiliés")} sousTitre={tx("Retraits d'affiliés à valider et partenariats de toutes les boutiques")} />
 
+      {/* Action : retraits à verser à la main */}
       <AdminRetraitsManuels peutTraiter={estAdminComplet(session)} commissions />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Supervision (lecture seule) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Affiliés", value: nbAffilies, icon: Users, color: "#F5A623" },
-          { label: "Actifs", value: nbActifs, icon: CheckCircle, color: "#16A34A" },
-          { label: "Boutiques avec affiliés", value: nbBoutiques, icon: Handshake, color: "#3B82F6" },
-          { label: "Retraits à faire", value: enAttente, icon: Clock, color: enAttente ? "#DC2626" : "#AAAAAA" },
+          { label: "Affiliés", value: nbAffilies, icon: Users, cls: "cc-warn" },
+          { label: "Actifs", value: nbActifs, icon: CheckCircle, cls: "cc-good" },
+          { label: "Boutiques avec affiliés", value: nbBoutiques, icon: Handshake, cls: "cc-muted" },
+          { label: "Retraits à faire", value: enAttente, icon: Clock, cls: enAttente ? "cc-bad" : "cc-faint" },
         ].map((k) => (
-          <div key={k.label} className="rounded-2xl p-5 border" style={carte}>
-            <div className="flex items-center gap-2 mb-2"><k.icon size={15} style={{ color: k.color }} /><span className="text-xs" style={{ color: "#AAAAAA" }}>{tx(k.label)}</span></div>
-            <p className="text-xl font-bold" style={{ color: "#ffffff" }}>{k.value}</p>
-          </div>
+          <section key={k.label} className="cc-card p-4">
+            <p className="flex items-center gap-2 text-[12px] cc-muted"><k.icon size={14} className={k.cls} aria-hidden />{tx(k.label)}</p>
+            <p className="text-xl font-semibold cc-num mt-1.5">{k.value.toLocaleString(tx.loc)}</p>
+          </section>
         ))}
       </div>
 
-      <div className="rounded-2xl p-6 border overflow-x-auto" style={carte}>
-        <h2 className="font-semibold mb-4" style={{ color: "#ffffff" }}>{tx("Affiliés (les 100 qui ont le plus gagné)")}</h2>
-        {affilies.length === 0 ? <p className="text-sm" style={{ color: "#AAAAAA" }}>{tx("Aucun affilié pour l'instant.")}</p> : (
-          <table className="w-full text-sm min-w-[720px]">
-            <thead><tr className="text-left text-xs" style={{ color: "#888888" }}>
-              {["Affilié", "Boutique", "Statut", "Clics", "Ventes", "Gagné", "En attente"].map((h) => <th key={h} className="pb-2 pr-3 font-medium">{tx(h)}</th>)}
-            </tr></thead>
-            <tbody>
-              {affilies.map((a) => (
-                <tr key={a.id} className="border-t" style={{ borderColor: "rgba(255,255,255,0.06)", color: "#DDDDDD" }}>
-                  <td className="py-2 pr-3"><p className="font-medium" style={{ color: "#ffffff" }}>{a.nom}</p><p className="text-xs" style={{ color: "#888888" }}>{a.email}{a.telephone ? ` · ${a.telephone}` : ""}</p></td>
-                  <td className="py-2 pr-3">{a.tenant.nomBoutique}</td>
-                  <td className="py-2 pr-3"><span className="text-xs font-semibold" style={{ color: STATUTS[a.statut] ?? "#AAAAAA" }}>{tx(a.statut === "en_attente" ? "En attente" : a.statut === "actif" ? "Actif" : "Suspendu")}</span></td>
-                  <td className="py-2 pr-3">{a.clics}</td>
-                  <td className="py-2 pr-3">{a.conversions}</td>
-                  <td className="py-2 pr-3">{formatMontant(a.commissionTotal, a.tenant.devise)}</td>
-                  <td className="py-2 pr-3">{a.commissionPending > 0 ? formatMontant(a.commissionPending, a.tenant.devise) : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Carte titre={tx("Affiliés (les 100 qui ont le plus gagné)")}>
+        {affilies.length === 0
+          ? <EtatVide titre={tx("Aucun affilié pour l'instant.")} explication={tx("Les affiliés apparaissent ici dès qu'une boutique ouvre son programme et qu'un partenaire le rejoint.")} />
+          : <TableauInteractif colonnes={colonnes} lignes={lignes} nomExport="affilies" vide={tx("Aucun affilié")} />}
+      </Carte>
 
-      <div className="rounded-2xl p-6 border" style={carte}>
-        <h2 className="font-semibold mb-4" style={{ color: "#ffffff" }}>{tx("Derniers retraits traités")}</h2>
-        {historique.length === 0 ? <p className="text-sm" style={{ color: "#AAAAAA" }}>{tx("Aucun retrait traité pour l'instant.")}</p> : (
-          <div className="space-y-2">
+      <Carte titre={tx("Derniers retraits traités")} sousTitre={tx("Les 20 plus récents")}>
+        {historique.length === 0 ? <EtatVide titre={tx("Aucun retrait traité pour l'instant.")} /> : (
+          <ul className="space-y-2">
             {historique.map((p) => (
-              <div key={p.id} className="flex items-center justify-between flex-wrap gap-2 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,255,255,0.02)", color: "#DDDDDD" }}>
-                <span>{formatMontant(p.montant, p.devise)} → {p.user.name ?? p.user.email ?? "?"} ({p.destinataire})</span>
-                <span className="text-xs" style={{ color: p.statut === "complete" ? "#16A34A" : "#DC2626" }}>{tx(p.statut === "complete" ? "Payé" : "Refusé / échoué")} · {formatDate(p.updatedAt)}</span>
-              </div>
+              <li key={p.id} className="flex items-center justify-between flex-wrap gap-2 px-3 py-2 rounded-lg text-[13px]" style={{ background: "var(--cc-surface-2)" }}>
+                <span className="min-w-0 [overflow-wrap:anywhere]"><span className="cc-num font-medium">{formatMontant(p.montant, p.devise)}</span> → {p.user.name ?? p.user.email ?? "?"} <span className="cc-muted">({p.destinataire})</span></span>
+                <span className="flex items-center gap-2 text-[12px]"><Badge ton={p.statut === "complete" ? "good" : "bad"}>{tx(p.statut === "complete" ? "Payé" : "Refusé / échoué")}</Badge><span className="cc-faint">{formatDate(p.updatedAt)}</span></span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </div>
+      </Carte>
     </div>
   );
 }

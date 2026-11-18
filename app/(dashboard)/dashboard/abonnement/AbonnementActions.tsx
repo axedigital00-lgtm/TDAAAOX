@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, Confirmation } from "@/components/ui";
 
 interface AbonnementActionsProps {
   planId: string;
@@ -17,52 +17,39 @@ interface AbonnementActionsProps {
 export default function AbonnementActions({ planId, planActuel }: AbonnementActionsProps) {
   const t = useT();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [confirmer, setConfirmer] = useState(false);
 
   if (planId !== "palier0") {
     return (
-      <p className="w-full py-2.5 rounded-xl text-sm font-semibold text-center text-gray-500 bg-gray-50 border border-gray-200">
+      <p className="w-full py-2.5 rounded-controle text-sm font-semibold text-center text-doux bg-carte-2 border border-bordure">
         {t("Paiement en ligne bientôt disponible")}
       </p>
     );
   }
 
   if (planActuel === "palier0") {
-    return (
-      <button
-        disabled
-        className="w-full py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200 cursor-default"
-      >
-        {t("Plan actuel")}
-      </button>
-    );
+    return <Bouton variante="secondaire" large disabled>{t("Plan actuel")}</Bouton>;
   }
 
+  // Lève en cas d'échec : la fenêtre de confirmation reste ouverte.
   async function retrograder() {
-    if (!window.confirm(t("Toutes tes boutiques repasseront en Essentiel et les jours payés restants seront perdus. Continuer ?"))) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/abonnement/changer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan: planId }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
-      toast.success(t("Plan Essentiel activé"));
-      router.refresh();
-    } catch (err: any) {
-      toast.error(t(err.message) ?? t("Erreur lors du changement de plan"));
-    } finally {
-      setLoading(false);
+    const res = await fetch("/api/abonnement/changer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan: planId }) }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    if (!res?.ok) {
+      toast.error(data.error ? t(data.error) : t("Le changement de plan n'a pas abouti. Vérifiez votre connexion et réessayez."));
+      throw new Error("changement");
     }
+    toast.success(t("Plan Essentiel activé pour toutes vos boutiques."));
+    router.refresh();
   }
 
   return (
-    <button
-      onClick={retrograder}
-      disabled={loading}
-      className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-      style={{ backgroundColor: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
-    >
-      {loading && <Loader2 size={14} className="animate-spin" />}
-      {loading ? t("Changement...") : t("Rétrograder")}
-    </button>
+    <>
+      <Bouton variante="danger" large onClick={() => setConfirmer(true)}>{t("Repasser en Essentiel")}</Bouton>
+      <Confirmation ouverte={confirmer} onFermer={() => setConfirmer(false)} onConfirmer={retrograder}
+        titre={t("Repasser au plan Essentiel ?")} objet={t("Toutes vos boutiques")}
+        description={t("Toutes tes boutiques repasseront en Essentiel et les jours payés restants seront perdus.")}
+        libelleConfirmer={t("Repasser en Essentiel")} />
+    </>
   );
 }

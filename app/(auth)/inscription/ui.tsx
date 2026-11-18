@@ -102,7 +102,7 @@ export function Carte({ titre, desc, icone, choisi, onClick, compacte }: {
       )}
       <span className="min-w-0">
         <span className={`block font-bold ${compacte ? "text-[14px]" : "text-[16px]"} leading-tight`}>{titre}</span>
-        {desc && <span className={`block text-[13px] mt-1 leading-snug ${choisi ? "text-white/70" : "text-gray-500"}`}>{desc}</span>}
+        {desc && <span className={`block text-[14px] mt-1 leading-snug ${choisi ? "text-white/70" : "text-gray-500"}`}>{desc}</span>}
       </span>
     </button>
   );
@@ -114,7 +114,7 @@ export function Jauge({ p }: { p: number }) {
   const pct = Math.round(p * 100);
   return (
     <div className="w-full" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={tr("Poussée")} aria-valuetext={tr(palierJauge(p))}>
-      <div className="flex items-center justify-between mb-1.5 text-[11.5px] font-bold uppercase tracking-widest">
+      <div className="flex items-center justify-between mb-1.5 text-[12px] font-bold uppercase tracking-widest">
         <span className="text-[#111111]">{tr(palierJauge(p))}</span>
         <span className="text-gray-500 tabular-nums">{pct} %</span>
       </div>
@@ -145,8 +145,20 @@ export function Retour({ onClick }: { onClick: () => void }) {
   );
 }
 
+/**
+ * Téléphone : à l'ouverture du clavier, ramène le bouton du formulaire (Continuer…) dans la partie visible,
+ * juste sous le champ touché. À poser en onFocus d'un <form>.
+ */
+export function garderBoutonVisible(e: React.FocusEvent<HTMLFormElement>) {
+  const champ = e.target;
+  if (!(champ instanceof HTMLInputElement || champ instanceof HTMLTextAreaElement)) return;
+  try { if (!matchMedia("(pointer: coarse)").matches) return; } catch { return; }
+  const form = e.currentTarget;
+  setTimeout(() => form.querySelector<HTMLElement>("[type=submit]")?.scrollIntoView({ block: "nearest" }), 350);
+}
+
 /** Message d'erreur d'un champ (aucun son, aucune vibration : voir page.tsx). */
 export function Erreur({ id, children }: { id: string; children?: React.ReactNode }) {
   if (!children) return null;
-  return <p id={id} role="alert" className="mt-2 text-[13px] font-medium text-[#B91C1C]">{children}</p>;
+  return <p id={id} role="alert" className="mt-2 text-[14px] font-medium text-[#B91C1C]">{children}</p>;
 }

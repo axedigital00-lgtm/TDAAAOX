@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
       nom: p.nom,
       images: p.images,
       categorie: p.categorie,
+      type: p.type,
       stock: p.stock,
       ventes: p.ventes,
       prixAffiche: prixClient(p.prix, taux, p.type),

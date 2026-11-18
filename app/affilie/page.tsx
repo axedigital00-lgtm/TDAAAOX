@@ -77,7 +77,7 @@ export default async function AccueilAffilie() {
             </div>
             <div className="flex gap-5 text-[12px]">
               <div><p className="text-white/50 flex items-center gap-1"><Clock size={12} />{t("En attente")}</p><p className="font-bold text-[15px]">{formatMontant(s.enAttente, d)}</p></div>
-              <div><p className="text-white/50">{t("Déjà versé")}</p><p className="font-bold text-[15px]">{formatMontant(s.verse, d)}</p></div>
+              <div><p className="text-white/50">{t("Déjà retiré")}</p><p className="font-bold text-[15px]">{formatMontant(s.verse, d)}</p></div>
             </div>
           </div>
         ))}
@@ -88,12 +88,12 @@ export default async function AccueilAffilie() {
         {[
           { label: "Clics", v: clics.toLocaleString(t.loc), Icon: MousePointerClick, c: "#3b82f6" },
           { label: "Ventes", v: ventes.toLocaleString(t.loc), Icon: ShoppingBag, c: "#10b981" },
-          { label: "Conversion", v: `${tauxConv.toLocaleString(t.loc)} %`, Icon: Percent, c: "#8b5cf6" },
+          { label: "Ventes / clics", v: `${tauxConv.toLocaleString(t.loc)} %`, Icon: Percent, c: "#8b5cf6" },
         ].map((k) => (
           <div key={k.label} className={`${carte} p-4 min-w-0`}>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3" style={{ background: `${k.c}14` }}><k.Icon size={16} style={{ color: k.c }} /></div>
             <p className="text-[19px] md:text-[22px] font-bold leading-none truncate">{k.v}</p>
-            <p className="text-[11px] text-[#999] mt-1.5">{t(k.label)}</p>
+            <p className="text-[11px] text-[#888] mt-1.5">{t(k.label)}</p>
           </div>
         ))}
       </div>

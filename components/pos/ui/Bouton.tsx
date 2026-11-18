@@ -11,11 +11,11 @@ export type VarianteBouton = "primaire" | "sombre" | "secondaire" | "discret" | 
 export type TailleBouton = "normal" | "grand" | "compact";
 
 const VARIANTES: Record<VarianteBouton, string> = {
-  primaire: "bg-[#F5A623] text-[#111111] hover:bg-[#D4911A] shadow-sm",
-  sombre: "bg-[#111111] text-white hover:bg-[#333333] shadow-sm",
-  secondaire: "bg-white text-[#111111] border border-[#E8E8E8] hover:border-[#F5A623]",
-  discret: "bg-[#FFF7ED] text-[#B45309] hover:bg-[#FDE68A]/60",
-  danger: "bg-white text-[#B91C1C] border border-[#FECACA] hover:bg-[#FEF2F2]",
+  primaire: "bg-primaire text-sur-primaire hover:bg-primaire-hover shadow-sm",
+  sombre: "bg-secondaire text-white hover:bg-secondaire-hover shadow-sm",
+  secondaire: "bg-carte text-encre border border-bordure hover:border-primaire",
+  discret: "bg-primaire-fond text-attention hover:bg-attention-bordure/60",
+  danger: "bg-carte text-erreur border border-erreur-bordure hover:bg-erreur-fond",
 };
 // « compact » reste à 44 px de haut : seule la largeur et le texte se resserrent.
 const TAILLES: Record<TailleBouton, string> = {

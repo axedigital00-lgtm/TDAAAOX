@@ -1,6 +1,6 @@
 export default function DashboardLoading() {
   return (
-    <div className="space-y-5 animate-pulse">
+    <div className="space-y-5 animate-pulse" role="status" aria-label="Chargement de la page…">
       {/* Greeting skeleton */}
       <div className="flex items-start justify-between pt-1">
         <div>

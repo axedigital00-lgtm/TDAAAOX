@@ -185,7 +185,7 @@ function FicheBon({ id, droits, onChange, onModifier }: { id: string; droits: Li
         <p>{t("Fournisseur")} : {bon.fournisseur.nom}</p>
         <p>{t("Date")} : {jour(bon.createdAt)}{bon.dateAttendue ? ` · ${t("Livraison souhaitée le")} ${jour(bon.dateAttendue)}` : ""}</p>
         {bon.entrepot && <p>{t("Livré à")} : {[bon.entrepot.nom, bon.entrepot.adresse, bon.entrepot.ville].filter(Boolean).join(", ")}</p>}
-        <table className="mt-3 w-full border-collapse">
+        <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[460px] border-collapse">
           <thead><tr className="border-b border-[#E8E8E8] text-left text-[11px] uppercase text-[#888888]"><th className="py-1.5 font-semibold">{t("Produit")}</th><th className="py-1.5 font-semibold">{t("Commandé")}</th><th className="py-1.5 font-semibold">{t("Reçu")}</th><th className="py-1.5 text-right font-semibold">{t("Montant")}</th></tr></thead>
           <tbody>
             {bon.lignes.map((l) => (
@@ -198,14 +198,14 @@ function FicheBon({ id, droits, onChange, onModifier }: { id: string; droits: Li
             ))}
             <tr className="total"><td className="py-2 font-bold" colSpan={3}>{t("Total")}</td><td className="py-2 text-right font-bold tabular-nums">{fmt(bon.montantTotal)}</td></tr>
           </tbody>
-        </table>
+        </table></div>
         {bon.notes && <p className="mt-2">{t("Note")} : {bon.notes}</p>}
       </div>
 
       <section className="space-y-2">
         <h3 className="text-[12px] font-bold text-[#111111]">{t("Envoyer au fournisseur")}</h3>
         <div className="flex flex-wrap gap-2">
-          <Bouton variante="secondaire" taille="compact" icone={<Printer size={14} aria-hidden />} onClick={() => { if (!imprimerElement(feuille.current, `${t("Bon de commande")} ${bon.numero}`)) toast.error(t("L'impression n'a pas pu démarrer.")); }}>{t("Imprimer")}</Bouton>
+          <Bouton variante="secondaire" taille="compact" icone={<Printer size={14} aria-hidden />} onClick={() => { if (!imprimerElement(feuille.current, `${t("Bon de commande")} ${bon.numero}`)) toast.error(t("L'impression n'a pas pu démarrer. Vérifiez que l'imprimante est connectée, puis réessayez.")); }}>{t("Imprimer le bon")}</Bouton>
           <Bouton variante="secondaire" taille="compact" icone={<Copy size={14} aria-hidden />} onClick={() => void copier()}>{t("Copier le texte")}</Bouton>
           {telephone.length >= 8 && <a className={LIEN_EXTERNE} target="_blank" rel="noopener noreferrer" href={`https://wa.me/${telephone}?text=${encodeURIComponent(texte)}`}><MessageCircle size={14} aria-hidden />{t("Ouvrir WhatsApp")}</a>}
           {bon.fournisseur.email && <a className={LIEN_EXTERNE} href={`mailto:${bon.fournisseur.email}?subject=${encodeURIComponent(`Bon de commande ${bon.numero}`)}&body=${encodeURIComponent(texte)}`}><Mail size={14} aria-hidden />{t("Ouvrir ma messagerie")}</a>}
@@ -230,7 +230,7 @@ function FicheBon({ id, droits, onChange, onModifier }: { id: string; droits: Li
       {gestes.length === 0 && !droits.valider && bon.statut !== "recu" && bon.statut !== "annule" && <p className="text-[12px] text-[#888888]">{t("Faire avancer ce bon demande le droit de valider les achats.")}</p>}
 
       <Modale ouverte={!!geste} onFermer={() => setGeste(null)} titre={geste ? ACTIONS_BON[geste].libelle : ""} description="Le motif est conservé dans le journal d'audit." taille="sm" verrouillee={!!envoi}
-        actions={<><Bouton variante="secondaire" onClick={() => setGeste(null)} disabled={!!envoi}>{t("Retour")}</Bouton><Bouton variante={geste === "annuler" ? "danger" : "primaire"} charge={!!envoi} disabled={motif.trim().length < 3} onClick={() => geste && void appliquer(geste, motif.trim())}>{t("Confirmer")}</Bouton></>}>
+        actions={<><Bouton variante="secondaire" onClick={() => setGeste(null)} disabled={!!envoi}>{t(geste === "annuler" ? "Garder le bon" : "Retour")}</Bouton><Bouton variante={geste === "annuler" ? "danger" : "primaire"} charge={!!envoi} disabled={motif.trim().length < 3} onClick={() => geste && void appliquer(geste, motif.trim())}>{geste ? t(ACTIONS_BON[geste].libelle) : ""}</Bouton></>}>
         <Champ label="Motif">{(a) => <textarea {...a} rows={3} maxLength={500} className={CLASSE_SAISIE} value={motif} onChange={(e) => setMotif(e.target.value)} />}</Champ>
       </Modale>
     </div>

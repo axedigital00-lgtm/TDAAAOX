@@ -1,0 +1,756 @@
+CAHIER DES CHARGES — AUDIT ET OPTIMISATION UX/UI GLOBALE D'AXSO
+Projet : Axso — Plateforme e-commerce et de commerce unifié
+Mission : Audit, harmonisation et optimisation de l'expérience utilisateur et de l'interface visuelle
+Intervenant : Claude (analyse du projet et implémentation)
+Périmètre : Ensemble de la plateforme Axso et de ses espaces utilisateurs.
+
+1. OBJECTIF GÉNÉRAL DE LA MISSION
+La mission consiste à analyser en profondeur l'application Axso existante et à optimiser son expérience utilisateur, son interface visuelle, sa cohérence graphique, son ergonomie et la facilité d'exécution des opérations quotidiennes.
+Il ne s'agit pas de reconstruire Axso, de remplacer son fonctionnement ou d'inventer une nouvelle architecture.
+Il s'agit d'améliorer considérablement l'expérience de la plateforme existante en intervenant sur tous les éléments qui influencent son utilisation.
+L'optimisation doit concerner :
+    • L'organisation des pages.
+    • La hiérarchie visuelle des informations.
+    • La disposition des éléments.
+    • Les tableaux de bord.
+    • Les menus et la navigation.
+    • Les formulaires et leurs champs.
+    • Les boutons et leurs actions.
+    • Les textes et les libellés.
+    • Les tableaux et les listes.
+    • Les filtres et les recherches.
+    • Les fenêtres modales et les panneaux latéraux.
+    • Les notifications et les alertes.
+    • Les messages de validation et d'erreur.
+    • Les états de chargement.
+    • Les états vides.
+    • Les confirmations d'actions.
+    • Les interactions et micro-interactions.
+    • L'affichage responsive.
+    • L'accessibilité et la lisibilité.
+    • La cohérence visuelle entre tous les espaces.
+Résultat recherché : faire d'Axso une plateforme professionnelle, intuitive, visuellement cohérente et facile à utiliser, même pour un marchand qui n'a aucune compétence technique.
+Toutes les actions courantes doivent être facilement accessibles et compréhensibles.
+2. RÈGLES FONDAMENTALES À RESPECTER
+Avant toute intervention, respecter impérativement les règles suivantes.
+2.1. Préserver le fonctionnement existant
+Ne pas modifier arbitrairement :
+    • Les règles métier.
+    • Les fonctionnalités existantes.
+    • Les permissions.
+    • Les rôles.
+    • Les relations entre les modules.
+    • Les traitements backend.
+    • Les API.
+    • Les structures de données.
+    • Les règles de gestion des commandes.
+    • Les mécanismes de paiement.
+    • Les règles de gestion des stocks.
+    • Les conditions de publication des boutiques.
+    • Le parcours d'inscription existant.
+Toute optimisation doit conserver les comportements fonctionnels existants, sauf instruction explicite contraire.
+Ne pas supprimer une fonctionnalité parce qu'elle semble secondaire ou difficile à présenter.
+Ne pas remplacer un mécanisme existant par un nouveau simplement parce qu'une autre approche paraît plus moderne.
+2.2. Ne pas inventer de nouvelles fonctionnalités
+L'audit doit commencer par la découverte de ce qui existe réellement dans le code et dans l'application.
+Il faut distinguer :
+    1. Les fonctionnalités existantes à mieux présenter.
+    2. Les fonctionnalités existantes à rendre plus faciles à utiliser.
+    3. Les fonctionnalités existantes présentant des problèmes d'ergonomie.
+    4. Les fonctionnalités nécessaires au produit mais réellement absentes.
+Ne pas présenter une fonctionnalité comme existante sans l'avoir vérifiée.
+Lorsqu'une fonctionnalité nécessite une évolution technique, la signaler séparément plutôt que de la simuler visuellement.
+2.3. Préserver les rôles existants
+Axso comporte cinq rôles :
+    • Marchand.
+    • Client.
+    • Affilié.
+    • Livreur.
+    • Superadmin (Command Center).
+Ne pas inventer de nouveaux rôles ou de nouvelles catégories d'utilisateurs.
+Chaque rôle doit disposer d'une expérience adaptée à ses responsabilités et à ses opérations.
+2.4. Ne pas modifier le parcours d'inscription
+Le parcours d'inscription actuel doit rester strictement identique.
+Aucune étape supplémentaire, aucun nouveau formulaire et aucun changement de l'ordre des informations ne doivent être introduits.
+Les optimisations liées à la création automatique de la boutique doivent être réalisées en arrière-plan par Axia.
+3. MÉTHODOLOGIE OBLIGATOIRE AVANT LES MODIFICATIONS
+Claude doit commencer par comprendre l'application réelle.
+Il ne doit pas commencer à modifier des composants au hasard.
+3.1. Explorer intégralement le projet
+Examiner :
+    • L'organisation des dossiers.
+    • Les routes.
+    • Les pages.
+    • Les layouts.
+    • Les composants partagés.
+    • Les composants propres à chaque espace.
+    • Les feuilles de style.
+    • Les bibliothèques UI.
+    • Les systèmes de design existants.
+    • Les hooks.
+    • Les contextes et états globaux.
+    • Les connexions API.
+    • Les permissions.
+    • Les composants de navigation.
+    • Les systèmes de notifications.
+    • Les composants de formulaires.
+Identifier les composants réutilisés entre plusieurs pages et les composants propres à certains modules.
+3.2. Cartographier toutes les pages
+Établir un inventaire complet des pages accessibles selon chaque rôle.
+Pour chaque page, identifier :
+    • Son objectif.
+    • Son utilisateur cible.
+    • Les informations affichées.
+    • Les actions disponibles.
+    • Les composants utilisés.
+    • Les données manipulées.
+    • Les états possibles.
+    • Les éventuels problèmes d'ergonomie.
+    • Les incohérences visuelles.
+    • Les difficultés de navigation.
+Ne pas se limiter aux pages principales ou aux tableaux de bord.
+Les pages secondaires, les paramètres, les formulaires, les fenêtres modales, les pages de détail et les états particuliers doivent également être examinés.
+3.3. Établir un diagnostic avant intervention
+Pour chaque problème détecté, préciser :
+    • La page concernée.
+    • L'élément concerné.
+    • Le problème constaté.
+    • Son impact sur l'utilisateur.
+    • La modification recommandée.
+    • Le résultat attendu.
+Ne pas effectuer de refonte générale sans avoir identifié les problèmes concrets.
+4. OPTIMISATION DU DESIGN SYSTEM GLOBAL
+L'ensemble de la plateforme doit présenter une identité visuelle cohérente.
+4.1. Couleurs
+Analyser la palette actuelle d'Axso et définir un système de couleurs cohérent.
+Les couleurs doivent avoir des usages précis :
+    • Couleur primaire : actions principales et éléments de marque.
+    • Couleur secondaire : éléments complémentaires.
+    • Couleur de fond : surfaces générales.
+    • Couleur des cartes : surfaces de contenu.
+    • Couleur des bordures : séparation des éléments.
+    • Couleur des textes principaux.
+    • Couleur des textes secondaires.
+    • Couleur de succès.
+    • Couleur d'avertissement.
+    • Couleur d'erreur.
+    • Couleur d'information.
+Éviter l'utilisation arbitraire de couleurs différentes pour des éléments ayant la même fonction.
+Les couleurs d'état doivent être cohérentes sur tous les modules.
+4.2. Typographie
+Définir une hiérarchie typographique uniforme :
+    • Titres principaux.
+    • Titres de sections.
+    • Sous-titres.
+    • Textes courants.
+    • Libellés de champs.
+    • Informations secondaires.
+    • Textes d'aide.
+    • Badges.
+    • Boutons.
+    • Indications d'erreur.
+Les textes doivent être lisibles, suffisamment contrastés et adaptés aux interfaces desktop et mobile.
+Éviter les textes inutilement petits et les titres disproportionnés.
+4.3. Espacements et alignements
+Harmoniser :
+    • Les marges des pages.
+    • Les espacements entre sections.
+    • Les espacements internes des cartes.
+    • Les distances entre les champs.
+    • Les alignements des titres et actions.
+    • Les espacements entre icônes et textes.
+    • Les dimensions des composants.
+L'objectif est de supprimer les impressions de désordre, de surcharge ou d'incohérence.
+4.4. Cartes et surfaces
+Les cartes doivent être utilisées avec cohérence.
+Éviter :
+    • Les cartes imbriquées inutilement.
+    • Les bordures excessives.
+    • Les ombres trop prononcées.
+    • Les rayons différents sans justification.
+    • Les espaces vides disproportionnés.
+    • Les composants décoratifs qui n'apportent aucune information.
+4.5. Icônes
+Utiliser un système d'icônes homogène.
+Chaque icône doit avoir une fonction identifiable.
+Ne pas mélanger arbitrairement plusieurs styles d'icônes.
+Une icône seule ne doit pas remplacer un libellé lorsque son sens n'est pas évident.
+5. OPTIMISATION DE LA STRUCTURE DES PAGES
+Chaque page doit être organisée selon une hiérarchie claire.
+5.1. En-tête de page
+Examiner systématiquement :
+    • Le titre.
+    • La description.
+    • Le fil d'Ariane, lorsqu'il est pertinent.
+    • Les actions principales.
+    • Les actions secondaires.
+    • Les éventuels indicateurs contextuels.
+Le titre doit immédiatement indiquer à l'utilisateur où il se trouve.
+La description doit expliquer brièvement l'utilité de la page lorsque cela apporte une réelle valeur.
+Les actions principales doivent être visibles sans nécessiter de recherche dans la page.
+5.2. Hiérarchie du contenu
+Organiser les informations selon leur importance.
+Les informations essentielles doivent apparaître en premier.
+Les informations secondaires peuvent être placées dans des sections complémentaires, des onglets, des panneaux latéraux ou des zones repliables lorsque cela facilite la lecture.
+Éviter les pages qui affichent toutes les informations au même niveau visuel.
+5.3. Actions principales et secondaires
+Pour chaque page, identifier l'action la plus importante.
+Elle doit être facilement repérable.
+Les actions secondaires doivent rester accessibles sans concurrencer visuellement l'action principale.
+Les actions destructrices doivent être distinguées des actions ordinaires.
+5.4. Cohérence entre les pages
+Deux pages qui accomplissent des opérations similaires doivent présenter des structures et des comportements similaires.
+Par exemple :
+    • Les pages de listes doivent partager une logique de recherche et de filtrage.
+    • Les pages de création doivent utiliser des conventions communes.
+    • Les pages de détail doivent présenter les informations selon une hiérarchie comparable.
+    • Les actions de suppression doivent avoir des confirmations cohérentes.
+6. OPTIMISATION DES FORMULAIRES, CHAMPS ET BOUTONS
+Cette partie est obligatoire pour toutes les interfaces.
+6.1. Champs de formulaire
+Examiner chaque champ existant.
+Optimiser :
+    • Son libellé.
+    • Son placeholder.
+    • Son type.
+    • Sa taille.
+    • Son alignement.
+    • Son état actif.
+    • Son état désactivé.
+    • Son état de validation.
+    • Son message d'erreur.
+    • Son texte d'aide.
+Les champs doivent être compréhensibles sans que l'utilisateur ait besoin de deviner ce qui est attendu.
+Ne pas utiliser uniquement un placeholder comme libellé.
+Les champs obligatoires et facultatifs doivent être clairement identifiés.
+Les contraintes doivent être indiquées au bon moment.
+Ne pas imposer de contraintes supplémentaires qui ne correspondent pas aux règles métier existantes.
+6.2. Validation des formulaires
+Les erreurs doivent être compréhensibles et directement exploitables.
+Éviter les messages techniques comme :
+    • Invalid input.
+    • Something went wrong.
+    • Request failed.
+    • Error 500.
+Préférer des indications expliquant le problème et la correction attendue.
+Conserver les informations déjà saisies lorsqu'une validation échoue, lorsque cela est techniquement possible et approprié.
+Afficher les erreurs à proximité des champs concernés.
+6.3. Boutons
+Examiner tous les boutons de la plateforme.
+Chaque bouton doit avoir :
+    • Un libellé explicite.
+    • Une action réelle.
+    • Un état normal.
+    • Un état hover.
+    • Un état actif.
+    • Un état désactivé.
+    • Un état de chargement lorsque nécessaire.
+Éviter les libellés ambigus tels que « OK », « Valider » ou « Continuer » lorsque l'action peut être décrite plus précisément.
+Exemples de libellés préférables :
+    • Enregistrer les modifications.
+    • Ajouter un produit.
+    • Confirmer la commande.
+    • Publier ma boutique.
+    • Télécharger le reçu.
+Ne jamais laisser un bouton visuellement actif s'il ne réalise aucune action.
+Ne pas changer les actions fonctionnelles existantes sans nécessité démontrée.
+6.4. Actions destructrices
+Les opérations sensibles doivent disposer d'une protection adaptée.
+Exemples :
+    • Supprimer un produit.
+    • Annuler une commande.
+    • Supprimer une boutique.
+    • Annuler une transaction, si cette action existe.
+    • Modifier un paramètre sensible.
+Les confirmations doivent préciser l'opération concernée.
+Ne pas demander une confirmation supplémentaire pour chaque action anodine.
+7. OPTIMISATION DES TABLEAUX, LISTES ET FILTRES
+Les tableaux doivent être lisibles et faciles à exploiter.
+Examiner :
+    • Les intitulés de colonnes.
+    • L'ordre des informations.
+    • Les dimensions.
+    • Les alignements.
+    • Les actions par ligne.
+    • Les filtres.
+    • La recherche.
+    • La pagination.
+    • Le tri.
+    • Les badges de statut.
+    • Les états vides.
+    • Les informations secondaires.
+Les informations importantes ne doivent pas être masquées dans des menus difficiles à découvrir.
+Sur mobile, adapter les tableaux sans rendre les opérations essentielles inaccessibles.
+Les filtres doivent utiliser un vocabulaire compréhensible.
+Lorsqu'un filtre est actif, son état doit être visible et son retrait facile.
+8. OPTIMISATION DE L'EXPÉRIENCE MARCHAND
+L'espace marchand est central dans Axso.
+Il doit permettre à une personne de gérer son activité commerciale sans avoir besoin de connaissances techniques.
+8.1. Tableau de bord marchand
+Examiner l'organisation du tableau de bord.
+Les informations doivent aider le marchand à comprendre rapidement l'état de son activité.
+Selon les données et fonctionnalités réellement disponibles, organiser les informations autour de :
+    • Les ventes.
+    • Les commandes.
+    • Les produits.
+    • Le stock.
+    • Les paiements.
+    • Les livraisons.
+    • Les performances.
+    • Les alertes.
+    • Les actions nécessitant son intervention.
+Ne pas ajouter des indicateurs qui n'existent pas dans le système de données.
+Les statistiques doivent être compréhensibles, contextualisées et accompagnées d'une période de référence claire.
+8.2. Gestion des produits
+Examiner toutes les pages de gestion des produits.
+Optimiser :
+    • La liste des produits.
+    • La recherche.
+    • Les catégories.
+    • Les filtres.
+    • La création.
+    • La modification.
+    • Les variantes.
+    • Les images.
+    • Les descriptions.
+    • Les prix.
+    • Les stocks.
+    • La visibilité.
+    • Les actions groupées, si elles existent.
+La création d'un produit doit être simple et guidée par des libellés explicites.
+Les informations importantes doivent être distinguées des paramètres secondaires.
+Ne pas supprimer les possibilités de configuration existantes.
+8.3. Gestion des commandes
+Améliorer la lecture et le traitement des commandes.
+Les informations essentielles doivent être rapidement visibles :
+    • Référence.
+    • Client.
+    • Produits.
+    • Montant.
+    • Date.
+    • Moyen de paiement.
+    • Statut.
+    • État de livraison.
+Les statuts doivent être cohérents sur toutes les pages.
+Les actions disponibles doivent dépendre des permissions et de l'état réel de la commande.
+Les commandes nécessitant une intervention doivent être facilement identifiables.
+8.4. Gestion des stocks
+Rendre les informations de stock compréhensibles.
+Distinguer clairement :
+    • Stock disponible.
+    • Stock réservé, si cette notion existe.
+    • Stock faible.
+    • Rupture de stock.
+    • Mouvements de stock, si disponibles.
+Les alertes doivent indiquer le problème et permettre d'accéder directement à l'action appropriée.
+8.5. Gestion de la boutique en ligne
+Optimiser toutes les interfaces liées à la boutique :
+    • Paramètres.
+    • Identité visuelle.
+    • Thème.
+    • Constructeur.
+    • Pages.
+    • Sections.
+    • Navigation.
+    • Catalogue.
+    • Prévisualisation.
+    • Publication.
+    • Domaine.
+    • Paramètres de visibilité.
+Le constructeur doit rester compréhensible pour un marchand non technicien.
+Les actions de personnalisation doivent être organisées logiquement.
+Ne pas supprimer de possibilités de personnalisation existantes.
+9. CRÉATION AUTOMATIQUE DE LA BOUTIQUE PAR AXIA
+Cette exigence doit être traitée comme un élément central de l'expérience Axso.
+9.1. Préservation de l'inscription
+Le parcours d'inscription actuel doit être conservé intégralement.
+Ne pas :
+    • Ajouter de formulaire.
+    • Ajouter d'étape.
+    • Changer l'ordre des informations.
+    • Supprimer une information demandée.
+    • Modifier les règles de validation.
+9.2. Travail automatique d'Axia
+Axia doit exploiter les informations recueillies pendant l'inscription pour préparer la boutique.
+Son travail doit comprendre, selon les données disponibles et les fonctionnalités réelles du constructeur :
+    • La sélection du thème le plus adapté.
+    • La personnalisation du thème.
+    • L'adaptation des couleurs.
+    • La préparation de la page d'accueil.
+    • L'organisation des sections.
+    • La préparation de la navigation.
+    • La création ou l'adaptation des contenus.
+    • L'organisation du catalogue.
+    • La préparation des visuels lorsqu'ils sont disponibles ou générables.
+    • La configuration des paramètres déductibles des informations recueillies.
+Axia ne doit pas se limiter à proposer un thème parmi plusieurs possibilités.
+Il doit préparer une boutique cohérente, complète et professionnellement présentée.
+Il ne doit pas inventer des informations commerciales, des prix, des caractéristiques de produits ou des politiques qui ne sont pas connues.
+9.3. Conditions de publication
+Les conditions de publication déjà définies par Axso doivent être conservées.
+Axia doit préparer la boutique pour satisfaire ces conditions autant que les données disponibles le permettent.
+Il ne doit pas contourner les validations existantes.
+Il ne doit pas déclarer une boutique publiable si les conditions métier ne sont pas satisfaites.
+9.4. Expérience après inscription
+Lorsque les conditions de publication sont remplies, le marchand doit découvrir une boutique prête à publier.
+L'expérience doit réduire au maximum les décisions et les manipulations nécessaires.
+La boutique doit être présentée comme un résultat déjà préparé par Axia.
+Le marchand doit pouvoir :
+    • Prévisualiser sa boutique.
+    • La publier si les conditions Axso sont satisfaites.
+    • Accéder au constructeur pour la personnaliser.
+    • Demander de l'aide à Axia.
+Le constructeur reste disponible avant et après publication.
+9.5. Présentation visuelle de la boutique prête
+Créer une expérience de présentation valorisante et claire.
+Le marchand doit comprendre immédiatement :
+    • Qu'Axia a terminé la préparation.
+    • Que sa boutique est prête.
+    • Quelles conditions de publication sont satisfaites.
+    • Quelle action il peut effectuer ensuite.
+L'action de publication doit être clairement mise en évidence lorsqu'elle est autorisée.
+Si une condition n'est pas remplie, expliquer précisément ce qui manque et permettre d'accéder à l'endroit concerné.
+Ne pas multiplier les étapes de validation sans justification.
+10. MODULE POS — VENTE PHYSIQUE
+Axso doit permettre au marchand de vendre aussi physiquement dans son établissement.
+Le POS doit être intégré à l'environnement commercial existant.
+Il ne doit pas fonctionner comme une application indépendante avec un catalogue ou un stock séparé.
+10.1. Interface de vente
+Étudier et optimiser l'interface de caisse.
+Elle doit faciliter :
+    • La recherche rapide d'un produit.
+    • La sélection d'un produit.
+    • L'ajout au panier.
+    • La modification des quantités.
+    • Le calcul du total.
+    • L'application des remises autorisées.
+    • Le choix du moyen de paiement disponible.
+    • La validation de la vente.
+    • La génération du reçu lorsque cette fonction existe.
+La priorité doit être donnée à la rapidité d'exécution.
+Les éléments fréquemment utilisés doivent être immédiatement accessibles.
+10.2. Cohérence avec la boutique en ligne
+Le POS doit utiliser le même catalogue et les mêmes règles de gestion des stocks que les autres canaux de vente.
+Une vente physique doit être correctement enregistrée dans Axso.
+Le stock doit être actualisé conformément aux règles existantes.
+Les informations commerciales doivent rester cohérentes entre les ventes en ligne et les ventes physiques.
+Ne pas inventer un système de stock parallèle.
+11. OPTIMISATION DE L'EXPÉRIENCE CLIENT
+L'espace client doit être simple, rassurant et accessible.
+Examiner toutes les interfaces accessibles au client.
+Optimiser :
+    • La découverte des boutiques.
+    • La navigation dans les catalogues.
+    • La recherche.
+    • Les catégories.
+    • Les fiches produits.
+    • Les variantes.
+    • Les informations tarifaires.
+    • Le panier.
+    • Le processus de commande.
+    • Le suivi des commandes.
+    • Les informations de livraison.
+    • Les notifications.
+    • Le profil.
+    • L'historique des commandes.
+Les informations importantes doivent être immédiatement compréhensibles.
+Les boutons d'achat et de commande doivent être visibles.
+Les erreurs doivent être expliquées clairement.
+Le parcours de commande doit éviter les ambiguïtés et les répétitions inutiles.
+Ne pas modifier les règles de paiement ou de commande existantes.
+12. OPTIMISATION DE L'EXPÉRIENCE AFFILIÉ
+L'espace affilié doit permettre de comprendre facilement son activité et d'effectuer les opérations disponibles.
+Examiner :
+    • Le tableau de bord.
+    • Les statistiques.
+    • Les produits ou offres accessibles.
+    • Les liens d'affiliation.
+    • Les mécanismes de partage.
+    • Les conversions.
+    • Les commissions.
+    • Les transactions.
+    • Les historiques.
+    • Les retraits, si disponibles.
+    • Les paramètres du compte.
+Les données financières doivent être particulièrement lisibles.
+Distinguer clairement les commissions générées, validées, en attente et payées lorsque ces états existent dans le système.
+Les actions principales doivent être accessibles sans navigation excessive.
+Les informations doivent être expliquées dans un langage simple.
+Ne pas modifier les règles de calcul des commissions.
+13. OPTIMISATION DE L'EXPÉRIENCE LIVREUR
+L'espace livreur doit être conçu autour de l'exécution rapide des missions.
+Il faut examiner :
+    • Le tableau de bord.
+    • Les livraisons disponibles.
+    • Les missions attribuées.
+    • Les détails d'une livraison.
+    • Les informations du destinataire.
+    • Les coordonnées et informations de livraison autorisées.
+    • Les statuts.
+    • Les actions de prise en charge.
+    • Les confirmations.
+    • L'historique.
+    • Les notifications.
+Les informations essentielles doivent être faciles à consulter.
+Les actions courantes doivent être accessibles avec un minimum de manipulations.
+L'interface mobile doit faire l'objet d'une attention particulière.
+Les changements de statut doivent être clairement expliqués et confirmés lorsque nécessaire.
+Ne pas modifier les règles d'attribution ou de suivi des livraisons.
+14. OPTIMISATION DU COMMAND CENTER — SUPERADMIN
+L'espace Superadmin doit permettre une supervision efficace de la plateforme.
+Il doit conserver toutes ses fonctionnalités et permissions existantes.
+Examiner :
+    • Le tableau de bord global.
+    • Les indicateurs de supervision.
+    • Les marchands.
+    • Les clients.
+    • Les affiliés.
+    • Les livreurs.
+    • Les boutiques.
+    • Les commandes.
+    • Les transactions.
+    • Les opérations.
+    • Les configurations.
+    • Les outils de contrôle.
+    • Les historiques.
+    • Les alertes.
+    • Les paramètres administratifs.
+L'interface doit distinguer les informations de supervision des actions administratives.
+Les opérations sensibles doivent être clairement identifiées.
+Les données importantes doivent être consultables rapidement.
+Les tableaux volumineux doivent bénéficier d'une recherche, de filtres et d'une organisation cohérente.
+Ne pas accorder de nouvelles permissions et ne pas modifier les règles de sécurité.
+15. OPTIMISATION D'AXIA ET DES INTERACTIONS AVEC L'IA
+Axia doit être présenté de manière cohérente dans les espaces où il est disponible.
+Son interface doit rendre ses capacités compréhensibles.
+Examiner :
+    • Son point d'accès.
+    • Son interface de conversation.
+    • Les suggestions.
+    • Les réponses.
+    • Les actions proposées.
+    • Les confirmations.
+    • Les erreurs.
+    • Les états de traitement.
+    • L'historique, s'il existe.
+Lorsqu'Axia effectue une action, l'utilisateur doit comprendre :
+    • Ce qu'Axia va faire.
+    • Sur quel élément il intervient.
+    • Si l'action est en cours.
+    • Si elle a réussi.
+    • Si une intervention humaine est nécessaire.
+Une action effectuée par Axia doit produire un retour visible.
+Ne pas présenter une suggestion comme une action déjà exécutée.
+Ne pas laisser l'IA effectuer silencieusement une opération sensible nécessitant une confirmation selon les règles existantes.
+Axia doit faciliter l'utilisation de la plateforme, sans devenir un passage obligatoire pour les opérations que l'utilisateur sait déjà réaliser.
+16. NOTIFICATIONS, ALERTES ET MESSAGES
+Examiner tous les messages visibles de la plateforme.
+Cela comprend :
+    • Les notifications.
+    • Les alertes.
+    • Les messages de succès.
+    • Les messages d'erreur.
+    • Les avertissements.
+    • Les confirmations.
+    • Les infobulles.
+    • Les messages d'aide.
+    • Les états vides.
+    • Les messages de chargement.
+Chaque message doit être utile, clair et contextualisé.
+16.1. Messages de succès
+Indiquer ce qui a réellement été effectué.
+Exemple :
+« Produit ajouté avec succès. »
+16.2. Messages d'erreur
+Expliquer le problème et la solution possible.
+Éviter les formulations techniques incompréhensibles.
+16.3. Alertes
+Une alerte doit permettre de comprendre :
+    • Ce qui se passe.
+    • Pourquoi c'est important.
+    • Ce que l'utilisateur peut faire.
+16.4. États vides
+Ne pas afficher une page blanche ou un simple tableau vide.
+Expliquer pourquoi aucune donnée n'est présente et proposer l'action pertinente lorsque cela est possible.
+Exemple :
+« Vous n'avez pas encore ajouté de produit. Ajoutez votre premier produit pour commencer à développer votre catalogue. »
+17. NAVIGATION ET ACCESSIBILITÉ DES ACTIONS
+La navigation doit être cohérente entre les différents espaces.
+Examiner :
+    • Les menus latéraux.
+    • Les menus déroulants.
+    • Les sous-menus.
+    • Les onglets.
+    • Les liens.
+    • Les fils d'Ariane.
+    • Les raccourcis.
+    • Les menus contextuels.
+Les catégories doivent être compréhensibles et organisées selon les besoins réels de chaque rôle.
+Les actions fréquemment utilisées ne doivent pas être enfouies dans plusieurs niveaux de navigation.
+L'utilisateur doit toujours pouvoir comprendre où il se trouve et comment revenir à une page précédente.
+18. RESPONSIVE DESIGN
+L'expérience doit être optimisée sur :
+    • Ordinateur.
+    • Tablette.
+    • Smartphone.
+Ne pas se contenter de réduire les dimensions des composants.
+Repenser les dispositions lorsque nécessaire.
+Vérifier :
+    • Les menus mobiles.
+    • Les tableaux.
+    • Les formulaires.
+    • Les boutons.
+    • Les cartes.
+    • Les fenêtres modales.
+    • Les panneaux latéraux.
+    • Les zones de saisie.
+    • Les interactions tactiles.
+Les actions essentielles doivent rester accessibles sur les petits écrans.
+L'espace livreur et le POS doivent faire l'objet de tests spécifiques sur les formats d'écran adaptés à leur utilisation.
+19. MICRO-INTERACTIONS ET RETOURS VISUELS
+Ajouter ou améliorer les micro-interactions lorsqu'elles apportent une réelle valeur.
+Exemples :
+    • Survol des boutons.
+    • Transitions entre états.
+    • Ouverture des menus.
+    • Chargement des données.
+    • Validation des formulaires.
+    • Confirmation des actions.
+    • Ajout au panier.
+    • Modification des quantités.
+    • Changement de statut.
+    • Retour après une action d'Axia.
+Les animations doivent rester sobres, rapides et professionnelles.
+Ne pas ajouter des animations décoratives qui ralentissent ou compliquent l'utilisation.
+Respecter les préférences de réduction des animations lorsque possible.
+20. COHÉRENCE ÉDITORIALE ET MICROCOPY
+Tous les textes de l'application doivent être examinés.
+Uniformiser :
+    • Le vocabulaire.
+    • Les intitulés des menus.
+    • Les titres.
+    • Les descriptions.
+    • Les libellés des boutons.
+    • Les messages d'aide.
+    • Les confirmations.
+    • Les alertes.
+    • Les erreurs.
+Employer un français simple, professionnel et naturel.
+Éviter les formulations trop techniques lorsqu'un terme courant suffit.
+Utiliser les mêmes mots pour désigner une même opération dans tous les espaces.
+Éviter les textes trop longs qui encombrent inutilement les interfaces.
+Ne pas modifier la signification métier d'un libellé.
+21. CRITÈRES DE QUALITÉ POUR CHAQUE PAGE
+Une page ne doit être considérée comme optimisée que si les critères suivants ont été examinés :
+    1. L'utilisateur comprend immédiatement la fonction de la page.
+    2. Les informations sont hiérarchisées.
+    3. Les actions principales sont visibles.
+    4. Les boutons ont des libellés explicites.
+    5. Les champs sont compréhensibles.
+    6. Les messages sont clairs.
+    7. Les erreurs sont faciles à corriger.
+    8. Les états vides sont utiles.
+    9. Les espacements sont cohérents.
+    10. La typographie est lisible.
+    11. Les couleurs sont cohérentes.
+    12. Les composants sont homogènes.
+    13. La page est utilisable sur mobile.
+    14. Les interactions fonctionnent réellement.
+    15. Les permissions sont respectées.
+    16. Le comportement métier d'origine est préservé.
+22. MÉTHODE D'IMPLÉMENTATION
+Ne pas tenter de modifier toutes les pages simultanément sans contrôle.
+Procéder par phases.
+Phase 1 — Audit
+Explorer l'application et établir l'inventaire des pages et composants.
+Phase 2 — Diagnostic UX/UI
+Identifier les incohérences, les problèmes visuels et les difficultés d'utilisation.
+Phase 3 — Harmonisation globale
+Définir les conventions visuelles et les composants communs.
+Phase 4 — Optimisation par espace utilisateur
+Traiter successivement :
+    1. Marchand.
+    2. Client.
+    3. Affilié.
+    4. Livreur.
+    5. Superadmin.
+Phase 5 — Optimisation des interactions
+Reprendre les formulaires, boutons, menus, alertes, messages, modales et autres composants.
+Phase 6 — Responsive design
+Tester les pages et interactions sur les différents formats d'écran.
+Phase 7 — Vérifications fonctionnelles
+S'assurer que les optimisations n'ont pas cassé les fonctionnalités existantes.
+23. EXIGENCES DE LIVRAISON
+Pour chaque page modifiée :
+    • Identifier les composants concernés.
+    • Expliquer les optimisations effectuées.
+    • Conserver les fonctionnalités existantes.
+    • Vérifier les interactions.
+    • Vérifier les états de chargement.
+    • Vérifier les états d'erreur.
+    • Vérifier les états vides.
+    • Vérifier le responsive.
+    • Vérifier les permissions.
+Tester les opérations principales de chaque rôle.
+Vérifier les parcours critiques : création et gestion de boutique, gestion des produits, traitement des commandes, vente POS, achat client, affiliation, livraison et administration, selon les fonctionnalités réellement disponibles.
+Éviter les régressions.
+Ne pas remplacer des composants fonctionnels par des maquettes statiques.
+Ne pas utiliser de fausses données pour donner l'impression qu'une interface fonctionne.
+Ne pas supprimer les fonctionnalités existantes pour simplifier visuellement les pages.
+24. RÉSULTAT FINAL ATTENDU
+À la fin de la mission, Axso doit présenter :
+    • Une identité visuelle cohérente.
+    • Des pages bien organisées.
+    • Une navigation intuitive.
+    • Des tableaux de bord lisibles.
+    • Des formulaires simples.
+    • Des boutons explicites.
+    • Des messages compréhensibles.
+    • Des alertes utiles.
+    • Des actions facilement accessibles.
+    • Des interactions fluides.
+    • Une expérience mobile de qualité.
+    • Des espaces utilisateurs adaptés à chaque rôle.
+    • Une expérience marchand simplifiée.
+    • Une boutique préparée automatiquement par Axia.
+    • Une expérience POS cohérente avec le commerce en ligne.
+L'exigence principale : optimiser l'intégralité de l'expérience, pas uniquement les éléments visuellement les plus évidents.
+Chaque page, chaque champ, chaque bouton, chaque texte, chaque alerte et chaque interaction doit être examiné.
+Le résultat doit être une plateforme homogène, professionnelle et intuitive, dans laquelle les utilisateurs peuvent accomplir leurs opérations naturellement, sans avoir à chercher comment utiliser Axso.
+
+INSTRUCTION FINALE À CLAUDE
+Tu dois agir comme un expert senior en UX/UI, Product Design et ergonomie des plateformes SaaS et e-commerce.
+Tu dois analyser Axso comme un produit existant, comprendre ses mécanismes, ses utilisateurs et ses contraintes avant toute modification.
+Ne te contente pas de proposer des recommandations : réalise les optimisations dans le code lorsque leur périmètre est clairement établi.
+Ne te limite pas à modifier les couleurs ou les bordures. Travaille la structure, la hiérarchie, la lisibilité, les interactions, les parcours et les détails de chaque page.
+N'effectue aucune refonte arbitraire des fonctionnalités ou de l'architecture.
+Lorsqu'une information est incertaine, examine le code et le comportement existant avant de prendre une décision. Si une modification risque de changer une règle métier, une permission ou un comportement fonctionnel, documente le problème et demande une validation avant de l'effectuer.
+L'objectif n'est pas de rendre Axso simplement plus beau. L'objectif est de rendre Axso nettement plus simple, plus cohérent, plus agréable et plus efficace à utiliser, pour chacun de ses utilisateurs.
+
+
+
+
+
+
+
+
+* AXIA doit pouvoir proposer un nom de domaine à acheter en fonction du nom de la boutique sur Axso (sur Axso on doit pouvoir fournir les noms de domaine pour les boutique mais par défaut, ça porte le nom de domaine de Axso+le nom de la boutique)
+* Ajouter le premier produit
+* choisir le design de la boutique (fait à l'inscription d'abord)
+* Vérifier les tarifs de livraison 
+* Les aperçu des thèmes dans le constructeur. AXIA doit charger le thème avec les produits lié à ce que le marchand vend, et il doit préconfigurer la boutique en fonction de ça, puis il ecrit lui meme les texts en respectant chaque section et en faisant un bon copywriting de telle sorte qu'on puisse directement publier la boutique une fois inscrit.
+
+
+* ajouter les templates des boutiques (faire des templates qui sont typique de vrais boutique en ligne avec toutes les pages d'une vrai boutique en ligne avec un vrai design den boutique), et qu'AXIA, à l'inscription, optimise d'abord toutes les pages du marchand en remplissant du text correspondant à ce que le marchand vend, les boutons et images correspondant, le design correspondant, la charte du marchand respecté, le logo placé, avec les infos de contact bien placé, et que la boutique soit presque irréprochable, avant que si un truc ne plait pas au marchand il change. tu dois t'inspirer des boutiques de shopify et certainement d'autres plateformes d'e-commerce.
+* Dashboard à refaire totalement. on doit etre diriger sur ce qu'il y a à faire directement.  AXIA doit proposer de l'aide pour démarrer (il faut 1: ajouter un premier produit, 2: choix du design, 3: configuration du paiement, 4: obtenir un domaine personnalisé, 5: vérifier les tarifs d'expédition/livraison, 6: Optimiser la boutique pour le cameroun)
+
+NB: le choix du design est fait à l'inscription tout comme le logo qu'on doit demander à l'inscription, les couleurs de la boutique (on prévisualise sur téléphone à coté aussi en temps réel), mais on peut changer dans le constructeur, les paiments sont configuré automatiquement par AXIA en fonction du pays, AXIA configure les tarifs de livraison, mais le marchand peut modifier, la boutique est optimisé par AXIA.
+
+* On doit mettre la charte graphique de notre boutique dès l'inscription pour permettre à AXIA de faire la boutique correctement avec la charte du marchand. le marchand au moment de mettre sa charte graphique fournit: logo, couleurs, polices etc... on peut prendre ces infos sur une page si ce n'est pas de trop. propose moi la manière la plus optimale de prendre ces infos d'abord
+
+Schéma voulu:
+Inscription/Connexion -> Accueil (qui est une nouvelle page à implémenter, là on doit avoir descartes qui sont des liens redirigant vers des page à toucher qui sont le necessaire pour qu'une boutique soit complète et qu'un marchand commence à vendre et que sa boutique soit publié. je parle des pages: "Ajouter son premier produit", qui conduit sur la page où on ajoute les produits; "Construire ma boutique" qui ramène au constructeur; "Configurer les zones de livraison", qui ramène à la page où on configure les zones de livraison; "Partager le lien des affilié" qui conduit à la page où on copie le lien des affiliés et on envoie; "politique", qui conduit à la page où le marchand doit présenter sa politique, ici AXIA devrait avoir analysé son produit et ce qu'il vend et proposé déjà une politique qu'il peut modifier, propose moi un rendu et comment tu es sensé faire cette page.
+
+Dans le Dashbord, on peut publier la boutique (un bouton à ajouter), on doit voir les resultats de la boutique en mettant en évidence le nombre de commande, la liste des 20 dernier clients, les statistiques de la boutique, les ventes en cours, et autres details que tu dois me proposer avant d'implémenter.
+
+on ne doit pas se perdre dans Axso quand on cherche à retirer son argent du wallet, corrige cette expérience. 

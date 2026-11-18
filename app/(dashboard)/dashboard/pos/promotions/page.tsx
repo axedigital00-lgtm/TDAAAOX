@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { Badge, Bouton, BoutonIcone, EtatChargement, EtatPos, EtatVide, Modale, POLICE, type Ton } from "@/components/pos/ui";
+import { EnTete } from "@/components/pos/finance/commun";
 import { appelPos } from "@/components/pos/crm/appel";
 import { FormulairePromotion, type PromotionLue } from "@/components/pos/crm/FormulairePromotion";
 import { TYPES_PROMO, dateCourte, resumePromotion } from "@/components/pos/crm/libelles";
@@ -69,13 +70,9 @@ export default function PagePromotions() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-5" style={POLICE}>
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111]">{t("Promotions")}</h1>
-          <p className="mt-1 max-w-xl text-[12.5px] leading-relaxed text-[#666666]">{t("Remises appliquées d'office à la caisse. Un article ne reçoit jamais deux promotions : la plus prioritaire l'emporte.")}</p>
-        </div>
-        {d?.peutGerer && <Bouton icone={<Plus size={16} aria-hidden />} onClick={() => setFormulaire({ ouvert: true, promotion: null })}>{t("Nouvelle promotion")}</Bouton>}
-      </header>
+      <EnTete titre="Promotions" sousTitre="Remises appliquées d'office à la caisse. Un article ne reçoit jamais deux promotions : la plus prioritaire l'emporte.">
+        {d?.peutGerer && <Bouton icone={<Plus size={16} aria-hidden />} onClick={() => setFormulaire({ ouvert: true, promotion: null })}>{t("Créer une promotion")}</Bouton>}
+      </EnTete>
 
       {erreur && <EtatPos code={erreur.code} message={erreur.message} onReessayer={charger} />}
       {!d && !erreur && <EtatChargement texte="Chargement des promotions…" />}
@@ -95,7 +92,7 @@ export default function PagePromotions() {
 
           {!d.promotions.length ? (
             <EtatVide titre="Aucune promotion" texte="Créez votre première promotion : pourcentage, 2+1, lot, prix membre, prix de gros…">
-              {d.peutGerer && <Bouton icone={<Plus size={16} aria-hidden />} onClick={() => setFormulaire({ ouvert: true, promotion: null })}>{t("Nouvelle promotion")}</Bouton>}
+              {d.peutGerer && <Bouton icone={<Plus size={16} aria-hidden />} onClick={() => setFormulaire({ ouvert: true, promotion: null })}>{t("Créer une promotion")}</Bouton>}
             </EtatVide>
           ) : (
             <ul className="space-y-2">
@@ -143,7 +140,7 @@ export default function PagePromotions() {
           />
           <Modale ouverte={!!aSupprimer} onFermer={() => setASupprimer(null)} taille="sm" titre="Supprimer cette promotion ?"
             description="Une promotion déjà utilisée dans une vente ne peut pas être supprimée : désactivez-la."
-            actions={<><Bouton variante="secondaire" onClick={() => setASupprimer(null)}>{t("Annuler")}</Bouton><Bouton variante="danger" charge={!!aSupprimer && occupe === aSupprimer.id} onClick={supprimer}>{t("Supprimer")}</Bouton></>}>
+            actions={<><Bouton variante="secondaire" onClick={() => setASupprimer(null)}>{t("Annuler")}</Bouton><Bouton variante="danger" charge={!!aSupprimer && occupe === aSupprimer.id} onClick={supprimer}>{t("Supprimer la promotion")}</Bouton></>}>
             <p className="text-[13px] font-semibold">{aSupprimer?.nom}</p>
           </Modale>
         </>

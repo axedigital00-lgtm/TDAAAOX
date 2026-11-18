@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Gift, Loader2, Check, Clock } from "lucide-react";
+import { Gift, Check, Clock } from "lucide-react";
+import { toast } from "sonner";
+import { Bouton, Modale } from "@/components/ui";
 import { AbonnementOverlay } from "@/components/dashboard/AbonnementOverlay";
 import { DUREE_ESSAI_JOURS, tempsRestant } from "@/lib/essai-regles";
 import { useT } from "@/components/I18nProvider";
@@ -27,13 +29,13 @@ export function BoutonEssai({ libelle, onFait }: { libelle?: string; onFait?: ()
   const router = useRouter();
   const [etat, setEtat] = useState<"" | "envoi" | "erreur">("");
   return (
-    <button disabled={etat === "envoi"} onClick={async () => {
+    <Bouton charge={etat === "envoi"} icone={<Gift size={16} aria-hidden />} onClick={async () => {
       setEtat("envoi");
-      try { await envoyer("demarrer"); onFait?.(); router.refresh(); } catch { setEtat("erreur"); }
-    }} className="h-11 px-5 rounded-xl text-[14px] font-semibold bg-[#F5A623] text-[#111111] hover:bg-[#E8990F] disabled:opacity-60 inline-flex items-center justify-center gap-2">
-      {etat === "envoi" ? <Loader2 size={16} className="animate-spin" /> : <Gift size={16} />}
-      {etat === "erreur" ? t("Réessayer") : t(libelle ?? "Démarrer mon essai")}
-    </button>
+      try { await envoyer("demarrer"); onFait?.(); router.refresh(); }
+      catch (e) { setEtat("erreur"); toast.error(e instanceof Error && e.message && e.message !== "Erreur" ? t(e.message) : t("L'essai n'a pas pu démarrer. Vérifie ta connexion et réessaie.")); }
+    }}>
+      {etat === "erreur" ? t("Réessayer de démarrer l'essai") : t(libelle ?? "Démarrer mon essai")}
+    </Bouton>
   );
 }
 
@@ -70,34 +72,28 @@ export function EssaiIllimite({ phase, finLe, proposer, montrerFin }: EssaiProps
       {/* ── Compte à rebours pendant l'essai ── */}
       {reste && !plans && (
         <button onClick={() => setPlans(true)} title={t("Voir les plans")}
-          className={`fixed z-[10000] left-1/2 -translate-x-1/2 bottom-24 md:bottom-4 flex items-center gap-2 h-9 pl-3 pr-4 rounded-full text-[13px] font-semibold shadow-lg border ${reste.urgent ? "bg-[#FFF4E5] border-[#F59E0B] text-[#B45309]" : "bg-[#111111] border-[#111111] text-white"}`}>
-          <Clock size={15} className={reste.urgent ? "" : "text-[#F5A623]"} />
+          className={`fixed z-[10000] left-1/2 -translate-x-1/2 bottom-24 md:bottom-4 flex items-center gap-2 min-h-10 pl-3 pr-4 rounded-full text-sm font-semibold shadow-flottante border whitespace-nowrap ${reste.urgent ? "bg-attention-fond border-attention-bordure text-attention" : "bg-secondaire border-secondaire text-carte"}`}>
+          <Clock size={15} className={reste.urgent ? "" : "text-primaire"} aria-hidden />
           {t("Essai Illimité")} · {t("{0} restants", reste.texte)}
         </button>
       )}
 
       {/* ── Proposition (première arrivée, ou tant qu'il n'a pas répondu) ── */}
-      {proposition && (
-        <div className="fixed inset-0 z-[10001] bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal>
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 text-[#111111]" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-            <div className="w-12 h-12 rounded-xl bg-[#FFF1D6] flex items-center justify-center mb-4"><Gift size={24} className="text-[#C77C0A]" /></div>
-            <h2 className="text-[20px] font-bold">{t("{0} jours d'Illimité offerts", String(DUREE_ESSAI_JOURS))}</h2>
-            <p className="mt-1.5 text-[14px] text-[#555555]">{t("Essaie gratuitement tout ce qu'offre le plan Illimité. Sans carte, sans engagement : à la fin, tu choisis un plan ou tu continues en Essentiel (gratuit).")}</p>
-            <ul className="mt-4 space-y-2">
-              {AVANTAGES.map((a) => <li key={a} className="flex items-start gap-2 text-[14px]"><Check size={16} className="mt-0.5 text-[#16A34A] flex-shrink-0" />{t(a)}</li>)}
-            </ul>
-            <p className="mt-4 text-[12.5px] text-[#888888]">{t("Un seul essai par compte : il démarre dès que tu cliques.")}</p>
-            <div className="mt-5 flex flex-col gap-2">
-              <BoutonEssai onFait={() => setProposition(false)} />
-              <button onClick={() => { setProposition(false); envoyer("refuser").catch(() => {}); }}
-                className="h-11 rounded-xl text-[14px] font-medium text-[#555555] hover:bg-[#F5F5F5]">
-                {t("Non merci, rester en Essentiel")}
-              </button>
-            </div>
-            <p className="mt-3 text-[12px] text-center text-[#999999]">{t("Tu pourras encore le démarrer plus tard depuis Abonnement.")}</p>
-          </div>
-        </div>
-      )}
+      <Modale ouverte={proposition} verrouillee onFermer={() => {}} taille="md"
+        titre={<span className="flex items-center gap-2"><Gift size={20} className="text-attention" aria-hidden />{t("{0} jours d'Illimité offerts", String(DUREE_ESSAI_JOURS))}</span>}
+        description={t("Essaie gratuitement tout ce qu'offre le plan Illimité. Sans carte, sans engagement : à la fin, tu choisis un plan ou tu continues en Essentiel (gratuit).")}
+        actions={<>
+          <Bouton variante="fantome" onClick={() => { setProposition(false); envoyer("refuser").catch(() => {}); }}>
+            {t("Non merci, rester en Essentiel")}
+          </Bouton>
+          <BoutonEssai onFait={() => setProposition(false)} />
+        </>}>
+        <ul className="space-y-2">
+          {AVANTAGES.map((a) => <li key={a} className="flex items-start gap-2 ax-texte"><Check size={16} className="mt-0.5 text-succes flex-shrink-0" aria-hidden />{t(a)}</li>)}
+        </ul>
+        <p className="mt-4 ax-aide">{t("Un seul essai par compte : il démarre dès que tu cliques.")}</p>
+        <p className="mt-1 ax-aide">{t("Tu pourras encore le démarrer plus tard depuis Abonnement.")}</p>
+      </Modale>
 
       {/* ── Fin de l'essai : choisir un plan, ou rester en Essentiel ── */}
       {(fin || plans) && (

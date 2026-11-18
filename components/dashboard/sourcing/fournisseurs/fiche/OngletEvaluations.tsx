@@ -82,7 +82,7 @@ export function OngletEvaluations({ fiche, recharger }: PropsOnglet) {
                 </p>
                 {e.commentaire && <p className="text-[11px] text-[#666666] leading-snug whitespace-pre-line">{e.commentaire}</p>}
               </div>
-              <BoutonSupprimer disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${e.id}`, "DELETE"))} />
+              <BoutonSupprimer objet={t("Évaluation du {0}", dateCourte(e.createdAt, t.loc))} disabled={enCours} onClick={() => executer(() => envoyer(`${api}?id=${e.id}`, "DELETE"))} />
             </li>
           ))}
         </ul>

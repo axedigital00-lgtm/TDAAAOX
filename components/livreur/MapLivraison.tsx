@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { MapPinOff } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 
 interface MapLivraisonProps {
@@ -17,7 +18,7 @@ export function MapLivraison({ adresse, ville, latitude, longitude, livreurLat, 
   const mapInstance = useRef<any>(null);
 
   useEffect(() => {
-    if (!mapRef.current || mapInstance.current) return;
+    if (!mapRef.current || mapInstance.current || latitude == null || longitude == null) return;
     let annule = false; // effet démonté avant la fin du chargement : ne pas créer une 2ᵉ carte (« Map container is already initialized »)
 
     // Charger Leaflet dynamiquement (SSR safe)
@@ -31,9 +32,9 @@ export function MapLivraison({ adresse, ville, latitude, longitude, livreurLat, 
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      // Coordonnées par défaut (Dakar si pas de géocode)
-      const destLat = latitude || 14.7167;
-      const destLng = longitude || -17.4677;
+      // Point GPS partagé par le client (sans lui, pas de carte : voir le rendu plus bas).
+      const destLat = latitude!;
+      const destLng = longitude!;
 
       // Sur mobile, le drag capture le geste de scroll de la page (le doigt
       // pose sur la carte pour scroller finit par la faire glisser à la
@@ -63,7 +64,8 @@ export function MapLivraison({ adresse, ville, latitude, longitude, livreurLat, 
 
       L.marker([destLat, destLng], { icon: iconDest })
         .addTo(map)
-        .bindPopup(`<b>Livraison</b><br/>${adresse}<br/>${ville}`)
+        // Texte du client : posé en textContent, jamais en HTML.
+        .bindPopup(Object.assign(document.createElement("div"), { textContent: `${adresse}, ${ville}` }))
         .openPopup();
 
       // Marqueur livreur (position actuelle)
@@ -77,7 +79,7 @@ export function MapLivraison({ adresse, ville, latitude, longitude, livreurLat, 
 
         L.marker([livreurLat, livreurLng], { icon: iconLivreur })
           .addTo(map)
-          .bindPopup(`<b>${t("Vous êtes ici")}</b>`);
+          .bindPopup(Object.assign(document.createElement("b"), { textContent: t("Vous êtes ici") }));
 
         // Tracer la ligne entre les deux points
         L.polyline([[livreurLat, livreurLng], [destLat, destLng]], {
@@ -100,6 +102,14 @@ export function MapLivraison({ adresse, ville, latitude, longitude, livreurLat, 
       }
     };
   }, [adresse, ville, latitude, longitude, livreurLat, livreurLng]);
+
+  // Avant : sans point GPS, la carte plaçait le client à Dakar (fausse destination). On l'explique à la place.
+  if (latitude == null || longitude == null) return (
+    <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-gray-400">
+      <MapPinOff size={18} className="text-gray-500 flex-shrink-0 mt-0.5" aria-hidden />
+      <p>{t("Le client n'a pas partagé sa position GPS : suivez l'adresse écrite ou appelez-le pour vous guider.")}</p>
+    </div>
+  );
 
   return (
     <>

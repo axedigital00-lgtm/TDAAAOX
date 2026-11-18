@@ -9,15 +9,19 @@ const MapLivraison = dynamic(
 interface Props {
   adresse: string;
   ville: string;
+  latitude?: number | null;
+  longitude?: number | null;
   livreurLat?: number | null;
   livreurLng?: number | null;
 }
 
-export function MapLivraisonClient({ adresse, ville, livreurLat, livreurLng }: Props) {
+export function MapLivraisonClient({ adresse, ville, latitude, longitude, livreurLat, livreurLng }: Props) {
   return (
     <MapLivraison
       adresse={adresse}
       ville={ville}
+      latitude={latitude}
+      longitude={longitude}
       livreurLat={livreurLat ?? undefined}
       livreurLng={livreurLng ?? undefined}
     />

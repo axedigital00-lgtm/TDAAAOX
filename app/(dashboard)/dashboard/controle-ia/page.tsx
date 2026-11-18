@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, Copy, ShieldOff, Check, X, Loader2, Pause, Play, Trash2, Lock, Unlock, ExternalLink, RotateCcw } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { EnTetePage, EtatChargement, useConfirmation } from "@/components/ui";
 
 interface Droit { libelle: string; niveau: string }
 interface Connexion { id: string; client: string; fournisseur: string; droits: Droit[]; mode: string; variationPrixMax: number; budgetPubMax: number; transactionMax: number; risqueBuilderMax: string; utiliseLe: string | null; createdAt: string }
@@ -46,6 +47,9 @@ const champ = "border border-gray-200 rounded-lg px-2 py-1.5 text-sm";
 
 export default function ControleIAPage() {
   const tr = useT();
+  const { confirmer, dialogue } = useConfirmation();
+  // Actions destructrices : confirmation qui nomme l'élément concerné, puis l'appel habituel.
+  const apresAccord = async (o: Parameters<typeof confirmer>[0], faire: () => unknown) => { if (await confirmer(o)) await faire(); };
   const [connexions, setConnexions] = useState<Connexion[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
   const [accords, setAccords] = useState<Accord[]>([]);
@@ -77,7 +81,11 @@ export default function ControleIAPage() {
 
   async function appel(url: string, init: RequestInit, ok: string, ko: string) {
     const r = await fetch(url, { ...init, headers: { "Content-Type": "application/json" } });
-    if (r.ok) toast.success(tr(ok)); else toast.error(tr(ko));
+    if (r.ok) toast.success(tr(ok));
+    else {
+      const d = await r.json().catch(() => ({}));
+      toast.error(tr(ko), { description: d.error ? tr(d.error) : tr("Recharge la page puis réessaie. Si ça continue, signale le problème.") });
+    }
     charger();
   }
 
@@ -86,11 +94,17 @@ export default function ControleIAPage() {
     return appel("/api/controle-ia", { method: "PATCH", body: JSON.stringify({ id, mode, variationPrixMax, budgetPubMax, transactionMax, risqueBuilderMax }) }, "Réglage enregistré", "Réglage refusé");
   };
 
-  async function decider(id: string, decision: "accepter" | "refuser") {
-    const r = await fetch("/api/axia/propositions", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, decision }) });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok || d.succes === false) toast.error(d.resultat ?? d.error ?? tr("L'action a échoué"));
-    else toast.success(decision === "accepter" ? tr("Action autorisée") : tr("Action refusée"));
+  const [enCours, setEnCours] = useState<string | null>(null);
+  async function decider(a: Accord, decision: "accepter" | "refuser") {
+    setEnCours(a.id);
+    const r = await fetch("/api/axia/propositions", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: a.id, decision }) }).catch(() => null);
+    const d = await r?.json().catch(() => ({})) ?? {};
+    setEnCours(null);
+    // Le retour nomme l'action (a.message) et dit si elle a vraiment été faite.
+    if (!r) toast.error(tr("Pas de connexion : rien n'a été fait. Réessaie dans un instant."));
+    else if (r.status === 409) toast.info(tr("Cette demande a déjà été traitée."));
+    else if (!r.ok || d.succes === false) toast.error(tr("L'action n'a pas été faite"), { description: d.resultat ?? d.error ?? a.message });
+    else toast.success(decision === "accepter" ? tr("C'est fait : {0}", a.message) : tr("Refusé : rien n'a été modifié."));
     charger();
   }
 
@@ -102,7 +116,7 @@ export default function ControleIAPage() {
     charger();
   }
 
-  if (chargement) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-400" /></div>;
+  if (chargement) return <EtatChargement texte={tr("Chargement du contrôle des IA…")} />;
 
   const limite = (c: Connexion, cle: "variationPrixMax" | "budgetPubMax" | "transactionMax", label: string, max: number) => (
     <label className="text-sm text-gray-700 flex flex-wrap items-center gap-2">{tr(label)}
@@ -113,13 +127,11 @@ export default function ControleIAPage() {
 
   return (
     <div className="space-y-6" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles size={18} className="text-[#F5A623]" />
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{tr("Contrôle IA")}</h1>
-        </div>
-        <p className="text-gray-400 text-sm">{tr("Pilote ta boutique depuis Claude, ChatGPT ou un autre assistant, sans jamais lui donner ton mot de passe.")}</p>
-      </div>
+      {dialogue}
+      <EnTetePage
+        titre={tr("Contrôle IA")}
+        description={tr("Pilote ta boutique depuis Claude, ChatGPT ou un autre assistant, sans jamais lui donner ton mot de passe. Tu décides ce que chaque IA peut faire seule et ce qui attend ton accord.")}
+      />
 
       <div className="ax-card p-4 sm:p-6 space-y-4">
         <h2 className="font-bold text-gray-900">{tr("Relier un assistant")}</h2>
@@ -151,7 +163,8 @@ export default function ControleIAPage() {
                 <p className="font-semibold text-gray-900 break-words">{c.client}</p>
                 <p className="text-xs text-gray-400">{tr("Relié le")} {date(c.createdAt)} · {tr("dernière action")} {date(c.utiliseLe)}</p>
               </div>
-              <button onClick={() => appel(`/api/controle-ia?id=${c.id}`, { method: "DELETE" }, "Accès coupé", "Impossible de couper l'accès")} className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:underline shrink-0"><ShieldOff size={14} />{tr("Couper l'accès")}</button>
+              <button onClick={() => apresAccord({ titre: tr("Couper l'accès de cet assistant ?"), objet: c.client, description: tr("Il ne pourra plus rien lire ni faire sur ta boutique. Tu pourras le relier à nouveau plus tard."), libelleConfirmer: tr("Couper l'accès") },
+                () => appel(`/api/controle-ia?id=${c.id}`, { method: "DELETE" }, "Accès coupé", "Impossible de couper l'accès"))} className="flex min-h-10 items-center gap-1.5 text-sm font-semibold text-erreur hover:underline shrink-0"><ShieldOff size={14} />{tr("Couper l'accès")}</button>
             </div>
             <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
               {c.droits.map((d) => (
@@ -187,13 +200,13 @@ export default function ControleIAPage() {
 
       <div className="ax-card p-4 sm:p-6 space-y-3">
         <h2 className="font-bold text-gray-900">{tr("En attente de ton accord")} ({accords.length})</h2>
-        {accords.length === 0 && <p className="text-sm text-gray-400">{tr("Rien à valider.")}</p>}
+        {accords.length === 0 && <p className="text-sm text-doux">{tr("Rien à valider. Quand une IA veut faire une action sensible (prix, envoi aux clients, paiement…), elle attend ici ton accord.")}</p>}
         {accords.map((a) => (
           <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
             <p className="text-sm text-gray-800 min-w-0 break-words">{a.message}</p>
             <div className="flex gap-2 shrink-0">
-              <button onClick={() => decider(a.id, "refuser")} aria-label={tr("Refuser")} className="ax-btn ax-btn-secondary"><X size={14} /></button>
-              <button onClick={() => decider(a.id, "accepter")} className="ax-btn ax-btn-primary flex items-center gap-1.5"><Check size={14} />{tr("Autoriser")}</button>
+              <button onClick={() => decider(a, "refuser")} disabled={enCours === a.id} className="ax-btn ax-btn-secondary flex items-center gap-1.5"><X size={14} />{tr("Refuser")}</button>
+              <button onClick={() => decider(a, "accepter")} disabled={enCours === a.id} className="ax-btn ax-btn-primary flex items-center gap-1.5">{enCours === a.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}{enCours === a.id ? tr("En cours…") : tr("Autoriser l'action")}</button>
             </div>
           </div>
         ))}
@@ -222,7 +235,8 @@ export default function ControleIAPage() {
               {builder.brouillon.enLigneAChange && <p className="text-xs text-red-600">{tr("Tu as modifié la boutique en ligne depuis : la publication de ce brouillon sera refusée sans ton accord explicite.")}</p>}
               <div className="flex flex-wrap gap-2">
                 {builder.brouillon.apercu && <a href={builder.brouillon.apercu} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn-secondary flex items-center gap-1.5"><ExternalLink size={14} />{tr("Voir l'aperçu")}</a>}
-                {builder.peutDecider && <button onClick={() => appel("/api/controle-ia/builder", { method: "PATCH", body: JSON.stringify({ abandonner: true }) }, "Brouillon abandonné", "Action refusée")} className="ax-btn ax-btn-secondary">{tr("Abandonner")}</button>}
+                {builder.peutDecider && <button onClick={() => apresAccord({ titre: tr("Abandonner ce brouillon ?"), objet: tr("Brouillon de {0} changements", builder.brouillon?.changements ?? 0), description: tr("Les changements préparés par l'IA sont perdus. Ta boutique en ligne ne change pas."), libelleConfirmer: tr("Abandonner le brouillon") },
+                  () => appel("/api/controle-ia/builder", { method: "PATCH", body: JSON.stringify({ abandonner: true }) }, "Brouillon abandonné", "Action refusée"))} className="ax-btn ax-btn-secondary">{tr("Abandonner le brouillon")}</button>}
               </div>
             </div>
           )}
@@ -276,7 +290,8 @@ export default function ControleIAPage() {
             </div>
             <div className="flex gap-2 shrink-0">
               <button onClick={() => appel("/api/controle-ia/automatisations", { method: "PATCH", body: JSON.stringify({ id: a.id, actif: !a.actif }) }, a.actif ? "Automatisation en pause" : "Automatisation relancée", "Action refusée")} aria-label={tr(a.actif ? "Mettre en pause" : "Relancer")} className="ax-btn ax-btn-secondary">{a.actif ? <Pause size={14} /> : <Play size={14} />}</button>
-              <button onClick={() => appel(`/api/controle-ia/automatisations?id=${a.id}`, { method: "DELETE" }, "Automatisation supprimée", "Suppression refusée")} aria-label={tr("Supprimer")} className="ax-btn ax-btn-secondary"><Trash2 size={14} /></button>
+              <button onClick={() => apresAccord({ titre: tr("Supprimer cette automatisation ?"), objet: a.nom, description: tr("Elle ne se déclenchera plus. Cette suppression est définitive."), libelleConfirmer: tr("Supprimer l'automatisation") },
+                () => appel(`/api/controle-ia/automatisations?id=${a.id}`, { method: "DELETE" }, "Automatisation supprimée", "Suppression refusée"))} aria-label={tr("Supprimer l'automatisation {0}", a.nom)} className="ax-btn ax-btn-secondary"><Trash2 size={14} /></button>
             </div>
           </div>
         ))}
@@ -295,13 +310,14 @@ export default function ControleIAPage() {
                 </div>
                 <div className="flex gap-3 shrink-0">
                   <button onClick={() => nouveauSecret(w.id)} className="text-sm font-semibold text-gray-700 hover:underline">{tr("Nouveau secret")}</button>
-                  <button onClick={() => appel(`/api/controle-ia/automatisations?webhook=${w.id}`, { method: "DELETE" }, "Webhook supprimé", "Suppression refusée")} aria-label={tr("Supprimer")} className="text-red-600"><Trash2 size={14} /></button>
+                  <button onClick={() => apresAccord({ titre: tr("Supprimer ce webhook ?"), objet: w.url, description: tr("Cette adresse ne recevra plus les événements de ta boutique."), libelleConfirmer: tr("Supprimer le webhook") },
+                    () => appel(`/api/controle-ia/automatisations?webhook=${w.id}`, { method: "DELETE" }, "Webhook supprimé", "Suppression refusée"))} aria-label={tr("Supprimer le webhook")} className="w-10 h-10 flex items-center justify-center rounded-lg text-erreur hover:bg-erreur-fond"><Trash2 size={14} /></button>
                 </div>
               </div>
               {secret?.id === w.id && (
                 <div className="flex gap-2">
                   <input readOnly value={secret.valeur} aria-label={tr("Secret du webhook")} className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-gray-50 font-mono" />
-                  <button onClick={() => navigator.clipboard.writeText(secret.valeur).then(() => toast.success(tr("Secret copié")))} className="ax-btn ax-btn-secondary"><Copy size={14} /></button>
+                  <button onClick={() => navigator.clipboard.writeText(secret.valeur).then(() => toast.success(tr("Secret copié")))} aria-label={tr("Copier le secret")} className="ax-btn ax-btn-secondary"><Copy size={14} /></button>
                 </div>
               )}
               {secret?.id === w.id && <p className="text-xs text-amber-600">{tr("Copie-le maintenant : il ne sera plus affiché.")}</p>}
@@ -320,7 +336,8 @@ export default function ControleIAPage() {
                 <p className="text-sm font-semibold text-gray-900">{s.nom ?? s.type}</p>
                 <p className="text-xs text-gray-400 break-words">{s.compte ? `${s.compte} · ` : ""}{tr(s.statut)}{s.expireLe ? ` · ${tr("expire le")} ${date(s.expireLe)}` : ""}</p>
               </div>
-              <button onClick={() => appel(`/api/controle-ia/services?type=${encodeURIComponent(s.type)}`, { method: "DELETE" }, "Service déconnecté", "Déconnexion refusée")} className="text-sm font-semibold text-red-600 hover:underline shrink-0">{tr("Déconnecter")}</button>
+              <button onClick={() => apresAccord({ titre: tr("Déconnecter ce service ?"), objet: s.nom ?? s.type, description: tr("Tes assistants ne pourront plus l'utiliser à travers Axso. Tu pourras le reconnecter."), libelleConfirmer: tr("Déconnecter le service") },
+                () => appel(`/api/controle-ia/services?type=${encodeURIComponent(s.type)}`, { method: "DELETE" }, "Service déconnecté", "Déconnexion refusée"))} className="min-h-10 text-sm font-semibold text-erreur hover:underline shrink-0">{tr("Déconnecter")}</button>
             </div>
           ))}
         </div>

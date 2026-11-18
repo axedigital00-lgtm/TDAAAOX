@@ -13,7 +13,7 @@ import { PRIX_PLAN, PAYS } from "./types";
 import { sujetDe } from "@/lib/signalements";
 
 const ISO_PAR_NOM: Record<string, string> = Object.fromEntries(Object.entries(PAYS).map(([iso, nom]) => [nom.toLowerCase(), iso]));
-const normPays = (p: string) => (p.length === 2 ? p.toUpperCase() : ISO_PAR_NOM[p.toLowerCase()] ?? (p.toLowerCase() === "ghana" ? "GH" : p));
+export const normPays = (p: string) => (p.length === 2 ? p.toUpperCase() : ISO_PAR_NOM[p.toLowerCase()] ?? (p.toLowerCase() === "ghana" ? "GH" : p));
 const normPlan = (p: string): PlanId => (p === "palier1" || p === "palier2" ? p : "palier0");
 
 const TYPE_USAGE: Record<string, TypeIA> = {

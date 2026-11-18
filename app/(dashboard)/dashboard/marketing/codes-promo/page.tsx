@@ -2,8 +2,9 @@
 // Dashboard — Codes Promo
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Tag, Trash2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation } from "@/components/ui";
 
 type CodePromo = {
   id: string;
@@ -16,23 +17,30 @@ type CodePromo = {
   dateExpiration: string | null;
 };
 
+const FORM_VIDE = { code: "", type: "pourcentage", valeur: 10, maxUtilisations: "" };
+
 export default function CodesPromoPage() {
   const t = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const [codes, setCodes] = useState<CodePromo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ code: "", type: "pourcentage", valeur: 10, maxUtilisations: "" });
+  const [form, setForm] = useState(FORM_VIDE);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const charger = () => {
+    setLoading(true); setErreur(false);
     fetch("/api/codes-promo")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => setCodes(Array.isArray(d) ? d : []))
-      .catch(() => toast.error(t("Erreur chargement")))
+      .catch(() => setErreur(true))
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(charger, []);
 
-  async function creer() {
+  async function creer(e: React.FormEvent) {
+    e.preventDefault();
     setSaving(true);
     try {
       const res = await fetch("/api/codes-promo", {
@@ -42,116 +50,124 @@ export default function CodesPromoPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        toast.error(t(d.error || "Erreur lors de la création"));
+        toast.error(d.error ? t(d.error) : t("Le code n'a pas été créé. Vérifie les champs et réessaie."));
         return;
       }
       const nouveau = await res.json();
       setCodes((prev) => [nouveau, ...prev]);
       setShowForm(false);
-      setForm({ code: "", type: "pourcentage", valeur: 10, maxUtilisations: "" });
-      toast.success(t("Code promo créé !"));
+      setForm(FORM_VIDE);
+      toast.success(t("Code promo {0} créé.", nouveau.code ?? form.code));
     } catch {
-      toast.error(t("Erreur lors de la création"));
+      toast.error(t("Connexion impossible : le code n'a pas été créé. Réessaie."));
     } finally {
       setSaving(false);
     }
   }
 
-  async function supprimer(id: string) {
+  async function supprimer(code: CodePromo) {
+    if (!(await confirmer({
+      titre: t("Supprimer ce code promo ?"), objet: code.code,
+      description: t("Tes clients ne pourront plus l'utiliser. Les commandes déjà passées avec ce code ne changent pas."),
+      libelleConfirmer: t("Supprimer le code"),
+    }))) return;
     try {
-      const res = await fetch(`/api/codes-promo/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/codes-promo/${code.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
-      setCodes((prev) => prev.filter((c) => c.id !== id));
-      toast.success(t("Code supprimé"));
+      setCodes((prev) => prev.filter((c) => c.id !== code.id));
+      toast.success(t("Code {0} supprimé.", code.code));
     } catch {
-      toast.error(t("Erreur lors de la suppression"));
+      toast.error(t("Le code {0} n'a pas été supprimé. Réessaie.", code.code));
     }
   }
 
+  const remise = (code: CodePromo) => code.type === "pourcentage" ? `${code.valeur}%` : `${code.valeur} (${t("fixe")})`;
+
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Codes Promo")}</h1>
-          <p className="text-gray-400 text-sm mt-1">{codes.length}{" "}{t("code(s) au total")}</p>
-        </div>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-90" style={{ backgroundColor: "#F5A623", color: "#0a0a0a" }}>
-          <Plus size={16} />{" "}{t("Créer un code")}
-        </button>
-      </div>
+    <div className="space-y-5 max-w-3xl">
+      {dialogue}
+      <EnTetePage className="mb-0"
+        retour={{ href: "/dashboard/marketing", libelle: t("Marketing") }}
+        titre={t("Codes Promo")}
+        description={loading || erreur ? undefined : <>{codes.length}{" "}{t("code(s) au total")}</>}
+        actions={!showForm && <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{t("Créer un code")}</Bouton>} />
 
       {showForm && (
-        <div className="bg-white border border-[#F5A623]/30 rounded-2xl p-6 space-y-4">
-          <h2 className="text-gray-800 font-semibold">{t("Nouveau code promo")}</h2>
+        <form onSubmit={creer} className="ax-card p-carte space-y-champs">
+          <h2 className="ax-sous-titre">{t("Nouveau code promo")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-gray-400 text-xs block mb-2">{t("Code *")}</label>
-              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} aria-label={t("Code *")} placeholder="SOLDES25" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50 font-mono" />
-            </div>
-            <div>
-              <label className="text-gray-400 text-xs block mb-2">{t("Type")}</label>
-              <select aria-label={t("Type")} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50">
-                <option value="pourcentage">{t("Pourcentage (%)")}</option>
-                <option value="fixe">{t("Montant fixe")}</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-gray-400 text-xs block mb-2">{t("Valeur *")}</label>
-              <input type="number" aria-label={t("Valeur")} value={form.valeur} onChange={(e) => setForm({ ...form, valeur: Number(e.target.value) })} min={1} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50" />
-            </div>
-            <div>
-              <label className="text-gray-400 text-xs block mb-2">{t("Max utilisations (vide = illimité)")}</label>
-              <input type="number" aria-label={t("Max utilisations (vide = illimité)")} value={form.maxUtilisations} onChange={(e) => setForm({ ...form, maxUtilisations: e.target.value })} placeholder="∞" min={1} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50" />
-            </div>
+            <Saisie label={t("Code")} required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+              placeholder="SOLDES25" classeChamp="font-mono" aide={t("Ce que le client tape au paiement.")} />
+            <Champ label={t("Type")}>
+              {(a) => (
+                <select {...a} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={CLASSE_SAISIE}>
+                  <option value="pourcentage">{t("Pourcentage (%)")}</option>
+                  <option value="fixe">{t("Montant fixe")}</option>
+                </select>
+              )}
+            </Champ>
+            <Saisie label={t("Valeur")} required type="number" min={1} value={form.valeur}
+              onChange={(e) => setForm({ ...form, valeur: Number(e.target.value) })} suffixe={form.type === "pourcentage" ? "%" : undefined} />
+            <Saisie label={t("Nombre maximum d'utilisations")} mention="facultatif" type="number" min={1} value={form.maxUtilisations}
+              onChange={(e) => setForm({ ...form, maxUtilisations: e.target.value })} placeholder="∞" aide={t("Laisse vide pour un nombre illimité.")} />
           </div>
-          <div className="flex gap-3">
-            <button onClick={creer} disabled={!form.code || !form.valeur || saving} className="px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: "#F5A623", color: "#0a0a0a" }}>
-              {saving ? t("Création...") : t("Créer")}
-            </button>
-            <button onClick={() => setShowForm(false)} className="px-6 py-3 rounded-xl text-sm text-gray-400 border border-gray-200 hover:border-[#F5A623]/30">
-              {t("Annuler")}
-            </button>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Bouton variante="secondaire" onClick={() => setShowForm(false)} disabled={saving}>{t("Annuler")}</Bouton>
+            <Bouton type="submit" disabled={!form.code || !form.valeur} charge={saving} texteCharge={t("Création…")}>{t("Créer le code")}</Bouton>
           </div>
-        </div>
+        </form>
       )}
 
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-gray-500">{t("Chargement...")}</div>
-        ) : codes.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">{t("Aucun code promo — créez-en un !")}</div>
-        ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm">
+      {loading ? (
+        <SqueletteListe lignes={4} libelle={t("Chargement des codes promo…")} />
+      ) : erreur ? (
+        <EtatErreur titre={t("Les codes promo n'ont pas pu être chargés")} texte={t("Vérifie ta connexion et réessaie.")} onReessayer={charger} />
+      ) : codes.length === 0 ? (
+        <EtatVide icone={<Tag />} titre={t("Aucun code promo")}
+          texte={t("Un code promo offre une remise à tes clients au moment du paiement. Crée ton premier code pour lancer une offre.")}>
+          {!showForm && <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{t("Créer un code")}</Bouton>}
+        </EtatVide>
+      ) : (
+        <div className="ax-card overflow-hidden">
+          {/* Téléphone : cartes empilées */}
+          <ul className="sm:hidden divide-y divide-bordure">
+            {codes.map((code) => (
+              <li key={code.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <code className="inline-block text-sm font-mono font-bold px-2 py-0.5 rounded-controle bg-primaire-fond text-encre border border-attention-bordure">{code.code}</code>
+                  <p className="ax-aide">{remise(code)} · {code.utilisations}/{code.maxUtilisations ?? "∞"} {t("utilisations")}</p>
+                </div>
+                <Badge ton={code.actif ? "succes" : "neutre"}>{code.actif ? t("Actif") : t("Inactif")}</Badge>
+                <BoutonIcone label={t("Supprimer le code {0}", code.code)} onClick={() => supprimer(code)} className="text-erreur"><Trash2 className="size-4" aria-hidden /></BoutonIcone>
+              </li>
+            ))}
+          </ul>
+          {/* Ordinateur : tableau */}
+          <table className="hidden sm:table w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
-                {["Code", "Remise", "Utilisations", "Statut", "Actions"].map((h) => (
-                  <th key={h} className="text-left text-gray-400 font-medium px-5 py-3">{t(h)}</th>
+              <tr className="border-b border-bordure bg-carte-2">
+                {["Code", "Remise", "Utilisations", "Statut"].map((h) => (
+                  <th key={h} scope="col" className="text-left text-xs text-doux font-semibold px-5 py-3">{t(h)}</th>
                 ))}
+                <th scope="col" className="px-5 py-3"><span className="sr-only">{t("Actions")}</span></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-bordure">
               {codes.map((code) => (
-                <tr key={code.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-5 py-4"><code className="text-[#F5A623] bg-[#F5A623]/10 px-2 py-1 rounded font-mono">{code.code}</code></td>
-                  <td className="px-5 py-4 text-gray-700">{code.type === "pourcentage" ? `${code.valeur}%` : `${code.valeur} (${t("fixe")})`}</td>
-                  <td className="px-5 py-4 text-gray-400">{code.utilisations}/{code.maxUtilisations ?? "∞"}</td>
-                  <td className="px-5 py-4">
-                    <span className={`text-xs px-2 py-1 rounded-lg ${code.actif ? "text-green-400 bg-green-400/10 border border-green-400/30" : "text-gray-500 bg-gray-500/10 border border-gray-500/30"}`}>
-                      {code.actif ? t("Actif") : t("Inactif")}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <button onClick={() => supprimer(code.id)} aria-label={t("Supprimer")} className="text-red-400 hover:text-red-300 transition-colors">
-                      <Trash2 size={16} />
-                    </button>
+                <tr key={code.id}>
+                  <td className="px-5 py-3"><code className="text-encre bg-primaire-fond border border-attention-bordure px-2 py-1 rounded-controle font-mono font-bold">{code.code}</code></td>
+                  <td className="px-5 py-3 text-encre">{remise(code)}</td>
+                  <td className="px-5 py-3 text-doux tabular-nums">{code.utilisations}/{code.maxUtilisations ?? "∞"}</td>
+                  <td className="px-5 py-3"><Badge ton={code.actif ? "succes" : "neutre"}>{code.actif ? t("Actif") : t("Inactif")}</Badge></td>
+                  <td className="px-5 py-2 text-right">
+                    <BoutonIcone label={t("Supprimer le code {0}", code.code)} onClick={() => supprimer(code)} className="text-erreur"><Trash2 className="size-4" aria-hidden /></BoutonIcone>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table></div>
-        )}
-      </div>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
-

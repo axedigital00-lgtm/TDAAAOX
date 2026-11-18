@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Wallet, Bike, Package } from "lucide-react";
+import { Bike, Package } from "lucide-react";
+import { EnTetePage, EtatVide } from "@/components/ui";
 import { MarquerRemisButton } from "@/components/dashboard/logistique/MarquerRemisButton";
 import { formatMontant } from "@/lib/utils";
 import { getT } from "@/lib/i18n/serveur";
@@ -45,61 +46,65 @@ export default async function EncaissementsPage() {
 
   const groupes = [...parLivreur.entries()];
 
+  const total = parDevise(commandesNonRemises);
+
   return (
     <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-xl font-bold text-[#111111] flex items-center gap-2"><Wallet size={20} className="text-[#F5A623]" />{" "}{t("Encaissements COD")}</h1>
-        <p className="text-sm text-gray-400 mt-0.5">{t("Cash collecté par vos livreurs, en attente de remise")}</p>
-      </div>
+      <EnTetePage
+        retour={{ href: "/dashboard/logistique", libelle: t("Logistique") }}
+        titre={t("Encaissements à la livraison")}
+        description={t("Argent encaissé par vos livreurs sur les commandes payées à la livraison, pas encore remis. Confirme chaque remise quand tu as l'argent en main.")}
+        className="mb-0"
+      />
 
-      <div className="bg-white border border-gray-100 rounded-2xl p-5">
-        <p className="text-xs text-gray-400">{t("À vous remettre par vos livreurs (encaissé − leur part)")}</p>
-        {(parDevise(commandesNonRemises).length ? parDevise(commandesNonRemises) : [["XAF", 0] as [string, number]]).map(([d, m]) => (
-          <p key={d} className="text-3xl font-bold text-[#F5A623] mt-1">{formatMontant(m, d)}</p>
+      <section className="rounded-carte border border-bordure bg-carte p-carte">
+        <h2 className="ax-aide">{t("À vous remettre par vos livreurs (encaissé − leur part)")}</h2>
+        {(total.length ? total : [["XAF", 0] as [string, number]]).map(([d, m]) => (
+          <p key={d} className="mt-1 text-3xl font-bold tabular-nums text-encre">{formatMontant(m, d)}</p>
         ))}
-      </div>
+      </section>
 
       {groupes.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
-          <Package size={32} className="mx-auto mb-3 text-gray-200" />
-          <p className="text-sm text-gray-400">{t("Aucun encaissement en attente — tout est réconcilié.")}</p>
-        </div>
+        <EtatVide icone={<Package />} titre={t("Aucun encaissement en attente — tout est réconcilié.")}
+          texte={t("Quand un livreur livre une commande payée à la livraison, l'argent à recevoir s'affiche ici.")} />
       ) : (
         <div className="space-y-4">
           {groupes.map(([id, g]) => {
+            const montants = parDevise(g.commandes).map(([d, m]) => formatMontant(m, d)).join(" + ");
             return (
-              <div key={id} className="bg-white border border-gray-100 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
+              <section key={id} className="rounded-carte border border-bordure bg-carte p-carte">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#FFF3DC] flex items-center justify-center">
-                      <Bike size={16} className="text-[#F5A623]" />
-                    </div>
+                    <span className="flex size-9 items-center justify-center rounded-controle bg-primaire-fond text-attention" aria-hidden>
+                      <Bike className="size-4" />
+                    </span>
                     <div>
-                      <p className="text-sm font-bold text-[#111111]">{t(g.nom)}</p>
-                      <p className="text-xs text-gray-400">{g.telephone}</p>
+                      <h2 className="text-sm font-bold text-encre">{id === "non_assigne" ? t("Sans livreur assigné") : g.nom}</h2>
+                      {g.telephone && <a href={`tel:${g.telephone}`} className="ax-aide hover:text-encre">{g.telephone}</a>}
                     </div>
                   </div>
                   <div className="text-right">
-                    {parDevise(g.commandes).map(([d, m]) => <p key={d} className="text-lg font-bold text-[#111111]">{formatMontant(m, d)}</p>)}
-                    <p className="text-xs text-gray-400">{g.commandes.length} commande{g.commandes.length > 1 ? "s" : ""}</p>
+                    {parDevise(g.commandes).map(([d, m]) => <p key={d} className="text-lg font-bold tabular-nums text-encre">{formatMontant(m, d)}</p>)}
+                    <p className="ax-aide">{t("{0} commande(s)", g.commandes.length)}</p>
                   </div>
                 </div>
 
-                <div className="space-y-1.5 mb-4">
+                <ul className="mb-4 space-y-1.5">
                   {g.commandes.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="font-mono text-gray-500">{c.numero}</span>
-                      <span className="text-gray-500 truncate flex-1 mx-3">{t(c.clientNom)}</span>
+                    <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-controle bg-carte-2 px-3 py-2 text-sm">
+                      <span className="font-mono text-doux">#{c.numero}</span>
+                      <span className="min-w-0 flex-1 truncate text-doux">{c.clientNom}</span>
                       <span className="text-right">
-                        <span className="font-semibold text-[#111111] block">{formatMontant(c.aRemettre, c.devise)}</span>
-                        {c.part > 0 && <span className="text-[10px] text-gray-400">{formatMontant(c.montantTotal, c.devise)} − {t("part livreur")} {formatMontant(c.part, c.devise)}</span>}
+                        <span className="block font-semibold tabular-nums text-encre">{formatMontant(c.aRemettre, c.devise)}</span>
+                        {c.part > 0 && <span className="block text-xs text-doux">{formatMontant(c.montantTotal, c.devise)} − {t("part livreur")} {formatMontant(c.part, c.devise)}</span>}
                       </span>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
 
-                <MarquerRemisButton commandeIds={g.commandes.map((c) => c.id)} />
-              </div>
+                <MarquerRemisButton commandeIds={g.commandes.map((c) => c.id)}
+                  objet={`${id === "non_assigne" ? t("Sans livreur assigné") : g.nom} — ${t("{0} commande(s)", g.commandes.length)} — ${montants}`} />
+              </section>
             );
           })}
         </div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Calendar, Plus, Clock, Trash2, CheckCircle2, XCircle, Loader2, Sparkles, X, Edit3, Zap, Camera, ThumbsUp, Music4, MessageCircle, Bird } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { Bouton, BoutonIcone, EnTetePage, useConfirmation } from "@/components/ui";
 
 type Statut = "planifie" | "publie" | "annule";
 
@@ -77,13 +78,12 @@ function PostCard({ post, onDelete, onStatut }: { post: Post; onDelete: (id: str
             {post.statut === "planifie" && (
               <button onClick={() => onStatut(post.id, "publie")}
                 className="text-xs px-2.5 py-1 bg-green-50 text-green-600 rounded-lg border border-green-200 hover:bg-green-100 transition-colors font-medium">
-                {t("✓ Publié")}
+                {t("Marquer comme publié")}
               </button>
             )}
-            <button onClick={() => onDelete(post.id)}
-              className="w-7 h-7 flex items-center justify-center bg-red-50 text-red-400 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
-              <Trash2 size={11} />
-            </button>
+            <BoutonIcone label={t("Supprimer ce post")} variante="danger" onClick={() => onDelete(post.id)}>
+              <Trash2 className="size-4" aria-hidden />
+            </BoutonIcone>
           </div>
         </div>
       </div>
@@ -93,6 +93,7 @@ function PostCard({ post, onDelete, onStatut }: { post: Post; onDelete: (id: str
 
 export default function SchedulerPage() {
   const t = useT();
+  const { confirmer, dialogue } = useConfirmation();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -120,7 +121,7 @@ export default function SchedulerPage() {
       const res = await fetch("/api/posts");
       const data = await res.json();
       setPosts(data.posts || []);
-    } catch { toast.error(t("Erreur chargement")); }
+    } catch { toast.error(t("Tes posts n'ont pas pu être chargés. Vérifie ta connexion et actualise la page.")); }
     finally { setLoading(false); }
   }
 
@@ -157,12 +158,12 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
         setForm(f => ({ ...f, contenu: parsed.contenu || "", hashtags: parsed.hashtags || [], imageUrl }));
         toast.success(t("Post généré !"));
       }
-    } catch { toast.error(t("Erreur IA")); }
+    } catch { toast.error(t("Le post n'a pas pu être rédigé. Réessaie ou écris-le toi-même.")); }
     finally { setGenerating(false); }
   }
 
   async function sauvegarder() {
-    if (!form.contenu.trim() || !form.planifieLe) { toast.error(t("Contenu et date requis")); return; }
+    if (!form.contenu.trim() || !form.planifieLe) { toast.error(t("Renseigne le contenu du post et sa date de publication.")); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/posts", {
@@ -182,20 +183,25 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
       setShowModal(false);
       setForm({ plateforme: "instagram", contenu: "", hashtags: [], imageUrl: "", planifieLe: "", noteInterne: "", aiPrompt: "" });
       charger();
-    } catch { toast.error(t("Erreur sauvegarde")); }
+    } catch { toast.error(t("Le post n'a pas été planifié. Réessaie.")); }
     finally { setSaving(false); }
   }
 
   async function supprimerPost(id: string) {
-    await fetch(`/api/posts?id=${id}`, { method: "DELETE" });
+    const post = posts.find(x => x.id === id);
+    const apercu = post ? `${post.plateforme} · ${post.contenu.slice(0, 60)}${post.contenu.length > 60 ? "…" : ""}` : t("Post");
+    if (!(await confirmer({ titre: t("Supprimer ce post ?"), objet: apercu, description: t("Il sera retiré du planning. Cette action est définitive."), libelleConfirmer: t("Supprimer le post") }))) return;
+    const res = await fetch(`/api/posts?id=${id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) { toast.error(t("Le post n'a pas été supprimé. Réessaie.")); return; }
     setPosts(p => p.filter(x => x.id !== id));
-    toast.success(t("Post supprimé"));
+    toast.success(t("Post supprimé du planning."))
   }
 
   async function changerStatut(id: string, statut: Statut) {
-    await fetch("/api/posts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, statut }) });
+    const res = await fetch("/api/posts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, statut }) }).catch(() => null);
+    if (!res?.ok) { toast.error(t("Le statut du post n'a pas été modifié. Réessaie.")); return; }
     setPosts(p => p.map(x => x.id === id ? { ...x, statut } : x));
-    toast.success(statut === "publie" ? t("Marqué comme publié ✓") : t("Statut mis à jour"));
+    toast.success(statut === "publie" ? t("Post marqué comme publié.") : t("Statut du post mis à jour."));
   }
 
   const postsFiltres = posts.filter(p => {
@@ -212,18 +218,11 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Scheduler Social")}</h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{t("Planifiez vos posts avec l'IA — Instagram, TikTok, Facebook…")}</p>
-        </div>
-        <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all"
-          style={{ background: "linear-gradient(135deg, #E1306C, #833AB4)", boxShadow: "0 4px 20px rgba(225,48,108,0.3)" }}>
-          <Plus size={16} />{" "}{t("Nouveau post")}
-        </button>
-      </div>
+      {dialogue}
+      <EnTetePage className="mb-0"
+        titre={t("Planificateur social")}
+        description={t("Planifiez vos posts avec l'IA — Instagram, TikTok, Facebook…")}
+        actions={<Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{t("Nouveau post")}</Bouton>} />
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

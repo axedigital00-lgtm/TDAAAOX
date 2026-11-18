@@ -23,7 +23,7 @@ export function PlanBadge({ plan, className, size = "md" }: PlanBadgeProps) {
     <span
       className={cn(
         "inline-flex items-center font-semibold rounded-full",
-        size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-3 py-1",
+        size === "sm" ? "text-xs px-2 py-0.5" : "text-xs px-3 py-1",
         className
       )}
       style={{

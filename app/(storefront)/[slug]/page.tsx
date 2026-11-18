@@ -20,6 +20,8 @@ import { BlockTreeRenderer } from "@/components/storefront/blocks/BlockTreeRende
 import { ordonnerParZone } from "@/lib/block-tree";
 import { cssSectionsDesign } from "@/lib/scope-css";
 import { getT } from "@/lib/i18n/serveur";
+import { politiquesPubliees } from "@/lib/politiques";
+import { faqBoutique } from "@/lib/liens-design";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -397,12 +399,12 @@ export default async function StorefrontPage({ params }: Props) {
                       ) : (
                         <div className="w-full h-full flex items-center justify-center"><Package size={48} className="opacity-20" /></div>
                       )}
-                      <WishlistHeartButton produitId={p.id} accent={c.accent} fond={c.fond} className="absolute top-3 right-3 w-8 h-8 rounded-full" />
+                      <WishlistHeartButton produitId={p.id} accent={c.accent} fond={c.fond} className="absolute top-2 right-2 w-10 h-10 rounded-full" />
                       {/* Badges */}
                       <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                         {p.featured && (
                           <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ backgroundColor: c.accent, color: c.fond }}>
-                            VEDETTE
+                            {t("Vedette")}
                           </span>
                         )}
                         {remise > 0 && (
@@ -410,7 +412,7 @@ export default async function StorefrontPage({ params }: Props) {
                             -{t(remise)}%
                           </span>
                         )}
-                        {p.stock === 0 && (
+                        {p.type === "physique" && p.stock <= 0 && (
                           <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-gray-500/80 text-white">
                             {t("Épuisé")}
                           </span>
@@ -436,7 +438,7 @@ export default async function StorefrontPage({ params }: Props) {
                         )}
                       </div>
                       {p.ventes > 0 && (
-                        <p className="text-[10px] mt-1" style={{ opacity: 0.4 }}>{t(p.ventes)} ventes</p>
+                        <p className="text-[10px] mt-1" style={{ opacity: 0.4 }}>{t("{0} ventes", p.ventes)}</p>
                       )}
                     </div>
                   </div>
@@ -777,6 +779,11 @@ export default async function StorefrontPage({ params }: Props) {
                   ...(cfg.contactPage?.actif ? [{ label: "Contact", href: `/${slug}/contact` }] : []),
                   { label: "Suivi commande", href: `/suivi` },
                   { label: "Mon compte", href: `/${slug}/mon-compte` },
+                  // Pages d'information : FAQ (si la boutique en a une) et politiques validées par le marchand.
+                  ...(faqBoutique(cfg).length ? [{ label: "FAQ", href: `/${slug}/faq` }] : []),
+                  ...politiquesPubliees(tenant.politiques)
+                    .filter((p) => cfg.modeBoutique !== "digital" || p.type !== "livraison")
+                    .map((p) => ({ label: p.titre, href: `/${slug}/politiques/${p.type}` })),
                 ].map((l) => (
                   <Link key={l.href} href={l.href} className="block text-sm transition-opacity hover:opacity-100" style={{ opacity: 0.55 }}>
                     {t(l.label)}
