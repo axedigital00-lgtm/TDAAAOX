@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Globe, AlertCircle, CheckCircle2, Clock, Copy, Loader2, RefreshCw, Trash2, ExternalLink, Sparkles } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { urlBoutique } from "@/lib/utils";
-import { Alerte, Badge, Bouton, EnTetePage, EtatChargement, EtatErreur, Saisie, classesBouton, useConfirmation } from "@/components/ui";
+import { Alerte, Badge, Bouton, EtatChargement, EtatErreur, Saisie, classesBouton, useConfirmation } from "@/components/ui";
+import { SectionParametres } from "../ui";
 
 type Enregistrement = { type: string; nom: string; valeur: string; raison: string };
 type Etat = { actif: boolean; verifie: boolean; dnsOk: boolean; enregistrements: Enregistrement[]; message?: string };
@@ -76,10 +77,8 @@ export default function DomainePage() {
   const etat = d?.etat;
 
   return (
-    <div className="space-y-section max-w-2xl">
+    <SectionParametres titre={t("Domaines")} description={t("Servez votre boutique sur votre propre nom de domaine (ex : boutique.mondomaine.com)")}>
       {dialogue}
-      <EnTetePage className="mb-0" titre={t("Domaine personnalisé")} retour={{ href: "/dashboard/parametres", libelle: t("Réglages") }}
-        description={t("Servez votre boutique sur votre propre nom de domaine (ex : boutique.mondomaine.com)")} />
 
       <div className="bg-primaire-fond border border-attention-bordure rounded-carte p-4 sm:p-5 min-w-0">
         <p className="text-attention font-semibold text-sm mb-1">{t("Adresse AXSO de la boutique")}</p>
@@ -161,7 +160,7 @@ export default function DomainePage() {
           {etat && !etat.actif && <SiEchec />}
         </>
       )}
-    </div>
+    </SectionParametres>
   );
 }
 

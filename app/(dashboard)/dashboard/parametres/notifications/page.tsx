@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 import { exempleTelephone } from "@/lib/devise-convert";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bell, MessageSquare, Mail, Save } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { Bouton, EnTetePage, EtatErreur, Saisie, Squelette } from "@/components/ui";
+import { EtatErreur } from "@/components/ui";
+import { Card, ContextualSaveBar, ResourceList, SettingsRow, SkeletonPage, TextField, Toggle } from "@/components/ui/adm";
+import { SectionParametres, SousSection, modifie } from "../ui";
 
 const DEFAUT = {
   whatsappNumero: "",
@@ -23,6 +24,7 @@ export default function NotificationsPage() {
   const [config, setConfig] = useState(DEFAUT);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [enregistre, setEnregistre] = useState<typeof DEFAUT | null>(null);
   const [erreurChargement, setErreurChargement] = useState(false);
   const [pays, setPays] = useState("");
 
@@ -30,16 +32,11 @@ export default function NotificationsPage() {
     setErreurChargement(false);
     fetch("/api/tenants/moi-complet").then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(tenant => {
       setPays(tenant?.pays ?? "");
-      if (tenant?.parametresPaiement) {
-        const saved = (tenant.parametresPaiement as any).notifications;
-        if (saved) setConfig({ ...DEFAUT, ...saved });
-      }
-      if (!config.whatsappNumero && tenant?.whatsapp) {
-        setConfig(prev => ({ ...prev, whatsappNumero: tenant.whatsapp }));
-      }
-      if (!config.emailNotif && tenant?.email) {
-        setConfig(prev => ({ ...prev, emailNotif: tenant.email }));
-      }
+      const saved = (tenant?.parametresPaiement as any)?.notifications;
+      const c = { ...DEFAUT, ...(saved || {}) };
+      if (!c.whatsappNumero && tenant?.whatsapp) c.whatsappNumero = tenant.whatsapp;
+      if (!c.emailNotif && tenant?.email) c.emailNotif = tenant.email;
+      setConfig(c); setEnregistre(c);
       setLoaded(true);
     }).catch(() => setErreurChargement(true));
   };
@@ -63,6 +60,7 @@ export default function NotificationsPage() {
         }),
       });
       if (!maj.ok) throw new Error();
+      setEnregistre(config);
       toast.success(t("Préférences de notification enregistrées."));
     } catch {
       toast.error(t("Les préférences n'ont pas pu être enregistrées. Vérifiez votre connexion et réessayez."));
@@ -71,114 +69,58 @@ export default function NotificationsPage() {
     }
   }
 
-  const Interrupteur = ({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) => (
-    <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={onChange}
-      className="relative w-11 h-6 my-2 rounded-full transition-colors flex-shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus before:absolute before:-inset-2 before:content-['']"
-      style={{ backgroundColor: checked ? "var(--ax-primaire)" : "var(--ax-bordure-forte)" }}>
-      <span className="absolute top-1 transition-[left] rounded-full w-4 h-4 bg-carte shadow" style={{ left: checked ? "calc(100% - 20px)" : "4px" }} />
-    </button>
-  );
-  const CARTE = "rounded-carte border border-bordure bg-carte shadow-carte p-carte space-y-champs";
-  const entete = (
-    <EnTetePage className="mb-0" titre={t("Notifications")} retour={{ href: "/dashboard/parametres", libelle: t("Réglages") }}
-      description={t("Choisissez comment et pour quoi vous êtes prévenu.")} />
-  );
-
-  if (erreurChargement) {
-    return (
-      <div className="space-y-section max-w-2xl">
-        {entete}
-        <EtatErreur titre={t("Vos préférences n'ont pas pu être chargées.")} texte={t("Vérifiez votre connexion puis réessayez.")} onReessayer={charger} />
-      </div>
-    );
-  }
-  if (!loaded) {
-    return (
-      <div className="space-y-section max-w-2xl" role="status" aria-busy="true">
-        {entete}
-        <span className="sr-only">{t("Chargement…")}</span>
-        <Squelette className="h-32 w-full rounded-carte" />
-        <Squelette className="h-32 w-full rounded-carte" />
-      </div>
-    );
-  }
+  const charge = erreurChargement ? (
+    <EtatErreur titre={t("Vos préférences n'ont pas pu être chargées.")} texte={t("Vérifiez votre connexion puis réessayez.")} onReessayer={charger} />
+  ) : !loaded ? <SkeletonPage label={t("Chargement…")} /> : null;
 
   return (
-    <div className="space-y-section max-w-2xl">
-      {entete}
-
-      {/* WhatsApp */}
-      <section className={CARTE}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-controle bg-succes-fond border border-succes-bordure flex items-center justify-center shrink-0" aria-hidden>
-              <MessageSquare size={18} className="text-succes" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="ax-sous-titre">{t("WhatsApp Business")}</h2>
-              <p className="ax-aide">{t("Notifications instantanées via WhatsApp")}</p>
-            </div>
-          </div>
-          <Interrupteur label={t("Notifications WhatsApp")} checked={config.whatsappActif} onChange={() => toggle("whatsappActif")} />
-        </div>
-        {config.whatsappActif && (
-          <Saisie type="tel" label={t("Numéro WhatsApp (avec indicatif pays)")} value={config.whatsappNumero}
-            onChange={e => setConfig({ ...config, whatsappNumero: e.target.value })} placeholder={exempleTelephone(pays)}
-            aide={t("Les notifications seront envoyées sur ce numéro via l'API WhatsApp Business.")} />
-        )}
-      </section>
-
-      {/* Email */}
-      <section className={CARTE}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-controle bg-primaire-fond border border-attention-bordure flex items-center justify-center shrink-0" aria-hidden>
-              <Mail size={18} className="text-attention" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="ax-sous-titre">{t("Email")}</h2>
-              <p className="ax-aide">{t("Notifications par email")}</p>
-            </div>
-          </div>
-          <Interrupteur label={t("Notifications par email")} checked={config.emailActif} onChange={() => toggle("emailActif")} />
-        </div>
-        {config.emailActif && (
-          <Saisie type="email" label={t("Email de notification")} value={config.emailNotif}
-            onChange={e => setConfig({ ...config, emailNotif: e.target.value })} placeholder="moi@maboutique.com" />
-        )}
-      </section>
-
-      {/* Types de notifications */}
-      <section className={CARTE}>
-        <h2 className="ax-titre-section flex items-center gap-2"><Bell size={16} className="text-attention" aria-hidden />{t("Alertes activées")}</h2>
-        <div className="divide-y divide-bordure">
-          {[
-            { key: "notifNouvelleCommande", label: "Nouvelle commande", desc: "Alerte dès qu'un client passe une commande" },
-            { key: "notifPaiementRecu", label: "Paiement reçu", desc: "Confirmation quand un paiement est validé" },
-            { key: "notifNouvelAvis", label: "Nouvel avis client", desc: "Quand un client laisse un avis" },
-            { key: "notifStockFaible", label: "Stock faible", desc: `Alerte quand un produit passe sous le seuil défini` },
-          ].map(notif => (
-            <div key={notif.key} className="flex items-center justify-between gap-4 py-3">
-              <div className="flex-1 min-w-0">
-                <p className="ax-libelle">{t(notif.label)}</p>
-                <p className="ax-aide">{t(notif.desc)}</p>
+    <SectionParametres titre={t("Notifications")} description={t("Choisissez comment et pour quoi vous êtes prévenu.")}>
+      <ContextualSaveBar dirty={modifie(config, enregistre)} saving={saving} onSave={sauvegarder} onDiscard={() => enregistre && setConfig(enregistre)} />
+      {charge ?? <>
+        <SousSection titre={t("Canaux")}>
+          <ResourceList>
+            <SettingsRow icon="whatsapp" title={t("WhatsApp Business")} subtitle={t("Notifications instantanées via WhatsApp")}
+              end={<Toggle label={t("Notifications WhatsApp")} checked={config.whatsappActif} onChange={() => toggle("whatsappActif")} />} />
+            <SettingsRow icon="mail" title={t("Email")} subtitle={t("Notifications par email")}
+              end={<Toggle label={t("Notifications par email")} checked={config.emailActif} onChange={() => toggle("emailActif")} />} />
+          </ResourceList>
+          {(config.whatsappActif || config.emailActif) && (
+            <Card>
+              <div className="flex flex-col gap-4">
+                {config.whatsappActif && (
+                  <TextField type="tel" label={t("Numéro WhatsApp (avec indicatif pays)")} value={config.whatsappNumero}
+                    onChange={e => setConfig({ ...config, whatsappNumero: e.target.value })} placeholder={exempleTelephone(pays)}
+                    helpText={t("Les notifications seront envoyées sur ce numéro via l'API WhatsApp Business.")} />
+                )}
+                {config.emailActif && (
+                  <TextField type="email" label={t("Email de notification")} value={config.emailNotif}
+                    onChange={e => setConfig({ ...config, emailNotif: e.target.value })} placeholder="moi@maboutique.com" />
+                )}
               </div>
-              <Interrupteur label={t(notif.label)}
-                checked={config[notif.key as keyof typeof config] as boolean}
-                onChange={() => toggle(notif.key as keyof typeof config)}
-              />
-            </div>
-          ))}
-        </div>
-        {config.notifStockFaible && (
-          <Saisie type="number" className="max-w-56 pt-2 border-t border-bordure" label={t("Seuil de stock faible (en unités)")} min={1} max={100} suffixe={t("unités")}
-            value={config.notifStockSeuil} onChange={e => setConfig({ ...config, notifStockSeuil: Number(e.target.value) })} />
-        )}
-      </section>
+            </Card>
+          )}
+        </SousSection>
 
-      <Bouton onClick={sauvegarder} charge={saving} texteCharge={t("Enregistrement…")} icone={<Save size={15} aria-hidden />}>
-        {t("Enregistrer les notifications")}
-      </Bouton>
-    </div>
+        <SousSection titre={t("Alertes activées")}>
+          <ResourceList>
+            {[
+              { key: "notifNouvelleCommande", label: "Nouvelle commande", desc: "Alerte dès qu'un client passe une commande" },
+              { key: "notifPaiementRecu", label: "Paiement reçu", desc: "Confirmation quand un paiement est validé" },
+              { key: "notifNouvelAvis", label: "Nouvel avis client", desc: "Quand un client laisse un avis" },
+              { key: "notifStockFaible", label: "Stock faible", desc: "Alerte quand un produit passe sous le seuil défini" },
+            ].map(notif => (
+              <SettingsRow key={notif.key} title={t(notif.label)} subtitle={t(notif.desc)}
+                end={<Toggle label={t(notif.label)} checked={config[notif.key as keyof typeof config] as boolean} onChange={() => toggle(notif.key as keyof typeof config)} />} />
+            ))}
+          </ResourceList>
+          {config.notifStockFaible && (
+            <Card>
+              <TextField type="number" className="max-w-56" label={t("Seuil de stock faible (en unités)")} min={1} max={100}
+                value={config.notifStockSeuil} onChange={e => setConfig({ ...config, notifStockSeuil: Number(e.target.value) })} />
+            </Card>
+          )}
+        </SousSection>
+      </>}
+    </SectionParametres>
   );
 }

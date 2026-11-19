@@ -7,7 +7,9 @@ import {
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { MODULES, ROLE_LABELS, type Niveau, type ModuleKey, type GrillePermissions } from "@/lib/permissions";
 import { useT } from "@/components/I18nProvider";
-import { Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, classesBouton, useConfirmation, type Ton } from "@/components/ui";
+import { Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EtatErreur, EtatVide, Saisie, SqueletteListe, classesBouton, useConfirmation, type Ton } from "@/components/ui";
+import { SectionParametres } from "../ui";
+import { buttonClasses } from "@/components/ui/adm";
 
 const EQUIPE_TUTORIAL_STEPS = [
   { Icon: UserPlus,    titre: "Invite ton équipe",              description: "Ajoute un gérant, caissier, comptable ou un accès personnalisé — un lien d'invitation est généré immédiatement." },
@@ -218,18 +220,11 @@ export default function EquipePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-section">
+    <SectionParametres titre={t("Utilisateurs")} description={loading ? undefined : `${membres.length} ${t("membre(s) dans votre équipe")}`}
+      actions={<><BoutonRevoirTutoriel moduleKey="equipe" /><a href="#inviter" className={buttonClasses({ variant: "primary" })}>{t("Inviter un membre")}</a></>}>
       <ModuleTutorial moduleKey="equipe" titre={t("Équipe")} sousTitre={t("Rôles et accès de ton équipe")} steps={EQUIPE_TUTORIAL_STEPS} />
       {dialogue}
 
-      <EnTetePage
-        className="mb-0"
-        titre={t("Équipe")}
-        retour={{ href: "/dashboard/parametres", libelle: t("Réglages") }}
-        indicateurs={<BoutonRevoirTutoriel moduleKey="equipe" />}
-        description={loading ? undefined : `${membres.length} ${t("membre(s) dans votre équipe")}`}
-        actions={<a href="#inviter" className={classesBouton()}><UserPlus size={16} aria-hidden />{t("Inviter un membre")}</a>}
-      />
 
       {/* Liste membres */}
       <section className="rounded-carte border border-bordure bg-carte shadow-carte overflow-hidden">
@@ -381,6 +376,6 @@ export default function EquipePage() {
           </div>
         )}
       </form>
-    </div>
+    </SectionParametres>
   );
 }

@@ -10,7 +10,8 @@ import { annoncerPhoto } from "@/components/dashboard/AvatarCompte";
 import { basculerBoutique } from "@/components/dashboard/BoutiqueSwitcher";
 import { useT } from "@/components/I18nProvider";
 import { NOMS_PALIERS } from "@/lib/plans";
-import { Badge, Bouton, Champ, CLASSE_SAISIE, EnTetePage, EtatChargement, EtatErreur, Saisie } from "@/components/ui";
+import { Badge, Bouton, Champ, CLASSE_SAISIE, EtatChargement, EtatErreur, Saisie } from "@/components/ui";
+import { SectionParametres } from "../parametres/ui";
 
 // « Mon profil » : le compte de la personne connectée (nom, photo, mot de
 // passe, boutiques auxquelles elle a accès). Les réglages d'une boutique
@@ -65,8 +66,7 @@ export default function ProfilPage() {
   const nomModifie = nom.trim() && nom.trim() !== (compte.name ?? "");
 
   return (
-    <div className="space-y-section max-w-3xl w-full mx-auto pb-10">
-      <EnTetePage className="mb-0" titre={t("Mon profil")} description={t("Ton compte personnel — les réglages de ta boutique sont dans Réglages.")} />
+    <SectionParametres titre={t("Mon profil")} description={t("Votre compte personnel — les réglages de votre boutique sont dans Paramètres.")}>
 
       {/* ── Identité ── */}
       <section className="rounded-carte border border-bordure bg-carte shadow-carte overflow-hidden">
@@ -130,7 +130,7 @@ export default function ProfilPage() {
       <Bouton variante="danger" className="w-full sm:w-auto" onClick={() => signOut({ callbackUrl: "/connexion" })} icone={<LogOut size={16} aria-hidden />}>
         {t("Se déconnecter")}
       </Bouton>
-    </div>
+    </SectionParametres>
   );
 }
 

@@ -17,7 +17,7 @@ const INFOS: Partial<Record<PageEditee, { titre: string; texte: string; liens: {
   commande: {
     titre: "Commande",
     texte: "Le formulaire de commande (paiement à la livraison, mobile money, WhatsApp). Les informations demandées à l'acheteur se règlent dans Paramètres › Formulaire de commande.",
-    liens: [{ label: "Formulaire de commande", href: "/dashboard/parametres" }, { label: "Livraison", href: "/dashboard/boutique" }],
+    liens: [{ label: "Formulaire de commande", href: "/dashboard/parametres/formulaire-commande" }, { label: "Livraison", href: "/dashboard/boutique" }],
   },
 };
 
