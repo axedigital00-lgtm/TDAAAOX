@@ -23,6 +23,8 @@ import { lienBoutique } from "@/lib/origine-site";
 import { normaliserTelephone } from "@/lib/devise-convert";
 import { soldeDisponible } from "@/lib/wallet";
 import { PAIEMENT } from "@/lib/commandes";
+import { chargerPeriode, compterATraiter } from "./donnees";
+import { lignesATraiter } from "./a-traiter";
 import { LIBELLES_PERIODE, bornesPeriode, courbe, indicateurs, lirePeriode, projectionMois, variation, type Intervalle } from "@/lib/tableau-de-bord";
 
 const STATUTS_EN_COURS = ["confirmee", "en_preparation", "expediee"] as const;
@@ -43,26 +45,15 @@ export default async function TableauDeBordPage({ searchParams }: { searchParams
 
   const dans = (i: Intervalle) => ({ gte: i.debut, lt: i.fin });
   const nonAnnulee = { tenantId, statut: { not: "annulee" } };
-  const ligneCmd = { createdAt: true, montantTotal: true, paiementStatut: true, canal: true } as const;
 
   const [
-    tenant, cmds, cmdsPrec, vues, vuesPrec,
-    aConfirmer, aExpedier, retours, ruptures, stockFaible, messages,
+    tenant, { cmds, cmdsPrec, visites, visitesPrec }, compteurs,
     enCoursGroupes, enCoursListe, villes, lignesPayees, clientsRecents, programmeAffiliation, argent,
   ] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, nomBoutique: true, statut: true, devise: true, pays: true } }),
     // ponytail: lignes de commande chargées pour la période ; passer en agrégats SQL si une boutique dépasse ~50 000 commandes/mois.
-    prisma.commande.findMany({ where: { ...nonAnnulee, createdAt: dans(b) }, select: ligneCmd }),
-    prisma.commande.findMany({ where: { ...nonAnnulee, createdAt: dans(b.precedente) }, select: ligneCmd }),
-    prisma.analytics.aggregate({ where: { tenantId, type: "page_view", date: dans(b) }, _sum: { valeur: true } }),
-    prisma.analytics.aggregate({ where: { tenantId, type: "page_view", date: dans(b.precedente) }, _sum: { valeur: true } }),
-    // À traiter : mêmes filtres que les listes ciblées par les liens.
-    prisma.commande.count({ where: { tenantId, statut: "en_attente" } }),
-    prisma.commande.count({ where: { tenantId, statut: { in: ["confirmee", "en_preparation"] } } }),
-    prisma.retourRMA.count({ where: { tenantId, statut: { in: ["ouvert", "en_cours"] } } }),
-    prisma.produit.count({ where: { tenantId, actif: true, type: "physique", stock: 0 } }),
-    prisma.produit.count({ where: { tenantId, actif: true, type: "physique", stock: { gt: 0, lte: 5 } } }),
-    prisma.messageRecu.count({ where: { tenantId, source: "whatsapp", direction: "entrant", lu: false } }),
+    chargerPeriode(tenantId, b),
+    compterATraiter(tenantId),
     prisma.commande.groupBy({ by: ["statut"], where: { tenantId, statut: { in: [...STATUTS_EN_COURS] } }, _count: { _all: true }, _sum: { montantTotal: true } }),
     Promise.all(STATUTS_EN_COURS.map((statut) => prisma.commande.findMany({
       where: { tenantId, statut }, orderBy: { createdAt: "desc" }, take: 5,
@@ -83,8 +74,8 @@ export default async function TableauDeBordPage({ searchParams }: { searchParams
   const montant = (v: number) => (voitFinance ? formatMontant(v, devise) : "—");
 
   // ── Indicateurs ──
-  const ind = indicateurs(cmds, vues._sum.valeur ?? 0);
-  const prec = indicateurs(cmdsPrec, vuesPrec._sum.valeur ?? 0);
+  const ind = indicateurs(cmds, visites);
+  const prec = indicateurs(cmdsPrec, visitesPrec);
   const pct = (v: number | null) => (v === null ? "—" : `${v.toLocaleString(t.loc, { maximumFractionDigits: 1 })} %`);
   const cartes: CarteIndicateur[] = [
     { cle: "commandes", label: "Commandes", valeur: ind.commandes.toLocaleString(t.loc), evolution: variation(ind.commandes, prec.commandes) },
@@ -99,20 +90,7 @@ export default async function TableauDeBordPage({ searchParams }: { searchParams
   ];
 
   // ── À traiter (chaque ligne seulement si le membre a accès à la liste) ──
-  const aTraiter: LigneATraiter[] = [
-    ...(voit("commandes") ? [
-      { cle: "confirmer", nombre: aConfirmer, label: "commande(s) à confirmer", href: "/dashboard/commandes?statut=en_attente", action: "Confirmer" },
-      { cle: "expedier", nombre: aExpedier, label: "commande(s) à expédier", href: "/dashboard/commandes?statut=confirmee,en_preparation", action: "Expédier" },
-      { cle: "retours", nombre: retours, label: "retour(s) en attente", href: "/dashboard/logistique?tab=retours&filtre=a_traiter", action: "Traiter" },
-    ] : []),
-    ...(voit("produits") ? [
-      { cle: "ruptures", nombre: ruptures, label: "produit(s) en rupture de stock", href: "/dashboard/produits?filtre=epuise", action: "Réapprovisionner" },
-      { cle: "faible", nombre: stockFaible, label: "produit(s) en stock faible (5 ou moins)", href: "/dashboard/produits?filtre=faible", action: "Voir" },
-    ] : []),
-    ...(voit("clients") ? [
-      { cle: "messages", nombre: messages, label: "message(s) WhatsApp non lu(s)", href: "/dashboard/whatsapp?filtre=non_lus", action: "Répondre" },
-    ] : []),
-  ];
+  const aTraiter: LigneATraiter[] = lignesATraiter(compteurs, voit);
 
   // ── Ventes en cours : confirmées non livrées ; « payée » = paiementStatut completed (une commande
   // payée à la livraison ne l'est qu'une fois livrée : affichée « À encaisser »). ──

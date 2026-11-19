@@ -1,19 +1,20 @@
 "use client";
 import { useState } from "react";
-import { MessageCircle, CheckCircle2, Truck, Check, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useT } from "@/components/I18nProvider";
-import { Bouton, useConfirmation } from "@/components/ui";
+import { useConfirmation } from "@/components/ui";
+import { Button, buttonClasses } from "@/components/ui/adm";
+import { Icon, type IconName } from "@/components/ui/icones";
 import { statutCommande } from "@/app/(dashboard)/dashboard/commandes/statuts";
 
 // Prochaine étape proposée pour chaque statut (les transitions autorisées restent
 // vérifiées par l'API : lib/commandes.ts TRANSITIONS_VALIDES). Annuler reste possible à tout moment.
-const NEXT_ACTION: Record<string, { label: string; nextStatut: string; icon: typeof Check }> = {
-  en_attente:     { label: "Confirmer la commande",  nextStatut: "confirmee", icon: Check },
-  confirmee:      { label: "Passer en livraison",    nextStatut: "expediee",  icon: Truck },
-  en_preparation: { label: "Passer en livraison",    nextStatut: "expediee",  icon: Truck },
-  expediee:       { label: "Marquer comme livrée",   nextStatut: "livree",    icon: CheckCircle2 },
+const NEXT_ACTION: Record<string, { label: string; nextStatut: string; icon: IconName }> = {
+  en_attente:     { label: "Confirmer la commande",  nextStatut: "confirmee", icon: "checkCircle" },
+  confirmee:      { label: "Passer en livraison",    nextStatut: "expediee",  icon: "truck" },
+  en_preparation: { label: "Passer en livraison",    nextStatut: "expediee",  icon: "truck" },
+  expediee:       { label: "Marquer comme livrée",   nextStatut: "livree",    icon: "checkCircle" },
 };
 
 const ANNULABLE = new Set(["en_attente", "confirmee", "en_preparation", "expediee", "tentative_echouee"]);
@@ -80,38 +81,30 @@ export function StatutCommandeSelector({ commandeId, statutActuel, payeeEnLigne 
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {nextAction && (
-        <Bouton variante="primaire" onClick={() => changerStatut(nextAction.nextStatut)} disabled={loading !== null}
-          charge={loading === nextAction.nextStatut} icone={<nextAction.icon className="size-4" aria-hidden />}>
-          {t(nextAction.label)}
-        </Bouton>
-      )}
-
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {ANNULABLE.has(statut) && (
-        <Bouton variante="danger" onClick={annuler} disabled={loading !== null} charge={loading === "annulee"}
-          icone={<XCircle className="size-4" aria-hidden />}>
+        <Button onClick={annuler} disabled={loading !== null} loading={loading === "annulee"} icon="x">
           {t("Annuler la commande")}
-        </Bouton>
+        </Button>
       )}
 
       {notifEnvoyee && (
-        <span role="status" className="flex items-center gap-1.5 text-xs font-medium text-succes bg-succes-fond border border-succes-bordure px-3 py-2 rounded-controle">
-          <CheckCircle2 className="size-4" aria-hidden />{t("Client prévenu sur WhatsApp")}
+        <span role="status" className="inline-flex items-center gap-1.5 text-xs font-[550] text-(--badge-success-text)">
+          <Icon name="checkCircle" />{t("Client prévenu sur WhatsApp")}
         </span>
       )}
       {whatsappUrl && !notifEnvoyee && (
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 min-h-10 px-4 rounded-controle text-sm font-semibold text-white transition-opacity hover:opacity-90 shadow-sm"
-          style={{ background: "#25D366" }}
-          onClick={() => setWhatsappUrl(null)}
-        >
-          <MessageCircle className="size-4" aria-hidden />
+        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={buttonClasses()} onClick={() => setWhatsappUrl(null)}>
+          <Icon name="whatsapp" />
           {t("Prévenir le client sur WhatsApp")}
         </a>
+      )}
+
+      {nextAction && (
+        <Button variant="primary" onClick={() => changerStatut(nextAction.nextStatut)} disabled={loading !== null}
+          loading={loading === nextAction.nextStatut} icon={nextAction.icon}>
+          {t(nextAction.label)}
+        </Button>
       )}
       {dialogue}
     </div>
