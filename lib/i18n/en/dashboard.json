@@ -4899,5 +4899,13 @@
  "Activer les notifications sur cet appareil (même appli fermée)": "Turn on notifications on this device (even when the app is closed)",
  "Replier le menu": "Collapse menu",
  "Garder le menu ouvert": "Keep menu open",
- "Menu principal": "Main menu"
+ "Menu principal": "Main menu",
+ "Retour": "Back",
+ "Plus d'actions": "More actions",
+ "Quitter la page sans enregistrer ?": "Leave page without saving?",
+ "Rester sur la page": "Stay on page",
+ "Quitter la page": "Leave page",
+ "Les modifications non enregistrées seront perdues.": "Unsaved changes will be lost.",
+ "Ignorer": "Discard",
+ "Paiement à la livraison": "Cash on delivery"
 }

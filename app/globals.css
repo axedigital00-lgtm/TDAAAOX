@@ -741,3 +741,88 @@ body > .axs-store > div > * {
 body > .axs-store > div > :is(footer, :has(footer)) {
   margin-top: auto;
 }
+
+/* ══ Refonte admin marchand (docs/refonte-admin) ══════════════════════════════
+   Jetons du masterprompt §3, valeurs exactes. Portée : .adm (posée par l'AppShell du dashboard).
+   Dans .adm, les jetons --ax-* du kit sont remappés (D8) : toutes les pages qui utilisent
+   bg-primaire, text-doux, rounded-carte… prennent le nouveau visuel sans réécriture.
+   Usage dans le code : bg-(--color-surface), text-(--color-text-secondary), shadow-(--shadow-card)… */
+.adm {
+  /* Cadre & navigation */
+  --color-frame:#0c0c0c; --color-nav-text:#e3e3e3; --color-nav-text-muted:#a1a1a1; --color-nav-icon:#cfcfcf;
+  --color-nav-hover:#1f1f1f; --color-nav-active:#2b2b2b; --color-nav-search-bg:#262626; --color-nav-search-bg-hover:#2c2c2c;
+  --color-nav-search-border:#333333; --color-nav-count-bg:#333333; --color-nav-divider:#1f1f1f;
+  /* Surfaces */
+  --color-bg:#ffffff; --color-surface:#ffffff; --color-surface-secondary:#f7f7f7; --color-surface-tertiary:#f1f1f1;
+  --color-surface-selected:#f3f3f3; --color-border:#e3e3e3; --color-border-secondary:#ebebeb;
+  --color-border-input:#8a8a8a; --color-border-strong:#1a1a1a;
+  /* Texte */
+  --color-text:#303030; --color-text-strong:#1a1a1a; --color-text-secondary:#616161; --color-text-subdued:#8a8a8a;
+  --color-text-on-dark:#ffffff; --color-link:#005bd3; --color-critical-text:#8e0b21; --color-icon-header:#4a4a4a;
+  /* Action */
+  --color-primary:#1a1a1a; --color-primary-hover:#2b2b2b; --color-primary-pressed:#000000; --color-critical:#c70a24;
+  --color-focus-ring:#005bd3; --color-button-hover:#f7f7f7; --color-button-pressed:#f0f0f0; --color-tint-hover:#e7e7e7;
+  --color-checkbox-border:#b5b5b5; --color-toggle-off:#b5b5b5; --color-tooltip:#1a1a1a;
+  /* Badges */
+  --badge-success-bg:#cdfee1;   --badge-success-text:#0c5132;
+  --badge-attention-bg:#ffeb78; --badge-attention-text:#4f4700;
+  --badge-warning-bg:#ffd6a4;   --badge-warning-text:#5e4200;
+  --badge-critical-bg:#fedad9;  --badge-critical-text:#8e0b21;
+  --badge-info-bg:#e0f0ff;      --badge-info-text:#00527c;
+  --badge-neutral-bg:#e3e3e3;   --badge-neutral-text:#303030;
+  /* Bannières */
+  --banner-info-bg:#eaf4ff; --banner-info-text:#00527c; --banner-warning-bg:#fff5ea; --banner-warning-text:#5e4200;
+  --banner-critical-bg:#fff0f0; --banner-critical-text:#8e0b21; --banner-success-bg:#edfbf3; --banner-success-text:#0c5132;
+  /* Suggestions IA */
+  --color-magic-bg:#f6f2ff; --color-magic-border:#ece4ff; --color-magic-text:#5b3cc4;
+  /* Marque : usage restreint §3.6 (logo, avatar boutique, icône AXIA, illustrations) */
+  --color-brand:#EBA900; --color-brand-ink:#0A1A33;
+  /* Data viz */
+  --chart-primary:#2a6fdb; --chart-compare:#9fc3f6; --chart-cyan:#1bb6e8; --chart-violet:#7c3aed;
+  --chart-grid:#ebebeb; --chart-axis-text:#8a8a8a; --chart-funnel-1:#2a4fd7; --chart-funnel-2:#7d96f0; --chart-funnel-3:#c6d3fb;
+  --map-land:#4fb8ad; --map-sea:#cdeee9;
+  /* Live */
+  --color-live:#29845a; --color-notification:#e51c00;
+  /* Espacements (base 4 px) */
+  --space-0:0; --space-050:2px; --space-100:4px; --space-150:6px; --space-200:8px; --space-300:12px; --space-400:16px;
+  --space-500:20px; --space-600:24px; --space-800:32px; --space-1000:40px; --space-1200:48px; --space-1600:64px;
+  --page-padding-x:20px;
+  /* Rayons */
+  --radius-sm:5px; --radius-md:8px; --radius-lg:10px; --radius-xl:12px; --radius-2xl:14px; --radius-3xl:16px; --radius-full:9999px;
+  /* Ombres */
+  --shadow-card: 0 0 0 1px rgba(0,0,0,.07), 0 1px 0 rgba(0,0,0,.05);
+  --shadow-button: inset 0 0 0 1px #dcdcdc, inset 0 -1px 0 #d4d4d4;
+  --shadow-button-pressed: inset 0 0 0 1px #cccccc;
+  --shadow-button-primary: inset 0 -1px 0 1px rgba(0,0,0,.8), inset 0 0 0 1px #303030, inset 0 .5px 0 1.5px rgba(255,255,255,.25);
+  --shadow-popover: 0 0 0 1px #e3e3e3, 0 8px 24px rgba(0,0,0,.12);
+  --shadow-modal: 0 26px 80px rgba(0,0,0,.35);
+  --shadow-ask: 0 0 0 1px #e3e3e3, 0 4px 14px rgba(0,0,0,.06);
+  --shadow-drawer: 0 0 0 1px #e3e3e3, 0 20px 50px rgba(0,0,0,.25);
+  /* Z-index §3.5 */
+  --z-header:5; --z-mobile-top:40; --z-dock:30; --z-axia:60; --z-nav-scrim:74; --z-nav-drawer:75; --z-modal:80; --z-toast:90; --z-tooltip:95;
+  /* Durées §14 */
+  --duration-fast:120ms; --duration-drawer:220ms; --duration-modal:180ms; --duration-toast:200ms;
+
+  /* Remappage du kit existant (D8) */
+  --ax-primaire:#1a1a1a; --ax-primaire-hover:#2b2b2b; --ax-sur-primaire:#ffffff; --ax-primaire-fond:#f1f1f1;
+  --ax-secondaire:#1a1a1a; --ax-secondaire-hover:#2b2b2b;
+  --ax-fond:#ffffff; --ax-carte:#ffffff; --ax-carte-2:#f7f7f7; --ax-bordure:#e3e3e3; --ax-bordure-forte:#8a8a8a;
+  --ax-encre:#303030; --ax-doux:#616161; --ax-discret:#8a8a8a;
+  --ax-succes:#0c5132; --ax-succes-fond:#cdfee1; --ax-succes-bordure:#cdfee1;
+  --ax-attention:#4f4700; --ax-attention-fond:#ffeb78; --ax-attention-bordure:#ffeb78;
+  --ax-erreur:#8e0b21; --ax-erreur-fond:#fedad9; --ax-erreur-bordure:#fedad9;
+  --ax-info:#00527c; --ax-info-fond:#e0f0ff; --ax-info-bordure:#e0f0ff;
+  --ax-focus:#005bd3;
+  --ax-rayon-controle:8px; --ax-rayon-carte:12px; --ax-rayon-modale:14px;
+  --ax-ombre-carte: var(--shadow-card); --ax-ombre-flottante: var(--shadow-popover);
+
+  font-family: var(--font-inter), Inter, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px; line-height: 20px; color: var(--color-text);
+  font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased;
+}
+@media (max-width: 1040px) { .adm { --page-padding-x:16px; } }
+@media (max-width: 820px)  { .adm { --page-padding-x:12px; } }
+.adm .tabular, .adm td.num { font-variant-numeric: tabular-nums; }
+.adm :focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
+@keyframes adm-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .adm *, .adm *::before, .adm *::after { animation-duration: 0s !important; transition-duration: 0s !important; } }

@@ -107,3 +107,20 @@ Ordre de priorité appliqué quand deux règles se contredisent :
 ## D22 — Commandes : statuts réels d'Axso · Retenue
 - **Contexte** : le prototype sépare « Statut du paiement », « Statut du traitement » et l'état de livraison. Axso a un statut de commande unique (en attente, confirmée, en préparation, en livraison, livraison échouée, livrée, annulée) et un statut de paiement.
 - **Option** : la colonne « Statut du traitement » reprend le statut de commande Axso, avec les libellés communs de `app/(dashboard)/dashboard/commandes/statuts.ts` et les tons du mapping §7.2 (« Livraison échouée » = critical, « Livrée » = success…). Aucun nouveau statut n'est créé.
+
+## D23 — Les chemins existants ne bougent pas · Retenue
+- **Contexte** : `PLAN.md` §3 proposait de déplacer des pages (ex. `logistique` sous `commandes/livraison`).
+- **Option** : aucune page existante ne change d'URL. La nouvelle barre latérale regroupe les chemins actuels selon la structure cible ; seules les pages nouvelles reçoivent un chemin neuf (`clients/[id]`, `clients/segments`, sections de `parametres/*`…).
+- **Raison** : zéro lien cassé (e-mails, push, Axia, recherche), zéro redirection à maintenir ; le deep-link du §6 reste respecté.
+
+## D24 — Page de recette `/dashboard/recette-ui` · Retenue
+- **Contexte** : dans l'App Router de Next 16, un dossier `_ui` est privé (exclu du routage).
+- **Option** : la recette vit sous `/dashboard/recette-ui`, `notFound()` en production.
+
+## D25 — Décisions « À valider » tranchées le 18/11 · Retenue
+- Le fondateur a dit « Termine tout » : les options proposées sont appliquées. D5 selon `PLAN.md` §5 ; Autopilot = accueil de la section Agents ; Formulaire COD = application qui regroupe le mode d'achat et les champs de commande existants ; « Collections » est le libellé du menu pour les catégories produits ; D7 fusion de l'Accueil ; D9 `#EBA900` ; D14 AXIA vouvoie.
+
+## D26 — Nouveau kit dans `components/ui/adm/`, noms du masterprompt · Retenue
+- **Contexte** : le kit actuel (`Bouton`, `Badge`, `Champ`…, API française) sert 100+ fichiers, y compris les espaces affilié, livreur et Command Center. Changer son API ou son visuel global casserait ces espaces.
+- **Option** : les composants du §7 sont créés dans `components/ui/adm/` avec les noms et l'API du masterprompt (`Button`, `Badge`, `Card`, `PageHeader`…), importés via `@/components/ui/adm`. L'ancien kit reste en place, remappé visuellement dans `.adm` (D8) ; chaque écran passe au nouveau kit lors de son lot, et l'ancien kit est supprimé au lot 15 quand plus aucun écran marchand ne l'utilise. Les icônes restent dans `components/ui/icones/` (`Icon`).
+- **Raison** : aucune régression hors admin marchand, migration écran par écran (feature flag naturel).
