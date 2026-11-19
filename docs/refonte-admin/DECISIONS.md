@@ -124,3 +124,13 @@ Ordre de priorité appliqué quand deux règles se contredisent :
 - **Contexte** : le kit actuel (`Bouton`, `Badge`, `Champ`…, API française) sert 100+ fichiers, y compris les espaces affilié, livreur et Command Center. Changer son API ou son visuel global casserait ces espaces.
 - **Option** : les composants du §7 sont créés dans `components/ui/adm/` avec les noms et l'API du masterprompt (`Button`, `Badge`, `Card`, `PageHeader`…), importés via `@/components/ui/adm`. L'ancien kit reste en place, remappé visuellement dans `.adm` (D8) ; chaque écran passe au nouveau kit lors de son lot, et l'ancien kit est supprimé au lot 15 quand plus aucun écran marchand ne l'utilise. Les icônes restent dans `components/ui/icones/` (`Icon`).
 - **Raison** : aucune régression hors admin marchand, migration écran par écran (feature flag naturel).
+
+## D27 — Une seule définition de « VIP » · Retenue (19/11, « réadaptes tout »)
+- **Contexte** : trois règles coexistaient (liste clients : 5 commandes ou 100 000 FCFA ; segment e-mail : 2 × dépense moyenne ; SMS : autre).
+- **Option** : une fonction unique `estVip` dans `lib/` utilisée partout (liste, fiche, segments, e-mail, SMS) : **au moins 5 commandes, ou une dépense au moins égale à 2 × la dépense moyenne des clients de la boutique**. Relative, elle marche dans toutes les devises (D16).
+
+## D28 — Fonctions back-end de la refonte · Retenue (19/11)
+- **Contexte** : le fondateur demande de « arranger toutes les fonctions côté backend » listées en D5 (b).
+- **Option** : sont construites, sur le modèle Shopify adapté à Axso : commandes provisoires (prise de commande téléphone/WhatsApp → facture → conversion en commande), paniers abandonnés en liste, actions groupées (commandes, produits), statut « Archivé » des produits, vues enregistrées des listes, clients (création, import/export CSV, étiquettes, notes), cartes-cadeaux (émises par le marchand, utilisables au paiement de la vitrine), attribution UTM des commandes, séries quotidiennes et cohortes pour les analyses.
+- **Restent écartés** : globe/vue en direct temps réel, file d'attente hors ligne, B2B, marchés, taxes automatiques (D5 c, D16).
+- **Base de données** : chaque évolution = modification de `prisma/schema.prisma` + migration SQL écrite sans toucher à aucune base (`prisma migrate diff`), puis `prisma generate`. Aucune base distante n'est migrée par les agents : la mise en prod reste une décision du fondateur.

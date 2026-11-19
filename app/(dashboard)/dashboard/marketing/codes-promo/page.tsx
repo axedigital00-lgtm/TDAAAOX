@@ -5,12 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
-import { EtatErreur, useConfirmation } from "@/components/ui";
 import {
   Badge, Button, EmptyState, IconButton, IndexFilters, IndexTable, Modal, PageHeader, Select, TextField,
   useColonnesMasquees, type Column,
 } from "@/components/ui/adm";
 import { IllustrationReductions } from "@/components/ui/illustrations";
+import { ErreurChargement, useConfirmationAdm } from "../kit-marketing";
 import { BADGE_STATUT, filtrerReductions, statutReduction, type CodeReduction } from "./regles";
 
 const FORM_VIDE = { code: "", type: "pourcentage", valeur: 10, maxUtilisations: "" };
@@ -19,7 +19,7 @@ function Reductions() {
   const t = useT();
   const { fmt } = useDevise();
   const params = useSearchParams();
-  const { confirmer, dialogue } = useConfirmation();
+  const { confirmer, dialogue } = useConfirmationAdm();
   const [masquees, setMasquees] = useColonnesMasquees("reductions", []);
   const [codes, setCodes] = useState<CodeReduction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,7 @@ function Reductions() {
         primaryAction={{ content: t("Créer une réduction"), onAction: ouvrir }} />
 
       {erreur ? (
-        <EtatErreur titre={t("Les codes promo n'ont pas pu être chargés")} texte={t("Vérifiez votre connexion et réessayez.")} onReessayer={charger} />
+        <ErreurChargement titre={t("Les codes promo n'ont pas pu être chargés")} onReessayer={charger} />
       ) : !loading && codes.length === 0 ? (
         <EmptyState title={t("Gérez vos réductions")} image={<IllustrationReductions />}
           actions={<Button variant="primary" onClick={ouvrir}>{t("Créer une réduction")}</Button>}>

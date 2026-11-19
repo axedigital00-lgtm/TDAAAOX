@@ -1,7 +1,8 @@
 "use client";
 // Liste des commandes (masterprompt §8.2) : vues, recherche, filtres et tri dans l'URL,
 // données chargées par la page serveur. Textes reçus déjà traduits.
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
+import { toast } from "sonner";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/components/I18nProvider";
 import {
@@ -42,6 +43,45 @@ function Liste({ lignes, vues, filtres, tri, page, total, parPage, filtre, urlBo
   const pathname = usePathname();
   const params = useSearchParams();
   const [masquees, setMasquees] = useColonnesMasquees("commandes", ["lieu"]);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [enCours, setEnCours] = useState(false);
+
+  // Actions groupées : même règle de transition que l'action unitaire (POST /api/commandes/groupe).
+  const changerStatut = async (statut: "confirmee" | "en_preparation") => {
+    setEnCours(true);
+    try {
+      const res = await fetch("/api/commandes/groupe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selection, statut }) });
+      const r = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(r.error);
+      toast.success(t("{0} commande(s) mise(s) à jour", r.faites) + (r.ignorees ? ` · ${t("{0} ignorée(s) : statut incompatible", r.ignorees)}` : ""));
+      if (r.erreurs) toast.error(t("{0} commande(s) n'ont pas pu être mises à jour", r.erreurs));
+      setSelection([]);
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message || t("La mise à jour a échoué. Réessayez."));
+    } finally {
+      setEnCours(false);
+    }
+  };
+  const exporterSelection = async () => {
+    setEnCours(true);
+    try {
+      const res = await fetch(`/api/commandes/export?ids=${selection.join(",")}`);
+      if (!res.ok) throw new Error();
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `commandes-selection-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t("Sélection téléchargée (fichier Excel)."));
+    } catch {
+      toast.error(t("Le fichier n'a pas pu être créé. Vérifiez votre connexion puis réessayez."));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
   const aller = (patch: Record<string, string | null>) => {
     const qs = majRecherche(params.toString(), patch);
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
@@ -97,6 +137,17 @@ function Liste({ lignes, vues, filtres, tri, page, total, parPage, filtre, urlBo
         getId={(r) => r.id}
         hiddenColumns={masquees}
         onRowClick={(r) => router.push(`/dashboard/commandes/${r.id}`)}
+        selectable
+        selected={selection}
+        onSelectionChange={setSelection}
+        promotedBulkActions={[
+          { content: t("Marquer comme confirmées"), disabled: enCours, onAction: () => changerStatut("confirmee") },
+          { content: t("Imprimer les bons de livraison"), disabled: enCours, onAction: () => window.open(`/dashboard/commandes/bons?ids=${selection.join(",")}`, "_blank", "noopener") },
+        ]}
+        bulkActions={[
+          { content: t("Passer en préparation"), disabled: enCours, onAction: () => changerStatut("en_preparation") },
+          { content: t("Exporter la sélection"), icon: "export", disabled: enCours, onAction: exporterSelection },
+        ]}
         sort={tri}
         onSort={(nt) => aller({ tri: `${nt.colonne}:${nt.ordre}`, page: null })}
         emptyState={sansResultat}

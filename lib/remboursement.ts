@@ -1,7 +1,7 @@
 // Annulation et remboursement d'une commande — point de passage unique pour
 // l'interface marchand, les retours (RMA), AXIA et les agents.
 //
-// - libererCommande : défait ce qu'une commande avait engagé (stock, code promo,
+// - libererCommande : défait ce qu'une commande avait engagé (stock, code promo, carte-cadeau,
 //   commissions d'affiliation non versées). Appelée à l'annulation et au remboursement.
 // - rembourserCommande : enregistre le remboursement d'une commande payée à la livraison
 //   (l'argent n'est jamais passé par Axso, le marchand rend les espèces lui-même). La vente
@@ -15,6 +15,7 @@ import { notifierMarchand } from "./notifications-marchand";
 import { notifierClientWhatsApp } from "./whatsapp";
 import { formatMontant } from "./utils";
 import { revoquerAccesCommande } from "./livraison-numerique";
+import { recrediterCommande } from "./cartes-cadeaux";
 
 type Tx = Prisma.TransactionClient;
 
@@ -37,6 +38,9 @@ export async function libererCommande(tx: Tx, p: { commandeId: string; motif: st
 
   // Accès numériques coupés (jetons, clés de licence, journal) : remboursement comme annulation.
   await revoquerAccesCommande(tx, p.commandeId);
+
+  // Carte-cadeau utilisée : son solde est rendu (une seule fois).
+  await recrediterCommande(tx, { commandeId: p.commandeId, motif: p.motif });
 
   // Code promo rendu (une seule fois : le lien est retiré de la commande).
   const { codePromoId } = await tx.commande.findUniqueOrThrow({ where: { id: p.commandeId }, select: { codePromoId: true } });

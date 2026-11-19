@@ -20,6 +20,8 @@ export const schemaProduitMaj = z.object({
   categorie: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
   actif: z.boolean().optional(),
+  /** true = archiver (hors ligne, hors vitrine) ; false = désarchiver (reste hors ligne). */
+  archive: z.boolean().optional(),
   featured: z.boolean().optional(),
   poids: z.number().optional().nullable(),
   metaTitle: z.string().optional().nullable(),
@@ -50,7 +52,7 @@ export const schemaProduitMaj = z.object({
  * l'erreur Prisma P2002 (code-barres déjà pris) ; renvoie null si le produit est introuvable.
  */
 export async function modifierProduit(tenantId: string, id: string, body: Record<string, any>) {
-  const data = schemaProduitMaj.parse(body);
+  const { archive, ...data } = schemaProduitMaj.parse(body);
 
   const produit = await prisma.produit.findFirst({ where: { id, tenantId } });
   if (!produit) return null;
@@ -78,6 +80,10 @@ export async function modifierProduit(tenantId: string, id: string, body: Record
 
   // Produit d'exemple d'Axia activé par le marchand : devient un vrai produit (compte pour publier).
   if (updateData.actif === true) updateData.exempleAxia = false;
+  // Archivé = toujours hors ligne (la vitrine, la caisse et le paiement ne lisent que les produits actifs).
+  // Publier un produit archivé le désarchive.
+  if (archive === true) Object.assign(updateData, { actif: false, archiveLe: new Date() });
+  else if (archive === false || updateData.actif === true) updateData.archiveLe = null;
   const maj = await prisma.produit.update({ where: { id }, data: updateData });
   if (data.affiliationActive) await assurerProgrammeAffiliation(tenantId);
   return maj;
@@ -92,7 +98,7 @@ export async function supprimerProduit(tenantId: string, id: string): Promise<{ 
   const p = await prisma.produit.findFirst({ where: { id, tenantId }, select: { nom: true, _count: { select: { lignesCommande: true, stockMouvements: true } } } });
   if (!p) return { ok: false, status: 404, error: "Produit introuvable" };
   if (p._count.lignesCommande || p._count.stockMouvements) {
-    return { ok: false, status: 409, error: `« ${p.nom} » a déjà été commandé ou mouvementé en stock : il ne peut pas être supprimé. Désactive-le pour le retirer de la boutique.` };
+    return { ok: false, status: 409, error: `« ${p.nom} » a déjà été commandé ou mouvementé en stock : il ne peut pas être supprimé. Archivez-le pour le retirer de la boutique en gardant son historique.` };
   }
   try {
     await prisma.$transaction([

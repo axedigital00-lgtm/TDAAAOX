@@ -45,7 +45,9 @@ export const MENU: SectionMenu[] = [
     { href: "/dashboard/accueil", label: "Tableau de bord", exact: true },
   ] },
   { id: "commandes", label: "Commandes", icon: "orders", bloc: "principal", items: [
-    { href: "/dashboard/commandes", label: "Commandes", badge: true, moduleKey: "commandes" },
+    { href: "/dashboard/commandes", label: "Commandes", badge: true, excludePrefix: ["/dashboard/commandes/brouillons", "/dashboard/commandes/paniers"], moduleKey: "commandes" },
+    { href: "/dashboard/commandes/brouillons", label: "Brouillons", moduleKey: "commandes" },
+    { href: "/dashboard/commandes/paniers", label: "Paniers abandonnés", moduleKey: "commandes" },
     { href: "/dashboard/factures", label: "Factures", moduleKey: "finance" },
     { href: "/dashboard/retours", label: "Retours", moduleKey: "commandes" },
     { href: "/dashboard/boutique?section=livraison", label: "Livraison", moduleKey: "boutique" },

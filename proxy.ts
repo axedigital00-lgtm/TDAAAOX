@@ -8,6 +8,7 @@ import { requireNiveau, refusPalier } from "@/lib/permissions-server";
 import { moduleApi, palierApi } from "@/lib/permissions-api";
 import { SLUGS_RESERVES, SOUS_DOMAINES_ACTIFS } from "@/lib/utils";
 import { COOKIE_XP, OPTIONS_COOKIE_XP, cookieVisiteurXp } from "@/lib/builder/experiences";
+import { cookieAttribution, encoderAttribution, lireAttribution, OPTIONS_COOKIE_ATTRIBUTION } from "@/lib/attribution";
 
 // Test A/B du Builder (lib/builder/experiences.ts) : un nouveau visiteur de vitrine reçoit sa
 // répartition stable. Posée aussi sur la requête pour qu'il voie sa variante dès ce premier rendu.
@@ -16,6 +17,14 @@ async function repartitionXp(request: NextRequest, slug: string): Promise<string
   const xp = await cookieVisiteurXp(slug, request.cookies.get(COOKIE_XP)?.value).catch(() => null);
   if (xp) request.cookies.set(COOKIE_XP, xp);
   return xp;
+}
+
+// Attribution (lib/attribution.ts) : arrivée sur la vitrine avec utm_* ou depuis un autre site →
+// cookie de 30 jours propre à la boutique, recopié sur la commande (dernier clic non direct).
+function poserAttribution(request: NextRequest, res: NextResponse, slug: string) {
+  if (request.method !== "GET") return;
+  const a = lireAttribution(request.nextUrl, request.headers.get("referer"), request.headers.get("host") || "");
+  if (a) res.cookies.set(cookieAttribution(slug), encoderAttribution(a), OPTIONS_COOKIE_ATTRIBUTION);
 }
 
 const DOMAINE_APP = process.env.NEXT_PUBLIC_AXSO_DOMAIN || "localhost:3000";
@@ -103,6 +112,7 @@ export async function proxy(request: NextRequest) {
     if (!(pathname === `/${slug}` || pathname.startsWith(`/${slug}/`))) url.pathname = `/${slug}${pathname === "/" ? "" : pathname}`;
     const res = url.pathname === pathname ? NextResponse.next({ request: { headers: request.headers } }) : NextResponse.rewrite(url, { request: { headers: request.headers } });
     if (xp) res.cookies.set(COOKIE_XP, xp, OPTIONS_COOKIE_XP);
+    poserAttribution(request, res, slug);
     return res;
   }
 
@@ -133,6 +143,7 @@ export async function proxy(request: NextRequest) {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   if (xp) response.cookies.set(COOKIE_XP, xp, OPTIONS_COOKIE_XP);
+  if (premier && !SLUGS_RESERVES.has(premier)) poserAttribution(request, response, premier);
   return response;
 }
 

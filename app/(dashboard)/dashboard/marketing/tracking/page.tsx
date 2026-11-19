@@ -2,14 +2,9 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { FORMAT_PIXEL } from "@/lib/pixels";
-import {
-  CheckCircle2, Loader2, LogOut, ChevronDown, ChevronUp,
-  Code2, Info, Target, Music2, Ghost, Blocks, Eye, EyeOff, Zap,
-  type LucideIcon,
-} from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { useConfirmation } from "@/components/ui";
-import { Badge, PageHeader } from "@/components/ui/adm";
+import { Badge, Banner, Button, Card, CardSection, IconButton, PageHeader, SkeletonPage, TextField, Textarea } from "@/components/ui/adm";
+import { useConfirmationAdm } from "../kit-marketing";
 
 interface TenantTracking {
   metaPixelId: string | null;
@@ -34,11 +29,6 @@ interface Platform {
   key: PlatformKey;
   nom: string;
   sousTitre: string;
-  couleur: string;
-  couleurDark: string;
-  bg: string;
-  border: string;
-  Icone: LucideIcon;
   placeholder: string;
   guide: string[];
   events: string[];
@@ -49,11 +39,6 @@ const PLATFORMS: Platform[] = [
     key: "metaPixelId",
     nom: "Meta Pixel",
     sousTitre: "Facebook · Instagram · Messenger",
-    couleur: "#1877F2",
-    couleurDark: "#0D5FD8",
-    bg: "rgba(24,119,242,0.07)",
-    border: "rgba(24,119,242,0.22)",
-    Icone: Target,
     placeholder: "1234567890123456",
     guide: [
       "Ouvrez Meta Business Suite et accédez au Gestionnaire d'événements",
@@ -66,11 +51,6 @@ const PLATFORMS: Platform[] = [
     key: "tiktokPixelId",
     nom: "TikTok Pixel",
     sousTitre: "TikTok for Business · Ads Manager",
-    couleur: "#FE2C55",
-    couleurDark: "#D41A42",
-    bg: "rgba(254,44,85,0.06)",
-    border: "rgba(254,44,85,0.2)",
-    Icone: Music2,
     placeholder: "C4A1B2C3D4E5F6G7H8I9",
     guide: [
       "Accédez à TikTok Ads Manager → Actifs → Événements",
@@ -83,11 +63,6 @@ const PLATFORMS: Platform[] = [
     key: "snapPixelId",
     nom: "Snapchat Pixel",
     sousTitre: "Snap Ads Manager · Conversions",
-    couleur: "#FFCB05",
-    couleurDark: "#D4A800",
-    bg: "rgba(255,203,5,0.07)",
-    border: "rgba(255,203,5,0.35)",
-    Icone: Ghost,
     placeholder: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     guide: [
       "Accédez à Snapchat Ads Manager → Événements",
@@ -100,11 +75,6 @@ const PLATFORMS: Platform[] = [
     key: "gtmId",
     nom: "Google Tag Manager",
     sousTitre: "GA4 · Google Ads · tous vos tags",
-    couleur: "#4285F4",
-    couleurDark: "#1A73E8",
-    bg: "rgba(66,133,244,0.07)",
-    border: "rgba(66,133,244,0.22)",
-    Icone: Blocks,
     placeholder: "GTM-XXXXXXX",
     guide: [
       "Accédez à tagmanager.google.com",
@@ -115,24 +85,7 @@ const PLATFORMS: Platform[] = [
   },
 ];
 
-// ─── Event badge ─────────────────────────────────────────────────────────────
-function EventBadge({ label, color, active }: { label: string; color: string; active: boolean }) {
-  const tr = useT();
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide"
-      style={{
-        background: active ? `${color}14` : "#F3F3F3",
-        color: active ? color : "#AAAAAA",
-        border: `1px solid ${active ? color + "30" : "#E8E8E8"}`,
-      }}
-    >
-      {tr(label)}
-    </span>
-  );
-}
-
-// ─── Platform card ────────────────────────────────────────────────────────────
+// ─── Carte d'une plateforme ──────────────────────────────────────────────────
 function PlatformCard({
   platform,
   valeurInitiale,
@@ -143,8 +96,8 @@ function PlatformCard({
   onSaved: (v: string | null) => void;
 }) {
   const tr = useT();
-  const { confirmer, dialogue } = useConfirmation();
-  const { key, nom, sousTitre, couleur, couleurDark, bg, border, Icone, placeholder, guide, events } = platform;
+  const { confirmer, dialogue } = useConfirmationAdm();
+  const { key, nom, sousTitre, placeholder, guide, events } = platform;
 
   const [valeur, setValeur]   = useState(valeurInitiale ?? "");
   const [saved, setSaved]     = useState<string | null>(valeurInitiale);
@@ -158,19 +111,14 @@ function PlatformCard({
   }, [valeurInitiale]);
 
   const isActif = Boolean(saved);
-
-  const maskedId = saved
-    ? saved.length > 8
-      ? `${saved.slice(0, 4)}••••••••${saved.slice(-4)}`
-      : "••••••••"
-    : null;
+  const maskedId = saved ? (saved.length > 8 ? `${saved.slice(0, 4)}••••••••${saved.slice(-4)}` : "••••••••") : null;
 
   async function sauvegarder() {
     setSaving(true);
     try {
       const v = valeur.trim() || null;
       if (v && !FORMAT_PIXEL[key].test(v)) {
-        toast.error(tr("Un seul {0} par boutique : colle un seul identifiant (ex. {1}).", nom, placeholder));
+        toast.error(tr("Un seul {0} par boutique : collez un seul identifiant (ex. {1}).", nom, placeholder));
         return;
       }
       await patchTenant({ [key]: v });
@@ -179,7 +127,7 @@ function PlatformCard({
       onSaved(v);
       toast.success(v ? tr("{0} activé.", nom) : tr("{0} retiré.", nom));
     } catch {
-      toast.error(tr("L'enregistrement a échoué. Vérifie ta connexion et réessaie."));
+      toast.error(tr("L'enregistrement a échoué. Vérifiez votre connexion et réessayez."));
     } finally {
       setSaving(false);
     }
@@ -187,7 +135,7 @@ function PlatformCard({
 
   async function retirer() {
     if (!(await confirmer({ titre: tr("Retirer ce pixel ?"), objet: `${nom}${saved ? ` · ${saved}` : ""}`,
-      description: tr("Il ne se chargera plus sur ta boutique et son identifiant sera effacé. Tu pourras le recoller plus tard."),
+      description: tr("Il ne se chargera plus sur votre boutique et son identifiant sera effacé. Vous pourrez le recoller plus tard."),
       libelleConfirmer: tr("Retirer le pixel") }))) return;
     try {
       await patchTenant({ [key]: null });
@@ -197,226 +145,62 @@ function PlatformCard({
       onSaved(null);
       toast.success(tr("{0} retiré.", nom));
     } catch {
-      toast.error(tr("{0} n'a pas été retiré. Réessaie.", nom));
+      toast.error(tr("{0} n'a pas été retiré. Réessayez.", nom));
     }
   }
 
   return (
-    <>
-    {dialogue}
-    <div
-      className="bg-white rounded-2xl overflow-hidden transition-all duration-300"
-      style={{
-        border: isActif ? `1.5px solid ${border}` : "1.5px solid #EBEBEB",
-        boxShadow: isActif
-          ? `0 2px 16px ${couleur}10, 0 0 0 1px ${couleur}08`
-          : "0 1px 3px rgba(0,0,0,0.04)",
-      }}
-    >
-      {/* Colored accent bar at top */}
-      <div
-        className="h-[3px] w-full transition-all duration-500"
-        style={{
-          background: isActif
-            ? `linear-gradient(90deg, ${couleur}, ${couleurDark})`
-            : "transparent",
-        }}
-      />
-
-      {/* Main card body */}
-      <div className="p-5">
-        <div className="flex items-start gap-4">
-          {/* Platform icon */}
-          <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300"
-            style={{
-              background: isActif ? bg : "#F5F5F5",
-              border: `1px solid ${isActif ? border : "#E8E8E8"}`,
-            }}
-          >
-            <Icone size={19} style={{ color: isActif ? couleur : "#BBBBBB" }} />
-          </div>
-
-          {/* Name + subtitle + badge */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-[#111111] text-sm">{tr(nom)}</span>
-              {isActif ? (
-                <span
-                  className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full"
-                  style={{
-                    background: `${couleur}12`,
-                    color: couleur,
-                    border: `1px solid ${couleur}28`,
-                  }}
-                >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full animate-pulse"
-                    style={{ background: couleur }}
-                  />
-                  {tr("Actif")}
-                </span>
-              ) : (
-                <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-0.5 rounded-full">
-                  {tr("Non configuré")}
-                </span>
-              )}
+    <Card padding="none">
+      {dialogue}
+      <CardSection>
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-(--color-text-strong)">{tr(nom)}</span>
+              <Badge tone={isActif ? "success" : "neutral"}>{isActif ? tr("Actif") : tr("Non configuré")}</Badge>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">{tr(sousTitre)}</p>
+            <p className="text-xs text-(--color-text-secondary)">{tr(sousTitre)}</p>
           </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {isActif && (
-              <button
-                onClick={retirer}
-                title={tr("Désactiver")}
-                className="p-2 rounded-xl text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all"
-              >
-                <LogOut size={13} />
-              </button>
-            )}
-            <button
-              onClick={() => setOpen(o => !o)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
-              style={
-                isActif
-                  ? { background: bg, borderColor: border, color: couleur }
-                  : { background: "#F5F5F5", borderColor: "#E0E0E0", color: "#555" }
-              }
-            >
+          <div className="flex shrink-0 items-center gap-1">
+            {isActif && <Button size="sm" variant="ghost" onClick={retirer}>{tr("Désactiver")}</Button>}
+            <Button size="sm" disclosure onClick={() => setOpen(o => !o)} aria-expanded={open}>
               {open ? tr("Fermer") : isActif ? tr("Modifier") : tr("Configurer")}
-              {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            </button>
+            </Button>
           </div>
         </div>
-
-        {/* Events tracked */}
-        <div className="flex items-center gap-1.5 mt-3.5 flex-wrap">
-          <span className="text-[10px] text-gray-400 font-semibold mr-0.5 uppercase tracking-wide">
-            {tr("Événements :")}
-          </span>
-          {events.map(e => (
-            <EventBadge key={e} label={e} color={couleur} active={isActif} />
-          ))}
-        </div>
-
-        {/* Active ID preview (when closed) */}
+        <p className="mt-2 text-xs text-(--color-text-secondary)">
+          {tr("Événements :")}{" "}{events.map(e => <code key={e} className="mr-1 rounded-(--radius-sm) bg-(--color-surface-tertiary) px-1 py-px">{e}</code>)}
+        </p>
         {isActif && !open && (
-          <div
-            className="flex items-center gap-2 mt-3 px-3 py-2 rounded-xl"
-            style={{ background: bg, border: `1px solid ${border}` }}
-          >
-            <code
-              className="text-xs font-mono flex-1 truncate"
-              style={{ color: couleur }}
-            >
-              {visible ? tr(saved) : tr(maskedId)}
-            </code>
-            <button
-              onClick={() => setVisible(v => !v)}
-              className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity"
-            >
-              {visible
-                ? <EyeOff size={12} style={{ color: couleur }} />
-                : <Eye size={12} style={{ color: couleur }} />}
-            </button>
-            <CheckCircle2 size={13} style={{ color: couleur }} className="flex-shrink-0" />
+          <div className="mt-2 flex items-center gap-2 rounded-(--radius-md) bg-(--color-surface-secondary) px-2 py-1">
+            <code className="flex-1 truncate font-mono text-xs text-(--color-text)">{visible ? saved : maskedId}</code>
+            <IconButton icon="eye" aria-label={visible ? tr("Masquer l'identifiant") : tr("Afficher l'identifiant")} onClick={() => setVisible(v => !v)} />
           </div>
         )}
-      </div>
+      </CardSection>
 
-      {/* Expanded configuration panel */}
       {open && (
-        <div
-          className="border-t px-5 pb-5 pt-5 space-y-5"
-          style={{ borderColor: "#F0F0F0", background: "#FAFAFA" }}
-        >
-          {/* Step-by-step guide */}
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-3">
-              {tr("Guide de configuration")}
-            </p>
-            <ol className="space-y-2.5">
-              {guide.map((step, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5"
-                    style={{
-                      background: `${couleur}14`,
-                      color: couleur,
-                      border: `1px solid ${couleur}28`,
-                    }}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="text-xs text-gray-600 leading-relaxed">{tr(step)}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          {/* Input */}
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 block">
-              {tr("Identifiant du pixel")}
-            </label>
-            <div className="relative">
-              <input
-                value={valeur}
-                onChange={e => setValeur(e.target.value)}
-                placeholder={placeholder}
-                className="w-full px-4 py-3 rounded-xl border text-sm font-mono focus:outline-none focus:ring-2 transition-all bg-white"
-                style={{
-                  borderColor: valeur.trim() ? couleur + "55" : "#E0E0E0",
-                  ["--tw-ring-color" as any]: `${couleur}35`,
-                  color: "#111",
-                }}
-              />
-              {valeur.trim() && (
-                <CheckCircle2
-                  size={14}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ color: couleur }}
-                />
-              )}
+        <CardSection>
+          <div className="space-y-3">
+            <div>
+              <p className="mb-1 font-semibold text-(--color-text-strong)">{tr("Guide de configuration")}</p>
+              <ol className="list-decimal space-y-1 pl-4 text-(--color-text-secondary)">
+                {guide.map((step, i) => <li key={i}>{tr(step)}</li>)}
+              </ol>
+            </div>
+            <TextField label={tr("Identifiant du pixel")} className="font-mono" value={valeur} onChange={e => setValeur(e.target.value)} placeholder={placeholder} />
+            <div className="flex justify-end gap-2">
+              {saved && <Button variant="critical" onClick={retirer}>{tr("Retirer le pixel")}</Button>}
+              <Button variant="primary" onClick={sauvegarder} disabled={!valeur.trim()} loading={saving}>{tr("Activer le pixel")}</Button>
             </div>
           </div>
-
-          {/* Buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={sauvegarder}
-              disabled={saving || !valeur.trim()}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-40"
-              style={{
-                background:
-                  saving || !valeur.trim()
-                    ? "#CCCCCC"
-                    : `linear-gradient(135deg, ${couleur} 0%, ${couleurDark} 100%)`,
-              }}
-            >
-              {saving
-                ? <><Loader2 size={13} className="animate-spin" />{" "}{tr("Activation…")}</>
-                : <><Zap size={13} />{" "}{tr("Activer le pixel")}</>}
-            </button>
-            {saved && (
-              <button
-                onClick={retirer}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold border border-red-200 text-red-400 hover:bg-red-50 transition-all"
-              >
-                {tr("Retirer le pixel")}
-              </button>
-            )}
-          </div>
-        </div>
+        </CardSection>
       )}
-    </div>
-    </>
+    </Card>
   );
 }
 
-// ─── Custom scripts card ──────────────────────────────────────────────────────
+// ─── Scripts personnalisés ───────────────────────────────────────────────────
 function CustomScriptsCard({ valeurInitiale }: { valeurInitiale: string | null }) {
   const tr = useT();
   const [script, setScript] = useState(valeurInitiale ?? "");
@@ -437,7 +221,7 @@ function CustomScriptsCard({ valeurInitiale }: { valeurInitiale: string | null }
       setSaved(v);
       toast.success(tr("Scripts personnalisés enregistrés."));
     } catch {
-      toast.error(tr("L'enregistrement a échoué. Vérifie ta connexion et réessaie."));
+      toast.error(tr("L'enregistrement a échoué. Vérifiez votre connexion et réessayez."));
     } finally {
       setSaving(false);
     }
@@ -446,105 +230,38 @@ function CustomScriptsCard({ valeurInitiale }: { valeurInitiale: string | null }
   const isActif = Boolean(saved);
 
   return (
-    <div
-      className="bg-white rounded-2xl overflow-hidden transition-all duration-300"
-      style={{
-        border: isActif ? "1.5px solid rgba(27,42,74,0.2)" : "1.5px solid #EBEBEB",
-        boxShadow: isActif
-          ? "0 2px 16px rgba(27,42,74,0.08)"
-          : "0 1px 3px rgba(0,0,0,0.04)",
-      }}
-    >
-      <div
-        className="h-[3px] w-full transition-all duration-500"
-        style={{
-          background: isActif
-            ? "linear-gradient(90deg, #1B2A4A, #2D4472)"
-            : "transparent",
-        }}
-      />
-
-      <div className="p-5">
-        <div className="flex items-center gap-4">
-          <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{
-              background: isActif ? "rgba(27,42,74,0.08)" : "#F5F5F5",
-              border: isActif ? "1px solid rgba(27,42,74,0.18)" : "1px solid #E8E8E8",
-            }}
-          >
-            <Code2 size={19} style={{ color: isActif ? "#1B2A4A" : "#BBBBBB" }} />
-          </div>
-
-          <div className="flex-1 min-w-0">
+    <Card padding="none">
+      <CardSection>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-[#111111] text-sm">{tr("Scripts personnalisés")}</span>
-              {isActif ? (
-                <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-900/5 text-gray-700 border border-gray-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-pulse" />
-                  {tr("Actif")}
-                </span>
-              ) : (
-                <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-0.5 rounded-full">
-                  {tr("Non configuré")}
-                </span>
-              )}
+              <span className="font-semibold text-(--color-text-strong)">{tr("Scripts personnalisés")}</span>
+              <Badge tone={isActif ? "success" : "neutral"}>{isActif ? tr("Actif") : tr("Non configuré")}</Badge>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">{tr("Hotjar, Clarity, Pinterest Tag, ou tout autre script tiers")}</p>
+            <p className="text-xs text-(--color-text-secondary)">{tr("Hotjar, Clarity, Pinterest Tag, ou tout autre script tiers")}</p>
           </div>
-
-          <button
-            onClick={() => setOpen(o => !o)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-[#E0E0E0] bg-[#F5F5F5] text-[#555] hover:bg-gray-100 transition-all flex-shrink-0"
-          >
+          <Button size="sm" disclosure onClick={() => setOpen(o => !o)} aria-expanded={open}>
             {open ? tr("Fermer") : isActif ? tr("Modifier") : tr("Configurer")}
-            {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          </button>
+          </Button>
         </div>
-      </div>
-
+      </CardSection>
       {open && (
-        <div
-          className="border-t px-5 pb-5 pt-5 space-y-4"
-          style={{ borderColor: "#F0F0F0", background: "#FAFAFA" }}
-        >
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 block">
-              {tr("Code de suivi (balises <script>)")}
-            </label>
-            <textarea
-              value={script}
-              onChange={e => setScript(e.target.value)}
-              rows={7}
-              placeholder={tr("<script>\n  // Collez ici le code fourni par votre outil de suivi\n</script>")}
-              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none resize-none transition-all"
-            />
+        <CardSection>
+          <div className="space-y-3">
+            <Textarea label={tr("Code de suivi (balises <script>)")} rows={7} className="font-mono text-xs" value={script} onChange={e => setScript(e.target.value)}
+              placeholder={tr("<script>\n  // Collez ici le code fourni par votre outil de suivi\n</script>")} />
+            <Banner tone="warning">{tr("Ce code s'exécute sur votre boutique publique. Vérifiez toujours la source avant de coller un script fourni par un tiers.")}</Banner>
+            <div className="flex justify-end">
+              <Button variant="primary" onClick={sauvegarder} loading={saving}>{tr("Enregistrer les scripts")}</Button>
+            </div>
           </div>
-
-          <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 flex gap-2.5">
-            <Info size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-700 leading-relaxed">
-              {tr("Ce code s'exécute sur votre boutique publique. Vérifiez toujours la source avant de coller un script fourni par un tiers.")}
-            </p>
-          </div>
-
-          <button
-            onClick={sauvegarder}
-            disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-40"
-            style={{ background: "linear-gradient(135deg, #1B2A4A 0%, #2D4472 100%)" }}
-          >
-            {saving
-              ? <><Loader2 size={13} className="animate-spin" />{" "}{tr("Sauvegarde…")}</>
-              : <><Zap size={13} />{" "}{tr("Enregistrer les scripts")}</>}
-          </button>
-        </div>
+        </CardSection>
       )}
-    </div>
+    </Card>
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Page ────────────────────────────────────────────────────────────────────
 export default function TrackingPage() {
   const tr = useT();
   const [tenant, setTenant] = useState<TenantTracking | null>(null);
@@ -561,47 +278,25 @@ export default function TrackingPage() {
     ? [tenant.metaPixelId, tenant.tiktokPixelId, tenant.snapPixelId, tenant.gtmId].filter(Boolean).length
     : 0;
 
-  if (loading) {
-    return (
-      <div className="space-y-3 max-w-3xl">
-        <div className="h-32 rounded-2xl bg-gray-100 animate-pulse" />
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-28 rounded-2xl bg-gray-100 animate-pulse" />
-        ))}
-      </div>
-    );
-  }
+  if (loading) return <SkeletonPage label={tr("Chargement…")} />;
 
   return (
-    <div className="space-y-5 max-w-3xl">
-
+    <div className="max-w-3xl space-y-4">
       <PageHeader icon="eye" title={tr("Tracking & Pixels")} backHref="/dashboard/marketing"
         titleMeta={<Badge tone={actifs > 0 ? "info" : "neutral"}>{actifs === 0 ? tr("Aucun pixel actif") : `${actifs}/4 · ${actifs === 4 ? tr("Tous actifs") : tr("pixel{0} actif{1}", actifs > 1 ? "s" : "", actifs > 1 ? "s" : "")}`}</Badge>} />
-      <p className="text-[13px] text-(--color-text-secondary)">{tr("Vos pixels se chargent automatiquement sur votre boutique à chaque visite.")}</p>
+      <p className="text-(--color-text-secondary)">{tr("Vos pixels se chargent automatiquement sur votre boutique à chaque visite.")}</p>
 
-      {/* ── Platform cards ──────────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        {PLATFORMS.map(p => (
-          <PlatformCard
-            key={p.key}
-            platform={p}
-            valeurInitiale={tenant?.[p.key] ?? null}
-            onSaved={v => setTenant(t => t && { ...t, [p.key]: v })}
-          />
-        ))}
-      </div>
+      {PLATFORMS.map(p => (
+        <PlatformCard key={p.key} platform={p} valeurInitiale={tenant?.[p.key] ?? null}
+          onSaved={v => setTenant(t => t && { ...t, [p.key]: v })} />
+      ))}
 
-      {/* ── Custom scripts ───────────────────────────────────────────────────── */}
       <CustomScriptsCard valeurInitiale={tenant?.trackingScripts ?? null} />
 
-      {/* ── Info note ────────────────────────────────────────────────────────── */}
-      <div className="rounded-xl bg-[#F5A623]/8 border border-[#F5A623]/25 p-4 flex gap-3">
-        <Info size={14} className="text-[#D4911A] flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-[#666666] leading-relaxed">
-          {tr("Chaque pixel activé est injecté automatiquement sur votre boutique publique et transmet les événements")}{" "}
-          <strong>PageView</strong>, <strong>InitiateCheckout</strong> et <strong>{tr("Purchase")}</strong>{" "}{tr("à chaque commande — sans aucune configuration supplémentaire côté Axso.")}
-        </p>
-      </div>
+      <Banner tone="info">
+        {tr("Chaque pixel activé est injecté automatiquement sur votre boutique publique et transmet les événements")}{" "}
+        <strong>PageView</strong>, <strong>InitiateCheckout</strong> et <strong>{tr("Purchase")}</strong>{" "}{tr("à chaque commande — sans aucune configuration supplémentaire côté Axso.")}
+      </Banner>
     </div>
   );
 }

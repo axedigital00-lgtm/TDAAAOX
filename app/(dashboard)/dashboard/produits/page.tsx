@@ -34,7 +34,7 @@ export default async function ProduitsPage({ searchParams }: { searchParams: Pro
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } }),
     prisma.produit.findMany({
       where,
-      select: { id: true, nom: true, images: true, actif: true, exempleAxia: true, type: true, stock: true, categorie: true, prix: true, ventes: true, _count: { select: { avis: true } } },
+      select: { id: true, nom: true, images: true, actif: true, archiveLe: true, exempleAxia: true, type: true, stock: true, categorie: true, prix: true, ventes: true, _count: { select: { avis: true } } },
       orderBy: orderByProduits(f.tri),
       skip: (f.page - 1) * PAR_PAGE,
       take: PAR_PAGE,

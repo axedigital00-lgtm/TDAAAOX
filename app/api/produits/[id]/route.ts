@@ -57,6 +57,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const tenantId = (session.user as any)?.tenantId;
   // Sans boutique (admin, livreur) : un filtre tenantId vide ouvrirait toutes les boutiques.
   if (!tenantId) return NextResponse.json({ error: "Non autorisé", message: "Non autorisé" }, { status: 401 });
+  const refus = await requireNiveau(session, "produits", "ecriture");
+  if (refus) return NextResponse.json({ error: refus.error }, { status: refus.status });
   const { id } = await params;
 
   const body = await req.json();
@@ -70,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data.type = body.type;
   }
   if (body.actif !== undefined) data.actif = Boolean(body.actif);
-  if (data.actif === true) data.exempleAxia = false; // exemple d'Axia activé = vrai produit (lib/boutique-completion.ts)
+  if (data.actif === true) Object.assign(data, { exempleAxia: false, archiveLe: null }); // exemple d'Axia activé = vrai produit ; publier désarchive
   if (body.featured !== undefined) data.featured = Boolean(body.featured);
   if (body.stock !== undefined) data.stock = Number(body.stock);
   if (body.masquerVentes !== undefined) data.masquerVentes = Boolean(body.masquerVentes);

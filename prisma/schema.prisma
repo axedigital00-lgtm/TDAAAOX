@@ -121,6 +121,7 @@ model Produit {
   actif           Boolean  @default(true)
   featured        Boolean  @default(false)
   exempleAxia     Boolean  @default(false) // produit d'exemple créé par Axia à l'inscription : inactif, jamais visible des clients ; « Activer ce produit » le passe à false
+  archiveLe       DateTime? // archivé (masterprompt §7.2) : toujours inactif, hors vitrine et hors vente ; désarchiver le remet hors ligne
   metaTitle       String?
   metaDesc        String?
   ogImage         String?   // Image Open Graph dédiée (sinon images[0])
@@ -283,6 +284,8 @@ model Client {
   commandes Commande[]
   avis      Avis[]
   wishlist  Wishlist[]
+  etiquettes String[] @default([]) // étiquettes libres du marchand (filtrables dans la liste)
+  notes     NoteClient[]
 
   // POS 2.0 — fidélité, crédit, segmentation
   codeClient          String? // code / QR de la carte client ; unicité par boutique assurée par l'application (lib/pos)
@@ -694,6 +697,7 @@ model User {
   abonnementsPush AbonnementPush[]
   affiliations    Affilie[]
   retraitsAffilie RetraitAffilie[]
+  vuesListes      VueListe[]
 }
 
 // Appareil abonné aux notifications push (Web Push) : la notification s'affiche comme une
@@ -3959,4 +3963,89 @@ model EvenementInscription {
 
   @@index([createdAt])
   @@index([session])
+}
+
+// =====================
+// Commandes provisoires (prise de commande par téléphone / WhatsApp) — refonte admin D28.
+// Les prix ne sont pas figés : ils sont relus en base à l'affichage et à la conversion,
+// qui passe par le même chemin que la vitrine (lib/commandes/creer-cod.ts).
+// =====================
+model CommandeProvisoire {
+  id               String    @id @default(cuid())
+  tenantId         String
+  numero           Int       // #D1, #D2… par boutique
+  clientId         String?
+  clientNom        String
+  clientTelephone  String
+  clientEmail      String?
+  adresse          String?
+  ville            String?
+  pays             String?
+  /// [{ produitId, variante: string | null, quantite }]
+  lignes           Json      @default("[]")
+  remise           Float     @default(0)
+  livraison        Float     @default(0)
+  note             String?
+  factureEnvoyeeLe DateTime?
+  commandeId       String?   @unique
+  convertieLe      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([tenantId, numero])
+  @@index([tenantId, createdAt])
+}
+
+// Paniers abandonnés : enregistrés quand l'acheteur saisit son téléphone au paiement de la vitrine,
+// marqués récupérés quand une commande arrive au même numéro.
+model PanierAbandonne {
+  id          String    @id @default(cuid())
+  tenantId    String
+  cle         String    // identifiant du passage au paiement (navigateur)
+  nom         String?
+  telephone   String
+  ville       String?
+  /// [{ produitId, nom, variante, quantite, prix }]
+  lignes      Json      @default("[]")
+  total       Float     @default(0)
+  devise      String
+  relanceLe   DateTime?
+  commandeId  String?
+  recupereLe  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([tenantId, cle])
+  @@index([tenantId, updatedAt])
+  @@index([tenantId, telephone])
+}
+
+// Note interne d'un marchand sur un client (fiche client, chronologie). Jamais visible du client.
+model NoteClient {
+  id        String   @id @default(cuid())
+  tenantId  String
+  clientId  String
+  auteurId  String?
+  auteurNom String?
+  texte     String
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, clientId, createdAt])
+}
+
+// Vue enregistrée d'une liste (masterprompt §7.5) : nom + paramètres d'URL, propre à un utilisateur et une boutique.
+model VueListe {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  ressource String // commandes | produits | clients
+  nom       String
+  params    String // chaîne de requête sans « vue » ni « page »
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, ressource])
 }

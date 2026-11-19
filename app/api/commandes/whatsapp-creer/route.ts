@@ -1,22 +1,20 @@
 // Créer une commande physique (paiement à la livraison) + lien WhatsApp + tokens tracking/facture.
 // Le dropshipping et le digital se paient en ligne (indisponible pour l'instant) : refusés ici.
-import { lienBoutique } from "@/lib/origine-site";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { genererNumeroCommande, formatMontant } from "@/lib/utils";
-import { notifierMarchand } from "@/lib/notifications-marchand";
-import { envoyerConfirmationCommande, envoyerAlerteNouvelleCommande, emailReel } from "@/lib/email";
+import { formatMontant } from "@/lib/utils";
+import { emailReel } from "@/lib/email";
 import { fraisLivraisonServeur, poidsPanier, verifierZone } from "@/lib/livraison";
 import { villeCommande } from "@/lib/livraison-reglages";
 import { codePays } from "@/lib/devise-convert";
-import { randomBytes } from "crypto";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
-import { reductionPromo, filtreUsagePromo } from "@/lib/pricing";
-import { RuptureStock, sortirStock } from "@/lib/stock";
+import { reductionPromo } from "@/lib/pricing";
+import { RuptureStock } from "@/lib/stock";
+import { enregistrerCommandeCod, lignesCod, notifierCommandeCod } from "@/lib/commande-cod";
 import { COOKIE_XP, noterConversion } from "@/lib/builder/experiences";
 import { lireReglagesPaiement, moyensPhysique } from "@/lib/paiement-pays";
-
-function genToken() { return randomBytes(20).toString("hex"); }
+import { etatCarte, limiteCarteCadeau, normaliserCode, LONGUEUR_CODE } from "@/lib/cartes-cadeaux";
+import { cookieAttribution, decoderAttribution } from "@/lib/attribution";
 
 // Formulaire public : limite par IP.
 const limiteCommande = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "commande-vitrine" });
@@ -26,7 +24,7 @@ export async function POST(req: NextRequest) {
     const rl = limiteCommande.check(getClientIp(req));
     if (!rl.success) return rateLimitResponse(rl.reset);
     // Prix, total, remise et devise NE viennent JAMAIS du navigateur : recalculés depuis la base.
-    const { tenantId, slug, client, items: itemsClient, codePromo: codeSaisi, localisation, canal, champPersonnalise, zone, codeAffiliation } = await req.json();
+    const { tenantId, slug, client, items: itemsClient, codePromo: codeSaisi, carteCadeau: carteSaisie, localisation, canal, champPersonnalise, zone, codeAffiliation } = await req.json();
     const viaWhatsapp = canal !== "direct";
 
     if (!tenantId || !Array.isArray(itemsClient) || !itemsClient.length || itemsClient.length > 50 || !client?.nom || !client?.telephone) {
@@ -50,26 +48,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Le paiement à la livraison n'est pas proposé pour votre pays" }, { status: 409 });
     }
 
-    const produits = await prisma.produit.findMany({
-      where: { id: { in: itemsClient.map((i: any) => String(i.produitId)) }, tenantId, actif: true },
-      select: { id: true, nom: true, type: true, prix: true, images: true, variantes: { where: { actif: true }, select: { nom: true, valeur: true, prix: true } } },
-    });
-    const items: { produitId: string; nom: string; prix: number; quantite: number; imageUrl: string | null; variante: string | null }[] = [];
-    for (const item of itemsClient) {
-      const p = produits.find((x) => x.id === String(item.produitId));
-      if (!p) return NextResponse.json({ error: "Produit introuvable dans cette boutique" }, { status: 400 });
-      if (p.type !== "physique") {
-        return NextResponse.json({ error: "Ce produit se paie en ligne" }, { status: 400 });
-      }
-      const variante = item.variante ? p.variantes.find((v) => `${v.nom}: ${v.valeur}` === item.variante) : null;
-      if (item.variante && !variante) return NextResponse.json({ error: `Variante « ${item.variante} » introuvable pour ${p.nom}` }, { status: 400 });
-      items.push({
-        // À la livraison : prix du marchand, sans commission.
-        produitId: p.id, nom: p.nom, prix: variante?.prix ?? p.prix,
-        quantite: Math.min(Math.max(Math.floor(Number(item.quantite) || 1), 1), 999),
-        imageUrl: p.images[0] ?? null, variante: variante ? item.variante : null,
-      });
-    }
+    const lus = await lignesCod(tenantId, itemsClient);
+    if (!lus.ok) return NextResponse.json({ error: lus.error }, { status: 400 });
+    const items = lus.items;
     const sousTotal = items.reduce((s, i) => s + i.prix * i.quantite, 0);
     const devise = tenant.devise;
 
@@ -91,12 +72,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const trackingToken = genToken();
-    const livreurToken  = genToken();
-    const mapsLien = localisation?.lat
-      ? `https://www.google.com/maps?q=${localisation.lat},${localisation.lng}`
-      : null;
-
     // Frais de livraison calculés côté serveur — jamais confiance en un
     // montant envoyé par le client (seuls le pays et le quartier choisis
     // servent à trouver la ReglePort applicable — voir lib/livraison.ts).
@@ -104,55 +79,40 @@ export async function POST(req: NextRequest) {
     if (erreurZone) return NextResponse.json({ error: erreurZone }, { status: 400 });
     const poids = await poidsPanier(tenantId, items);
     const montantLivraison = await fraisLivraisonServeur({ tenantId, pays: codePays(client?.pays), zone, poids, montantCommande: total });
-    const montantTotalAvecLivraison = total + montantLivraison;
+    // Carte-cadeau revérifiée ici (essais limités comme la vérification de la vitrine) ; débitée dans la transaction.
+    let carte: { id: string; solde: number } | null = null;
+    if (carteSaisie) {
+      const essai = limiteCarteCadeau.check(`${getClientIp(req)}:${tenantId}`);
+      if (!essai.success) return rateLimitResponse(essai.reset);
+      const code = normaliserCode(carteSaisie);
+      const trouvee = code.length === LONGUEUR_CODE
+        ? await prisma.carteCadeau.findUnique({ where: { tenantId_code: { tenantId, code } }, select: { id: true, solde: true, expireLe: true, desactiveeLe: true } })
+        : null;
+      if (!trouvee || etatCarte(trouvee) !== "active") return NextResponse.json({ error: "Carte-cadeau invalide, épuisée ou expirée" }, { status: 400 });
+      carte = { id: trouvee.id, solde: trouvee.solde };
+    }
 
-    // Création + sortie du stock dans la même transaction : une rupture annule tout.
-    const commande = await prisma.$transaction(async (tx) => {
-      const c = await tx.commande.create({
-      data: {
-        tenantId, numero: genererNumeroCommande(),
-        clientId: clientRecord.id,
-        clientNom: client.nom,
-        clientEmail: client.email?.trim() || (emailReel(clientRecord.email) ? clientRecord.email : null),
-        clientTelephone: client.telephone,
-        adresseLivraison: localisation?.adresseExacte || client.adresse || "À préciser",
-        ville: villeCommande(zone, client.ville) || "—",
-        tauxCommission: null, // à la livraison : rien n'est prélevé
-        pays: client.pays || "—",
-        montantSousTotal: sousTotal,
-        montantReduction: reduction,
-        codePromoId: promoValide ? promo.id : null,
-        montantLivraison,
-        montantTotal: montantTotalAvecLivraison,
-        devise,
-        statut: "en_attente",
-        paiementStatut: "pending",
-        methodePaiement: viaWhatsapp ? "whatsapp_cod" : "direct_cod",
-        codeAffiliation: codeAffiliation || null,
-        trackingToken,
-        livreurToken,
-        latitudeClient: localisation?.lat ?? null,
-        longitudeClient: localisation?.lng ?? null,
-        adresseExacte: localisation?.adresseExacte || client.adresse || null,
-        mapsLienClient: mapsLien,
-        lignes: {
-          create: items,
-        },
+    // Création + sortie du stock dans la même transaction (lib/commande-cod.ts, partagé avec les commandes provisoires).
+    const { commande, factureUrl, trackingUrl, trackingToken, mapsLien, montantTotal: montantTotalAvecLivraison, montantCarteCadeau } = await enregistrerCommandeCod({
+      tenant,
+      clientId: clientRecord.id,
+      client: {
+        nom: client.nom, telephone: client.telephone, pays: client.pays || null,
+        email: client.email?.trim() || (emailReel(clientRecord.email) ? clientRecord.email : null),
       },
-      include: { lignes: true },
-      });
-      await sortirStock(tx, { tenantId, commandeId: c.id, motif: `Commande #${c.numero}` });
-      // Incrément conditionnel : deux commandes simultanées ne dépassent pas maxUtilisations.
-      if (promoValide) {
-        const { count } = await tx.codePromo.updateMany({ where: filtreUsagePromo(promo), data: { utilisations: { increment: 1 } } });
-        if (!count) throw new RuptureStock("Ce code promo vient d'être épuisé — réessayez sans le code");
-      }
-      return c;
+      items, sousTotal, reduction,
+      promo: promoValide ? promo : null,
+      montantLivraison,
+      methodePaiement: viaWhatsapp ? "whatsapp_cod" : "direct_cod",
+      adresseLivraison: localisation?.adresseExacte || client.adresse || "À préciser",
+      ville: villeCommande(zone, client.ville) || "—",
+      codeAffiliation,
+      localisation,
+      adresseExacte: localisation?.adresseExacte || client.adresse || null,
+      carteCadeau: carte,
+      attribution: decoderAttribution(req.cookies.get(cookieAttribution(tenant.slug))?.value),
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://axsoafrica.com";
-    const factureUrl  = await lienBoutique(tenant.slug, `/facture/${trackingToken}`);
-    const trackingUrl = await lienBoutique(tenant.slug, `/tracking/${trackingToken}`);
     const adresseLivraison = [localisation?.adresseExacte || client.adresse, client.ville, client.pays].filter(Boolean).join(", ");
 
     const lignesTexte = items.map((i) =>
@@ -176,6 +136,7 @@ export async function POST(req: NextRequest) {
       montantLivraison > 0 ? `🚚 *Livraison${zone ? ` (${zone})` : ""} :* ${formatMontant(montantLivraison, devise)}` : null,
       `💰 *Total à percevoir :* ${formatMontant(montantTotalAvecLivraison, devise)}`,
       codePromo ? `🏷️ Code promo : ${codePromo} (−${formatMontant(reduction, devise)})` : null,
+      montantCarteCadeau > 0 ? `🎁 Carte-cadeau : −${formatMontant(montantCarteCadeau, devise)} (déjà réglé)` : null,
       ``,
       `📄 Facture : ${factureUrl}`,
       `🚚 Tracking : ${trackingUrl}`,
@@ -186,39 +147,14 @@ export async function POST(req: NextRequest) {
 
     // Test A/B en cours : commande attribuée à la variante vue par ce visiteur (lib/builder/experiences.ts).
     await noterConversion(tenantId, req.cookies.get(COOKIE_XP)?.value);
-    // Notification dashboard — toujours créée, quel que soit le canal choisi par l'acheteur
-    await notifierMarchand({
-      tenantId,
+    // Notification dashboard — toujours créée, quel que soit le canal choisi par l'acheteur ; e-mails marchand et client.
+    // E-mail client : celui saisi à cette commande uniquement (celui d'une fiche ancienne peut être une adresse générée).
+    await notifierCommandeCod({
+      tenant, commande, items, montantTotal: montantTotalAvecLivraison,
+      client: { nom: client.nom, email: client.email || null },
       type: viaWhatsapp ? "commande_whatsapp" : "nouvelle_commande",
-      titre: `Nouvelle commande #${commande.numero}`,
-      message: `${client.nom} · ${items.length} article(s) · ${formatMontant(montantTotalAvecLivraison, devise)}${champPersonnalise?.valeur ? ` · ${champPersonnalise.label}: ${champPersonnalise.valeur}` : ""}`,
-      lien: `/dashboard/commandes/${commande.id}`,
-      commandeId: commande.id,
+      complement: champPersonnalise?.valeur ? ` · ${champPersonnalise.label}: ${champPersonnalise.valeur}` : "",
     });
-
-    if (tenant.email) {
-      await envoyerAlerteNouvelleCommande({
-        email: tenant.email,
-        numeroCommande: commande.numero,
-        montantTotal: montantTotalAvecLivraison,
-        devise,
-        clientNom: client.nom,
-        boutique: tenant.nomBoutique,
-        lien: `${appUrl}/dashboard/commandes/${commande.id}`,
-      }).catch(() => {});
-    }
-    // Email saisi à cette commande uniquement (celui d'une fiche ancienne peut être une adresse générée).
-    if (client.email) {
-      await envoyerConfirmationCommande({
-        email: client.email,
-        nom: client.nom,
-        numeroCommande: commande.numero,
-        montantTotal: montantTotalAvecLivraison,
-        devise,
-        produits: items.map((i) => ({ nom: i.nom, quantite: i.quantite, prix: i.prix })),
-        boutique: tenant.nomBoutique,
-      }).catch(() => {});
-    }
 
     // Message WhatsApp client (confirmation automatique)
     const telClient = client.telephone.replace(/\D/g, "");
@@ -230,6 +166,7 @@ export async function POST(req: NextRequest) {
       ``,
       `📋 *${items.length} article(s)* — Total : *${formatMontant(montantTotalAvecLivraison, devise)}*`,
       montantLivraison > 0 ? `🚚 dont livraison : ${formatMontant(montantLivraison, devise)}` : null,
+      montantCarteCadeau > 0 ? `🎁 Carte-cadeau déduite : ${formatMontant(montantCarteCadeau, devise)}` : null,
       `💳 Paiement à la livraison`,
       ``,
       `📄 *Votre facture :*`,
@@ -253,6 +190,7 @@ export async function POST(req: NextRequest) {
       factureUrl,
       trackingUrl,
       montantLivraison,
+      montantCarteCadeau,
       montantTotal: montantTotalAvecLivraison,
     });
 

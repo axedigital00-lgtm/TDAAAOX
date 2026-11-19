@@ -14,6 +14,7 @@ import { qrSvg } from "@/lib/qr";
 import { lienBoutique } from "@/lib/origine-site";
 import { lienAccesCommande } from "@/lib/livraison-numerique";
 import { RenvoyerLienDigital } from "@/components/dashboard/RenvoyerLienDigital";
+import { canalAttribution } from "@/lib/attribution";
 
 export default async function CommandeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const t = await getT();
@@ -131,11 +132,13 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
               ...(commande.montantReduction > 0 ? [{ label: `${t("Réduction")}${commande.codePromo ? ` (${commande.codePromo.code})` : ""}`, value: `−${formatMontant(commande.montantReduction, devise)}` }] : []),
               ...(commande.montantLivraison > 0 ? [{ label: t("Livraison"), value: formatMontant(commande.montantLivraison, devise) }] : []),
               ...(commande.montantTaxes > 0 ? [{ label: t("Taxes"), value: formatMontant(commande.montantTaxes, devise) }] : []),
-              { label: t("Total"), value: formatMontant(commande.montantTotal, devise), strong: true },
+              ...(commande.montantCarteCadeau > 0 ? [{ label: t("Carte-cadeau"), value: `−${formatMontant(commande.montantCarteCadeau, devise)}` }] : []),
+              { label: commande.montantCarteCadeau > 0 ? t("Reste à encaisser") : t("Total"), value: formatMontant(commande.montantTotal, devise), strong: true },
             ]} />
             <div className="my-3 border-t border-(--color-border-secondary)" />
             <KeyValue items={[
               { label: t("Méthode"), value: t(libelleMethodePaiement(commande.methodePaiement)) },
+              ...(commande.canal !== "pos" ? [{ label: t("Canal d'acquisition"), value: <span title={[commande.utmSource, commande.utmMedium, commande.utmCampagne, commande.referent].filter(Boolean).join(" · ") || undefined}>{t(canalAttribution(commande))}{commande.utmCampagne ? ` · ${commande.utmCampagne}` : ""}</span> }] : []),
               ...(commande.flutterwaveRef ? [{ label: t("Référence"), value: <span className="font-mono text-xs break-all">{commande.flutterwaveRef}</span> }] : []),
               ...(commande.commission ? [
                 { label: t("Commission Axso"), value: formatMontant(commande.commission.montantCommission, devise) },

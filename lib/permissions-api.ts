@@ -17,6 +17,7 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/livraison/calculer", null],
   ["/api/formations/progression", null],
   ["/api/codes-promo/verifier", null],
+  ["/api/cartes-cadeaux/verifier", null],
   ["/api/licences/activer", null],
   ["/api/livreurs/inscription", null],
   ["/api/equipe/accepter", null],
@@ -64,6 +65,7 @@ const MODULES_API: [string, ModuleKey | null][] = [
   // catalogue
   ["/api/produits-digitaux", "produits"],
   ["/api/produits", "produits"],
+  ["/api/cartes-cadeaux", "produits"],
   ["/api/variantesPrix", "produits"],
   ["/api/categories", "produits"],
   ["/api/stock", "produits"],

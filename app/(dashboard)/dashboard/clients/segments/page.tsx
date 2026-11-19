@@ -8,11 +8,12 @@ import { getT } from "@/lib/i18n/serveur";
 import { AVEC_EMAIL_REEL } from "@/lib/email";
 import { EnTeteModule } from "../EnTeteModule";
 import { SEGMENTS, pourcent, whereSegment, type Segment } from "../regles";
+import { depenseMoyenne } from "@/lib/segments-clients";
 
 // Segments fixes utilisés par les campagnes (D5 : lecture seule, pas de segment personnalisé côté back-end).
 const LIBELLES: Record<Segment, { nom: string; regle: string }> = {
   tous: { nom: "Tous les clients", regle: "Tous les clients de la boutique." },
-  vip: { nom: "VIP", regle: "Au moins deux fois la dépense moyenne de vos clients." },
+  vip: { nom: "VIP", regle: "Au moins 5 commandes, ou une dépense au moins égale à 2 fois la dépense moyenne de vos clients." },
   nouveaux: { nom: "Nouveaux", regle: "Une commande au plus." },
   inactifs: { nom: "Inactifs", regle: "Client depuis plus de 30 jours, aucune commande ces 30 derniers jours." },
 };
@@ -24,10 +25,10 @@ export default async function SegmentsPage() {
   await exigerModule(session, "clients");
   const tenantId = (session.user as any)?.tenantId;
 
-  const { _avg } = await prisma.client.aggregate({ where: { tenantId, totalDepense: { gt: 0 } }, _avg: { totalDepense: true } });
+  const moyenne = await depenseMoyenne(tenantId);
   const maintenant = Date.now();
   const lignes = await Promise.all(SEGMENTS.map(async (s) => {
-    const where = whereSegment(tenantId, s, _avg.totalDepense ?? 0, maintenant);
+    const where = whereSegment(tenantId, s, moyenne, maintenant);
     const [nb, joignables, derniere] = await Promise.all([
       prisma.client.count({ where }),
       prisma.client.count({ where: { ...where, ...AVEC_EMAIL_REEL, relancesRefuseesLe: null } }),

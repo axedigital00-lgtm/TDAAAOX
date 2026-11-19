@@ -61,3 +61,53 @@
 4. **Chantiers back-end (D5 b)** : commandes provisoires, paniers abandonnés, actions groupées (commandes, produits), statut « Archivé » produit, cartes-cadeaux, attribution marketing et trafic par canal, vues enregistrées des listes, création/import/export de clients, étiquettes et notes, consentement marketing, vue en direct, cohortes, séries quotidiennes (sparklines), file d'attente hors ligne.
 5. **Décisions ouvertes** : définition unique de « VIP » (liste clients : 5 commandes ou 100 000 FCFA ; segment e-mail : 2 × dépense moyenne ; SMS : autre règle) ; Facebook & Instagram (aucune page dédiée) ; Facturation, Comptes clients, Canaux de vente dans Paramètres (pas de données).
 6. **Limites connues** : la barre d'enregistrement n'intercepte pas le bouton « Précédent » ; boutons 30/26 px (sous les 40 px tactiles de l'ancien kit) ; infobulles du bandeau d'indicateurs rognées sous 1040 px.
+
+## Charte — marketing (corps complet des pages Croissance)
+
+**Fait** : `affiliation`, `campagnes`, `marketing/email`, `sms`, `publicite`, `scheduler`, `automation`, `chatbot`, `marketing/tracking`, `feeds`, `marketing/codes-promo` passent entièrement au kit `components/ui/adm` (plus aucun import de l'ancien kit, plus aucune couleur en dur, plus de dégradés ni de couleurs de marques tierces). Listes → `IndexTable` (affiliés, ventes affiliées, popups, relances, historique e-mail, campagnes SMS, campagnes pub avec onglets par plateforme, posts planifiés avec onglets et filtre de statut, workflows) ; formulaires → `TextField`/`Select`/`Textarea`/`Toggle` ; états → `EmptyState` + illustrations, `Banner` critique « Réessayer », squelettes ; onglets → `Tabs`. Chatbot : barre d'enregistrement contextuelle (Ignorer revient au dernier état enregistré) à la place du bouton collant. Vouvoiement partout (y compris tutoriels et toasts). 193 traductions anglaises ajoutées.
+- Motifs partagés : `marketing/kit-marketing.tsx` (`useConfirmationAdm` — même API que l'ancien `useConfirmation`, sur `Modal` —, `ErreurChargement`, `Chargement`, `Chiffres`). Règles pures : `marketing/regles-marketing.ts` (`actionAffilie`, `pourcent`, `filtrer`), testées dans `tests/adm-marketing.test.ts`.
+- Actions conservées, page par page : affiliation (activer, désactiver avec confirmation, taux, validation auto, lien d'invitation + étape de démarrage, recherche/filtre, approuver/suspendre/réactiver, ventes et totaux, espace affilié, `?tab=`) ; campagnes (popups et relances : créer, activer/désactiver, supprimer avec confirmation ; badges) ; e-mail (segments, modèles, code promo réel, brouillon IA, aperçu, envoi confirmé, historique, services d'envoi) ; SMS (indisponibilité annoncée, modèles, rédaction IA, compteur 160, envoi confirmé, historique) ; publicité (créatif IA, création, activer/pauser/reprendre, supprimer, filtre plateforme, indicateurs) ; planificateur (IA ou manuel, planifier, marquer publié, supprimer, filtres) ; automation (modèles, créer, activer, supprimer — **ajout** : confirmation et toasts d'erreur, absents avant) ; chatbot (tous les réglages, aperçu du prompt) ; tracking (4 pixels : configurer, valider le format, masquer/afficher l'ID, retirer ; scripts personnalisés) ; flux (URL par plateforme, copier, voir, tester) ; réductions (inchangé, ancien kit retiré).
+
+**Écarts restants (§21–22)** :
+- Création en fenêtre (`Modal`) et non en page dédiée (§22 « modales pour tout ») pour popups, relances, workflows, posts, campagnes pub et SMS : les API n'exposent ni lecture ni modification par identifiant, une page dédiée demanderait du back-end (D5 b, D23).
+- Tons de badges hors du mapping §7.2 pour des statuts que le mapping ne couvre pas (affiliés, commissions, campagnes pub, posts) : choisis par analogie avec §7.2 (actif = success, brouillon = info, en attente/planifié = attention, suspendu = critical, annulé/terminé = neutral).
+- Noms de plateformes tierces (Meta, Google, TikTok, Snapchat, Resend, Gmail) gardés car ce sont les intégrations réelles ; leurs couleurs et icônes de marque sont retirées, la mention « Shopify » de la page Flux aussi.
+- L'aperçu d'e-mail garde un en-tête à la couleur de la marque : il reproduit l'e-mail réellement envoyé (D9).
+- Emojis : retirés de l'interface (badges de gamification, exemples) ; ceux des modèles de SMS restent, ce sont des contenus de messages.
+- Liens externes (Google Merchant Center, flux, test du flux) ouverts dans le même onglet : `Button href` du kit n'a pas d'option « nouvel onglet ».
+- Segment e-mail « VIP (2× la dépense moyenne) » : libellé inchangé tant que la règle unique D27 n'est pas branchée côté back-end.
+- Captures avant/après non faites : pas de session de test locale.
+
+## Charte — IA, boutique, messagerie (19/11)
+Pages : Agents, Studio, Veille, Contrôle IA, Journal AXIA, Boutique en ligne (toutes les sections `?section=…`), Politiques, Thèmes, Nouveau thème, WhatsApp, Axsocial (`messages`), Gamification, Tableau de bord (`accueil`).
+- **Couleurs** : plus aucune couleur codée en dur hors jetons `.adm` dans ces pages (gris, jaune `#F5A623`, palette Tailwind, dégradés) ; le jaune n'est plus une couleur d'action (D8), les accents IA passent aux jetons « magic » (§3.1).
+- **Anti-patterns §22 retirés** : dégradés sur boutons, cartes et barres (Studio, Veille, Agents, Axsocial, Gamification), ombres colorées, coins > 16 px, graisses 800/900 (Axsocial), boutons en pilule, emojis d'interface (accueil AXIA, Axsocial, aide WhatsApp).
+- **WhatsApp** : la boîte de réception passe du thème sombre au thème clair (surfaces, bordures, bulles claires façon WhatsApp Web), actions en bouton primaire noir ; le vert WhatsApp ne reste que sur le logo du canal ; non lus en `--color-notification`.
+- **Kit** : `Bouton`/`BoutonIcone`/`Badge`/`Alerte`/`EnTetePage`/`EtatVide`/`Saisie`/`ZoneTexte` remplacés par `Button`/`Badge`/`Banner`/`PageHeader`/`EmptyState`/`TextField`/`Textarea` du kit adm ; boutons faits main remplacés par `buttonClasses`.
+- **Tableau de bord** : en-tête `PageHeader`, courbe recharts (`SalesChart`) remplacée par le `LineChart` maison ; `components/dashboard/SalesChart.tsx` supprimé (plus aucun usage).
+- **Vouvoiement** : 70 chaînes passées au vouvoiement (D11, D14), traductions anglaises reportées.
+- **Écarts restants** :
+  - `Confirmation`/`useConfirmation`, `EtatErreur`, `EtatChargement`, `SqueletteListe`, `Champ` et `Saisie` avec `suffixe` restent de l'ancien kit (remappés par `.adm`, D8) : le kit adm n'a pas d'équivalent (pas de dialogue de confirmation, pas de suffixe de champ). À ajouter au kit puis remplacer.
+  - Axsocial garde sa mise en page en styles en ligne (fil social, réactions emoji = contenu des vendeurs, pas de l'interface) ; seuls ses jetons, rayons et graisses sont alignés.
+  - Les modèles de messages WhatsApp envoyés aux clients gardent leurs emojis (contenu client, pas interface).
+  - L'aperçu de vitrine dans Boutique garde les couleurs du thème de la boutique (rendu de la vitrine, pas de l'admin).
+  - Le voile en dégradé sur les photos (stories Axsocial, bannière de l'aperçu) est conservé : il sert la lisibilité du texte sur image.
+  - Rendu jamais vu dans un navigateur ; pas de captures `SCREENSHOTS/` (§21).
+
+## Back-end — commandes (D28)
+**Fait**
+- **Création de commande à la livraison partagée** : `lib/commande-cod.ts` (`lignesCod`, `enregistrerCommandeCod`, `notifierCommandeCod`) extrait de `api/commandes/whatsapp-creer`, qui l'utilise désormais (comportement inchangé : prix relus en base, stock strict dans la transaction, promo à usage limité, sans commission, notification + e-mails). Les commandes provisoires converties passent par le même chemin.
+- **Commandes provisoires** `/dashboard/commandes/brouillons` (+ `/nouveau`, `/[id]`) : liste IndexTable (#D1… par boutique, Date, Client, Statut Ouverte / Facture envoyée / Terminée, Total ; vues et recherche dans l'URL), état vide §8.4 ; fiche 2 colonnes (Produits avec recherche et « Parcourir », Paiement avec remise et livraison, Client existant ou nouveau, Note), barre d'enregistrement, « Envoyer la facture » (récapitulatif WhatsApp wa.me), « Créer la commande », suppression confirmée. Prix jamais figés (relus à l'affichage et à la conversion). Conversion protégée contre le double clic. API : `api/commandes/brouillons` (POST), `api/commandes/brouillons/[id]` (PATCH, DELETE, POST `facture`|`convertir`), zod + droit « commandes » en écriture + tenant.
+- **Paniers abandonnés** `/dashboard/commandes/paniers` : la vitrine (`CheckoutForm`) enregistre le panier dès que nom et téléphone sont saisis (`api/paniers`, public, limité par IP, prix relus en base) ; marqué récupéré quand une commande arrive au même numéro. Liste §8.5 (Paiement, Date de création, Nom, Région, Statut de récupération, Total ; vues Incomplets / Récupérés / Tous ; « Exporter » CSV). « Relancer sur WhatsApp » (`api/commandes/paniers/[id]`) désactivé si le client a refusé les relances.
+- **Actions groupées** de la liste des commandes : « Marquer comme confirmées », « Imprimer les bons de livraison » (page `/dashboard/commandes/bons`, groupe `(impression)` hors du cadre), « Passer en préparation », « Exporter la sélection ». `api/commandes/groupe` applique `changerStatutCommande` (même règle que l'action unitaire) commande par commande ; les commandes au statut incompatible sont ignorées et comptées. `api/commandes/export` accepte `?ids=` et exige désormais le droit « commandes ».
+- « Créer une commande » en action principale de la liste des commandes ; Brouillons et Paniers abandonnés dans le menu Commandes.
+- Migration à appliquer : `prisma/migrations/20261119200000_commandes_provisoires_paniers` (tables `CommandeProvisoire`, `PanierAbandonne`). Aucune base n'a été migrée.
+- Tests : `tests/commandes-provisoires.test.ts`.
+
+**Écarts restants**
+- « Collecter le paiement » → « Créer la commande » (paiement à la livraison) ; texte de l'état vide sans Mobile Money (D3).
+- Carte « Marchés » écartée (D5 c) ; « Étiquettes » sur la commande provisoire non faites (pas d'étiquettes de commande en base, D5).
+- Lien « En savoir plus sur la création de commandes provisoires » absent : aucune page d'aide n'existe (D4).
+- Carte AXIA « Relance automatique par WhatsApp » + « Activer » absente : aucun envoi WhatsApp automatique n'existe (pas d'API WhatsApp Business), la relance est manuelle via wa.me (D4).
+- Statut du panier « Relance envoyée » = lien de relance ouvert par le marchand (wa.me ne confirme pas l'envoi).
+- Recherche de produits et de clients dans la fiche : 500 premiers chargés et filtrés dans le navigateur (`ponytail:` dans la page), recherche serveur à ajouter au-delà.

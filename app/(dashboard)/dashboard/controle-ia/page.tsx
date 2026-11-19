@@ -29,22 +29,22 @@ interface Service { type: string; nom?: string; compte?: string | null; statut: 
 const FOURNISSEURS = [["claude", "Claude"], ["chatgpt", "ChatGPT"], ["gemini", "Gemini"]] as const;
 
 const MODES: Record<string, { label: string; aide: string }> = {
-  assistant: { label: "Assistant", aide: "Il consulte et prépare ; chaque modification attend ton accord." },
-  copilot: { label: "Copilote", aide: "Il modifie le catalogue et la boutique ; les actions sensibles attendent ton accord." },
-  autopilot: { label: "Autopilote", aide: "Il agit seul dans les limites ci-dessous. Au-delà, et pour tout ce qui engage de l'argent sans limite fixée, il attend ton accord." },
+  assistant: { label: "Assistant", aide: "Il consulte et prépare ; chaque modification attend votre accord." },
+  copilot: { label: "Copilote", aide: "Il modifie le catalogue et la boutique ; les actions sensibles attendent votre accord." },
+  autopilot: { label: "Autopilote", aide: "Il agit seul dans les limites ci-dessous. Au-delà, et pour tout ce qui engage de l'argent sans limite fixée, il attend votre accord." },
 };
 
 const STATUTS: Record<string, { label: string; couleur: string }> = {
-  execute: { label: "Fait", couleur: "#10b981" },
-  accord_demande: { label: "Accord demandé", couleur: "#F5A623" },
-  refuse: { label: "Refusé", couleur: "#ef4444" },
-  echec: { label: "Échec", couleur: "#ef4444" },
-  en_cours: { label: "En cours", couleur: "#9ca3af" },
+  execute: { label: "Fait", couleur: "var(--badge-success-text)" },
+  accord_demande: { label: "Accord demandé", couleur: "var(--banner-warning-text)" },
+  refuse: { label: "Refusé", couleur: "var(--color-critical-text)" },
+  echec: { label: "Échec", couleur: "var(--color-critical-text)" },
+  en_cours: { label: "En cours", couleur: "var(--color-text-subdued)" },
 };
 
 const date = (d: string | null | undefined) => (d ? new Date(d).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—");
 const json = (r: Response): Promise<any> => (r.ok ? r.json() : Promise.resolve({}));
-const champ = "border border-gray-200 rounded-lg px-2 py-1.5 text-sm";
+const champ = "border border-(--color-border) rounded-lg px-2 py-1.5 text-sm";
 
 export default function ControleIAPage() {
   const tr = useT();
@@ -85,7 +85,7 @@ export default function ControleIAPage() {
     if (r.ok) toast.success(tr(ok));
     else {
       const d = await r.json().catch(() => ({}));
-      toast.error(tr(ko), { description: d.error ? tr(d.error) : tr("Recharge la page puis réessaie. Si ça continue, signale le problème.") });
+      toast.error(tr(ko), { description: d.error ? tr(d.error) : tr("Rechargez la page puis réessayez. Si cela continue, signalez le problème.") });
     }
     charger();
   }
@@ -102,7 +102,7 @@ export default function ControleIAPage() {
     const d = await r?.json().catch(() => ({})) ?? {};
     setEnCours(null);
     // Le retour nomme l'action (a.message) et dit si elle a vraiment été faite.
-    if (!r) toast.error(tr("Pas de connexion : rien n'a été fait. Réessaie dans un instant."));
+    if (!r) toast.error(tr("Pas de connexion : rien n'a été fait. Réessayez dans un instant."));
     else if (r.status === 409) toast.info(tr("Cette demande a déjà été traitée."));
     else if (!r.ok || d.succes === false) toast.error(tr("L'action n'a pas été faite"), { description: d.resultat ?? d.error ?? a.message });
     else toast.success(decision === "accepter" ? tr("C'est fait : {0}", a.message) : tr("Refusé : rien n'a été modifié."));
@@ -120,7 +120,7 @@ export default function ControleIAPage() {
   if (chargement) return <EtatChargement texte={tr("Chargement du contrôle des IA…")} />;
 
   const limite = (c: Connexion, cle: "variationPrixMax" | "budgetPubMax" | "transactionMax", label: string, max: number) => (
-    <label className="text-sm text-gray-700 flex flex-wrap items-center gap-2">{tr(label)}
+    <label className="text-sm text-(--color-text) flex flex-wrap items-center gap-2">{tr(label)}
       <input type="number" min={0} max={max} defaultValue={c[cle]} className={`${champ} w-28`}
         onBlur={(e) => { const v = Math.min(max, Math.max(0, Number(e.target.value) || 0)); if (v !== c[cle]) regler(c, { [cle]: v }); }} />
     </label>
@@ -133,64 +133,64 @@ export default function ControleIAPage() {
       <p className="m-0 -mt-2 max-w-3xl text-(--color-text-secondary)">{tr("Pilotez votre boutique depuis Claude, ChatGPT ou un autre assistant, sans jamais lui donner votre mot de passe. Vous décidez ce que chaque IA peut faire seule et ce qui attend votre accord.")}</p>
 
       <div className="ax-card p-4 sm:p-6 space-y-4">
-        <h2 className="font-bold text-gray-900">{tr("Relier un assistant")}</h2>
+        <h2 className="font-bold text-(--color-text-strong)">{tr("Relier un assistant")}</h2>
         <div className="grid grid-cols-3 gap-2">
           {FOURNISSEURS.map(([id, nom]) => {
             const relie = connexions.some((c) => c.fournisseur === id);
             return (
-              <div key={id} className="border border-gray-100 rounded-xl p-2.5 sm:p-3 min-w-0">
-                <p className="font-semibold text-gray-900 text-sm truncate">{nom}</p>
+              <div key={id} className="border border-(--color-border-secondary) rounded-xl p-2.5 sm:p-3 min-w-0">
+                <p className="font-semibold text-(--color-text-strong) text-sm truncate">{nom}</p>
                 <p className="text-xs" style={{ color: relie ? "#10b981" : "#9ca3af" }}>{relie ? tr("Relié") : tr("Non relié")}</p>
               </div>
             );
           })}
         </div>
-        <p className="text-sm text-gray-500">{tr("Dans ton assistant, ajoute un connecteur personnalisé (serveur MCP) avec cette adresse. Il t'enverra ici pour choisir la boutique et les droits.")}</p>
+        <p className="text-sm text-(--color-text-secondary)">{tr("Dans votre assistant, ajoutez un connecteur personnalisé (serveur MCP) avec cette adresse. Il vous renverra ici pour choisir la boutique et les droits.")}</p>
         <div className="flex gap-2">
-          <input readOnly value={urlMcp} aria-label={tr("Adresse du serveur MCP")} className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm bg-gray-50" />
+          <input readOnly value={urlMcp} aria-label={tr("Adresse du serveur MCP")} className="flex-1 min-w-0 border border-(--color-border) rounded-xl px-3.5 py-2.5 text-sm bg-(--color-surface-secondary)" />
           <button onClick={() => navigator.clipboard.writeText(urlMcp).then(() => toast.success(tr("Adresse copiée")))} className="ax-btn ax-btn-secondary flex items-center gap-1.5"><Copy size={14} />{tr("Copier")}</button>
         </div>
       </div>
 
       <div className="ax-card p-4 sm:p-6 space-y-4">
-        <h2 className="font-bold text-gray-900">{tr("Assistants reliés")}</h2>
-        {connexions.length === 0 && <p className="text-sm text-gray-400">{tr("Aucun assistant relié pour l'instant.")}</p>}
+        <h2 className="font-bold text-(--color-text-strong)">{tr("Assistants reliés")}</h2>
+        {connexions.length === 0 && <p className="text-sm text-(--color-text-subdued)">{tr("Aucun assistant relié pour l'instant.")}</p>}
         {connexions.map((c) => (
-          <div key={c.id} className="border border-gray-100 rounded-xl p-4 space-y-3">
+          <div key={c.id} className="border border-(--color-border-secondary) rounded-xl p-4 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-semibold text-gray-900 break-words">{c.client}</p>
-                <p className="text-xs text-gray-400">{tr("Relié le")} {date(c.createdAt)} · {tr("dernière action")} {date(c.utiliseLe)}</p>
+                <p className="font-semibold text-(--color-text-strong) break-words">{c.client}</p>
+                <p className="text-xs text-(--color-text-subdued)">{tr("Relié le")} {date(c.createdAt)} · {tr("dernière action")} {date(c.utiliseLe)}</p>
               </div>
-              <button onClick={() => apresAccord({ titre: tr("Couper l'accès de cet assistant ?"), objet: c.client, description: tr("Il ne pourra plus rien lire ni faire sur ta boutique. Tu pourras le relier à nouveau plus tard."), libelleConfirmer: tr("Couper l'accès") },
+              <button onClick={() => apresAccord({ titre: tr("Couper l'accès de cet assistant ?"), objet: c.client, description: tr("Il ne pourra plus rien lire ni faire sur votre boutique. Vous pourrez le relier à nouveau plus tard."), libelleConfirmer: tr("Couper l'accès") },
                 () => appel(`/api/controle-ia?id=${c.id}`, { method: "DELETE" }, "Accès coupé", "Impossible de couper l'accès"))} className="flex min-h-10 items-center gap-1.5 text-sm font-semibold text-erreur hover:underline shrink-0"><ShieldOff size={14} />{tr("Couper l'accès")}</button>
             </div>
             <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
               {c.droits.map((d) => (
                 <li key={d.libelle} className="flex items-start gap-2 text-xs" style={{ color: d.niveau === "aucun" ? "#9ca3af" : "#374151" }}>
-                  {d.niveau === "aucun" ? <X size={13} className="mt-0.5 shrink-0" /> : <Check size={13} className="mt-0.5 shrink-0 text-emerald-500" />}
+                  {d.niveau === "aucun" ? <X size={13} className="mt-0.5 shrink-0" /> : <Check size={13} className="mt-0.5 shrink-0 text-(--badge-success-text)" />}
                   <span>{tr(d.libelle)}{d.niveau !== "aucun" && d.niveau !== "oui" ? ` — ${tr(d.niveau)}` : ""}</span>
                 </li>
               ))}
             </ul>
-            <label className="text-sm text-gray-700 flex flex-wrap items-center gap-2">{tr("Mode")}
+            <label className="text-sm text-(--color-text) flex flex-wrap items-center gap-2">{tr("Mode")}
               <select value={c.mode} onChange={(e) => regler(c, { mode: e.target.value })} className={champ}>
                 {Object.entries(MODES).map(([m, { label }]) => <option key={m} value={m}>{tr(label)}</option>)}
               </select>
             </label>
-            <p className="text-xs text-gray-400">{tr(MODES[c.mode]?.aide ?? "")}</p>
+            <p className="text-xs text-(--color-text-subdued)">{tr(MODES[c.mode]?.aide ?? "")}</p>
             {c.mode === "autopilot" && (
               <div className="flex flex-wrap gap-3">
                 {limite(c, "variationPrixMax", "Variation de prix max (%)", 100)}
                 {limite(c, "budgetPubMax", "Budget publicitaire max par action", 1_000_000_000)}
                 {limite(c, "transactionMax", "Achat ou paiement max par action", 1_000_000_000)}
-                <label className="text-sm text-gray-700 flex flex-wrap items-center gap-2">{tr("Publication de la boutique sans accord")}
+                <label className="text-sm text-(--color-text) flex flex-wrap items-center gap-2">{tr("Publication de la boutique sans accord")}
                   <select value={c.risqueBuilderMax} onChange={(e) => regler(c, { risqueBuilderMax: e.target.value })} className={champ}>
                     <option value="faible">{tr("petits changements seulement")}</option>
                     <option value="moyen">{tr("jusqu'aux changements moyens")}</option>
                   </select>
                 </label>
-                <p className="text-xs text-gray-400 w-full">{tr("0 = toujours avec ton accord.")}</p>
+                <p className="text-xs text-(--color-text-subdued) w-full">{tr("0 = toujours avec votre accord.")}</p>
               </div>
             )}
           </div>
@@ -198,11 +198,11 @@ export default function ControleIAPage() {
       </div>
 
       <div className="ax-card p-4 sm:p-6 space-y-3">
-        <h2 className="font-bold text-gray-900">{tr("En attente de ton accord")} ({accords.length})</h2>
-        {accords.length === 0 && <p className="text-sm text-doux">{tr("Rien à valider. Quand une IA veut faire une action sensible (prix, envoi aux clients, paiement…), elle attend ici ton accord.")}</p>}
+        <h2 className="font-bold text-(--color-text-strong)">{tr("En attente de votre accord")} ({accords.length})</h2>
+        {accords.length === 0 && <p className="text-sm text-doux">{tr("Rien à valider. Quand une IA veut faire une action sensible (prix, envoi aux clients, paiement…), elle attend ici votre accord.")}</p>}
         {accords.map((a) => (
-          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
-            <p className="text-sm text-gray-800 min-w-0 break-words">{a.message}</p>
+          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-(--color-border-secondary) rounded-xl p-3">
+            <p className="text-sm text-(--color-text) min-w-0 break-words">{a.message}</p>
             <div className="flex gap-2 shrink-0">
               <button onClick={() => decider(a, "refuser")} disabled={enCours === a.id} className="ax-btn ax-btn-secondary flex items-center gap-1.5"><X size={14} />{tr("Refuser")}</button>
               <button onClick={() => decider(a, "accepter")} disabled={enCours === a.id} className="ax-btn ax-btn-primary flex items-center gap-1.5">{enCours === a.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}{enCours === a.id ? tr("En cours…") : tr("Autoriser l'action")}</button>
@@ -215,8 +215,8 @@ export default function ControleIAPage() {
         <div className="ax-card p-4 sm:p-6 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="font-bold text-gray-900">{tr("Ta boutique et les IA")}</h2>
-              <p className="text-sm text-gray-500">{tr("Les assistants préparent leurs changements dans un brouillon ; ta boutique en ligne ne change qu'à la publication.")}</p>
+              <h2 className="font-bold text-(--color-text-strong)">{tr("Votre boutique et les IA")}</h2>
+              <p className="text-sm text-(--color-text-secondary)">{tr("Les assistants préparent leurs changements dans un brouillon ; votre boutique en ligne ne change qu'à la publication.")}</p>
             </div>
             {builder.peutDecider && (
               <button onClick={() => appel("/api/controle-ia/builder", { method: "PATCH", body: JSON.stringify({ verrou: !builder.verrou }) }, builder.verrou ? "Modification par les IA réactivée" : "Modification par les IA bloquée", "Action refusée")}
@@ -225,16 +225,16 @@ export default function ControleIAPage() {
               </button>
             )}
           </div>
-          {builder.verrou && <p className="text-sm text-red-600 bg-red-50 rounded-xl p-3">{tr("Verrou actif : aucune IA ne peut modifier ta boutique.")}</p>}
+          {builder.verrou && <p className="text-sm text-(--color-critical-text) bg-(--banner-critical-bg) rounded-xl p-3">{tr("Verrou actif : aucune IA ne peut modifier votre boutique.")}</p>}
 
           {builder.brouillon && (
-            <div className="border border-amber-200 bg-amber-50 rounded-xl p-3 space-y-2">
-              <p className="text-sm font-semibold text-gray-900">{tr("Brouillon en attente")} · {builder.brouillon.changements} {tr("changements")}</p>
-              <pre className="text-xs text-gray-600 whitespace-pre-wrap break-words font-sans">{builder.brouillon.resume}</pre>
-              {builder.brouillon.enLigneAChange && <p className="text-xs text-red-600">{tr("Tu as modifié la boutique en ligne depuis : la publication de ce brouillon sera refusée sans ton accord explicite.")}</p>}
+            <div className="border border-(--badge-warning-bg) bg-(--banner-warning-bg) rounded-xl p-3 space-y-2">
+              <p className="text-sm font-semibold text-(--color-text-strong)">{tr("Brouillon en attente")} · {builder.brouillon.changements} {tr("changements")}</p>
+              <pre className="text-xs text-(--color-text-secondary) whitespace-pre-wrap break-words font-sans">{builder.brouillon.resume}</pre>
+              {builder.brouillon.enLigneAChange && <p className="text-xs text-(--color-critical-text)">{tr("Vous avez modifié la boutique en ligne depuis : la publication de ce brouillon sera refusée sans votre accord explicite.")}</p>}
               <div className="flex flex-wrap gap-2">
                 {builder.brouillon.apercu && <a href={builder.brouillon.apercu} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn-secondary flex items-center gap-1.5"><ExternalLink size={14} />{tr("Voir l'aperçu")}</a>}
-                {builder.peutDecider && <button onClick={() => apresAccord({ titre: tr("Abandonner ce brouillon ?"), objet: tr("Brouillon de {0} changements", builder.brouillon?.changements ?? 0), description: tr("Les changements préparés par l'IA sont perdus. Ta boutique en ligne ne change pas."), libelleConfirmer: tr("Abandonner le brouillon") },
+                {builder.peutDecider && <button onClick={() => apresAccord({ titre: tr("Abandonner ce brouillon ?"), objet: tr("Brouillon de {0} changements", builder.brouillon?.changements ?? 0), description: tr("Les changements préparés par l'IA sont perdus. Votre boutique en ligne ne change pas."), libelleConfirmer: tr("Abandonner le brouillon") },
                   () => appel("/api/controle-ia/builder", { method: "PATCH", body: JSON.stringify({ abandonner: true }) }, "Brouillon abandonné", "Action refusée"))} className="ax-btn ax-btn-secondary">{tr("Abandonner le brouillon")}</button>}
               </div>
             </div>
@@ -246,13 +246,13 @@ export default function ControleIAPage() {
               {builder.activite.map((x) => (
                 <details key={x.id} className="text-sm">
                   <summary className="cursor-pointer flex flex-wrap gap-x-2">
-                    <span className="font-medium text-gray-900">{x.client}</span>
-                    <span className="text-gray-400">{date(x.createdAt)}</span>
-                    <span className="text-gray-700">{x.outil.replace(/^axso_builder_/, "").replace(/_/g, " ")}</span>
-                    <span className="text-gray-400">· {tr("risque")} {x.risque}</span>
+                    <span className="font-medium text-(--color-text-strong)">{x.client}</span>
+                    <span className="text-(--color-text-subdued)">{date(x.createdAt)}</span>
+                    <span className="text-(--color-text)">{x.outil.replace(/^axso_builder_/, "").replace(/_/g, " ")}</span>
+                    <span className="text-(--color-text-subdued)">· {tr("risque")} {x.risque}</span>
                     <span style={{ color: STATUTS[x.statut]?.couleur }}>· {tr(STATUTS[x.statut]?.label ?? x.statut)}</span>
                   </summary>
-                  <pre className="text-xs text-gray-500 whitespace-pre-wrap break-words font-sans mt-1">{x.sortie}</pre>
+                  <pre className="text-xs text-(--color-text-secondary) whitespace-pre-wrap break-words font-sans mt-1">{x.sortie}</pre>
                 </details>
               ))}
             </div>
@@ -263,29 +263,29 @@ export default function ControleIAPage() {
               <p className="ax-label">{tr("Versions")}</p>
               {builder.versions.map((v) => (
                 <div key={v.numero} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
-                  <span className="min-w-0 break-words text-gray-700">v{v.numero} · {date(v.createdAt)} · {v.client ?? tr("toi")} — {v.raison}{v.nbChangements ? ` (${v.nbChangements})` : ""}</span>
+                  <span className="min-w-0 break-words text-(--color-text)">v{v.numero} · {date(v.createdAt)} · {v.client ?? tr("toi")} — {v.raison}{v.nbChangements ? ` (${v.nbChangements})` : ""}</span>
                   {builder.peutDecider && (
                     <button onClick={() => appel("/api/controle-ia/builder", { method: "PATCH", body: JSON.stringify({ restaurer: v.numero }) }, "Version remise en ligne", "Restauration refusée")}
-                      className="text-xs font-semibold text-gray-700 hover:underline flex items-center gap-1 shrink-0"><RotateCcw size={12} />{tr("Remettre")}</button>
+                      className="text-xs font-semibold text-(--color-text) hover:underline flex items-center gap-1 shrink-0"><RotateCcw size={12} />{tr("Remettre")}</button>
                   )}
                 </div>
               ))}
             </div>
           )}
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-(--color-text-subdued)">
             {tr("30 derniers jours")} : {builder.metriques.builder_actions_total} {tr("actions")} · {builder.metriques.builder_publish_total} {tr("publications")} · {builder.metriques.builder_approval_requests} {tr("accords demandés")} · {builder.metriques.builder_policy_blocks} {tr("refus")} · {builder.metriques.builder_actions_failed} {tr("échecs")} · {builder.metriques.builder_ai_sessions} {tr("sessions")} · {builder.metriques.builder_average_execution_time} ms {tr("en moyenne")}
           </p>
         </div>
       )}
 
       <div className="ax-card p-4 sm:p-6 space-y-3">
-        <h2 className="font-bold text-gray-900">{tr("Automatisations")}</h2>
-        {automatisations.length === 0 && <p className="text-sm text-gray-400">{tr("Aucune automatisation. Demande à ton assistant d'en créer une, par exemple « préviens-moi et prépare une commande quand un stock est bas ».")}</p>}
+        <h2 className="font-bold text-(--color-text-strong)">{tr("Automatisations")}</h2>
+        {automatisations.length === 0 && <p className="text-sm text-(--color-text-subdued)">{tr("Aucune automatisation. Demandez à votre assistant d'en créer une, par exemple « préviens-moi et prépare une commande quand un stock est bas ».")}</p>}
         {automatisations.map((a) => (
-          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
+          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-(--color-border-secondary) rounded-xl p-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 break-words">{a.nom} {!a.actif && <span className="text-xs font-normal text-gray-400">· {tr("en pause")}</span>}</p>
-              <p className="text-xs text-gray-400 break-words">{a.resume ? `${a.resume} · ` : ""}{a.executions} {tr("exécutions")} · {tr("dernière")} {date(a.derniereExecution)}</p>
+              <p className="text-sm font-semibold text-(--color-text-strong) break-words">{a.nom} {!a.actif && <span className="text-xs font-normal text-(--color-text-subdued)">· {tr("en pause")}</span>}</p>
+              <p className="text-xs text-(--color-text-subdued) break-words">{a.resume ? `${a.resume} · ` : ""}{a.executions} {tr("exécutions")} · {tr("dernière")} {date(a.derniereExecution)}</p>
             </div>
             <div className="flex gap-2 shrink-0">
               <button onClick={() => appel("/api/controle-ia/automatisations", { method: "PATCH", body: JSON.stringify({ id: a.id, actif: !a.actif }) }, a.actif ? "Automatisation en pause" : "Automatisation relancée", "Action refusée")} aria-label={tr(a.actif ? "Mettre en pause" : "Relancer")} className="ax-btn ax-btn-secondary">{a.actif ? <Pause size={14} /> : <Play size={14} />}</button>
@@ -298,28 +298,28 @@ export default function ControleIAPage() {
 
       {webhooks.length > 0 && (
         <div className="ax-card p-4 sm:p-6 space-y-3">
-          <h2 className="font-bold text-gray-900">{tr("Webhooks")}</h2>
-          <p className="text-sm text-gray-500">{tr("Adresses qui reçoivent les événements de ta boutique, signés avec un secret.")}</p>
+          <h2 className="font-bold text-(--color-text-strong)">{tr("Webhooks")}</h2>
+          <p className="text-sm text-(--color-text-secondary)">{tr("Adresses qui reçoivent les événements de votre boutique, signés avec un secret.")}</p>
           {webhooks.map((w) => (
-            <div key={w.id} className="border border-gray-100 rounded-xl p-3 space-y-2">
+            <div key={w.id} className="border border-(--color-border-secondary) rounded-xl p-3 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 break-all">{w.url}</p>
-                  <p className="text-xs text-gray-400 break-words">{w.evenements.join(", ")} · {w.actif ? tr("actif") : tr("désactivé après des échecs")}</p>
+                  <p className="text-sm font-semibold text-(--color-text-strong) break-all">{w.url}</p>
+                  <p className="text-xs text-(--color-text-subdued) break-words">{w.evenements.join(", ")} · {w.actif ? tr("actif") : tr("désactivé après des échecs")}</p>
                 </div>
                 <div className="flex gap-3 shrink-0">
-                  <button onClick={() => nouveauSecret(w.id)} className="text-sm font-semibold text-gray-700 hover:underline">{tr("Nouveau secret")}</button>
-                  <button onClick={() => apresAccord({ titre: tr("Supprimer ce webhook ?"), objet: w.url, description: tr("Cette adresse ne recevra plus les événements de ta boutique."), libelleConfirmer: tr("Supprimer le webhook") },
+                  <button onClick={() => nouveauSecret(w.id)} className="text-sm font-semibold text-(--color-text) hover:underline">{tr("Nouveau secret")}</button>
+                  <button onClick={() => apresAccord({ titre: tr("Supprimer ce webhook ?"), objet: w.url, description: tr("Cette adresse ne recevra plus les événements de votre boutique."), libelleConfirmer: tr("Supprimer le webhook") },
                     () => appel(`/api/controle-ia/automatisations?webhook=${w.id}`, { method: "DELETE" }, "Webhook supprimé", "Suppression refusée"))} aria-label={tr("Supprimer le webhook")} className="w-10 h-10 flex items-center justify-center rounded-lg text-erreur hover:bg-erreur-fond"><Trash2 size={14} /></button>
                 </div>
               </div>
               {secret?.id === w.id && (
                 <div className="flex gap-2">
-                  <input readOnly value={secret.valeur} aria-label={tr("Secret du webhook")} className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-gray-50 font-mono" />
+                  <input readOnly value={secret.valeur} aria-label={tr("Secret du webhook")} className="flex-1 min-w-0 border border-(--color-border) rounded-lg px-2 py-1.5 text-xs bg-(--color-surface-secondary) font-mono" />
                   <button onClick={() => navigator.clipboard.writeText(secret.valeur).then(() => toast.success(tr("Secret copié")))} aria-label={tr("Copier le secret")} className="ax-btn ax-btn-secondary"><Copy size={14} /></button>
                 </div>
               )}
-              {secret?.id === w.id && <p className="text-xs text-amber-600">{tr("Copie-le maintenant : il ne sera plus affiché.")}</p>}
+              {secret?.id === w.id && <p className="text-xs text-(--banner-warning-text)">{tr("Copiez-le maintenant : il ne sera plus affiché.")}</p>}
             </div>
           ))}
         </div>
@@ -327,15 +327,15 @@ export default function ControleIAPage() {
 
       {services.length > 0 && (
         <div className="ax-card p-4 sm:p-6 space-y-3">
-          <h2 className="font-bold text-gray-900">{tr("Services reliés")}</h2>
-          <p className="text-sm text-gray-500">{tr("Comptes que tes assistants peuvent utiliser à travers Axso. Ils n'en reçoivent jamais les accès.")}</p>
+          <h2 className="font-bold text-(--color-text-strong)">{tr("Services reliés")}</h2>
+          <p className="text-sm text-(--color-text-secondary)">{tr("Comptes que vos assistants peuvent utiliser à travers Axso. Ils n'en reçoivent jamais les accès.")}</p>
           {services.map((s) => (
-            <div key={s.type} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-3">
+            <div key={s.type} className="flex flex-wrap items-center justify-between gap-3 border border-(--color-border-secondary) rounded-xl p-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{s.nom ?? s.type}</p>
-                <p className="text-xs text-gray-400 break-words">{s.compte ? `${s.compte} · ` : ""}{tr(s.statut)}{s.expireLe ? ` · ${tr("expire le")} ${date(s.expireLe)}` : ""}</p>
+                <p className="text-sm font-semibold text-(--color-text-strong)">{s.nom ?? s.type}</p>
+                <p className="text-xs text-(--color-text-subdued) break-words">{s.compte ? `${s.compte} · ` : ""}{tr(s.statut)}{s.expireLe ? ` · ${tr("expire le")} ${date(s.expireLe)}` : ""}</p>
               </div>
-              <button onClick={() => apresAccord({ titre: tr("Déconnecter ce service ?"), objet: s.nom ?? s.type, description: tr("Tes assistants ne pourront plus l'utiliser à travers Axso. Tu pourras le reconnecter."), libelleConfirmer: tr("Déconnecter le service") },
+              <button onClick={() => apresAccord({ titre: tr("Déconnecter ce service ?"), objet: s.nom ?? s.type, description: tr("Vos assistants ne pourront plus l'utiliser à travers Axso. Vous pourrez le reconnecter."), libelleConfirmer: tr("Déconnecter le service") },
                 () => appel(`/api/controle-ia/services?type=${encodeURIComponent(s.type)}`, { method: "DELETE" }, "Service déconnecté", "Déconnexion refusée"))} className="min-h-10 text-sm font-semibold text-erreur hover:underline shrink-0">{tr("Déconnecter")}</button>
             </div>
           ))}
@@ -344,31 +344,31 @@ export default function ControleIAPage() {
 
       {activite && (
         <div className="ax-card p-4 sm:p-6 space-y-3">
-          <h2 className="font-bold text-gray-900">{tr("Activité des 30 derniers jours")}</h2>
-          <p className="text-sm text-gray-700">
+          <h2 className="font-bold text-(--color-text-strong)">{tr("Activité des 30 derniers jours")}</h2>
+          <p className="text-sm text-(--color-text)">
             {activite.total} {tr("appels")} · {activite.parStatut.execute ?? 0} {tr("faits")} · {activite.parStatut.accord_demande ?? 0} {tr("accords demandés")} · {activite.parStatut.refuse ?? 0} {tr("refusés")} · {activite.parStatut.echec ?? 0} {tr("échecs")}
           </p>
-          <ul className="text-xs text-gray-500 space-y-1">
+          <ul className="text-xs text-(--color-text-secondary) space-y-1">
             {activite.outils.map((o) => <li key={o.outil}>{o.outil.replace(/_/g, " ")} — {o.appels} {tr("appels")}, {o.dureeMoyenneMs} ms {tr("en moyenne")}</li>)}
           </ul>
         </div>
       )}
 
       <div className="ax-card p-4 sm:p-6 space-y-3">
-        <h2 className="font-bold text-gray-900">{tr("Historique des actions")}</h2>
-        {actions.length === 0 && <p className="text-sm text-gray-400">{tr("Aucune action pour l'instant.")}</p>}
-        <div className="divide-y divide-gray-100">
+        <h2 className="font-bold text-(--color-text-strong)">{tr("Historique des actions")}</h2>
+        {actions.length === 0 && <p className="text-sm text-(--color-text-subdued)">{tr("Aucune action pour l'instant.")}</p>}
+        <div className="divide-y divide-(--color-border-secondary)">
           {actions.map((a) => (
             <details key={a.id} className="py-2.5">
               <summary className="flex items-center gap-3 text-sm cursor-pointer">
-                <span className="text-xs text-gray-400 w-24 sm:w-28 shrink-0">{date(a.createdAt)}</span>
-                <span className="font-medium text-gray-900 min-w-0 truncate">{a.client} · {a.outil.replace(/_/g, " ")}</span>
+                <span className="text-xs text-(--color-text-subdued) w-24 sm:w-28 shrink-0">{date(a.createdAt)}</span>
+                <span className="font-medium text-(--color-text-strong) min-w-0 truncate">{a.client} · {a.outil.replace(/_/g, " ")}</span>
                 <span className="ml-auto text-[11px] font-semibold shrink-0" style={{ color: STATUTS[a.statut]?.couleur }}>{a.annuleLe ? tr("Annulé") : tr(STATUTS[a.statut]?.label ?? a.statut)}</span>
               </summary>
-              <p className="text-xs text-gray-500 mt-2 break-words">{tr("Risque")} {a.risque} · {a.entree}</p>
-              <p className="text-xs text-gray-500 mt-1 break-words whitespace-pre-wrap">{a.sortie}</p>
+              <p className="text-xs text-(--color-text-secondary) mt-2 break-words">{tr("Risque")} {a.risque} · {a.entree}</p>
+              <p className="text-xs text-(--color-text-secondary) mt-1 break-words whitespace-pre-wrap">{a.sortie}</p>
               {a.avant && a.apres && Object.keys(a.apres).length > 0 && (
-                <p className="text-xs text-gray-500 mt-1 break-words">{tr("Avant")} : {JSON.stringify(a.avant).slice(0, 300)} → {tr("après")} : {JSON.stringify(a.apres).slice(0, 300)}</p>
+                <p className="text-xs text-(--color-text-secondary) mt-1 break-words">{tr("Avant")} : {JSON.stringify(a.avant).slice(0, 300)} → {tr("après")} : {JSON.stringify(a.apres).slice(0, 300)}</p>
               )}
             </details>
           ))}

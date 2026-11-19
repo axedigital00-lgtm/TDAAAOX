@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { classeurXlsx, TYPE_XLSX } from "@/lib/excel";
+import { requireNiveau } from "@/lib/permissions-server";
 
 export const runtime = "nodejs";
 
@@ -11,14 +12,19 @@ export async function GET(req: NextRequest) {
 
   const tenantId = (session.user as any)?.tenantId;
   if (!tenantId) return NextResponse.json({ error: "Tenant introuvable" }, { status: 404 });
+  const refus = await requireNiveau(session, "commandes", "lecture");
+  if (refus) return NextResponse.json({ error: refus.error }, { status: refus.status });
 
   const { searchParams } = new URL(req.url);
   const depuis = searchParams.get("depuis");
   const statut = searchParams.get("statut");
+  // Sélection de la liste (actions groupées) : ids séparés par des virgules.
+  const ids = searchParams.get("ids")?.split(",").filter(Boolean).slice(0, 500);
 
   const where: any = { tenantId };
   if (depuis)  where.createdAt = { gte: new Date(depuis) };
   if (statut)  where.statut = statut;
+  if (ids?.length) where.id = { in: ids };
 
   const commandes = await prisma.commande.findMany({
     where,

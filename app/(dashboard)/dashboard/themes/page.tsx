@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PCOnlyGate } from "@/components/dashboard/PCOnlyGate";
 import { ApercuDesign, parametresApercu, fichierDuTheme, optionsChangementDesign } from "@/components/dashboard/ApercuDesign";
-import { Badge, Bouton, BoutonIcone, EtatChargement, EtatErreur, EtatVide, useConfirmation } from "@/components/ui";
-import { Badge as AdmBadge, PageHeader } from "@/components/ui/adm";
+import { EtatChargement, EtatErreur, useConfirmation } from "@/components/ui";
+import { Badge, Button, EmptyState, PageHeader } from "@/components/ui/adm";
+import { IllustrationGenerique } from "@/components/ui/illustrations";
 import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import {
   Palette, Trash2, Edit2,
@@ -147,7 +148,7 @@ export default function ThemesPage() {
       {/* ── En-tête (§8.20 : bibliothèque de thèmes) ── */}
       <div className="flex-shrink-0 border-b border-(--color-border) bg-(--color-surface) px-3">
         <PageHeader icon="grid" title={tr("Thèmes")} backHref="/dashboard/boutique"
-          titleMeta={tenant ? <AdmBadge tone="info">{tr("Thème actif :")} {tr(themes.find((t) => t.id === tenant.themeId || t.slug === tenant.themeId)?.nom) || tr(tenant.themeId)}</AdmBadge> : undefined}
+          titleMeta={tenant ? <Badge tone="info">{tr("Thème actif :")} {tr(themes.find((t) => t.id === tenant.themeId || t.slug === tenant.themeId)?.nom) || tr(tenant.themeId)}</Badge> : undefined}
           primaryAction={tenant ? { content: tr("Créer un thème"), icon: "plus", onAction: () => router.push("/dashboard/themes/creer") } : undefined}
           secondaryActions={tenant?.slug ? [{ content: tr("Voir la boutique"), icon: "external", onAction: () => window.open(urlBoutique(tenant), "_blank", "noopener") }] : []}
           overflowActions={[{ content: tr("Revoir le tutoriel"), onAction: () => window.dispatchEvent(new CustomEvent("axso:ouvrir-tutoriel", { detail: "themes" })) }]} />
@@ -161,9 +162,9 @@ export default function ThemesPage() {
           <div className="flex items-center gap-2 mb-4">
             <Sparkles size={16} className="text-attention" aria-hidden />
             <h2 className="ax-titre-section">{tr("Bibliothèque AXSO Design")}</h2>
-            <Badge ton="accent">{librairie.length} {tr("designs")}</Badge>
+            <Badge tone="neutral">{librairie.length} {tr("designs")}</Badge>
           </div>
-          {!librairie.length && <EtatVide titre={tr("Aucun design disponible pour le moment.")} texte={tr("Vous pouvez créer ou importer votre propre thème.")}><Bouton href="/dashboard/themes/creer">{tr("Créer un thème")}</Bouton></EtatVide>}
+          {!librairie.length && <EmptyState image={<IllustrationGenerique />} title={tr("Aucun design disponible pour le moment.")} actions={<Button variant="primary" href="/dashboard/themes/creer">{tr("Créer un thème")}</Button>}>{tr("Vous pouvez créer ou importer votre propre thème.")}</EmptyState>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {librairie.map((t) => (
               <SimpleThemeCard
@@ -185,7 +186,7 @@ export default function ThemesPage() {
             <div className="flex items-center gap-2 mb-4">
               <Sparkles size={16} className="text-attention" aria-hidden />
               <h2 className="ax-titre-section">{tr("Mes thèmes")}</h2>
-              <Badge ton="accent">{custom.length}</Badge>
+              <Badge tone="neutral">{custom.length}</Badge>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {custom.map((t) => (
@@ -273,28 +274,28 @@ function SimpleThemeCard({
           <h3 className="text-sm font-semibold text-encre">{tr(theme.nom)}</h3>
           <div className="flex gap-1" aria-hidden>
             {[colors.fond, colors.accent, colors.texte].map((c, i) => (
-              <div key={i} className="w-3.5 h-3.5 rounded-full border border-gray-200" style={{ backgroundColor: c }} />
+              <div key={i} className="w-3.5 h-3.5 rounded-full border border-(--color-border)" style={{ backgroundColor: c }} />
             ))}
           </div>
         </div>
         {theme.description && <p className="ax-aide mb-3">{tr(theme.description)}</p>}
         <div className="flex gap-2">
           {actif ? (
-            <div className="flex-1 flex items-center justify-center min-h-10"><Badge ton="succes">{tr("Thème actif")}</Badge></div>
+            <div className="flex-1 flex items-center justify-center min-h-10"><Badge tone="success">{tr("Thème actif")}</Badge></div>
           ) : (
-            <Bouton variante="secondaire" taille="compact" className="flex-1" onClick={onActivate} charge={activating} texteCharge={tr("Activation…")}>
+            <Button variant="default" size="sm" className="flex-1" onClick={onActivate} loading={activating}>
               {tr("Activer ce thème")}
-            </Bouton>
+            </Button>
           )}
           {onEdit && (
-            <BoutonIcone variante="secondaire" label={tr("Modifier le thème")} onClick={onEdit} className="sm:size-8 sm:min-h-8">
+            <Button aria-label={tr("Modifier le thème")} title={tr("Modifier le thème")} className="px-0! w-[30px] sm:size-8 sm:min-h-8" variant="default" onClick={onEdit}>
               <Edit2 size={14} aria-hidden />
-            </BoutonIcone>
+            </Button>
           )}
           {onDelete && (
-            <BoutonIcone variante="danger" label={`${tr("Supprimer le thème")} ${theme.nom}`} onClick={onDelete} charge={deleting} className="sm:size-8 sm:min-h-8">
+            <Button aria-label={`${tr("Supprimer le thème")} ${theme.nom}`} title={`${tr("Supprimer le thème")} ${theme.nom}`} className="px-0! w-[30px] sm:size-8 sm:min-h-8" variant="default" onClick={onDelete} loading={deleting}>
               <Trash2 size={14} aria-hidden />
-            </BoutonIcone>
+            </Button>
           )}
         </div>
       </div>

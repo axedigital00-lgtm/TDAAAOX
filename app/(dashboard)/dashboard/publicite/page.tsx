@@ -1,12 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Megaphone, Loader2, X, Sparkles, TrendingUp, Eye, MousePointer, ShoppingCart, DollarSign, Pause, Play, Trash2, Zap, Target, BarChart2, Users, Music, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
-import { BoutonIcone, useConfirmation } from "@/components/ui";
-import { PageHeader } from "@/components/ui/adm";
+import {
+  Badge, Banner, Button, EmptyState, IconButton, IndexTable, Modal, PageHeader, Tabs, TextField, Textarea, Thumbnail,
+  type BadgeTone, type Column,
+} from "@/components/ui/adm";
+import { IllustrationCampagnes } from "@/components/ui/illustrations";
+import { Chargement, Chiffres, useConfirmationAdm } from "../marketing/kit-marketing";
+import { filtrer, pourcent } from "../marketing/regles-marketing";
 interface Campagne {
   id: string;
   plateforme: string;
@@ -35,23 +39,23 @@ interface Campagne {
 }
 
 const PLATEFORMES = [
-  { id: "meta",   label: "Meta Ads",   Icon: Users,    color: "#1877F2", desc: "Facebook + Instagram" },
-  { id: "google", label: "Google Ads", Icon: Search,   color: "#4285F4", desc: "Search + Display + YouTube" },
-  { id: "tiktok", label: "TikTok Ads", Icon: Music,    color: "#010101", desc: "Short-form video ads" },
+  { id: "meta",   label: "Meta Ads",   desc: "Facebook + Instagram" },
+  { id: "google", label: "Google Ads", desc: "Search + Display + YouTube" },
+  { id: "tiktok", label: "TikTok Ads", desc: "Short-form video ads" },
 ];
 
 const OBJECTIFS = [
-  { id: "conversions", label: "Conversions", icon: ShoppingCart },
-  { id: "trafic",      label: "Trafic",      icon: MousePointer },
-  { id: "notoriete",   label: "Notoriété",   icon: Eye },
-  { id: "leads",       label: "Leads",       icon: Target },
+  { id: "conversions", label: "Conversions" },
+  { id: "trafic",      label: "Trafic" },
+  { id: "notoriete",   label: "Notoriété" },
+  { id: "leads",       label: "Leads" },
 ];
 
-const STATUT_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  brouillon: { label: "Brouillon", color: "#9ca3af", bg: "rgba(156,163,175,0.1)" },
-  active:    { label: "Active",    color: "#34d399", bg: "rgba(52,211,153,0.1)" },
-  pause:     { label: "En pause",  color: "#F5A623", bg: "rgba(245,166,35,0.1)" },
-  terminee:  { label: "Terminée",  color: "#6b7280", bg: "rgba(107,114,128,0.1)" },
+const STATUT_CONFIG: Record<string, { label: string; tone: BadgeTone }> = {
+  brouillon: { label: "Brouillon", tone: "info" },
+  active:    { label: "Active",    tone: "success" },
+  pause:     { label: "En pause",  tone: "attention" },
+  terminee:  { label: "Terminée",  tone: "neutral" },
 };
 
 const PAYS_AFRIQUE = ["SN", "CI", "CM", "GH", "NG", "KE", "MA", "TG", "BJ", "ML", "BF", "GN"];
@@ -61,129 +65,11 @@ const PAYS_LABELS: Record<string, string> = {
   BJ:"BJ · Bénin", ML:"ML · Mali", BF:"BF · Burkina Faso", GN:"GN · Guinée",
 };
 
-function MetricCard({ icon: Icone, label, value, sub, color }: any) {
-  const t = useT();
-  return (
-    <div className="ax-card p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + "15", border: `1px solid ${color}25` }}>
-          <Icone size={16} style={{ color }} />
-        </div>
-      </div>
-      <p className="text-[20px] font-bold text-[#111111] tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>{t(value)}</p>
-      <p className="text-[12px] text-[#AAAAAA] mt-0.5">{t(label)}</p>
-      {sub && <p className="text-[11.5px] mt-1 font-semibold" style={{ color }}>{t(sub)}</p>}
-    </div>
-  );
-}
-
-function CampagneCard({ c, onStatut, onDelete }: { c: Campagne; onStatut: (id: string, s: string) => void; onDelete: (id: string) => void }) {
-  const t = useT();
-  const plat = PLATEFORMES.find(p => p.id === c.plateforme);
-  const statut = STATUT_CONFIG[c.statut] || STATUT_CONFIG.brouillon;
-  const ctr = c.impressions > 0 ? ((c.clics / c.impressions) * 100).toFixed(2) : "0";
-  const txConv = c.clics > 0 ? ((c.conversions / c.clics) * 100).toFixed(1) : "0";
-
-  return (
-    <div className="ax-card p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: plat?.color + "15", border: `1px solid ${plat?.color}25` }}>
-            {plat?.Icon && <plat.Icon size={20} style={{ color: plat.color }} />}
-          </div>
-          <div>
-            <p className="text-[13px] font-semibold text-[#111111]">{t(c.nom)}</p>
-            <p className="text-[11.5px] text-[#AAAAAA]">{t(plat?.label)} · {t(c.objectif)}</p>
-          </div>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: statut.color, background: statut.bg }}>
-          {t(statut.label)}
-        </span>
-      </div>
-
-      {c.imageAdUrl && (
-        <div className="mb-4 rounded-xl overflow-hidden aspect-video">
-          <img src={c.imageAdUrl} alt={t("Créatif")} className="w-full h-full object-cover" />
-        </div>
-      )}
-
-      {c.titreAd && (
-        <div className="mb-4 bg-[#F9F9F9] rounded-xl p-3 border border-[#F3F3F3]">
-          <p className="text-[13px] font-semibold text-[#222]">{t(c.titreAd)}</p>
-          {c.descriptionAd && <p className="text-[12px] text-[#666] mt-1 line-clamp-2">{t(c.descriptionAd)}</p>}
-        </div>
-      )}
-
-      {/* Métriques */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-        {[
-          { label: "Impressions", val: c.impressions.toLocaleString() },
-          { label: "Clics", val: c.clics.toLocaleString() },
-          { label: "CTR", val: `${ctr}%` },
-          { label: "Conv.", val: c.conversions },
-        ].map(m => (
-          <div key={m.label} className="text-center bg-[#F9F9F9] rounded-xl p-2">
-            <p className="text-[13px] font-bold text-[#222]">{t(m.val)}</p>
-            <p className="text-[10.5px] text-[#AAAAAA]">{t(m.label)}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Budget */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4 text-xs text-gray-500">
-        <span>{t("Dépensé:")}{" "}<strong className="text-gray-800">{c.depense.toLocaleString()} {t(c.devise)}</strong></span>
-        <span>{t("Budget:")}{" "}<strong className="text-gray-800">{c.budget.toLocaleString()} {t(c.devise)}</strong></span>
-      </div>
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
-        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((c.depense / c.budget) * 100, 100)}%`, background: plat?.color }} />
-      </div>
-
-      {c.roas > 0 && (
-        <div className="flex items-center gap-2 mb-4 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-          <TrendingUp size={12} className="text-green-600" />
-          <span className="text-xs font-semibold text-green-700">{t("ROAS:")}{" "}{c.roas.toFixed(2)}x</span>
-          <span className="text-xs text-green-600 ml-auto">{t("Conv.")}{" "}{t(txConv)}%</span>
-        </div>
-      )}
-
-      {c.ciblePays?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-4">
-          {c.ciblePays.map(p => <span key={p} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{t(PAYS_LABELS[p]) || t(p)}</span>)}
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        {c.statut === "brouillon" && (
-          <button onClick={() => onStatut(c.id, "active")}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs font-semibold hover:bg-green-100 transition-colors">
-            <Play size={11} />{" "}{t("Activer")}
-          </button>
-        )}
-        {c.statut === "active" && (
-          <button onClick={() => onStatut(c.id, "pause")}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#F5A623]/10 border border-[#F5A623]/30 text-[#111111] rounded-xl text-xs font-semibold hover:bg-[#F5A623]/15 transition-colors">
-            <Pause size={11} />{" "}{t("Pauser")}
-          </button>
-        )}
-        {c.statut === "pause" && (
-          <button onClick={() => onStatut(c.id, "active")}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs font-semibold hover:bg-green-100 transition-colors">
-            <Play size={11} />{" "}{t("Reprendre")}
-          </button>
-        )}
-        <BoutonIcone label={t("Supprimer la campagne {0}", c.nom)} variante="danger" onClick={() => onDelete(c.id)}>
-          <Trash2 className="size-4" aria-hidden />
-        </BoutonIcone>
-      </div>
-    </div>
-  );
-}
-
 export default function PublicitePage() {
   const t = useT();
   const { devise, fmt } = useDevise();
   const [campagnes, setCampagnes] = useState<Campagne[]>([]);
-  const { confirmer, dialogue } = useConfirmation();
+  const { confirmer, dialogue } = useConfirmationAdm();
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -219,7 +105,7 @@ export default function PublicitePage() {
       const data = await res.json();
       setCampagnes(data.campagnes || []);
       setStats(data.stats || {});
-    } catch { toast.error(t("Tes campagnes n'ont pas pu être chargées. Vérifie ta connexion et actualise la page.")); }
+    } catch { toast.error(t("Vos campagnes n'ont pas pu être chargées. Vérifiez votre connexion et actualisez la page.")); }
     finally { setLoading(false); }
   }
 
@@ -261,14 +147,14 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
           nom: parsed.nom_campagne || f.nom,
           imageAdUrl,
         }));
-        toast.success(t("Créatif rédigé : relis-le avant de l'utiliser."));
+        toast.success(t("Créatif rédigé : relisez-le avant de l'utiliser."));
       }
-    } catch { toast.error(t("Le créatif n'a pas pu être rédigé. Réessaie.")); }
+    } catch { toast.error(t("Le créatif n'a pas pu être rédigé. Réessayez.")); }
     finally { setGenIA(false); }
   }
 
   async function creer() {
-    if (!form.nom || !form.budget) { toast.error(t("Renseigne le nom de la campagne et son budget.")); return; }
+    if (!form.nom || !form.budget) { toast.error(t("Renseignez le nom de la campagne et son budget.")); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/campagnes", {
@@ -297,13 +183,13 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
       setShowModal(false);
       setForm(f => ({ ...f, nom: "", budget: "", titreAd: "", descriptionAd: "", imageAdUrl: "", promptIA: "" }));
       charger();
-    } catch { toast.error(t("La campagne n'a pas été enregistrée. Vérifie les champs et réessaie.")); }
+    } catch { toast.error(t("La campagne n'a pas été enregistrée. Vérifiez les champs et réessayez.")); }
     finally { setSaving(false); }
   }
 
   async function changerStatut(id: string, statut: string) {
     const res = await fetch("/api/campagnes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, statut }) }).catch(() => null);
-    if (!res?.ok) { toast.error(t("Le statut de la campagne n'a pas été modifié. Réessaie.")); return; }
+    if (!res?.ok) { toast.error(t("Le statut de la campagne n'a pas été modifié. Réessayez.")); return; }
     setCampagnes(cs => cs.map(c => c.id === id ? { ...c, statut } : c));
     toast.success(t("Campagne {0}", statut === "active" ? "activée" : statut === "pause" ? "mise en pause" : "mise à jour"));
   }
@@ -312,205 +198,139 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
     const nom = campagnes.find(c => c.id === id)?.nom ?? t("Campagne");
     if (!(await confirmer({ titre: t("Supprimer cette campagne ?"), objet: nom, description: t("Elle et ses statistiques disparaissent d'Axso. Rien n'est modifié chez Meta, Google ou TikTok."), libelleConfirmer: t("Supprimer la campagne") }))) return;
     const res = await fetch(`/api/campagnes?id=${id}`, { method: "DELETE" }).catch(() => null);
-    if (!res?.ok) { toast.error(t("La campagne n'a pas été supprimée. Réessaie.")); return; }
+    if (!res?.ok) { toast.error(t("La campagne n'a pas été supprimée. Réessayez.")); return; }
     setCampagnes(cs => cs.filter(c => c.id !== id));
     toast.success(t("Campagne « {0} » supprimée.", nom));
   }
 
-  const campagnesFiltrees = campagnes.filter(c => filterPlat === "tous" || c.plateforme === filterPlat);
+  const campagnesFiltrees = filtrer(campagnes, { plateforme: filterPlat });
 
-  const inputClass = "w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all placeholder:text-[#CCCCCC]";
+  const choix = (on: boolean) => `rounded-(--radius-md) border p-2.5 text-left text-xs transition-colors ${on ? "border-(--color-border-strong) bg-(--color-surface-selected) font-semibold text-(--color-text-strong)" : "border-(--color-border) text-(--color-text-secondary) hover:bg-(--color-surface-secondary)"}`;
+  const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+
+  const colonnes: Column<Campagne>[] = [
+    { id: "nom", header: t("Campagne"), mobilePrimary: true, cell: (c) => (
+      <span className="flex items-center gap-2">
+        {c.imageAdUrl && <Thumbnail src={c.imageAdUrl} alt={t("Créatif")} size={40} />}
+        <span className="min-w-0">
+          <span className="block truncate">{t(c.nom)}</span>
+          <span className="block text-xs font-normal text-(--color-text-secondary)">{t(PLATEFORMES.find(p => p.id === c.plateforme)?.label ?? c.plateforme)} · {t(c.objectif)}</span>
+        </span>
+      </span>
+    ) },
+    { id: "statut", header: t("Statut"), cell: (c) => { const st = STATUT_CONFIG[c.statut] || STATUT_CONFIG.brouillon; return <Badge tone={st.tone}>{t(st.label)}</Badge>; } },
+    { id: "impressions", header: t("Impressions"), numeric: true, align: "end", hideOnMobile: true, cell: (c) => c.impressions.toLocaleString(t.loc) },
+    { id: "clics", header: t("Clics"), numeric: true, align: "end", cell: (c) => c.clics.toLocaleString(t.loc) },
+    { id: "ctr", header: t("CTR"), numeric: true, align: "end", hideOnMobile: true, cell: (c) => pourcent(c.clics, c.impressions) },
+    { id: "conversions", header: t("Conv."), numeric: true, align: "end", cell: (c) => c.conversions },
+    { id: "roas", header: t("ROAS"), numeric: true, align: "end", hideOnMobile: true, cell: (c) => c.roas > 0 ? `${c.roas.toFixed(2)}x` : "—" },
+    { id: "budget", header: t("Dépensé / budget"), numeric: true, align: "end", cell: (c) => `${c.depense.toLocaleString(t.loc)} / ${c.budget.toLocaleString(t.loc)} ${t(c.devise)}` },
+    { id: "pays", header: t("Pays cibles"), hideOnMobile: true, cell: (c) => c.ciblePays?.join(", ") || "—" },
+    { id: "actions", header: "", align: "end", cell: (c) => (
+      <span className="inline-flex items-center gap-1">
+        {c.statut === "brouillon" && <Button size="sm" onClick={() => changerStatut(c.id, "active")}>{t("Activer")}</Button>}
+        {c.statut === "active" && <Button size="sm" onClick={() => changerStatut(c.id, "pause")}>{t("Pauser")}</Button>}
+        {c.statut === "pause" && <Button size="sm" onClick={() => changerStatut(c.id, "active")}>{t("Reprendre")}</Button>}
+        <IconButton icon="x" aria-label={t("Supprimer la campagne {0}", c.nom)} onClick={() => supprimer(c.id)} />
+      </span>
+    ) },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {dialogue}
       <PageHeader icon="meta" title={t("Publicité")}
         primaryAction={{ content: t("Nouvelle campagne"), icon: "plus", onAction: () => setShowModal(true) }} />
 
-      {/* KPIs globaux */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard icon={DollarSign} label={t("Total dépensé")} value={`${fmt((stats.totalDepense || 0))}`} color="#F5A623" />
-        <MetricCard icon={Eye} label={t("Impressions totales")} value={(stats.totalImpressions || 0).toLocaleString()} color="#818cf8" />
-        <MetricCard icon={MousePointer} label={t("Clics totaux")} value={(stats.totalClics || 0).toLocaleString()} sub={stats.totalImpressions ? `CTR: ${((stats.totalClics/stats.totalImpressions)*100).toFixed(2)}%` : undefined} color="#60a5fa" />
-        <MetricCard icon={ShoppingCart} label={t("Conversions")} value={stats.totalConversions || 0} sub={stats.roas > 0 ? `ROAS: ${stats.roas.toFixed(2)}x` : undefined} color="#34d399" />
-      </div>
+      <Chiffres items={[
+        { label: t("Total dépensé"), value: fmt(stats.totalDepense || 0) },
+        { label: t("Impressions totales"), value: (stats.totalImpressions || 0).toLocaleString(t.loc) },
+        { label: t("Clics totaux"), value: <>{(stats.totalClics || 0).toLocaleString(t.loc)}{stats.totalImpressions ? <span className="ml-1 text-xs font-normal text-(--color-text-secondary)">{t("CTR {0}", pourcent(stats.totalClics, stats.totalImpressions))}</span> : null}</> },
+        { label: t("Conversions"), value: <>{stats.totalConversions || 0}{stats.roas > 0 ? <span className="ml-1 text-xs font-normal text-(--color-text-secondary)">{t("ROAS {0}x", stats.roas.toFixed(2))}</span> : null}</> },
+      ]} />
 
-      {/* Filtres plateformes */}
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => setFilterPlat("tous")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${filterPlat === "tous" ? "bg-gray-800 text-white border-gray-800" : "bg-white border-gray-200 text-gray-500"}`}>
-          {t("Toutes")}
-        </button>
-        {PLATEFORMES.map(p => (
-          <button key={p.id} onClick={() => setFilterPlat(p.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${filterPlat === p.id ? "text-white border-transparent" : "bg-white border-gray-200 text-gray-500"}`}
-            style={filterPlat === p.id ? { background: p.color } : {}}>
-            <p.Icon size={14} /> {t(p.label)}
-          </button>
-        ))}
-      </div>
-
-      {/* Grille campagnes */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20"><Loader2 size={28} className="text-gray-400 animate-spin" /></div>
-      ) : campagnesFiltrees.length === 0 ? (
-        <div className="bg-[#F9F9F9] border border-dashed border-[#E8E8E8] rounded-[20px] p-16 text-center">
-          <Megaphone size={40} className="text-[#CCCCCC] mx-auto mb-4" />
-          <h3 className="text-[14px] font-semibold text-[#111111] mb-2">{t("Aucune campagne")}</h3>
-          <p className="text-[12.5px] text-[#AAAAAA] mb-6">{t("Créez votre première campagne et laissez l'IA générer les créatifs")}</p>
-          <button onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white mx-auto"
-            style={{ background: "linear-gradient(135deg, #1877F2, #4285F4)" }}>
-            <Sparkles size={15} />{" "}{t("Créer avec l'IA")}
-          </button>
-        </div>
+      {loading ? <Chargement /> : campagnes.length === 0 ? (
+        <EmptyState title={t("Aucune campagne")} image={<IllustrationCampagnes />}
+          actions={<Button variant="primary" icon="sparkle" onClick={() => setShowModal(true)}>{t("Créer avec l'IA")}</Button>}>
+          {t("Créez votre première campagne et laissez l'IA générer les créatifs")}
+        </EmptyState>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {campagnesFiltrees.map(c => (
-            <CampagneCard key={c.id} c={c} onStatut={changerStatut} onDelete={supprimer} />
-          ))}
+        <div className="overflow-hidden rounded-(--radius-xl) bg-(--color-surface) shadow-(--shadow-card)">
+          <Tabs className="px-3" label={t("Plateformes")} selected={filterPlat} onSelect={setFilterPlat}
+            tabs={[{ id: "tous", label: t("Toutes") }, ...PLATEFORMES.map(p => ({ id: p.id, label: t(p.label) }))]} />
+          <IndexTable label={t("Campagnes publicitaires")} rows={campagnesFiltrees} columns={colonnes} getId={(c) => c.id}
+            emptyState={<p className="px-6 py-12 text-center text-(--color-text-secondary)">{t("Aucune campagne sur cette plateforme.")}</p>} />
         </div>
       )}
 
-      {/* Lien tracking info */}
-      <div className="bg-[#F5A623]/8 border border-[#F5A623]/25 rounded-2xl p-5">
-        <div className="flex items-start gap-3">
-          <BarChart2 size={18} className="text-[#D4911A] flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-[#111111]">{t("Pixel Tracking Axso")}</p>
-            <p className="text-xs text-[#666666] mt-1">
-              {t("Votre pixel de tracking est automatiquement actif sur votre boutique. Consultez l'attribution des ventes dans")}{" "}<a href="/dashboard/analytics" className="underline font-medium">{t("Analytics")}</a>.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Banner tone="info" title={t("Pixel Tracking Axso")}>
+        {t("Votre pixel de tracking est automatiquement actif sur votre boutique. Consultez l'attribution des ventes dans")}{" "}<a href="/dashboard/analytics">{t("Analytics")}</a>.
+      </Banner>
 
-      {/* ─── Modal Nouvelle campagne ─── */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-[#F3F3F3]">
-              <div>
-                <h2 className="text-[15px] font-bold text-[#111111]">{t("Nouvelle campagne")}</h2>
-                <p className="text-[12px] text-[#AAAAAA]">{t("L'IA génère les créatifs automatiquement")}</p>
-              </div>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
-            </div>
-
-            <div className="p-6 space-y-5">
-              {/* Plateforme */}
-              <div>
-                <label className="text-[12px] font-semibold text-[#555] block mb-2">{t("Plateforme")}</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {PLATEFORMES.map(p => (
-                    <button key={p.id} onClick={() => setForm(f => ({ ...f, plateforme: p.id }))}
-                      className={`p-3 rounded-xl border text-center transition-all ${form.plateforme === p.id ? "border-2 text-white" : "bg-white border-gray-200"}`}
-                      style={form.plateforme === p.id ? { borderColor: p.color, background: p.color } : {}}>
-                      <div className="flex justify-center mb-1"><p.Icon size={24} style={{ color: form.plateforme === p.id ? "#fff" : p.color }} /></div>
-                      <p className="text-xs font-semibold">{t(p.label)}</p>
-                      <p className="text-[10px] opacity-70">{t(p.desc)}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* IA créatif */}
-              <div className="bg-[#F5A623]/5 border border-[#F5A623]/20 rounded-xl p-4 space-y-3">
-                <label className="text-gray-700 text-sm font-semibold flex items-center gap-2">
-                  <Sparkles size={14} className="text-[#F5A623]" />{" "}{t("Générer les créatifs avec l'IA")}
-                </label>
-                <input value={form.promptIA} onChange={e => setForm(f => ({ ...f, promptIA: e.target.value }))}
-                  placeholder={t("Ex: Vendre mes robes wax premium aux femmes 25-40 ans à Dakar...")}
-                  className={inputClass} />
-                <button onClick={genererCreatifIA} disabled={genIA || !form.promptIA}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #F5A623, #d4820a)" }}>
-                  {genIA ? <><Loader2 size={13} className="animate-spin" />{" "}{t("Génération…")}</> : <><Zap size={13} />{" "}{t("Générer titre + visuel")}</>}
+      <Modal open={showModal} onClose={() => !saving && setShowModal(false)} locked={saving} size="lg" title={t("Nouvelle campagne")}
+        footer={<>
+          <Button onClick={() => setShowModal(false)} disabled={saving}>{t("Annuler")}</Button>
+          <Button variant="primary" onClick={creer} disabled={!form.nom || !form.budget} loading={saving}>{t("Créer la campagne")}</Button>
+        </>}>
+        <div className="space-y-4">
+          <fieldset>
+            <legend className="mb-1 font-semibold text-(--color-text-strong)">{t("Plateforme")}</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {PLATEFORMES.map(p => (
+                <button key={p.id} type="button" aria-pressed={form.plateforme === p.id} onClick={() => set({ plateforme: p.id })} className={choix(form.plateforme === p.id)}>
+                  <span className="block text-[13px]">{t(p.label)}</span>
+                  <span className="block font-normal text-(--color-text-secondary)">{t(p.desc)}</span>
                 </button>
-              </div>
-
-              {/* Infos campagne */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="ax-label block mb-1.5">{t("Nom de la campagne *")}</label>
-                  <input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} placeholder={t("Ex: Soldes Ramadan 2024")} className={inputClass} />
-                </div>
-                <div>
-                  <label className="ax-label block mb-1.5">{t("Budget total *")}</label>
-                  <input type="number" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} placeholder="50000" className={inputClass} />
-                </div>
-                <div>
-                  <label className="ax-label block mb-1.5">{t("Budget journalier")}</label>
-                  <input type="number" value={form.budgetJour} onChange={e => setForm(f => ({ ...f, budgetJour: e.target.value }))} placeholder="5000" className={inputClass} />
-                </div>
-              </div>
-
-              {/* Objectif */}
-              <div>
-                <label className="text-[12px] font-semibold text-[#555] block mb-2">{t("Objectif")}</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {OBJECTIFS.map(o => {
-                    const Icone = o.icon;
-                    return (
-                      <button key={o.id} onClick={() => setForm(f => ({ ...f, objectif: o.id }))}
-                        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-xs ${form.objectif === o.id ? "border-[#F5A623]/50 bg-[#F5A623]/8 text-[#F5A623]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-                        <Icone size={16} />
-                        {t(o.label)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Ciblage pays */}
-              <div>
-                <label className="text-[12px] font-semibold text-[#555] block mb-2">{t("Pays cibles")}</label>
-                <div className="flex flex-wrap gap-2">
-                  {PAYS_AFRIQUE.map(p => (
-                    <button key={p}
-                      onClick={() => setForm(f => ({
-                        ...f,
-                        ciblePays: f.ciblePays.includes(p) ? f.ciblePays.filter(x => x !== p) : [...f.ciblePays, p],
-                      }))}
-                      className={`text-xs px-3 py-1.5 rounded-xl border transition-all font-medium ${form.ciblePays.includes(p) ? "border-[#F5A623] bg-[#F5A623]/10 text-[#F5A623]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-                      {t(PAYS_LABELS[p])}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Créatif IA pré-rempli */}
-              {(form.titreAd || form.imageAdUrl) && (
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {form.imageAdUrl && <img src={form.imageAdUrl} alt={t("Créatif")} className="w-full rounded-xl object-cover aspect-video" />}
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-gray-500 text-xs block mb-1">{t("Titre de l'annonce")}</label>
-                      <input value={form.titreAd} onChange={e => setForm(f => ({ ...f, titreAd: e.target.value }))} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="text-gray-500 text-xs block mb-1">{t("Description")}</label>
-                      <textarea value={form.descriptionAd} onChange={e => setForm(f => ({ ...f, descriptionAd: e.target.value }))} rows={3} className={`${inputClass} resize-none`} />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="ax-label block mb-1.5">{t("URL de destination")}</label>
-                <input value={form.urlDestination} onChange={e => setForm(f => ({ ...f, urlDestination: e.target.value }))} placeholder="https://axsoafrica.com/votre-boutique" className={inputClass} />
-              </div>
-
-              <button onClick={creer} disabled={saving || !form.nom || !form.budget}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #1877F2, #4285F4)" }}>
-                {saving ? <><Loader2 size={16} className="animate-spin" />{" "}{t("Création…")}</> : <><Megaphone size={16} />{" "}{t("Créer la campagne")}</>}
-              </button>
+              ))}
             </div>
+          </fieldset>
+
+          <div className="space-y-2 rounded-(--radius-lg) border border-(--color-magic-border) bg-(--color-magic-bg) p-3">
+            <TextField label={t("Générer les créatifs avec l'IA")} value={form.promptIA} onChange={e => set({ promptIA: e.target.value })}
+              placeholder={t("Ex: Vendre mes robes wax premium aux femmes 25-40 ans à Dakar...")} />
+            <Button size="sm" icon="sparkle" onClick={genererCreatifIA} disabled={!form.promptIA} loading={genIA}>{t("Générer titre + visuel")}</Button>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <TextField className="col-span-2" label={t("Nom de la campagne")} required value={form.nom} onChange={e => set({ nom: e.target.value })} placeholder={t("Ex: Soldes Ramadan 2024")} />
+            <TextField label={t("Budget total")} required type="number" value={form.budget} onChange={e => set({ budget: e.target.value })} placeholder="50000" />
+            <TextField label={t("Budget journalier")} type="number" value={form.budgetJour} onChange={e => set({ budgetJour: e.target.value })} placeholder="5000" />
+          </div>
+
+          <fieldset>
+            <legend className="mb-1 font-semibold text-(--color-text-strong)">{t("Objectif")}</legend>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {OBJECTIFS.map(o => (
+                <button key={o.id} type="button" aria-pressed={form.objectif === o.id} onClick={() => set({ objectif: o.id })} className={choix(form.objectif === o.id)}>{t(o.label)}</button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend className="mb-1 font-semibold text-(--color-text-strong)">{t("Pays cibles")}</legend>
+            <div className="flex flex-wrap gap-2">
+              {PAYS_AFRIQUE.map(p => (
+                <button key={p} type="button" aria-pressed={form.ciblePays.includes(p)} className={choix(form.ciblePays.includes(p))}
+                  onClick={() => set({ ciblePays: form.ciblePays.includes(p) ? form.ciblePays.filter(x => x !== p) : [...form.ciblePays, p] })}>
+                  {t(PAYS_LABELS[p])}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          {(form.titreAd || form.imageAdUrl) && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {form.imageAdUrl && <img src={form.imageAdUrl} alt={t("Créatif")} className="aspect-video w-full rounded-(--radius-lg) border border-(--color-border) object-cover" />}
+              <div className="space-y-3">
+                <TextField label={t("Titre de l'annonce")} value={form.titreAd} onChange={e => set({ titreAd: e.target.value })} />
+                <Textarea label={t("Description")} rows={3} value={form.descriptionAd} onChange={e => set({ descriptionAd: e.target.value })} />
+              </div>
+            </div>
+          )}
+
+          <TextField label={t("URL de destination")} value={form.urlDestination} onChange={e => set({ urlDestination: e.target.value })} placeholder="https://axsoafrica.com/votre-boutique" />
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

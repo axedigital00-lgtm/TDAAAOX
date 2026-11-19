@@ -1,5 +1,5 @@
 "use client";
-import { Badge as AdmBadge, PageHeader } from "@/components/ui/adm";
+import { Badge as AdmBadge, PageHeader, buttonClasses } from "@/components/ui/adm";
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send, Loader2, CheckCircle2, Zap, BrainCircuit,
@@ -43,16 +43,16 @@ function MdText({ text }: { text: string }) {
           <div key={pi}>
             {lines.map((line, li) => {
               // Header
-              if (line.startsWith("### ")) return <h4 key={li} className="font-bold text-[13px] mt-1 text-[#111]">{line.slice(4)}</h4>;
-              if (line.startsWith("## ")) return <h3 key={li} className="font-bold text-[14px] mt-1 text-[#111]">{line.slice(3)}</h3>;
-              if (line.startsWith("# ")) return <h2 key={li} className="font-bold text-[15px] mt-1 text-[#111]">{line.slice(2)}</h2>;
+              if (line.startsWith("### ")) return <h4 key={li} className="font-bold text-[13px] mt-1 text-(--color-text-strong)">{line.slice(4)}</h4>;
+              if (line.startsWith("## ")) return <h3 key={li} className="font-bold text-[14px] mt-1 text-(--color-text-strong)">{line.slice(3)}</h3>;
+              if (line.startsWith("# ")) return <h2 key={li} className="font-bold text-[15px] mt-1 text-(--color-text-strong)">{line.slice(2)}</h2>;
               // Separator
-              if (line.trim() === "---" || line.trim() === "━━━") return <hr key={li} className="border-gray-200 my-1"/>;
+              if (line.trim() === "---" || line.trim() === "━━━") return <hr key={li} className="border-(--color-border) my-1"/>;
               // List item
               if (line.match(/^[-*•]\s/)) {
                 return (
                   <div key={li} className="flex gap-2">
-                    <span className="text-[#F5A623] mt-0.5 flex-shrink-0">·</span>
+                    <span className="text-(--color-magic-text) mt-0.5 flex-shrink-0">·</span>
                     <span>{inlineMarkdown(line.slice(2))}</span>
                   </div>
                 );
@@ -62,7 +62,7 @@ function MdText({ text }: { text: string }) {
                 const match = line.match(/^(\d+)\.\s(.*)/)!;
                 return (
                   <div key={li} className="flex gap-2">
-                    <span className="text-[#F5A623] font-bold text-xs mt-0.5 flex-shrink-0 w-4">{tr(match[1])}.</span>
+                    <span className="text-(--color-magic-text) font-bold text-xs mt-0.5 flex-shrink-0 w-4">{tr(match[1])}.</span>
                     <span>{inlineMarkdown(match[2])}</span>
                   </div>
                 );
@@ -70,11 +70,11 @@ function MdText({ text }: { text: string }) {
               // Media embeds
               if (line.startsWith("[IMAGE:")) {
                 const url = line.slice(7, -1);
-                return <img key={li} src={url} alt={tr("Image générée")} className="rounded-xl max-w-full mt-1 border border-gray-100" style={{ maxHeight: 260 }}/>;
+                return <img key={li} src={url} alt={tr("Image générée")} className="rounded-xl max-w-full mt-1 border border-(--color-border-secondary)" style={{ maxHeight: 260 }}/>;
               }
               if (line.startsWith("[VIDEO:")) {
                 const url = line.slice(7, -1);
-                return <video key={li} src={url} controls className="rounded-xl max-w-full mt-1 border border-gray-100" style={{ maxHeight: 260 }}/>;
+                return <video key={li} src={url} controls className="rounded-xl max-w-full mt-1 border border-(--color-border-secondary)" style={{ maxHeight: 260 }}/>;
               }
               if (line.startsWith("[AUDIO:")) {
                 const url = line.slice(7, -1);
@@ -103,14 +103,14 @@ function inlineMarkdown(text: string): React.ReactNode {
     if (m.index > last) parts.push(<span key={i++}>{text.slice(last, m.index)}</span>);
     const token = m[0];
     if (token.startsWith("**") && token.endsWith("**")) {
-      parts.push(<strong key={i++} className="font-bold text-[#111]">{token.slice(2, -2)}</strong>);
+      parts.push(<strong key={i++} className="font-bold text-(--color-text-strong)">{token.slice(2, -2)}</strong>);
     } else if (token.startsWith("`") && token.endsWith("`")) {
-      parts.push(<code key={i++} className="bg-gray-100 text-[#111111] text-[11px] px-1.5 py-0.5 rounded font-mono">{token.slice(1, -1)}</code>);
+      parts.push(<code key={i++} className="bg-(--color-surface-tertiary) text-(--color-text-strong) text-[11px] px-1.5 py-0.5 rounded font-mono">{token.slice(1, -1)}</code>);
     } else if (token.startsWith("*") && token.endsWith("*")) {
       parts.push(<em key={i++} className="italic">{token.slice(1, -1)}</em>);
     } else if (token.startsWith("[")) {
       const linkMatch = token.match(/\[([^\]]+)\]\(([^)]+)\)/);
-      if (linkMatch) parts.push(<a key={i++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-[#F5A623] underline">{linkMatch[1]}</a>);
+      if (linkMatch) parts.push(<a key={i++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-(--color-magic-text) underline">{linkMatch[1]}</a>);
     }
     last = m.index + token.length;
   }
@@ -153,7 +153,7 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
       if (data.error) setErreur(data.error);
       else setActions(data.actions || []);
       await charger();
-    } catch { setErreur(tr("Pas de connexion : les agents n'ont pas été lancés. Vérifie ton réseau puis réessaie.")); }
+    } catch { setErreur(tr("Pas de connexion : les agents n'ont pas été lancés. Vérifiez votre réseau puis réessayez.")); }
     finally { setLoading(false); }
   };
 
@@ -173,38 +173,37 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
       setObjectifForm(false); setObjectifOk(true);
       setTimeout(() => setObjectifOk(false), 3000);
       await charger();
-    } catch { setErreur(tr("L'objectif n'a pas été créé : vérifie ta connexion puis réessaie.")); }
+    } catch { setErreur(tr("L'objectif n'a pas été créé : vérifiez votre connexion puis réessayez.")); }
   };
 
   const objectifs = etat?.objectifs ?? [];
   const decisions = etat?.decisions ?? [];
 
   return (
-    <div className="absolute inset-0 bg-white z-20 flex flex-col rounded-3xl shadow-2xl overflow-hidden border border-purple-100">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50">
-        <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-purple-600 to-indigo-600">
-          <BrainCircuit size={18} className="text-white"/>
+    <div className="absolute inset-0 bg-(--color-surface) z-20 flex flex-col rounded-xl shadow-(--shadow-modal) overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-(--color-border) bg-(--color-surface)">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-(--color-magic-bg) border border-(--color-magic-border)">
+          <BrainCircuit size={18} className="text-(--color-magic-text)"/>
         </div>
         <div>
-          <p className="font-bold text-[#111111]">{tr("Mode Autonome")}</p>
-          <p className="text-xs text-purple-600">{tr("AXIA coordonne tous les agents en arrière-plan")}</p>
+          <p className="font-bold text-(--color-text-strong)">{tr("Mode Autonome")}</p>
+          <p className="text-xs text-(--color-magic-text)">{tr("AXIA coordonne tous les agents en arrière-plan")}</p>
         </div>
-        <button onClick={onClose} className="ml-auto text-xs text-gray-400 hover:text-gray-700 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-all">
+        <button onClick={onClose} className="ml-auto text-xs text-(--color-text-subdued) hover:text-(--color-text) px-3 py-1.5 rounded-xl hover:bg-(--color-surface-tertiary) transition-all">
           <X size={14}/>
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {erreur && <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-xs text-red-700">{tr(erreur)}</div>}
+        {erreur && <div className="bg-(--banner-critical-bg) border border-(--badge-critical-bg) rounded-xl px-4 py-3 text-xs text-(--color-critical-text)">{tr(erreur)}</div>}
         {objectifOk && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-green-700">
+          <div className="bg-(--banner-success-bg) border border-(--badge-success-bg) rounded-xl px-4 py-3 flex items-center gap-2 text-xs text-(--badge-success-text)">
             <CheckCircle2 size={13}/>{" "}{tr("Objectif créé avec succès !")}
           </div>
         )}
 
         <button onClick={orchestrer} disabled={loading}
-          className="w-full py-3.5 rounded-2xl text-white font-bold text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg"
-          style={{ background: "linear-gradient(135deg, #111111, #333333)", boxShadow: "0 8px 20px rgba(17,17,17,0.3)" }}>
+          className={buttonClasses({ variant: "primary", fullWidth: true, className: "h-10! gap-2" })}>
           {loading ? <><Loader2 size={14} className="animate-spin"/>{" "}{tr("Orchestration en cours…")}</> : <><Zap size={14}/>{" "}{tr("Activer tous les agents maintenant")}</>}
         </button>
 
@@ -219,34 +218,34 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
         {/* Objectifs */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{tr("Objectifs Revenus")}</p>
-            <button onClick={() => setObjectifForm(!objectifForm)} className="text-xs text-purple-600 font-semibold hover:underline flex items-center gap-1">
+            <p className="text-xs font-bold text-(--color-text-secondary) uppercase tracking-wider">{tr("Objectifs Revenus")}</p>
+            <button onClick={() => setObjectifForm(!objectifForm)} className="text-xs text-(--color-magic-text) font-semibold hover:underline flex items-center gap-1">
               <Target size={11}/>{" "}{tr("Ajouter")}
             </button>
           </div>
           {objectifForm && (
-            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 mb-3 space-y-2">
-              <input type="number" value={cible} onChange={e => setCible(e.target.value)} placeholder={tr("Cible en {0}", devise)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-purple-400"/>
-              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-purple-400"/>
+            <div className="bg-(--color-magic-bg) border border-(--color-magic-border) rounded-xl p-3 mb-3 space-y-2">
+              <input type="number" value={cible} onChange={e => setCible(e.target.value)} placeholder={tr("Cible en {0}", devise)} className="w-full text-sm border border-(--color-border) rounded-xl px-3 py-2 focus:outline-none focus:border-(--color-magic-border)"/>
+              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full text-sm border border-(--color-border) rounded-xl px-3 py-2 focus:outline-none focus:border-(--color-magic-border)"/>
               <button onClick={creerObjectif} disabled={!cible || parseFloat(cible) <= 0} className="w-full py-2 bg-purple-600 text-white rounded-xl text-sm font-bold disabled:opacity-50">{tr("Créer l'objectif")}</button>
             </div>
           )}
           {objectifs.length === 0 ? (
-            <div className="text-center py-6 text-[#AAAAAA] text-xs bg-[#F9F9F9] rounded-2xl">{tr("Aucun objectif défini")}</div>
+            <div className="text-center py-6 text-(--color-text-subdued) text-xs bg-(--color-surface-secondary) rounded-xl">{tr("Aucun objectif défini")}</div>
           ) : objectifs.map((obj: any) => {
             const pct = obj.cible > 0 ? Math.min(100, Math.round((obj.actuel / obj.cible) * 100)) : 0;
             return (
               <div key={obj.id} className="ax-card p-3 mb-2">
                 <div className="flex justify-between mb-1.5">
-                  <p className="text-sm font-semibold text-gray-800">{tr(obj.titre)}</p>
-                  <span className="text-xs font-bold" style={{ color: pct >= 100 ? "#16a34a" : "#111111" }}>{pct}%</span>
+                  <p className="text-sm font-semibold text-(--color-text)">{tr(obj.titre)}</p>
+                  <span className="text-xs font-bold" style={{ color: pct >= 100 ? "var(--badge-success-text)" : "var(--color-text-strong)" }}>{pct}%</span>
                 </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#111111,#333333)" }}/>
+                <div className="h-1.5 bg-(--color-surface-tertiary) rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--chart-primary)" }}/>
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-[10px] text-gray-400">{obj.actuel?.toLocaleString()} {tr(obj.devise)}</span>
-                  <span className="text-[10px] text-gray-400">{obj.cible?.toLocaleString()} {tr(obj.devise)}</span>
+                  <span className="text-[10px] text-(--color-text-subdued)">{obj.actuel?.toLocaleString()} {tr(obj.devise)}</span>
+                  <span className="text-[10px] text-(--color-text-subdued)">{obj.cible?.toLocaleString()} {tr(obj.devise)}</span>
                 </div>
               </div>
             );
@@ -255,16 +254,16 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
 
         {decisions.length > 0 && (
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{tr("Décisions récentes")}</p>
+            <p className="text-xs font-bold text-(--color-text-secondary) uppercase tracking-wider mb-3">{tr("Décisions récentes")}</p>
             <div className="space-y-2">
               {decisions.slice(0, 5).map((d: any) => (
-                <div key={d.id} className="flex items-start gap-2.5 bg-purple-50/50 border border-purple-100 rounded-xl p-3">
-                  <Zap size={12} className="text-purple-500 mt-0.5 flex-shrink-0"/>
+                <div key={d.id} className="flex items-start gap-2.5 bg-purple-50/50 border border-(--color-magic-border) rounded-xl p-3">
+                  <Zap size={12} className="text-(--color-magic-text) mt-0.5 flex-shrink-0"/>
                   <div>
-                    <p className="text-xs text-gray-700">{tr(d.description)}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{tr(d.agentId)} · {new Date(d.createdAt).toLocaleDateString(tr.loc)}</p>
+                    <p className="text-xs text-(--color-text)">{tr(d.description)}</p>
+                    <p className="text-[10px] text-(--color-text-subdued) mt-0.5">{tr(d.agentId)} · {new Date(d.createdAt).toLocaleDateString(tr.loc)}</p>
                   </div>
-                  {d.impactEstime && <span className="text-[10px] text-green-600 font-bold ml-auto flex-shrink-0">+{fmt(d.impactEstime)}</span>}
+                  {d.impactEstime && <span className="text-[10px] text-(--badge-success-text) font-bold ml-auto flex-shrink-0">+{fmt(d.impactEstime)}</span>}
                 </div>
               ))}
             </div>
@@ -281,7 +280,7 @@ export default function AgentsPage() {
   const meta = AGENT_META["axia"];
   const [messages, setMessages] = useState<Msg[]>([{
     role: "assistant",
-    content: "Bonjour 👋 Je suis **AXIA**, votre agent IA tout-en-un.\n\nJe peux gérer votre boutique de A à Z : analytics, marketing, stocks, clients, livraisons, revenus — dites-moi simplement ce que vous voulez faire.",
+    content: "Bonjour, je suis **AXIA**, votre agent IA tout-en-un.\n\nJe peux gérer votre boutique de A à Z : analytics, marketing, stocks, clients, livraisons, revenus — dites-moi simplement ce que vous voulez faire.",
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -299,7 +298,7 @@ export default function AgentsPage() {
   // ── Voice input (Web Speech API) ─────────────────────────────────────────
   const toggleVoice = useCallback(() => {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-      toast.error(tr("La dictée vocale n'est pas disponible sur ce navigateur. Écris ton message ou essaie avec Chrome."));
+      toast.error(tr("La dictée vocale n'est pas disponible sur ce navigateur. Écrivez votre message ou essayez avec Chrome."));
       return;
     }
     if (listening) {
@@ -410,7 +409,7 @@ export default function AgentsPage() {
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.streaming) {
-          return [...prev.slice(0, -1), { role: "assistant", content: tr("AXIA n'a pas pu répondre. Vérifie ta connexion puis renvoie ton message.") }];
+          return [...prev.slice(0, -1), { role: "assistant", content: tr("AXIA n'a pas pu répondre. Vérifiez votre connexion puis renvoyez votre message.") }];
         }
         return prev;
       });
@@ -451,29 +450,29 @@ export default function AgentsPage() {
 
             {showSuggestions && (
               <div className="space-y-3 pb-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider text-center">{tr("Que voulez-vous faire ?")}</p>
+                <p className="text-xs font-bold text-(--color-text-subdued) uppercase tracking-wider text-center">{tr("Que voulez-vous faire ?")}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {SUGGESTIONS.map((cat) => (
                     <div key={cat.cat} className="ax-card overflow-hidden">
                       <button
                         onClick={() => setCatOuverte(catOuverte === cat.cat ? null : cat.cat)}
-                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-all"
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-(--color-text) hover:bg-(--color-surface-secondary) transition-all"
                       >
                         <span className="flex items-center gap-1.5">
-                          <cat.Icon size={14} className="text-gray-400"/>
+                          <cat.Icon size={14} className="text-(--color-text-subdued)"/>
                           {tr(cat.cat)}
                         </span>
-                        <ChevronRight size={14} className={`text-gray-400 transition-transform ${catOuverte === cat.cat ? "rotate-90" : ""}`}/>
+                        <ChevronRight size={14} className={`text-(--color-text-subdued) transition-transform ${catOuverte === cat.cat ? "rotate-90" : ""}`}/>
                       </button>
                       {catOuverte === cat.cat && (
-                        <div className="border-t border-gray-50 divide-y divide-gray-50">
+                        <div className="border-t border-gray-50 divide-y divide-(--color-border-secondary)">
                           {cat.items.map((item) => (
                             <button
                               key={item}
                               onClick={() => { setCatOuverte(null); envoyer(item); }}
-                              className="w-full text-left px-4 py-2.5 text-xs text-gray-600 hover:bg-amber-50 hover:text-gray-900 transition-all flex items-center gap-2"
+                              className="w-full text-left px-4 py-2.5 text-xs text-(--color-text-secondary) hover:bg-(--banner-warning-bg) hover:text-(--color-text-strong) transition-all flex items-center gap-2"
                             >
-                              <Sparkles size={10} className="text-[#F5A623] flex-shrink-0"/>
+                              <Sparkles size={10} className="text-(--color-magic-text) flex-shrink-0"/>
                               {tr(item)}
                             </button>
                           ))}
@@ -495,19 +494,19 @@ export default function AgentsPage() {
                       <AgentAvatar3D agentId="axia" size={36} pulse={m.streaming}/>
                     </div>
                   ) : (
-                    <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 mt-1">
-                      <User size={14} className="text-gray-500"/>
+                    <div className="w-8 h-8 rounded-xl bg-(--color-surface-tertiary) flex items-center justify-center flex-shrink-0 mt-1">
+                      <User size={14} className="text-(--color-text-secondary)"/>
                     </div>
                   )}
                   <div className={`flex flex-col gap-1.5 ${estIA ? "max-w-[82%]" : "max-w-[72%]"}`}>
                     {m.imageUrl && (
-                      <img src={m.imageUrl} alt={tr("Pièce jointe")} className="rounded-2xl max-w-[200px] border border-gray-200 mb-1" style={{ maxHeight: 180 }}/>
+                      <img src={m.imageUrl} alt={tr("Pièce jointe")} className="rounded-xl max-w-[200px] border border-(--color-border) mb-1" style={{ maxHeight: 180 }}/>
                     )}
                     <div
-                      className="rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm"
+                      className="rounded-xl px-4 py-3 text-sm leading-relaxed shadow-sm"
                       style={estIA
-                        ? { background: "white", border: `1px solid ${meta.color}18`, color: "#111111" }
-                        : { background: `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`, color: "white" }
+                        ? { background: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-strong)" }
+                        : { background: "var(--color-surface-tertiary)", color: "var(--color-text-strong)" }
                       }
                     >
                       {estIA ? (
@@ -517,7 +516,7 @@ export default function AgentsPage() {
                             <span className="inline-flex gap-0.5 ml-1">
                               {[0, 1, 2].map(k => (
                                 <span key={k} className="w-1.5 h-1.5 rounded-full inline-block"
-                                  style={{ background: meta.color, animation: `dot 1s ${k * 0.2}s ease-in-out infinite` }}/>
+                                  style={{ background: "var(--color-text-subdued)", animation: `dot 1s ${k * 0.2}s ease-in-out infinite` }}/>
                               ))}
                             </span>
                           )}
@@ -536,9 +535,9 @@ export default function AgentsPage() {
                 <div className="flex-shrink-0 mt-1" style={{ filter: `drop-shadow(0 0 8px ${meta.glow})` }}>
                   <AgentAvatar3D agentId="axia" size={36} pulse/>
                 </div>
-                <div className="bg-white border rounded-2xl px-4 py-3 flex items-center gap-2 shadow-sm" style={{ borderColor: meta.color + "25" }}>
-                  <Loader2 size={13} className="animate-spin" style={{ color: meta.color }}/>
-                  <span className="text-sm text-gray-400">{tr("AXIA réfléchit…")}</span>
+                <div className="bg-(--color-surface) border rounded-xl px-4 py-3 flex items-center gap-2 shadow-sm" style={{ borderColor: "var(--color-border)" }}>
+                  <Loader2 size={13} className="animate-spin text-(--color-text-secondary)"/>
+                  <span className="text-sm text-(--color-text-subdued)">{tr("AXIA réfléchit…")}</span>
                 </div>
               </div>
             )}
@@ -546,32 +545,32 @@ export default function AgentsPage() {
           </div>
 
           {/* Zone de saisie */}
-          <div className="flex-shrink-0 p-4 bg-white border-t border-gray-100">
+          <div className="flex-shrink-0 p-4 bg-(--color-surface) border-t border-(--color-border-secondary)">
             {/* Preview image */}
             {pendingImage && (
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className="relative">
-                  <img src={pendingImage} alt={tr("Pièce jointe")} className="w-14 h-14 rounded-xl object-cover border border-gray-200"/>
-                  <button onClick={() => setPendingImage(null)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-700 text-white rounded-full flex items-center justify-center hover:bg-gray-900">
+                  <img src={pendingImage} alt={tr("Pièce jointe")} className="w-14 h-14 rounded-xl object-cover border border-(--color-border)"/>
+                  <button onClick={() => setPendingImage(null)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-700 text-white rounded-full flex items-center justify-center hover:bg-(--color-primary)">
                     <X size={10}/>
                   </button>
                 </div>
-                <span className="text-xs text-gray-400">{tr("Image jointe")}</span>
+                <span className="text-xs text-(--color-text-subdued)">{tr("Image jointe")}</span>
               </div>
             )}
 
             <div
-              className="flex items-end gap-2 rounded-2xl border px-3 py-2.5 transition-all focus-within:border-[#F5A623]/50 focus-within:shadow-sm"
-              style={{ background: "#fafafa", borderColor: "#e5e7eb" }}
+              className="flex items-end gap-2 rounded-xl border px-3 py-2.5 transition-all focus-within:border-(--color-border-strong) focus-within:shadow-sm"
+              style={{ background: "#fdfdfd", borderColor: "var(--color-border-input)" }}
             >
               {/* Image upload */}
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload}/>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5 hover:bg-gray-100 transition-all"
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5 hover:bg-(--color-surface-tertiary) transition-all"
                 title={tr("Joindre une image")}
               >
-                <ImageIcon size={14} className="text-gray-400"/>
+                <ImageIcon size={14} className="text-(--color-text-subdued)"/>
               </button>
 
               <div className="flex-shrink-0 pb-0.5">
@@ -586,7 +585,7 @@ export default function AgentsPage() {
                 placeholder={tr("Parlez à AXIA… (Entrée pour envoyer)")}
                 rows={1}
                 disabled={loading}
-                className="flex-1 bg-transparent text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none resize-none min-w-0"
+                className="flex-1 bg-transparent text-(--color-text-strong) text-sm placeholder:text-(--color-text-subdued) focus:outline-none resize-none min-w-0"
                 style={{ maxHeight: 120 }}
                 onInput={e => {
                   const t = e.target as HTMLTextAreaElement;
@@ -598,10 +597,10 @@ export default function AgentsPage() {
               {/* Voice input */}
               <button
                 onClick={toggleVoice}
-                className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5 transition-all ${listening ? "bg-red-100" : "hover:bg-gray-100"}`}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5 transition-all ${listening ? "bg-(--badge-critical-bg)" : "hover:bg-(--color-surface-tertiary)"}`}
                 title={listening ? tr("Arrêter l'écoute") : tr("Parler à AXIA")}
               >
-                {listening ? <MicOff size={14} className="text-red-500 animate-pulse"/> : <Mic size={14} className="text-gray-400"/>}
+                {listening ? <MicOff size={14} className="text-(--color-critical-text) animate-pulse"/> : <Mic size={14} className="text-(--color-text-subdued)"/>}
               </button>
 
               {/* Send */}
@@ -609,16 +608,16 @@ export default function AgentsPage() {
                 onClick={() => envoyer()}
                 disabled={(!input.trim() && !pendingImage) || loading}
                 className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5 transition-all disabled:opacity-40"
-                style={{ background: (input.trim() || pendingImage) && !loading ? `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)` : "#f3f4f6" }}
+                style={{ background: (input.trim() || pendingImage) && !loading ? "var(--color-primary)" : "var(--color-surface-tertiary)" }}
               >
                 {loading
-                  ? <Loader2 size={13} className="animate-spin text-gray-400"/>
-                  : <Send size={13} className={(input.trim() || pendingImage) ? "text-white" : "text-gray-400"}/>
+                  ? <Loader2 size={13} className="animate-spin text-(--color-text-subdued)"/>
+                  : <Send size={13} className={(input.trim() || pendingImage) ? "text-white" : "text-(--color-text-subdued)"}/>
                 }
               </button>
             </div>
 
-            <p className="text-center text-[10px] text-gray-300 mt-2">
+            <p className="text-center text-[10px] text-(--color-text-subdued) mt-2">
               {tr("AXIA crée des produits, envoie des campagnes, publie sur les réseaux, analyse vos ventes et bien plus.")}
             </p>
           </div>

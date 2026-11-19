@@ -1,9 +1,14 @@
 "use client";
-
+// Automatisations : workflows de relance (panier abandonné, bienvenue, après achat, inactif…).
 import { useEffect, useState } from "react";
-import { Zap, Trash2, Mail, MessageSquare, Phone, ShoppingCart, Hand, Package, Gift, Clock } from "lucide-react";
+import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
-import { PageHeader } from "@/components/ui/adm";
+import {
+  Badge, Button, EmptyState, IconButton, IndexTable, Modal, PageHeader, ResourceList, Select, SettingsRow, TextField, Textarea, Toggle,
+  type Column,
+} from "@/components/ui/adm";
+import { IllustrationCampagnes } from "@/components/ui/illustrations";
+import { Chargement, Chiffres, ErreurChargement, useConfirmationAdm } from "../marketing/kit-marketing";
 
 interface Workflow {
   id: string;
@@ -19,206 +24,138 @@ interface Workflow {
   createdAt: string;
 }
 
-const TYPE_CONFIG: Record<string, { label: string; Icon: any; description: string }> = {
-  panier_abandonne: { label: "Panier abandonné", Icon: ShoppingCart, description: "Relance les visiteurs qui n'ont pas finalisé leur achat" },
-  bienvenue: { label: "Bienvenue", Icon: Hand, description: "Accueille les nouveaux clients avec un message personnalisé" },
-  apres_achat: { label: "Après achat", Icon: Package, description: "Remercie et fidélise après une commande confirmée" },
-  anniversaire: { label: "Anniversaire", Icon: Gift, description: "Felicite tes clients le jour de leur anniversaire" },
-  inactif: { label: "Client inactif", Icon: Clock, description: "Relance les clients sans achat depuis 30+ jours" },
+const TYPE_CONFIG: Record<string, { label: string; description: string }> = {
+  panier_abandonne: { label: "Panier abandonné", description: "Relance les visiteurs qui n'ont pas finalisé leur achat" },
+  bienvenue:        { label: "Bienvenue",        description: "Accueille les nouveaux clients avec un message personnalisé" },
+  apres_achat:      { label: "Après achat",      description: "Remercie et fidélise après une commande confirmée" },
+  anniversaire:     { label: "Anniversaire",     description: "Félicite vos clients le jour de leur anniversaire" },
+  inactif:          { label: "Client inactif",   description: "Relance les clients sans achat depuis 30+ jours" },
 };
-
-const CANAL_ICONS: Record<string, any> = {
-  email: Mail,
-  sms: Phone,
-  whatsapp: MessageSquare,
-};
+const CANAUX: Record<string, string> = { email: "Email", sms: "SMS", whatsapp: "WhatsApp" };
+const FORM_VIDE = { nom: "", type: "panier_abandonne", delaiHeures: 1, canal: "email", sujet: "", message: "" };
 
 export default function AutomationPage() {
   const t = useT();
+  const { confirmer, dialogue } = useConfirmationAdm();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    nom: "", type: "panier_abandonne", delaiHeures: 1,
-    canal: "email", sujet: "", message: "",
-  });
+  const [form, setForm] = useState(FORM_VIDE);
 
-  useEffect(() => {
+  const charger = () => {
+    setLoading(true); setErreur(false);
     fetch("/api/automation")
-      .then((r) => r.json())
+      .then((r) => r.ok ? r.json() : Promise.reject())
       .then((d) => setWorkflows(d.workflows ?? []))
+      .catch(() => setErreur(true))
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(charger, []);
 
   async function saveWorkflow() {
     setSaving(true);
-    const res = await fetch("/api/automation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    if (data.workflow) {
-      setWorkflows((prev) => [data.workflow, ...prev]);
-      setForm({ nom: "", type: "panier_abandonne", delaiHeures: 1, canal: "email", sujet: "", message: "" });
-      setShowForm(false);
-    }
+    const res = await fetch("/api/automation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }).catch(() => null);
+    const data = res?.ok ? await res.json().catch(() => ({})) : {};
     setSaving(false);
+    if (!data.workflow) { toast.error(t("Le workflow n'a pas été créé. Vérifiez les champs et réessayez.")); return; }
+    setWorkflows((prev) => [data.workflow, ...prev]);
+    setForm(FORM_VIDE);
+    setShowForm(false);
+    toast.success(t("Workflow « {0} » créé.", data.workflow.nom));
   }
 
   async function toggleWorkflow(workflow: Workflow) {
-    const res = await fetch("/api/automation", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: workflow.id, actif: !workflow.actif }),
-    });
-    const data = await res.json();
-    if (data.workflow) setWorkflows((prev) => prev.map((w) => w.id === workflow.id ? data.workflow : w));
+    const res = await fetch("/api/automation", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: workflow.id, actif: !workflow.actif }) }).catch(() => null);
+    const data = res?.ok ? await res.json().catch(() => ({})) : {};
+    if (!data.workflow) { toast.error(t("Le changement n'a pas été enregistré. Réessayez.")); return; }
+    setWorkflows((prev) => prev.map((w) => w.id === workflow.id ? data.workflow : w));
   }
 
-  async function deleteWorkflow(id: string) {
-    await fetch(`/api/automation?id=${id}`, { method: "DELETE" });
-    setWorkflows((prev) => prev.filter((w) => w.id !== id));
+  async function deleteWorkflow(w: Workflow) {
+    if (!(await confirmer({ titre: t("Supprimer ce workflow ?"), objet: w.nom, description: t("Plus aucun message ne sera envoyé par ce workflow. Les messages déjà envoyés ne sont pas concernés."), libelleConfirmer: t("Supprimer le workflow") }))) return;
+    const res = await fetch(`/api/automation?id=${w.id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) { toast.error(t("Le workflow n'a pas été supprimé. Réessayez.")); return; }
+    setWorkflows((prev) => prev.filter((x) => x.id !== w.id));
+    toast.success(t("Workflow « {0} » supprimé.", w.nom));
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  const ouvrir = (type?: string) => {
+    if (type) setForm((f) => ({ ...f, type, nom: t(TYPE_CONFIG[type].label) }));
+    setShowForm(true);
+  };
+  const set = (patch: Partial<typeof FORM_VIDE>) => setForm((f) => ({ ...f, ...patch }));
 
-  const activeCount = workflows.filter((w) => w.actif).length;
-  const totalDeclenchements = workflows.reduce((s, w) => s + w.declenchements, 0);
-  const totalConversions = workflows.reduce((s, w) => s + w.conversions, 0);
+  const colonnes: Column<Workflow>[] = [
+    { id: "nom", header: t("Workflow"), mobilePrimary: true, cell: (w) => t(w.nom) },
+    { id: "type", header: t("Type"), cell: (w) => t(TYPE_CONFIG[w.type]?.label ?? w.type) },
+    { id: "canal", header: t("Canal"), hideOnMobile: true, cell: (w) => t(CANAUX[w.canal] ?? w.canal) },
+    { id: "delai", header: t("Délai"), numeric: true, align: "end", cell: (w) => t("{0} h", w.delaiHeures) },
+    { id: "declenchements", header: t("Déclenchements"), numeric: true, align: "end", cell: (w) => w.declenchements },
+    { id: "conversion", header: t("Conversion"), numeric: true, align: "end", hideOnMobile: true,
+      cell: (w) => w.declenchements > 0 ? `${((w.conversions / w.declenchements) * 100).toFixed(1)} %` : "—" },
+    { id: "statut", header: t("Statut"), cell: (w) => <Badge tone={w.actif ? "success" : "neutral"}>{w.actif ? t("Actif") : t("Inactif")}</Badge> },
+    { id: "actions", header: "", align: "end", cell: (w) => (
+      <span className="inline-flex items-center gap-2">
+        <Toggle checked={w.actif} onChange={() => toggleWorkflow(w)} label={w.actif ? t("Désactiver « {0} »", w.nom) : t("Activer « {0} »", w.nom)} />
+        <IconButton icon="x" aria-label={t("Supprimer « {0} »", w.nom)} onClick={() => deleteWorkflow(w)} />
+      </span>
+    ) },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {dialogue}
       <PageHeader icon="bolt" title={t("Automation")}
-        primaryAction={{ content: t("Nouveau workflow"), icon: "plus", onAction: () => setShowForm(true) }} />
+        primaryAction={{ content: t("Nouveau workflow"), icon: "plus", onAction: () => ouvrir() }} />
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-          <p className="text-[11px] text-[#888] mb-1">{t("Workflows actifs")}</p>
-          <p className="text-2xl font-bold text-[#111]">{activeCount}</p>
-        </div>
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-          <p className="text-[11px] text-[#888] mb-1">{t("Déclenchements")}</p>
-          <p className="text-2xl font-bold text-[#111]">{t(totalDeclenchements)}</p>
-        </div>
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-          <p className="text-[11px] text-[#888] mb-1">{t("Conversions")}</p>
-          <p className="text-2xl font-bold" style={{ color: "#10b981" }}>{t(totalConversions)}</p>
-        </div>
-      </div>
+      {erreur ? <ErreurChargement titre={t("Les workflows n'ont pas pu être chargés")} onReessayer={charger} /> : loading ? <Chargement /> : (
+        <>
+          <Chiffres items={[
+            { label: t("Workflows actifs"), value: workflows.filter((w) => w.actif).length },
+            { label: t("Déclenchements"), value: workflows.reduce((s, w) => s + w.declenchements, 0) },
+            { label: t("Conversions"), value: workflows.reduce((s, w) => s + w.conversions, 0) },
+          ]} />
 
-      {/* Templates disponibles */}
-      {!showForm && workflows.length === 0 && (
-        <div>
-          <p className="text-[13px] font-semibold text-[#111] mb-3">{t("Workflows disponibles")}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {Object.entries(TYPE_CONFIG).map(([type, config]) => (
-              <div
-                key={type}
-                className="bg-white border border-[#F0F0F0] rounded-xl p-4 cursor-pointer hover:border-[#F5A623] transition-colors"
-                onClick={() => { setForm((f) => ({ ...f, type, nom: config.label })); setShowForm(true); }}
-              >
-                <div className="flex items-start gap-3">
-                  <config.Icon size={24} className="text-[#F5A623] flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[13px] font-semibold text-[#111]">{t(config.label)}</p>
-                    <p className="text-[11px] text-[#888] mt-0.5">{t(config.description)}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+          {workflows.length === 0 ? (
+            <>
+              <EmptyState title={t("Aucun workflow pour l'instant")} image={<IllustrationCampagnes />}
+                actions={<Button variant="primary" icon="plus" onClick={() => ouvrir()}>{t("Nouveau workflow")}</Button>}>
+                {t("Un workflow envoie un message à vos clients au bon moment, sans que vous ayez à y penser. Choisissez un modèle ci-dessous.")}
+              </EmptyState>
+              <ResourceList>
+                {Object.entries(TYPE_CONFIG).map(([type, c]) => (
+                  <SettingsRow key={type} icon="bolt" title={t(c.label)} subtitle={t(c.description)} onClick={() => ouvrir(type)} />
+                ))}
+              </ResourceList>
+            </>
+          ) : (
+            <div className="overflow-hidden rounded-(--radius-xl) bg-(--color-surface) shadow-(--shadow-card)">
+              <IndexTable label={t("Workflows")} rows={workflows} columns={colonnes} getId={(w) => w.id} />
+            </div>
+          )}
+        </>
       )}
 
-      {/* Formulaire */}
-      {showForm && (
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-          <h3 className="text-[14px] font-semibold text-[#111] mb-4">{t("Nouveau workflow")}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Nom *")}</label>
-              <input className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} />
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Type")}</label>
-              <select className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-                {Object.entries(TYPE_CONFIG).map(([k, v]) => <option key={k} value={k}>{t(v.label)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Canal")}</label>
-              <select className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.canal} onChange={(e) => setForm((f) => ({ ...f, canal: e.target.value }))}>
-                <option value="email">{t("Email")}</option>
-                <option value="sms">SMS</option>
-                <option value="whatsapp">WhatsApp</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Délai de déclenchement (heures)")}</label>
-              <input type="number" className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.delaiHeures} min={0.5} step={0.5} onChange={(e) => setForm((f) => ({ ...f, delaiHeures: Number(e.target.value) }))} />
-            </div>
-            {form.canal === "email" && (
-              <div>
-                <label className="block text-[11px] text-[#888] mb-1">{t("Sujet de l'email")}</label>
-                <input className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.sujet} onChange={(e) => setForm((f) => ({ ...f, sujet: e.target.value }))} />
-              </div>
-            )}
-            <div className="sm:col-span-2">
-              <label className="block text-[11px] text-[#888] mb-1">{t("Message *")}</label>
-              <textarea className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" rows={3} placeholder={t("Bonjour {{nom}}, tu as oublié quelque chose...")} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
-              <p className="text-[10px] text-[#AAA] mt-1">{t("Variables:")}{" "}{t("{{nom}}")}, {t("{{email}}")}, {t("{{montant}}")}, {t("{{boutique}}")}</p>
-            </div>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={saveWorkflow} disabled={saving || !form.nom || !form.message} className="px-4 py-2 rounded-lg text-white text-[13px] font-semibold disabled:opacity-50" style={{ background: "#F5A623" }}>
-              {saving ? t("Enregistrement...") : t("Créer")}
-            </button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-[13px] text-[#666] border border-[#E5E5E5]">{t("Annuler")}</button>
-          </div>
+      <Modal open={showForm} onClose={() => !saving && setShowForm(false)} locked={saving} title={t("Nouveau workflow")}
+        footer={<>
+          <Button onClick={() => setShowForm(false)} disabled={saving}>{t("Annuler")}</Button>
+          <Button variant="primary" onClick={saveWorkflow} disabled={!form.nom || !form.message} loading={saving}>{t("Créer")}</Button>
+        </>}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <TextField label={t("Nom")} required value={form.nom} onChange={(e) => set({ nom: e.target.value })} />
+          <Select label={t("Type")} value={form.type} onChange={(e) => set({ type: e.target.value })}
+            options={Object.entries(TYPE_CONFIG).map(([value, v]) => ({ value, label: t(v.label) }))} />
+          <Select label={t("Canal")} value={form.canal} onChange={(e) => set({ canal: e.target.value })}
+            options={Object.entries(CANAUX).map(([value, label]) => ({ value, label: t(label) }))} />
+          <TextField label={t("Délai de déclenchement (heures)")} type="number" min={0.5} step={0.5} value={form.delaiHeures} onChange={(e) => set({ delaiHeures: Number(e.target.value) })} />
+          {form.canal === "email" && <TextField className="sm:col-span-2" label={t("Sujet de l'email")} value={form.sujet} onChange={(e) => set({ sujet: e.target.value })} />}
+          <Textarea className="sm:col-span-2" label={t("Message")} required rows={3} placeholder={t("Bonjour {{nom}}, vous avez oublié quelque chose...")}
+            value={form.message} onChange={(e) => set({ message: e.target.value })}
+            helpText={t("Variables : {{nom}}, {{email}}, {{montant}}, {{boutique}}")} />
         </div>
-      )}
-
-      {/* Liste workflows */}
-      {workflows.length > 0 && (
-        <div className="space-y-2">
-          {workflows.map((w) => {
-            const tc = TYPE_CONFIG[w.type] ?? { label: w.type, Icon: Zap, description: "" };
-            const CanalIcon = CANAL_ICONS[w.canal] ?? Mail;
-            const cvr = w.declenchements > 0 ? ((w.conversions / w.declenchements) * 100).toFixed(1) : "0";
-            return (
-              <div key={w.id} className={`bg-white border border-[#F0F0F0] rounded-xl p-4 flex items-center gap-4 ${!w.actif ? "opacity-60" : ""}`}>
-                <tc.Icon size={24} className="shrink-0 text-[#F5A623]" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[13px] font-semibold text-[#111] truncate">{t(w.nom)}</p>
-                    <CanalIcon size={11} className="text-[#888] shrink-0" />
-                  </div>
-                  <p className="text-[11px] text-[#888]">{t(tc.label)} · {t(w.delaiHeures)}{t("h ·")}{" "}{t(w.declenchements)}{" "}{t("décl. ·")}{" "}{t(cvr)}% conv.</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => toggleWorkflow(w)}
-                    className="w-8 h-5 rounded-full relative transition-all"
-                    style={{ background: w.actif ? "#10b981" : "#E5E5E5" }}
-                  >
-                    <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all" style={{ left: w.actif ? "14px" : "2px" }} />
-                  </button>
-                  <button onClick={() => deleteWorkflow(w.id)} className="p-1.5 rounded-lg hover:bg-red-50">
-                    <Trash2 size={13} className="text-red-400" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

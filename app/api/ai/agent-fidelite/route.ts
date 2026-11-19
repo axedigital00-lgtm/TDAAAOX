@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refusAgentIA } from "@/lib/permissions-server";
 import { auth } from "@/lib/auth";
+import { depenseMoyenne, estVip, whereVip } from "@/lib/segments-clients";
 import { prisma } from "@/lib/prisma";
 import { emailReel } from "@/lib/email";
 import { Resend } from "resend";
@@ -23,7 +24,7 @@ TES MISSIONS :
 - Transformer les clients satisfaits en ambassadeurs actifs
 
 SEGMENTATION CLIENTS AFRICAINS :
-- VIP (LTV > 50,000 XAF) : traitement royal, accès prioritaire, offres exclusives
+- VIP (au moins 5 commandes, ou 2 × la dépense moyenne de la boutique) : traitement royal, accès prioritaire, offres exclusives
 - Réguliers (2-5 achats) : programme points, offre anniversaire
 - Occasionnels (1 achat > 60j) : campagne réactivation avec code promo
 - Inactifs (> 90j) : dernière chance — offre irrésistible ou abandon
@@ -117,8 +118,9 @@ const executeOutil: (tenantId: string) => ToolExecutor = (tenantId) => async (na
       const il_y_a_90j = new Date(Date.now() - 90 * 24 * 3600 * 1000);
 
 
-      const vip = clients.filter((c) => c.totalDepense >= 50000);
-      const reguliers = clients.filter((c) => c.totalCommandes >= 2 && c.totalDepense < 50000 && c.createdAt >= il_y_a_60j);
+      const moyenne = await depenseMoyenne(tenantId);
+      const vip = clients.filter((c) => estVip(c.totalCommandes, c.totalDepense, moyenne));
+      const reguliers = clients.filter((c) => c.totalCommandes >= 2 && !estVip(c.totalCommandes, c.totalDepense, moyenne) && c.createdAt >= il_y_a_60j);
       const occasionnels = clients.filter((c) => c.totalCommandes === 1 && c.createdAt >= il_y_a_90j && c.createdAt < il_y_a_30j);
       const inactifs30 = clients.filter((c) => c.createdAt < il_y_a_30j && c.createdAt >= il_y_a_60j);
       const inactifs90 = clients.filter((c) => c.createdAt < il_y_a_90j);
@@ -146,7 +148,7 @@ const executeOutil: (tenantId: string) => ToolExecutor = (tenantId) => async (na
     if (name === "actions_vip") {
       const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
       const clientsVIP = await prisma.client.findMany({
-        where: { tenantId, totalDepense: { gte: 50000 } },
+        where: { tenantId, ...whereVip(await depenseMoyenne(tenantId)) },
         orderBy: { totalDepense: "desc" },
         take: 20,
       });
@@ -281,6 +283,7 @@ ${args.remise_exclusive ? `<div style="background:#f0f7ff;padding:15px;border-ra
       const ltv_moyen = clients.length > 0 ? clients.reduce((s, c) => s + c.totalDepense, 0) / clients.length : 0;
       const ltv_top20 = clients.slice(0, Math.ceil(clients.length * 0.2)).reduce((s, c) => s + c.totalDepense, 0);
       const ltv_total = clients.reduce((s, c) => s + c.totalDepense, 0);
+      const moyenneVip = await depenseMoyenne(tenantId);
 
       return {
         succes: true,
@@ -290,7 +293,7 @@ ${args.remise_exclusive ? `<div style="background:#f0f7ff;padding:15px;border-ra
           ltv_moyen: Math.round(ltv_moyen),
           ltv_top_20pct: ltv_top20,
           part_vip_dans_revenu: ltv_total > 0 ? Math.round((ltv_top20 / ltv_total) * 100) : 0,
-          clients_a_fort_potentiel: clients.filter((c) => c.totalCommandes >= 2 && c.totalDepense < 50000).length,
+          clients_a_fort_potentiel: clients.filter((c) => c.totalCommandes >= 2 && !estVip(c.totalCommandes, c.totalDepense, moyenneVip)).length,
           projection_si_1_achat_de_plus: Math.round(clients.length * ltv_moyen * 0.2),
         }),
       };

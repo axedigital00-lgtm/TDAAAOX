@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { refusAgentIA } from "@/lib/permissions-server";
 import { auth } from "@/lib/auth";
+import { depenseMoyenne, whereVip } from "@/lib/segments-clients";
 import { prisma } from "@/lib/prisma";
 import { AVEC_EMAIL_REEL } from "@/lib/email";
 import { Resend } from "resend";
@@ -174,8 +175,7 @@ const executeOutil: ToolExecutor = async (nom, args, tenantId) => {
         } else if (args.destinataires === "inactifs_60j") {
           whereClients.createdAt = { lt: new Date(Date.now() - 60 * 86400000) };
         } else if (args.destinataires === "vip") {
-          const depenseMoy = await prisma.client.aggregate({ where: { tenantId }, _avg: { totalDepense: true } });
-          whereClients.totalDepense = { gte: (depenseMoy._avg.totalDepense ?? 0) * 2 };
+          Object.assign(whereClients, whereVip(await depenseMoyenne(tenantId)));
         } else if (args.destinataires === "nouveaux") {
           whereClients.createdAt = { gte: new Date(Date.now() - 7 * 86400000) };
         }

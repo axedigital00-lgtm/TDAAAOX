@@ -1,5 +1,5 @@
 "use client";
-import { PageHeader, Tabs } from "@/components/ui/adm";
+import { PageHeader, Tabs, buttonClasses } from "@/components/ui/adm";
 import { useState, useRef, useEffect } from "react";
 import {
   Video, Mic, FileText, Zap, Loader2, Play, Download,
@@ -100,22 +100,22 @@ function TabVideo() {
       {/* Config */}
       <div className="space-y-5">
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Décrivez votre vidéo")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Décrivez votre vidéo")}</label>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={4}
             placeholder={tr("Ex: Sac à main en cuir marron pour femme, montrez les détails du cuir, les coutures et la fermeture dorée...")}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50 resize-none" />
+            className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong) resize-none" />
         </div>
 
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Style")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Style")}</label>
           <div className="grid grid-cols-2 gap-2">
             {VIDEO_STYLES.map(s => (
               <button key={s.id} onClick={() => setStyle(s.id)}
-                className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all ${style === s.id ? "border-[#F5A623]/50 bg-[#F5A623]/8" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                <s.Icon size={20} className={style === s.id ? "text-[#F5A623]" : "text-gray-400"} />
+                className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all ${style === s.id ? "border-(--color-border-strong) bg-(--color-surface-selected)" : "border-(--color-border) bg-(--color-surface) hover:border-(--color-border-input)"}`}>
+                <s.Icon size={20} className={style === s.id ? "text-(--color-magic-text)" : "text-(--color-text-subdued)"} />
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">{tr(s.label)}</p>
-                  <p className="text-[11px] text-gray-400">{tr(s.desc)}</p>
+                  <p className="text-sm font-semibold text-(--color-text)">{tr(s.label)}</p>
+                  <p className="text-[11px] text-(--color-text-subdued)">{tr(s.desc)}</p>
                 </div>
               </button>
             ))}
@@ -124,22 +124,22 @@ function TabVideo() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Durée")}</label>
+            <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Durée")}</label>
             <div className="flex gap-2">
               {(["5s", "10s"] as const).map(d => (
                 <button key={d} onClick={() => setDuree(d)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${duree === d ? "bg-[#F5A623] text-white border-[#F5A623]" : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${duree === d ? "bg-(--color-primary) text-white border-(--color-border-strong)" : "bg-(--color-surface) border-(--color-border) text-(--color-text-secondary) hover:border-(--color-border-input)"}`}>
                   {tr(d)}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Format")}</label>
+            <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Format")}</label>
             <div className="flex gap-2">
               {(["16:9", "9:16", "1:1"] as const).map(r => (
                 <button key={r} onClick={() => setRatio(r)}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${ratio === r ? "bg-[#F5A623] text-white border-[#F5A623]" : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${ratio === r ? "bg-(--color-primary) text-white border-(--color-border-strong)" : "bg-(--color-surface) border-(--color-border) text-(--color-text-secondary) hover:border-(--color-border-input)"}`}>
                   {tr(r)}
                 </button>
               ))}
@@ -148,35 +148,34 @@ function TabVideo() {
         </div>
 
         <button onClick={generer} disabled={generating || !prompt.trim()}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)", color: "white", boxShadow: "0 4px 20px rgba(245,166,35,0.3)" }}>
+          className={buttonClasses({ variant: "primary", fullWidth: true, className: "h-10! gap-2" })}>
           {generating ? <><Loader2 size={16} className="animate-spin" />{" "}{tr("Génération en cours…")}</> : <><Film size={16} />{" "}{tr("Générer la vidéo")}</>}
         </button>
 
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs text-(--color-text-subdued)">
           {tr("Génération vidéo IA haute définition")}
         </p>
       </div>
 
       {/* Preview */}
       <div className="flex flex-col">
-        <div className="aspect-video bg-gray-900 rounded-2xl overflow-hidden flex items-center justify-center relative">
+        <div className="aspect-video bg-(--color-primary) rounded-xl overflow-hidden flex items-center justify-center relative">
           {!generating && !video && (
             <div className="text-center">
-              <Film size={40} className="text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">{tr("Votre vidéo apparaîtra ici")}</p>
+              <Film size={40} className="text-(--color-text-secondary) mx-auto mb-3" />
+              <p className="text-(--color-text-secondary) text-sm">{tr("Votre vidéo apparaîtra ici")}</p>
             </div>
           )}
           {generating && !video && (
             <div className="text-center space-y-4 px-8 w-full">
-              <Loader2 size={40} className="text-[#F5A623] animate-spin mx-auto" />
+              <Loader2 size={40} className="text-(--color-magic-text) animate-spin mx-auto" />
               <div>
                 <p className="text-white text-sm font-medium mb-2">{tr("Génération en cours…")}</p>
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                   <div className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${progress}%`, background: "linear-gradient(90deg, #F5A623, #FFD280)" }} />
+                    style={{ width: `${progress}%`, background: "var(--chart-primary)" }} />
                 </div>
-                <p className="text-gray-400 text-xs mt-2">{progress}{tr("% · ~30-60 secondes")}</p>
+                <p className="text-(--color-text-subdued) text-xs mt-2">{progress}{tr("% · ~30-60 secondes")}</p>
               </div>
             </div>
           )}
@@ -188,11 +187,11 @@ function TabVideo() {
         {video?.videoUrl && (
           <div className="mt-4 flex gap-3">
             <a href={video.videoUrl} download target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#F5A623] text-white rounded-xl text-sm font-semibold hover:bg-[#e8950f] transition-all">
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-(--color-primary) text-white rounded-xl text-sm font-semibold hover:bg-(--color-primary-hover) transition-all">
               <Download size={14} />{" "}{tr("Télécharger")}
             </a>
             <button onClick={() => { setVideo(null); setVideoId(null); setGenerating(false); setProgress(0); }}
-              className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm hover:bg-gray-200 transition-all">
+              className="px-4 py-2.5 bg-(--color-surface-tertiary) text-(--color-text-secondary) rounded-xl text-sm hover:bg-(--color-tint-hover) transition-all">
               <RefreshCw size={14} />
             </button>
           </div>
@@ -250,55 +249,54 @@ function TabVoixOff() {
       <div className="space-y-5">
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-gray-600 text-sm font-medium">{tr("Texte à vocaliser")}</label>
-            <span className="text-xs text-gray-400">{texte.length}/5000 caractères</span>
+            <label className="text-(--color-text-secondary) text-sm font-medium">{tr("Texte à vocaliser")}</label>
+            <span className="text-xs text-(--color-text-subdued)">{texte.length}/5000 caractères</span>
           </div>
           <textarea value={texte} onChange={e => setTexte(e.target.value)} rows={6}
             placeholder={tr("Ex: Découvrez notre nouvelle collection de sacs en cuir artisanal. Qualité premium, livraison rapide dans toute l'Afrique de l'Ouest...")}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50 resize-none" />
+            className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong) resize-none" />
         </div>
 
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Voix")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Voix")}</label>
           <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
             {voix.map(v => (
               <button key={v.id} onClick={() => setVoixId(v.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${voixId === v.id ? "border-[#F5A623]/50 bg-[#F5A623]/8" : "border-gray-100 bg-white hover:border-gray-200"}`}>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 to-[#F5A623] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${voixId === v.id ? "border-(--color-border-strong) bg-(--color-surface-selected)" : "border-(--color-border-secondary) bg-(--color-surface) hover:border-(--color-border)"}`}>
+                <div className="w-8 h-8 rounded-full bg-(--color-primary) flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                   {tr(v.nom[0])}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800">{tr(v.nom)}</p>
-                  <p className="text-xs text-gray-400">{v.style} · {v.genre === "F" ? tr("Féminin") : tr("Masculin")}</p>
+                  <p className="text-sm font-semibold text-(--color-text)">{tr(v.nom)}</p>
+                  <p className="text-xs text-(--color-text-subdued)">{v.style} · {v.genre === "F" ? tr("Féminin") : tr("Masculin")}</p>
                 </div>
-                {voixId === v.id && <span className="text-[#F5A623] text-xs font-bold">✓</span>}
+                {voixId === v.id && <span className="text-(--color-magic-text) text-xs font-bold">✓</span>}
               </button>
             ))}
           </div>
         </div>
 
         <button onClick={generer} disabled={generating || !texte.trim()}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #1B2A4A, #3a5480)", boxShadow: "0 4px 20px rgba(124,58,237,0.3)" }}>
+          className={buttonClasses({ variant: "primary", fullWidth: true, className: "h-10! gap-2" })}>
           {generating ? <><Loader2 size={16} className="animate-spin" />{" "}{tr("Génération…")}</> : <><Volume2 size={16} />{" "}{tr("Générer la voix")}</>}
         </button>
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs text-(--color-text-subdued)">
           {tr("Synthèse vocale IA multilingue")}
         </p>
       </div>
 
       <div className="flex flex-col items-center justify-center">
-        <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-8 flex flex-col items-center justify-center min-h-48 gap-4">
+        <div className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl p-8 flex flex-col items-center justify-center min-h-48 gap-4">
           {!audioUrl && !generating && (
             <div className="text-center">
-              <Mic size={40} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-400 text-sm">{tr("Votre audio apparaîtra ici")}</p>
+              <Mic size={40} className="text-(--color-text-subdued) mx-auto mb-3" />
+              <p className="text-(--color-text-subdued) text-sm">{tr("Votre audio apparaîtra ici")}</p>
             </div>
           )}
           {generating && (
             <div className="text-center">
-              <Loader2 size={36} className="text-[#F5A623] animate-spin mx-auto" />
-              <p className="text-gray-500 text-sm mt-3">{tr("Synthèse vocale en cours…")}</p>
+              <Loader2 size={36} className="text-(--color-magic-text) animate-spin mx-auto" />
+              <p className="text-(--color-text-secondary) text-sm mt-3">{tr("Synthèse vocale en cours…")}</p>
             </div>
           )}
           {audioUrl && (
@@ -306,21 +304,21 @@ function TabVoixOff() {
               <div className="flex items-center gap-3">
                 <button onClick={togglePlay}
                   className="w-12 h-12 rounded-full flex items-center justify-center text-white flex-shrink-0 transition-all hover:scale-110"
-                  style={{ background: "linear-gradient(135deg, #1B2A4A, #3a5480)", boxShadow: "0 4px 20px rgba(124,58,237,0.3)" }}>
+                  style={{ background: "var(--color-primary)" }}>
                   {playing ? <Pause size={18} /> : <Play size={18} />}
                 </button>
                 <div className="flex-1">
-                  <div className="h-2 bg-gray-200 rounded-full">
-                    <div className="h-2 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full w-1/3 transition-all" />
+                  <div className="h-2 bg-(--color-tint-hover) rounded-full">
+                    <div className="h-2 bg-(--chart-primary) rounded-full w-1/3 transition-all" />
                   </div>
                 </div>
                 <a href={audioUrl} download="voix-off.wav"
-                  className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all">
+                  className="w-9 h-9 rounded-xl bg-(--color-surface-tertiary) flex items-center justify-center text-(--color-text-secondary) hover:bg-(--color-tint-hover) transition-all">
                   <Download size={14} />
                 </a>
               </div>
               <audio ref={audioRef} src={audioUrl} onEnded={() => setPlaying(false)} className="hidden" />
-              <p className="text-xs text-gray-400 text-center">{tr("Cliquez sur ▶ pour écouter · Icône ↓ pour télécharger")}</p>
+              <p className="text-xs text-(--color-text-subdued) text-center">{tr("Cliquez sur ▶ pour écouter · Icône ↓ pour télécharger")}</p>
             </div>
           )}
         </div>
@@ -384,15 +382,15 @@ Réponds UNIQUEMENT avec le script, aucun commentaire avant/après.`,
     <div className="grid lg:grid-cols-2 gap-6">
       <div className="space-y-5">
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Type de contenu")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Type de contenu")}</label>
           <div className="grid grid-cols-2 gap-2">
             {SCRIPT_TYPES.map(t => (
               <button key={t.id} onClick={() => setType(t.id)}
-                className={`p-3 rounded-xl border text-left transition-all ${type === t.id ? "border-[#F5A623]/50 bg-[#F5A623]/8" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                <p className="text-sm font-semibold text-gray-800">{tr(t.label)}</p>
+                className={`p-3 rounded-xl border text-left transition-all ${type === t.id ? "border-(--color-border-strong) bg-(--color-surface-selected)" : "border-(--color-border) bg-(--color-surface) hover:border-(--color-border-input)"}`}>
+                <p className="text-sm font-semibold text-(--color-text)">{tr(t.label)}</p>
                 <div className="flex gap-1 mt-1">
                   {t.plateformes.map(p => (
-                    <span key={p} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{tr(p)}</span>
+                    <span key={p} className="text-[10px] bg-(--color-surface-tertiary) text-(--color-text-secondary) px-1.5 py-0.5 rounded">{tr(p)}</span>
                   ))}
                 </div>
               </button>
@@ -400,47 +398,46 @@ Réponds UNIQUEMENT avec le script, aucun commentaire avant/après.`,
           </div>
         </div>
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Produit / Service")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Produit / Service")}</label>
           <textarea value={produit} onChange={e => setProduit(e.target.value)} rows={3}
             placeholder={tr("Ex: Crème hydratante au karité naturel, 150ml, prix 8000 FCFA...")}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50 resize-none" />
+            className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong) resize-none" />
         </div>
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Cible (optionnel)")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Cible (optionnel)")}</label>
           <input value={cible} onChange={e => setCible(e.target.value)}
             placeholder={tr("Ex: Femmes 25-40 ans, Dakar et Abidjan...")}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50" />
+            className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong)" />
         </div>
         <button onClick={genererScript} disabled={generating || !produit.trim()}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)" }}>
+          className={buttonClasses({ variant: "primary", fullWidth: true, className: "h-10! gap-2" })}>
           {generating ? <><Loader2 size={16} className="animate-spin" />{" "}{tr("Écriture…")}</> : <><Zap size={16} />{" "}{tr("Générer le script")}</>}
         </button>
       </div>
 
       <div className="flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-gray-600 text-sm font-medium">{tr("Script généré")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium">{tr("Script généré")}</label>
           {script && (
             <button onClick={copier}
-              className="flex items-center gap-1.5 text-xs text-[#F5A623] bg-[#F5A623]/10 px-3 py-1.5 rounded-lg border border-[#F5A623]/20 hover:bg-[#F5A623]/20 transition-all">
+              className="flex items-center gap-1.5 text-xs text-(--color-magic-text) bg-(--color-surface-selected) px-3 py-1.5 rounded-lg border border-(--color-border-strong) hover:bg-(--color-surface-selected) transition-all">
               {copied ? <><Check size={11} />{" "}{tr("Copié !")}</> : <><Copy size={11} />{" "}{tr("Copier")}</>}
             </button>
           )}
         </div>
-        <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-4 min-h-80 overflow-y-auto">
+        <div className="flex-1 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl p-4 min-h-80 overflow-y-auto">
           {generating ? (
-            <div className="flex items-center gap-3 text-gray-400 text-sm">
-              <Loader2 size={18} className="text-[#F5A623] animate-spin flex-shrink-0" />
+            <div className="flex items-center gap-3 text-(--color-text-subdued) text-sm">
+              <Loader2 size={18} className="text-(--color-magic-text) animate-spin flex-shrink-0" />
               <span>{tr("Génération du script…")}</span>
             </div>
           ) : script ? (
-            <pre className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">{tr(script)}</pre>
+            <pre className="text-sm text-(--color-text) whitespace-pre-wrap leading-relaxed font-sans">{tr(script)}</pre>
           ) : (
             <div className="flex items-center justify-center h-full text-center">
               <div>
-                <BookOpen size={32} className="text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">{tr("Votre script apparaîtra ici")}</p>
+                <BookOpen size={32} className="text-(--color-text-subdued) mx-auto mb-2" />
+                <p className="text-(--color-text-subdued) text-sm">{tr("Votre script apparaîtra ici")}</p>
               </div>
             </div>
           )}
@@ -516,16 +513,16 @@ Adapté au marché africain francophone. Style authentique et engageant. Répond
     <div className="grid lg:grid-cols-2 gap-6">
       <div className="space-y-5">
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Plateforme")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Plateforme")}</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {PLATFORMS.map(p => {
               const Icone = p.icon;
               return (
                 <button key={p.id} onClick={() => setPlatform(p.id)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${platform === p.id ? "border-2" : "border-gray-200"}`}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${platform === p.id ? "border-2" : "border-(--color-border)"}`}
                   style={platform === p.id ? { borderColor: p.color, background: p.color + "10" } : {}}>
-                  <Icone size={20} style={{ color: platform === p.id ? p.color : "#9ca3af" }} />
-                  <span className="text-[11px] font-medium" style={{ color: platform === p.id ? p.color : "#6b7280" }}>{tr(p.label)}</span>
+                  <Icone size={20} style={{ color: platform === p.id ? p.color : "var(--color-text-subdued)" }} />
+                  <span className="text-[11px] font-medium" style={{ color: platform === p.id ? p.color : "var(--color-text-secondary)" }}>{tr(p.label)}</span>
                 </button>
               );
             })}
@@ -533,10 +530,10 @@ Adapté au marché africain francophone. Style authentique et engageant. Répond
         </div>
 
         <div>
-          <label className="text-gray-600 text-sm font-medium block mb-2">{tr("Que voulez-vous promouvoir ?")}</label>
+          <label className="text-(--color-text-secondary) text-sm font-medium block mb-2">{tr("Que voulez-vous promouvoir ?")}</label>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={4}
             placeholder={tr("Ex: Notre nouvelle collection de robes wax premium, disponible en 5 couleurs, livraison 24h à Dakar...")}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50 resize-none" />
+            className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong) resize-none" />
         </div>
 
         <button onClick={generer} disabled={generating || !prompt.trim()}
@@ -548,31 +545,31 @@ Adapté au marché africain francophone. Style authentique et engageant. Répond
 
       <div className="space-y-4">
         {!result && !generating && (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-8 text-center">
-            <Sparkles size={32} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">{tr("Votre post + visuel IA apparaîtront ici")}</p>
+          <div className="bg-(--color-surface-secondary) border border-dashed border-(--color-border) rounded-xl p-8 text-center">
+            <Sparkles size={32} className="text-(--color-text-subdued) mx-auto mb-2" />
+            <p className="text-(--color-text-subdued) text-sm">{tr("Votre post + visuel IA apparaîtront ici")}</p>
           </div>
         )}
         {generating && (
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-3">
-            <Loader2 size={32} className="text-[#F5A623] animate-spin" />
-            <p className="text-gray-500 text-sm">{tr("Génération du contenu…")}</p>
+          <div className="bg-(--color-surface-secondary) border border-(--color-border) rounded-xl p-8 flex flex-col items-center gap-3">
+            <Loader2 size={32} className="text-(--color-magic-text) animate-spin" />
+            <p className="text-(--color-text-secondary) text-sm">{tr("Génération du contenu…")}</p>
           </div>
         )}
         {result && (
           <div className="space-y-3">
             {result.imageUrl && (
-              <img src={result.imageUrl} alt={tr("Visuel généré")} className="w-full aspect-square object-cover rounded-2xl" />
+              <img src={result.imageUrl} alt={tr("Visuel généré")} className="w-full aspect-square object-cover rounded-xl" />
             )}
-            <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-              <pre className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">{tr(result.post)}</pre>
+            <div className="bg-(--color-surface) border border-(--color-border) rounded-xl p-4 space-y-3">
+              <pre className="text-sm text-(--color-text) whitespace-pre-wrap leading-relaxed font-sans">{tr(result.post)}</pre>
               <div className="flex flex-wrap gap-1">
                 {result.hashtags?.map((h: string) => (
                   <span key={h} className="text-xs px-2 py-0.5 rounded-full" style={{ background: platInfo?.color + "12", color: platInfo?.color }}>#{tr(h)}</span>
                 ))}
               </div>
               <button onClick={copier}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all">
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-(--color-border) text-sm font-medium text-(--color-text) hover:bg-(--color-surface-secondary) transition-all">
                 {copied ? <><Check size={14} />{" "}{tr("Copié !")}</> : <><Copy size={14} />{" "}{tr("Copier le post")}</>}
               </button>
             </div>

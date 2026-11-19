@@ -8,7 +8,7 @@ import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicato
 import { ClientsTutorial } from "@/components/dashboard/tutorials/ClientsTutorial";
 import { getT } from "@/lib/i18n/serveur";
 import { PAIEMENT } from "@/lib/commandes";
-import { estVip } from "@/lib/segments-clients";
+import { depenseMoyenne, estVip } from "@/lib/segments-clients";
 import { EnTeteModule } from "./EnTeteModule";
 import { ListeClients, type LigneClient } from "./ListeClients";
 import { PAR_PAGE, lireFiltresClients, segmentClient } from "./regles";
@@ -26,7 +26,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
   // Statistiques par agrégat (une ligne par acheteur) au lieu de charger toutes les commandes.
   // ponytail: groupBy en mémoire, trier sur Client.totalDepense une fois ce champ fiable partout.
-  const [totalClients, parClient] = await Promise.all([
+  const [totalClients, parClient, moyenne] = await Promise.all([
     prisma.client.count({ where: { tenantId } }),
     prisma.commande.groupBy({
       by: ["clientId"],
@@ -35,6 +35,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       _count: { _all: true },
       _max: { createdAt: true },
     }),
+    depenseMoyenne(tenantId),
   ]);
   const achats = new Map(parClient.map((g) => [g.clientId as string, { total: g._sum.montantTotal ?? 0, nb: g._count._all, derniere: g._max.createdAt }]));
   const achatsDe = (id: string) => achats.get(id) ?? { total: 0, nb: 0, derniere: null };
@@ -69,7 +70,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
   const lignes: LigneClient[] = liste.map((c) => {
     const a = achatsDe(c.id);
-    const seg = segmentClient(a.nb, a.total, tenant.devise);
+    const seg = segmentClient(a.nb, a.total, moyenne);
     return {
       id: c.id,
       nom: c.nom,
@@ -84,7 +85,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
   const clientsActifs = parClient.length;
   const totalRevenu = parClient.reduce((s, g) => s + (g._sum.montantTotal ?? 0), 0);
-  const vipCount = parClient.filter((g) => estVip(g._count._all, g._sum.montantTotal ?? 0, tenant.devise)).length;
+  const vipCount = parClient.filter((g) => estVip(g._count._all, g._sum.montantTotal ?? 0, moyenne)).length;
   const tauxActifs = totalClients > 0 ? Math.round((clientsActifs / totalClients) * 100) : 0;
 
   return (
@@ -102,7 +103,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         <MetricsStrip period={t("Depuis l'ouverture")} metrics={[
           { id: "total", label: t("Clients"), definition: t("Clients enregistrés dans votre boutique (100 % de votre base clients)."), value: String(totalClients) },
           { id: "actifs", label: t("Clients actifs"), definition: t("Clients avec au moins une commande payée."), value: `${clientsActifs} (${tauxActifs} %)` },
-          { id: "vip", label: t("Clients VIP"), definition: t("5 commandes payées ou plus, ou 100 000 FCFA de dépenses cumulées (converti dans votre devise)."), value: String(vipCount) },
+          { id: "vip", label: t("Clients VIP"), definition: t("Au moins 5 commandes, ou une dépense au moins égale à 2 fois la dépense moyenne de vos clients."), value: String(vipCount) },
           { id: "revenu", label: t("Revenu généré"), definition: t("Montant des commandes payées par vos clients, hors annulées et remboursées."), value: formatMontant(totalRevenu, tenant.devise) },
           { id: "moyen", label: t("Revenu moyen par client"), definition: t("Revenu généré divisé par le nombre de clients actifs."), value: formatMontant(clientsActifs ? totalRevenu / clientsActifs : 0, tenant.devise) },
         ]} />

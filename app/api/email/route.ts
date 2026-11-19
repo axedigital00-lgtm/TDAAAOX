@@ -1,6 +1,7 @@
 // API — Email marketing via Resend + Gmail, avec historique CampagneEmail
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { depenseMoyenne, whereVip } from "@/lib/segments-clients";
 import { prisma } from "@/lib/prisma";
 import { lireConnexion } from "@/lib/connect";
 import { AVEC_EMAIL_REEL, envoyerCampagneEmail } from "@/lib/email";
@@ -15,12 +16,11 @@ const JOUR = 86_400_000;
 const MAX_RESEND = 2000, MAX_GMAIL = 200; // Gmail : un message à la fois, et quota d'environ 500/jour
 
 /** Clients d'un segment, avec un vrai e-mail et pas désinscrits. Mêmes règles pour le compteur et l'envoi.
- *  VIP : au moins deux fois la dépense moyenne de la boutique (un seuil fixe ne valait rien hors XAF/XOF). */
+ *  VIP : règle unique de lib/segments-clients.ts (D27). */
 async function filtreSegment(tenantId: string, segment?: string) {
   const where: Record<string, any> = { tenantId, ...AVEC_EMAIL_REEL, relancesRefuseesLe: null };
   if (segment === "vip") {
-    const { _avg } = await prisma.client.aggregate({ where: { tenantId, totalDepense: { gt: 0 } }, _avg: { totalDepense: true } });
-    where.totalDepense = { gte: Math.max(1, (_avg.totalDepense ?? 0) * 2) };
+    Object.assign(where, whereVip(await depenseMoyenne(tenantId)));
   }
   if (segment === "nouveaux") where.totalCommandes = { lte: 1 };
   // Inactifs : client depuis plus de 30 jours, aucune commande ces 30 derniers jours.

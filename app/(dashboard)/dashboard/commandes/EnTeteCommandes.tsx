@@ -1,6 +1,6 @@
 "use client";
 // En-tête de la liste des commandes : export Excel (ce mois / tout) et tutoriel.
-// « Créer une commande » (commandes provisoires) n'existe pas encore côté back-end (D5 b).
+// « Créer une commande » ouvre une commande provisoire (prise de commande par téléphone / WhatsApp, D28).
 import { useState } from "react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
@@ -40,6 +40,7 @@ export function EnTeteCommandes({ total }: { total: number }) {
     <PageHeader
       icon="orders"
       title={t("Commandes")}
+      primaryAction={{ content: t("Créer une commande"), href: "/dashboard/commandes/brouillons/nouveau" }}
       secondaryActions={[
         { content: t("Exporter ce mois"), icon: "export", disabled: enCours, onAction: () => exporter("mois") },
         { content: `${t("Exporter tout")} (${total})`, icon: "export", disabled: enCours || total === 0, onAction: () => exporter("tout") },

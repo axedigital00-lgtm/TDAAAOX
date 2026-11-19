@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { integrationActive, BIENTOT_DISPONIBLE } from "@/lib/integrations";
 import { auth } from "@/lib/auth";
+import { depenseMoyenne, whereVip } from "@/lib/segments-clients";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -45,8 +46,7 @@ export async function POST(req: NextRequest) {
     // Récupérer les clients selon le segment
     let where: any = { tenantId };
     if (segment === "vip") {
-      const agg = await prisma.client.aggregate({ where: { tenantId }, _avg: { totalDepense: true } });
-      where.totalDepense = { gte: (agg._avg.totalDepense ?? 0) * 2 };
+      Object.assign(where, whereVip(await depenseMoyenne(tenantId)));
     } else if (segment === "inactifs") {
       where.createdAt = { lt: new Date(Date.now() - 30 * 86400000) };
     } else if (segment === "nouveaux") {

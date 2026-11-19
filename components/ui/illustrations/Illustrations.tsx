@@ -1,6 +1,6 @@
 // Illustrations en aplats (§4.3), reprises du prototype (objet ILL, fonctions art*). Décoratives : aria-hidden.
 // États vides : 200×150. Vignettes du fil d'accueil : 280×140 en « slice » (rognées, jamais déformées).
-// Écartées (D3, D5) : Mobile Money, cartes-cadeaux, B2B, blog, catalogues — à ajouter le jour où l'écran existe.
+// Écartées (D3, D5) : Mobile Money, B2B, blog, catalogues — à ajouter le jour où l'écran existe.
 type P = { className?: string };
 
 const Vide = ({ className, children }: P & { children: React.ReactNode }) => (
@@ -88,6 +88,14 @@ export const IllustrationReductions = (p: P) => (
     <ellipse cx={100} cy={128} rx={62} ry={8} fill="#f1f1f1" /><circle cx={100} cy={72} r={50} fill="#fbecd0" />
     <path d="M100 26l9 7 11-1 4 10 10 4-1 11 7 9-7 9 1 11-10 4-4 10-11-1-9 7-9-7-11 1-4-10-10-4 1-11-7-9 7-9-1-11 10-4 4-10 11 1z" fill="#EBA900" />
     <path d="M88 86l24-24" stroke="#0A1A33" strokeWidth={4} strokeLinecap="round" /><circle cx={89} cy={63} r={5} fill="#0A1A33" /><circle cx={111} cy={85} r={5} fill="#0A1A33" />
+  </Vide>
+);
+
+/** Cartes-cadeaux (D28) : objet ILL.gift du prototype. */
+export const IllustrationCartesCadeaux = (p: P) => (
+  <Vide {...p}>
+    <rect x={56} y={34} width={88} height={82} rx={12} fill="#4fb3a9" /><rect x={94} y={34} width={12} height={82} fill="#2f8f85" /><rect x={56} y={70} width={88} height={12} fill="#2f8f85" />
+    <path d="M100 70c-10-18-30-16-26-4 3 8 26 4 26 4zM100 70c10-18 30-16 26-4-3 8-26 4-26 4z" fill="#2f8f85" />
   </Vide>
 );
 

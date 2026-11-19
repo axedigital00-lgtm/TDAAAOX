@@ -180,6 +180,11 @@ export default async function FacturePage({ params }: { params: Promise<{ slug: 
                   <span>{t("Réduction")}</span><span>−{fmt(commande.montantReduction)}</span>
                 </div>
               )}
+              {commande.montantCarteCadeau > 0 && (
+                <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", fontSize:13, color:"#22c55e", borderBottom:"1px solid #F0EDE8" }}>
+                  <span>{t("Carte-cadeau")}</span><span>−{fmt(commande.montantCarteCadeau)}</span>
+                </div>
+              )}
               <div style={{ display:"flex", justifyContent:"space-between", padding:"16px 20px", marginTop:8, background:"linear-gradient(135deg, #1A1A1A, #2D2D2D)", borderRadius:14 }}>
                 <span style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.7)" }}>{t("Total à payer")}</span>
                 <span style={{ fontSize:20, fontWeight:700, color:"#F5A623", fontFamily:"'Playfair Display',serif" }}>{fmt(total)}</span>

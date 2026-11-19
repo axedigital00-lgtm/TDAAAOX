@@ -2,6 +2,7 @@
 import { lienBoutique } from "@/lib/origine-site";
 import { calculerOptionsLivraison, paysDepuisTexte, decrireRegle } from "@/lib/livraison";
 import { lireReglagesLivraison, trouverZone } from "@/lib/livraison-reglages";
+import { depenseMoyenne, whereVip } from "@/lib/segments-clients";
 import { prisma } from "@/lib/prisma";
 import { synchroniserFournisseurs } from "@/lib/sync-fournisseurs";
 import { creerRetour, mettreAJourRetour } from "@/lib/remboursement";
@@ -1704,7 +1705,7 @@ export const executerOutilDirect: ToolExecutor = async (nom, args, tenantId) => 
         if (!resendKey) return { succes: false, resultat: "RESEND_API_KEY manquante" };
         let where: any = { tenantId };
         if (args.destinataires === "inactifs_30j") Object.assign(where, clientsInactifs(30));
-        else if (args.destinataires === "vip") { const agg = await prisma.client.aggregate({ where: { tenantId }, _avg: { totalDepense: true } }); where.totalDepense = { gte: (agg._avg.totalDepense ?? 0) * 2 }; }
+        else if (args.destinataires === "vip") Object.assign(where, whereVip(await depenseMoyenne(tenantId)));
         else if (args.destinataires === "nouveaux") where.createdAt = { gte: new Date(Date.now() - 7 * 86400000) };
         const clients = await prisma.client.findMany({ where: { ...where, ...AVEC_EMAIL_REEL }, select: { email: true, nom: true }, take: 50 });
         if (!clients.length) return { succes: false, resultat: "Aucun client dans ce segment" };

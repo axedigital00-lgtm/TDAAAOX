@@ -1,37 +1,33 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Loader2, X, Sparkles, Send, Users, CheckCircle2, Zap, Smartphone, Crown, Moon, ShoppingCart, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Badge, Bouton, EtatVide, Modale, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
-import { PageHeader } from "@/components/ui/adm";
+import { Badge, Banner, Button, Card, EmptyState, IndexTable, Modal, PageHeader, TextField, Textarea, type Column } from "@/components/ui/adm";
+import { IllustrationCampagnes } from "@/components/ui/illustrations";
+import { Chiffres, useConfirmationAdm } from "../marketing/kit-marketing";
 
 const SEGMENTS = [
-  { id: "tous",     label: "Tous les clients", desc: "Toute votre base clients", Icon: Users    },
-  { id: "vip",      label: "Clients VIP",      desc: "Top dépenseurs (2x moy.)", Icon: Crown    },
-  { id: "inactifs", label: "Clients inactifs", desc: "Pas d'achat depuis 30j+",  Icon: Moon     },
-  { id: "nouveaux", label: "Nouveaux clients", desc: "Inscrits cette semaine",   Icon: UserPlus },
+  { id: "tous",     label: "Tous les clients", desc: "Toute votre base clients" },
+  { id: "vip",      label: "Clients VIP",      desc: "5 commandes ou plus, ou 2× la dépense moyenne" },
+  { id: "inactifs", label: "Clients inactifs", desc: "Pas d'achat depuis 30j+" },
+  { id: "nouveaux", label: "Nouveaux clients", desc: "Inscrits cette semaine" },
 ];
 
 const TEMPLATES = [
   {
     label: "Promo flash",
-    Icon: Zap,
     template: "Bonjour {{nom}} ! Flash sale chez {boutique} : -30% sur tout pendant 24h ! Profitez-en : {lien} 🛍️",
   },
   {
     label: "Nouveau produit",
-    Icon: UserPlus,
     template: "Salut {{nom}} ! Découvrez notre nouveau produit exclusif sur {boutique} ! Quantités limitées 👉 {lien}",
   },
   {
     label: "Relance panier",
-    Icon: ShoppingCart,
     template: "{{nom}}, vous avez oublié quelque chose dans votre panier ! Terminez votre commande avant rupture de stock : {lien} 📦",
   },
   {
     label: "Événement",
-    Icon: Sparkles,
     template: "{{nom}}, grande nouvelle ! Événement spécial sur {boutique} ce weekend. Offres exclusives pour vous 🎁 {lien}",
   },
 ];
@@ -45,7 +41,7 @@ export default function SMSPage() {
   const [histoCampagnes, setHistoCampagnes] = useState<any[]>([]);
   // Faux tant que le prestataire SMS n'est pas branché côté Axso (lib/integrations.ts).
   const [disponible, setDisponible] = useState(true);
-  const { confirmer, dialogue } = useConfirmation();
+  const { confirmer, dialogue } = useConfirmationAdm();
 
   const [form, setForm] = useState({
     nom: "",
@@ -64,11 +60,11 @@ export default function SMSPage() {
       ]);
       if (clientsRes.ok) { const d = await clientsRes.json(); setNbClients(d.segments?.tous || 0); }
       if (campagnesRes.ok) { const d = await campagnesRes.json(); setHistoCampagnes(d.campagnes || []); setDisponible(d.disponible !== false); }
-    } catch { toast.error(tr("Les campagnes n'ont pas pu être chargées. Vérifie ta connexion et actualise la page.")); }
+    } catch { toast.error(tr("Les campagnes n'ont pas pu être chargées. Vérifiez votre connexion et actualisez la page.")); }
   }
 
   async function genererMessage() {
-    if (!form.promptIA.trim()) { toast.error(tr("Décris ta campagne en une phrase pour que l'IA rédige le SMS.")); return; }
+    if (!form.promptIA.trim()) { toast.error(tr("Décrivez votre campagne en une phrase pour que l'IA rédige le SMS.")); return; }
     setGenerating(true);
     try {
       const res = await fetch("/api/ai/universal", {
@@ -87,13 +83,13 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
       if (!res.ok) throw new Error();
       const sms = (data.reponse || "").trim().slice(0, 160);
       setForm(f => ({ ...f, message: sms }));
-      toast.success(tr("Brouillon de SMS rédigé : relis-le avant d'envoyer."));
-    } catch { toast.error(tr("Le SMS n'a pas pu être rédigé. Réessaie ou écris-le toi-même.")); }
+      toast.success(tr("Brouillon de SMS rédigé : relisez-le avant d'envoyer."));
+    } catch { toast.error(tr("Le SMS n'a pas pu être rédigé. Réessayez ou écrivez-le vous-même.")); }
     finally { setGenerating(false); }
   }
 
   async function envoyer() {
-    if (!form.message.trim() || !form.nom) { toast.error(tr("Renseigne le nom de la campagne et le message.")); return; }
+    if (!form.message.trim() || !form.nom) { toast.error(tr("Renseignez le nom de la campagne et le message.")); return; }
     const seg = SEGMENTS.find(s => s.id === form.segment);
     if (!(await confirmer({
       titre: tr("Envoyer cette campagne SMS ?"),
@@ -110,138 +106,102 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
         body: JSON.stringify({ nom: form.nom, message: form.message, segment: form.segment }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "La campagne n'a pas été envoyée. Réessaie dans un instant.");
+      if (!res.ok) throw new Error(data.message || data.error || "La campagne n'a pas été envoyée. Réessayez dans un instant.");
       toast.success(data.message ? tr(data.message) : tr("Campagne « {0} » envoyée.", form.nom));
       setShowModal(false);
       setForm({ nom: "", message: "", segment: "tous", promptIA: "" });
       charger();
     } catch (err: any) {
-      toast.error(err?.message ? tr(err.message) : tr("La campagne n'a pas été envoyée. Réessaie dans un instant."));
+      toast.error(err?.message ? tr(err.message) : tr("La campagne n'a pas été envoyée. Réessayez dans un instant."));
     } finally { setSending(false); }
   }
 
   const charCount = form.message.length;
 
+  const choix = (on: boolean) => `flex flex-col items-start gap-0.5 rounded-(--radius-md) border p-3 text-left transition-colors ${on ? "border-(--color-border-strong) bg-(--color-surface-selected)" : "border-(--color-border) hover:bg-(--color-surface-secondary)"}`;
+  const colonnes: Column<any>[] = [
+    { id: "nom", header: tr("Campagne"), mobilePrimary: true, cell: (c) => c.nom },
+    { id: "segment", header: tr("Destinataires"), cell: (c) => tr(SEGMENTS.find(s => s.id === c.segment)?.label ?? c.segment) },
+    { id: "date", header: tr("Date"), hideOnMobile: true, cell: (c) => new Date(c.createdAt).toLocaleDateString(tr.loc) },
+    { id: "envoyes", header: tr("Envoyés"), numeric: true, align: "end", cell: (c) => c.nbEnvoyes },
+    { id: "statut", header: tr("Statut"), cell: (c) => <Badge tone={c.statut === "envoye" ? "success" : "neutral"}>{c.statut === "envoye" ? tr("Envoyé") : tr("Brouillon")}</Badge> },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {dialogue}
       <PageHeader icon="whatsapp" title={tr("SMS & WhatsApp")}
         primaryAction={{ content: tr(disponible ? "Nouvelle campagne" : "Bientôt disponible"), icon: "plus", onAction: () => setShowModal(true), disabled: !disponible }} />
 
       {!disponible && (
-        <Alerte ton="info" titre={tr("Les campagnes SMS seront bientôt disponibles")}
-          action={<div className="flex flex-wrap gap-2">
-            <Bouton variante="secondaire" taille="compact" href="/dashboard/whatsapp">{tr("Ouvrir WhatsApp")}</Bouton>
-            <Bouton variante="secondaire" taille="compact" href="/dashboard/marketing/email">{tr("Envoyer un e-mail")}</Bouton>
-          </div>}>
-          {tr("L'envoi de SMS n'est pas encore activé sur Axso. En attendant, vous pouvez écrire à vos clients par WhatsApp ou par e-mail.")}
-        </Alerte>
+        <Banner tone="info" title={tr("Les campagnes SMS seront bientôt disponibles")}
+          action={{ content: tr("Ouvrir WhatsApp"), href: "/dashboard/whatsapp" }}>
+          {tr("L'envoi de SMS n'est pas encore activé sur Axso. En attendant, vous pouvez écrire à vos clients par WhatsApp ou par e-mail.")}{" "}
+          <a href="/dashboard/marketing/email">{tr("Envoyer un e-mail")}</a>
+        </Banner>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: "Base clients", val: nbClients, icon: Users, color: "#818cf8" },
-          { label: "Campagnes envoyées", val: histoCampagnes.filter(c => c.statut === "envoye").length, icon: CheckCircle2, color: "#34d399" },
-          { label: "SMS envoyés total", val: histoCampagnes.reduce((s: number, c: any) => s + (c.nbEnvoyes || 0), 0), icon: Send, color: "#F5A623" },
-        ].map(s => {
-          const Icone = s.icon;
-          return (
-            <div key={s.label} className="ax-card p-5">
-              <div className="flex items-center gap-3 mb-1">
-                <div className="w-9 h-9 rounded-controle flex items-center justify-center bg-carte-2" aria-hidden>
-                  <Icone size={16} style={{ color: s.color }} />
-                </div>
-                <p className="text-[20px] font-bold text-encre tabular-nums">{s.val}</p>
-              </div>
-              <p className="ax-aide">{tr(s.label)}</p>
-            </div>
-          );
-        })}
-      </div>
+      <Chiffres items={[
+        { label: tr("Base clients"), value: nbClients },
+        { label: tr("Campagnes envoyées"), value: histoCampagnes.filter(c => c.statut === "envoye").length },
+        { label: tr("SMS envoyés total"), value: histoCampagnes.reduce((s: number, c: any) => s + (c.nbEnvoyes || 0), 0) },
+      ]} />
 
-      {/* Historique */}
       {histoCampagnes.length > 0 ? (
-        <div className="ax-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-bordure">
-            <h2 className="ax-sous-titre">{tr("Campagnes récentes")}</h2>
-          </div>
-          <div className="divide-y divide-bordure">
-            {histoCampagnes.slice(0, 5).map((c: any) => (
-              <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-encre truncate">{c.nom}</p>
-                  <p className="ax-aide">{tr(c.segment)} · {new Date(c.createdAt).toLocaleDateString(tr.loc)}</p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="ax-aide">{c.nbEnvoyes}{" "}{tr("envoyés")}</span>
-                  <Badge ton={c.statut === "envoye" ? "succes" : "neutre"}>{c.statut === "envoye" ? tr("Envoyé") : tr("Brouillon")}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card title={tr("Campagnes récentes")} padding="none">
+          <IndexTable label={tr("Campagnes récentes")} rows={histoCampagnes.slice(0, 5)} columns={colonnes} getId={(c) => c.id} />
+        </Card>
       ) : disponible && (
-        <EtatVide icone={<Send />} titre={tr("Aucune campagne SMS envoyée")}
-          texte={tr("Une campagne SMS envoie un court message à un groupe de clients (tous, VIP, inactifs…).")}>
-          <Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{tr("Nouvelle campagne")}</Bouton>
-        </EtatVide>
+        <EmptyState title={tr("Aucune campagne SMS envoyée")} image={<IllustrationCampagnes />}
+          actions={<Button variant="primary" icon="plus" onClick={() => setShowModal(true)}>{tr("Nouvelle campagne")}</Button>}>
+          {tr("Une campagne SMS envoie un court message à un groupe de clients (tous, VIP, inactifs…).")}
+        </EmptyState>
       )}
 
-      <Modale ouverte={showModal} onFermer={() => setShowModal(false)} verrouillee={sending}
-        titre={tr("Nouvelle campagne SMS")}
-        actions={<>
-          <Bouton variante="secondaire" onClick={() => setShowModal(false)} disabled={sending}>{tr("Annuler")}</Bouton>
-          <Bouton onClick={envoyer} disabled={!form.message || !form.nom || charCount > 160} charge={sending} texteCharge={tr("Envoi en cours…")}
-            icone={<Send className="size-4" aria-hidden />}>{tr("Envoyer la campagne")}</Bouton>
+      <Modal open={showModal} onClose={() => setShowModal(false)} locked={sending} title={tr("Nouvelle campagne SMS")}
+        footer={<>
+          <Button onClick={() => setShowModal(false)} disabled={sending}>{tr("Annuler")}</Button>
+          <Button variant="primary" onClick={envoyer} disabled={!form.message || !form.nom || charCount > 160} loading={sending}>{tr("Envoyer la campagne")}</Button>
         </>}>
-        <div className="space-y-champs">
+        <div className="space-y-3">
           <fieldset>
-            <legend className="ax-libelle mb-2">{tr("Destinataires")}</legend>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <legend className="mb-1 font-semibold text-(--color-text-strong)">{tr("Destinataires")}</legend>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {SEGMENTS.map(s => (
-                <button key={s.id} type="button" aria-pressed={form.segment === s.id} onClick={() => setForm(f => ({ ...f, segment: s.id }))}
-                  className={`flex items-start gap-2.5 p-3 rounded-controle border-2 text-left transition-colors ${form.segment === s.id ? "border-primaire bg-primaire-fond" : "border-bordure hover:border-bordure-forte"}`}>
-                  <s.Icon size={18} aria-hidden className={`flex-shrink-0 mt-0.5 ${form.segment === s.id ? "text-attention" : "text-doux"}`} />
-                  <div>
-                    <p className="text-sm font-semibold text-encre">{tr(s.label)}</p>
-                    <p className="ax-aide">{tr(s.desc)}</p>
-                  </div>
+                <button key={s.id} type="button" aria-pressed={form.segment === s.id} onClick={() => setForm(f => ({ ...f, segment: s.id }))} className={choix(form.segment === s.id)}>
+                  <span className="font-semibold text-(--color-text-strong)">{tr(s.label)}</span>
+                  <span className="text-xs text-(--color-text-secondary)">{tr(s.desc)}</span>
                 </button>
               ))}
             </div>
           </fieldset>
 
-          <Saisie label={tr("Nom de la campagne")} required value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-            placeholder={tr("Ex: Promo Tabaski 2024")} aide={tr("Visible par toi seul, pour retrouver la campagne.")} />
+          <TextField label={tr("Nom de la campagne")} required value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
+            placeholder={tr("Ex: Promo Tabaski 2024")} helpText={tr("Visible par vous seul, pour retrouver la campagne.")} />
 
           <fieldset>
-            <legend className="ax-libelle mb-2">{tr("Modèles")}</legend>
+            <legend className="mb-1 font-semibold text-(--color-text-strong)">{tr("Modèles")}</legend>
             <div className="grid grid-cols-2 gap-2">
               {TEMPLATES.map(t => (
-                <Bouton key={t.label} variante="secondaire" taille="compact" className="justify-start"
-                  onClick={() => setForm(f => ({ ...f, message: t.template }))} icone={<t.Icon className="size-3.5 text-doux" aria-hidden />}>
-                  {tr(t.label)}
-                </Bouton>
+                <Button key={t.label} size="sm" onClick={() => setForm(f => ({ ...f, message: t.template }))}>{tr(t.label)}</Button>
               ))}
             </div>
           </fieldset>
 
-          <div className="rounded-carte border border-bordure bg-carte-2 p-3 space-y-2">
-            <Saisie label={<span className="inline-flex items-center gap-1.5"><Sparkles className="size-3.5" aria-hidden />{tr("Rédiger avec l'IA")}</span>} mention="facultatif"
+          <div className="space-y-2 rounded-(--radius-lg) border border-(--color-magic-border) bg-(--color-magic-bg) p-3">
+            <TextField label={tr("Rédiger avec l'IA (facultatif)")}
               value={form.promptIA} onChange={e => setForm(f => ({ ...f, promptIA: e.target.value }))}
               placeholder={tr("Ex: Promo -25% pour la fête des mères, boutique de mode...")} />
-            <Bouton variante="secondaire" taille="compact" onClick={genererMessage} disabled={!form.promptIA} charge={generating} texteCharge={tr("Rédaction…")}
-              icone={<Zap className="size-3.5" aria-hidden />}>{tr("Rédiger le SMS")}</Bouton>
+            <Button size="sm" icon="sparkle" onClick={genererMessage} disabled={!form.promptIA} loading={generating}>{tr("Rédiger le SMS")}</Button>
           </div>
 
-          <ZoneTexte label={tr("Message SMS")} required rows={4} maxLength={160} value={form.message}
+          <Textarea label={tr("Message SMS")} required rows={4} maxLength={160} value={form.message}
             onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
             placeholder={tr("Votre message SMS... ({{nom}} sera remplacé par le prénom du client)")}
-            aide={<>{tr("Utilisez")}{" "}<code className="bg-carte-2 px-1 rounded">{"{{nom}}"}</code>{" "}{tr("pour personnaliser · 1 SMS = 160 caractères")}{" · "}
-              <span className={charCount > 160 ? "text-erreur font-semibold" : charCount > 130 ? "text-attention font-semibold" : ""}>{charCount}/160</span></>} />
+            helpText={<>{tr("Utilisez {{nom}} pour personnaliser · 1 SMS = 160 caractères")}{" · "}
+              <span className={charCount > 160 ? "font-semibold text-(--color-critical-text)" : charCount > 130 ? "font-semibold text-(--badge-warning-text)" : ""}>{charCount}/160</span></>} />
         </div>
-      </Modale>
+      </Modal>
     </div>
   );
 }

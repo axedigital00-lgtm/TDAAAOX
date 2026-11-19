@@ -12,8 +12,9 @@ const NUMERIQUES = [...TYPES_NUMERIQUES];
 /** Vues (la 1re est la vue par défaut, sans paramètre). Les clés reprennent les anciens ?filtre=. */
 export const VUES: { id: string; label: string; where: Record<string, unknown> }[] = [
   { id: "tous", label: "Tous", where: {} },
-  { id: "actif", label: "En ligne", where: { actif: true } },
-  { id: "inactif", label: "Hors ligne", where: { actif: false } },
+  { id: "actif", label: "Actifs", where: { actif: true } },
+  { id: "inactif", label: "Brouillons", where: { actif: false, archiveLe: null } },
+  { id: "archives", label: "Archivés", where: { archiveLe: { not: null } } },
   { id: "numeriques", label: "Numériques", where: { type: { in: NUMERIQUES } } },
   { id: "faible", label: "Stock faible", where: { actif: true, type: "physique", stock: { gt: 0, lte: SEUIL_STOCK_FAIBLE } } },
   { id: "epuise", label: "En rupture", where: { actif: true, type: "physique", stock: 0 } },
@@ -72,10 +73,12 @@ export function orderByProduits(tri: FiltresProduits["tri"]) {
   return [{ [champ]: tri.ordre }, { id: "desc" as const }];
 }
 
-/** Statut du produit à partir des champs réels (pas de statut « Archivé » en base). */
-export function badgeProduit(p: { actif: boolean; exempleAxia: boolean }): StatutBadge {
-  if (p.exempleAxia && !p.actif) return { label: "Exemple", tone: "info", progress: "none" };
-  return p.actif ? { label: "En ligne", tone: "success", progress: "none" } : { label: "Hors ligne", tone: "neutral", progress: "none" };
+/** Statut du produit (masterprompt §7.2) : Actif success · Brouillon info · Archivé neutral ; exemple d'AXIA à part. */
+export function badgeProduit(p: { actif: boolean; exempleAxia: boolean; archiveLe?: Date | null }): StatutBadge {
+  if (p.actif) return { label: "Actif", tone: "success", progress: "none" };
+  if (p.archiveLe) return { label: "Archivé", tone: "neutral", progress: "none" };
+  if (p.exempleAxia) return { label: "Exemple", tone: "info", progress: "none" };
+  return { label: "Brouillon", tone: "info", progress: "none" };
 }
 
 /** Stock : seuls les produits physiques en ont un. */

@@ -35,7 +35,9 @@ test("orderByProduits : colonne demandée puis id (pagination stable)", () => {
 
 test("badges : statut réel (pas d'« Archivé ») et stock des seuls produits physiques", () => {
   assert.equal(badgeProduit({ actif: true, exempleAxia: false }).tone, "success");
-  assert.equal(badgeProduit({ actif: false, exempleAxia: false }).label, "Hors ligne");
+  assert.equal(badgeProduit({ actif: false, exempleAxia: false }).label, "Brouillon");
+  assert.equal(badgeProduit({ actif: false, exempleAxia: false, archiveLe: new Date() }).label, "Archivé");
+  assert.equal(badgeProduit({ actif: true, exempleAxia: false, archiveLe: null }).label, "Actif");
   assert.equal(badgeProduit({ actif: false, exempleAxia: true }).label, "Exemple");
   assert.equal(badgeStock({ type: "physique", stock: 0, exempleAxia: false })?.tone, "critical");
   assert.equal(badgeStock({ type: "physique", stock: 5, exempleAxia: false })?.tone, "attention");

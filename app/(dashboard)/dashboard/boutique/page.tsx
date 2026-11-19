@@ -23,11 +23,10 @@ import { useT } from "@/components/I18nProvider";
 import { lireReglagesLivraison, normaliserZone, type ZoneLivraison } from "@/lib/livraison-reglages";
 import { BannierePub } from "@/components/dashboard/BannierePub";
 import { CarteAffilies } from "@/components/dashboard/CarteAffilies";
-import { Badge as AdmBadge, Button, Card, CardSection, IconButton, PageHeader, Thumbnail } from "@/components/ui/adm";
-import { Badge, Bouton, BoutonIcone, classesBouton, Champ, Confirmation, EtatErreur, SqueletteListe, Saisie, ZoneTexte, CLASSE_SAISIE } from "@/components/ui";
+import { Badge, Button, Card, CardSection, IconButton, PageHeader, Textarea, TextField, Thumbnail, buttonClasses } from "@/components/ui/adm";
+import { Champ, Confirmation, EtatErreur, SqueletteListe, Saisie, CLASSE_SAISIE } from "@/components/ui";
 
-const CARTE = "rounded-carte border border-bordure bg-carte shadow-carte p-carte space-y-champs";
-const classesBoutonSombre = classesBouton({ variante: "sombre" });
+const CARTE = "rounded-(--radius-xl) bg-(--color-surface) shadow-(--shadow-card) p-4 space-y-4";
 
 const BOUTIQUE_TUTORIAL_STEPS = [
   { Icon: Store,   titre: "Complétez votre profil",        description: "Nom, description, contacts, pays... Chaque champ rempli fait grimper votre score de complétion vers 100%." },
@@ -285,7 +284,7 @@ export default function BoutiquePage() {
       <PageHeader icon="store" title={tr("Boutique en ligne")}
         titleMeta={<span className="flex items-center gap-2">
           <button onClick={() => setSection("avance")} title={tr("Changer le statut de la boutique")} className="rounded-(--radius-md)">
-            <AdmBadge tone={enLigne ? "success" : "attention"}>{enLigne ? tr("En ligne") : tr("En pause")}</AdmBadge>
+            <Badge tone={enLigne ? "success" : "attention"}>{enLigne ? tr("En ligne") : tr("En pause")}</Badge>
           </button>
           {tenant && <PlanBadge plan={tenant.planType} size="sm" />}
         </span>}
@@ -351,7 +350,7 @@ export default function BoutiquePage() {
             </p>
           </div>
           <button onClick={() => { const champ = !savedForm.telephone.trim() ? "telephone" : "adresse"; setSection("infos"); setTimeout(() => { const el = document.querySelector<HTMLInputElement>(`[data-champ="${champ}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus({ preventScroll: true }); }, 50); }}
-            className={"self-start sm:self-center flex-shrink-0 " + (classesBoutonSombre)}>
+            className={buttonClasses({ variant: "primary", className: "self-start sm:self-center flex-shrink-0" })}>
             {tr("Compléter mes coordonnées")}
           </button>
         </div>
@@ -417,9 +416,9 @@ export default function BoutiquePage() {
                   )}
                 </div>
               </div>
-              <ZoneTexte label={tr("Description de la boutique")} value={form.description} onChange={e => set("description", e.target.value)} rows={4}
+              <Textarea label={tr("Description de la boutique")} value={form.description} onChange={e => set("description", e.target.value)} rows={4}
                 placeholder={tr("Décrivez votre boutique, vos produits, votre histoire…")}
-                aide={`${form.description.length} ${tr("caractères — visible sur votre page d'accueil")}`} />
+                helpText={`${form.description.length} ${tr("caractères — visible sur votre page d'accueil")}`} />
             </div>
           )}
 
@@ -459,11 +458,11 @@ export default function BoutiquePage() {
                 <h2 className="ax-titre-section">{tr("Référencement naturel (SEO)")}</h2>
                 <p className="ax-texte-secondaire mt-0.5">{tr("Comment votre boutique apparaît sur Google")}</p>
               </div>
-              <Saisie label={<span className="flex flex-wrap items-center justify-between gap-2">{tr("Titre affiché sur Google")}<LongueurBadge n={form.metaTitle.length} min={30} max={60} /></span>}
-                aide={tr("Idéal : 30 à 60 caractères.")} value={form.metaTitle} onChange={e => set("metaTitle", e.target.value)} maxLength={70}
+              <TextField label={<span className="flex flex-wrap items-center justify-between gap-2">{tr("Titre affiché sur Google")}<LongueurBadge n={form.metaTitle.length} min={30} max={60} /></span>}
+                helpText={tr("Idéal : 30 à 60 caractères.")} value={form.metaTitle} onChange={e => set("metaTitle", e.target.value)} maxLength={70}
                 placeholder={tr("Ex: Mode Aminata - Prêt-à-porter africain")} />
-              <ZoneTexte label={<span className="flex flex-wrap items-center justify-between gap-2">{tr("Description affichée sur Google")}<LongueurBadge n={form.metaDescription.length} min={120} max={160} /></span>}
-                aide={tr("Idéal : 120 à 160 caractères.")} value={form.metaDescription} onChange={e => set("metaDescription", e.target.value)} rows={3} maxLength={180}
+              <Textarea label={<span className="flex flex-wrap items-center justify-between gap-2">{tr("Description affichée sur Google")}<LongueurBadge n={form.metaDescription.length} min={120} max={160} /></span>}
+                helpText={tr("Idéal : 120 à 160 caractères.")} value={form.metaDescription} onChange={e => set("metaDescription", e.target.value)} rows={3} maxLength={180}
                 placeholder={tr("Description visible dans les résultats Google…")} />
               <div className="border border-bordure rounded-controle p-4 bg-carte-2 space-y-1.5">
                 <p className="ax-aide mb-2 flex items-center gap-1.5"><Sparkles size={12} aria-hidden />{" "}{tr("Aperçu Google")}</p>
@@ -485,11 +484,11 @@ export default function BoutiquePage() {
                   const valeur = (form as any)[s.key] as string;
                   return (
                     <div key={s.key} className="flex items-end gap-2">
-                      <Saisie type="url" className="flex-1 min-w-0" label={<span className="inline-flex items-center gap-1.5"><s.Icon size={14} aria-hidden />{s.label}</span>}
+                      <TextField type="url" className="flex-1 min-w-0" label={<span className="inline-flex items-center gap-1.5"><s.Icon size={14} aria-hidden />{s.label}</span>}
                         value={valeur} onChange={e => set(s.key, e.target.value)} placeholder={s.placeholder} />
                       {valeur && (
                         <a href={valeur} target="_blank" rel="noopener noreferrer" aria-label={`${tr("Ouvrir")} ${s.label}`} title={`${tr("Ouvrir")} ${s.label}`}
-                          className={classesBouton({ variante: "secondaire", className: "size-10 px-0 shrink-0" })}>
+                          className={buttonClasses({ className: "w-[30px] px-0! shrink-0" })}>
                           <ExternalLink size={14} aria-hidden />
                         </a>
                       )}
@@ -522,7 +521,7 @@ export default function BoutiquePage() {
                 <div className="grid sm:grid-cols-3 gap-4">
                   <Saisie type="number" label={tr("Tarif standard")} suffixe={tenant?.devise || undefined}
                     value={form.fraisLivraison} onChange={e => set("fraisLivraison", e.target.value)} min="0" inputMode="decimal" />
-                  <Saisie label={tr("Délai standard")} value={form.delaiLivraison} onChange={e => set("delaiLivraison", e.target.value)}
+                  <TextField label={tr("Délai standard")} value={form.delaiLivraison} onChange={e => set("delaiLivraison", e.target.value)}
                     placeholder={tr("Ex : 24 à 48 h")} maxLength={40} />
                   <Saisie type="number" label={tr("Gratuite à partir de")} aide={tr("Montant de commande ; 0 = jamais gratuite.")} suffixe={tenant?.devise || undefined}
                     value={form.livraisonMin} onChange={e => set("livraisonMin", e.target.value)} min="0" inputMode="decimal" />
@@ -560,9 +559,9 @@ export default function BoutiquePage() {
                   <p className="ax-texte-secondaire mt-0.5">{tr("Gérez toutes vos boutiques Axso. Touchez une boutique pour passer dessus.")}</p>
                 </div>
                 {peutCreerBoutique && (
-                  <Bouton variante="sombre" taille="compact" onClick={() => setModalNouvelleBoutique(true)} icone={<Plus size={14} aria-hidden />}>
+                  <Button variant="primary" size="sm" onClick={() => setModalNouvelleBoutique(true)}>{<Plus size={14} aria-hidden />}
                     {tr("Créer une boutique")}
-                  </Bouton>
+                  </Button>
                 )}
               </div>
 
@@ -582,14 +581,14 @@ export default function BoutiquePage() {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-encre leading-tight truncate">{tr(b.nomBoutique)}</p>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <Badge ton="accent">{tr(NOMS_PALIERS[palierDe(b.planType)])}</Badge>
+                            <Badge tone="neutral">{tr(NOMS_PALIERS[palierDe(b.planType)])}</Badge>
                             <span className="text-xs text-doux">{b._count.produits} {tr("produits")}</span>
                           </div>
                         </div>
                         {busy ? (
                           <Loader2 size={16} className="animate-spin text-attention flex-shrink-0" aria-label={tr("Changement de boutique…")} />
                         ) : b.active ? (
-                          <Badge ton="succes">{tr("Boutique actuelle")}</Badge>
+                          <Badge tone="success">{tr("Boutique actuelle")}</Badge>
                         ) : null}
                       </button>
                     );
@@ -642,16 +641,16 @@ export default function BoutiquePage() {
                     <h2 className="ax-titre-section">{tr("Domaine personnalisé")}</h2>
                     <p className="ax-texte-secondaire mt-0.5">{tr("Connectez votre propre nom de domaine")}</p>
                   </div>
-                  <Bouton variante="secondaire" taille="compact" href="/dashboard/parametres/domaine" icone={<ArrowUpRight size={14} aria-hidden />}>
+                  <Button variant="default" size="sm" href="/dashboard/parametres/domaine">{<ArrowUpRight size={14} aria-hidden />}
                     {tr("Configurer le domaine")}
-                  </Bouton>
+                  </Button>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-4 rounded-controle bg-carte-2 border border-bordure flex-wrap">
                   <div className="flex items-center gap-2 min-w-0">
                     <Globe size={14} className="text-doux flex-shrink-0" aria-hidden />
                     <span className="text-sm font-medium text-encre truncate">{tr(tenant?.customDomain) || tr(urlProd) || "votre-boutique.axsoafrica.com"}</span>
                   </div>
-                  <Badge ton={tenant?.customDomain ? "succes" : "neutre"}>{tenant?.customDomain ? tr("Domaine personnalisé") : tr("Adresse AXSO")}</Badge>
+                  <Badge tone={tenant?.customDomain ? "success" : "neutral"}>{tenant?.customDomain ? tr("Domaine personnalisé") : tr("Adresse AXSO")}</Badge>
                 </div>
               </div>
 
@@ -690,9 +689,9 @@ export default function BoutiquePage() {
           <span className="text-sm font-medium flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-primaire animate-pulse shrink-0" aria-hidden />{tr("Modifications non enregistrées")}
           </span>
-          <Bouton onClick={sauvegarder} charge={saving} texteCharge={tr("Enregistrement…")} icone={<Save size={14} aria-hidden />} className="shrink-0">
+          <Button variant="primary" onClick={sauvegarder} loading={saving} className="shrink-0">{<Save size={14} aria-hidden />}
             {tr("Enregistrer")}
-          </Bouton>
+          </Button>
         </div>
       )}
 
@@ -746,8 +745,8 @@ function StatutToggle({ actif, nom, onConfirm, loading }: { actif: boolean; nom:
   return (
     <>
       {actif
-        ? <Bouton variante="danger" onClick={() => setOuverte(true)} charge={loading} icone={<Pause size={14} aria-hidden />}>{tr("Mettre en pause")}</Bouton>
-        : <Bouton onClick={() => setOuverte(true)} charge={loading} icone={<Power size={14} aria-hidden />}>{tr("Réactiver la boutique")}</Bouton>}
+        ? <Button variant="default" onClick={() => setOuverte(true)} loading={loading}>{<Pause size={14} aria-hidden />}{tr("Mettre en pause")}</Button>
+        : <Button variant="primary" onClick={() => setOuverte(true)} loading={loading}>{<Power size={14} aria-hidden />}{tr("Réactiver la boutique")}</Button>}
       <Confirmation ouverte={ouverte} onFermer={() => setOuverte(false)} onConfirmer={onConfirm} objet={nom}
         destructive={actif}
         titre={actif ? tr("Mettre la boutique en pause ?") : tr("Réactiver la boutique ?")}
@@ -765,7 +764,7 @@ function LongueurBadge({ n, min, max }: { n: number; min: number; max: number })
   const ok = n >= min && n <= max;
   const empty = n === 0;
   return (
-    <Badge ton={empty ? "neutre" : ok ? "succes" : "attention"}>{n} / {tr(max)} car.</Badge>
+    <Badge tone={empty ? "neutral" : ok ? "success" : "attention"}>{n} / {tr(max)} car.</Badge>
   );
 }
 
@@ -801,9 +800,9 @@ function ZonesEditor({ zones, onChange, gratuite, zonesAvancees }: { zones: Zone
                 placeholder={tr("Délai")} title={tr("Délai de la zone")} className={CLASSE_SAISIE + " w-28"} />
             </>
           )}
-          <BoutonIcone label={`${tr("Retirer la zone")} ${z.nom}`} onClick={() => onChange(zones.filter((_, j) => j !== i))}>
+          <Button aria-label={`${tr("Retirer la zone")} ${z.nom}`} title={`${tr("Retirer la zone")} ${z.nom}`} className="px-0! w-[30px]" variant="ghost" onClick={() => onChange(zones.filter((_, j) => j !== i))}>
             <X size={15} aria-hidden />
-          </BoutonIcone>
+          </Button>
         </div>
       ))}
       {!zones.length && <p className="ax-aide py-1">{tr("Aucune zone : le client tape simplement sa ville")}</p>}
@@ -811,9 +810,9 @@ function ZonesEditor({ zones, onChange, gratuite, zonesAvancees }: { zones: Zone
         <input value={draft} onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); ajouter(); } }}
           aria-label={tr("Nom de la zone à ajouter")} placeholder={tr("Ajouter une zone : Akwa, Bonapriso…")} maxLength={60} className={CLASSE_SAISIE} />
-        <Bouton variante="sombre" onClick={ajouter} disabled={!draft.trim()} icone={<Plus size={14} aria-hidden />} className="shrink-0">
+        <Button variant="primary" onClick={ajouter} disabled={!draft.trim()} className="shrink-0">{<Plus size={14} aria-hidden />}
           {tr("Ajouter")}
-        </Bouton>
+        </Button>
       </div>
     </div>
   );
@@ -824,13 +823,13 @@ function LivePreview({ form, theme, url }: { form: any; theme: { fond: string; a
   const tr = useT();
   return (
     <div className="ax-card overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-[#F0F0F0] flex items-center gap-2 bg-[#FAFAFA]">
+      <div className="px-4 py-2.5 border-b border-(--color-border-secondary) flex items-center gap-2 bg-(--color-surface-secondary)">
         <div className="flex gap-1 flex-shrink-0">
           <div className="w-2 h-2 rounded-full bg-[#F3B3AC]" />
           <div className="w-2 h-2 rounded-full bg-[#F5D28A]" />
           <div className="w-2 h-2 rounded-full bg-[#A9DFB0]" />
         </div>
-        <div className="flex-1 min-w-0 bg-white border border-[#EFEFEF] rounded-full px-3 py-1 text-[9.5px] leading-tight text-[#AAAAAA] text-center truncate">
+        <div className="flex-1 min-w-0 bg-(--color-surface) border border-[#EFEFEF] rounded-full px-3 py-1 text-[9.5px] leading-tight text-(--color-text-subdued) text-center truncate">
           {url || "votre-boutique.axsoafrica.com"}
         </div>
       </div>
@@ -838,7 +837,7 @@ function LivePreview({ form, theme, url }: { form: any; theme: { fond: string; a
         <div className="h-20 relative flex items-end px-4 pb-3" style={{ background: form.bannerUrl ? undefined : `linear-gradient(135deg, ${theme.accent}30, transparent)` }}>
           {form.bannerUrl && <img src={form.bannerUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.45), transparent)" }} />
-          <div className="relative z-10 w-10 h-10 rounded-2xl overflow-hidden ring-2 flex items-center justify-center flex-shrink-0"
+          <div className="relative z-10 w-10 h-10 rounded-xl overflow-hidden ring-2 flex items-center justify-center flex-shrink-0"
             style={{ background: form.logoUrl ? "#fff" : theme.accent, borderColor: theme.fond }}>
             {form.logoUrl
               ? <img src={form.logoUrl} alt="" className="w-full h-full object-cover" />
@@ -864,8 +863,8 @@ function LivePreview({ form, theme, url }: { form: any; theme: { fond: string; a
           </div>
         </div>
       </div>
-      <div className="px-4 py-2.5 border-t border-[#F0F0F0] flex items-center gap-1.5">
-        <Sparkles size={10} className="text-[#F5A623] flex-shrink-0" />
+      <div className="px-4 py-2.5 border-t border-(--color-border-secondary) flex items-center gap-1.5">
+        <Sparkles size={10} className="text-(--color-magic-text) flex-shrink-0" />
         <p className="text-xs leading-tight text-doux">{tr("Aperçu mis à jour en direct")}</p>
       </div>
     </div>

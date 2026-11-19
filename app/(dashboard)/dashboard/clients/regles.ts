@@ -1,6 +1,6 @@
 // Clients : règles pures (liste, fiche, segments), testées dans tests/adm-clients.test.ts.
 // URL de la liste : ?q= &tri=colonne:ordre &page=
-import { estVip } from "@/lib/segments-clients";
+import { estVip, whereVip } from "@/lib/segments-clients";
 
 export const PAR_PAGE = 50;
 export const TRIS_CLIENTS = ["depense", "nom", "inscrit"] as const;
@@ -21,9 +21,9 @@ export function lireFiltresClients(sp: Params) {
   };
 }
 
-/** Segment d'affichage (badge de la liste et de la fiche) : même seuil VIP que les e-mails marketing. */
-export function segmentClient(nbCommandes: number, total: number, devise: string) {
-  if (estVip(nbCommandes, total, devise)) return { label: "VIP", tone: "info" as const };
+/** Segment d'affichage (badge de la liste et de la fiche) : règle VIP unique (D27). */
+export function segmentClient(nbCommandes: number, total: number, depenseMoyenne: number) {
+  if (estVip(nbCommandes, total, depenseMoyenne)) return { label: "VIP", tone: "info" as const };
   if (nbCommandes >= 2) return { label: "Régulier", tone: "success" as const };
   return { label: "Nouveau", tone: "neutral" as const };
 }
@@ -41,7 +41,7 @@ export function tauxEchecCod(commandes: { methodePaiement: string; statut: strin
 }
 
 /** Segments fixes des campagnes (mêmes règles que app/api/email/route.ts, sans la condition « e-mail valide »).
- *  VIP : au moins deux fois la dépense moyenne de la boutique. Inactifs : client depuis plus de 30 jours,
+ *  VIP : règle unique (D27, lib/segments-clients.ts). Inactifs : client depuis plus de 30 jours,
  *  aucune commande ces 30 derniers jours. Nouveaux : une commande au plus. */
 export const SEGMENTS = ["tous", "vip", "nouveaux", "inactifs"] as const;
 export type Segment = (typeof SEGMENTS)[number];
@@ -49,7 +49,7 @@ const JOUR = 86_400_000;
 
 export function whereSegment(tenantId: string, segment: Segment, depenseMoyenne: number, maintenant = Date.now()) {
   const where: Record<string, unknown> = { tenantId };
-  if (segment === "vip") where.totalDepense = { gte: Math.max(1, depenseMoyenne * 2) };
+  if (segment === "vip") Object.assign(where, whereVip(depenseMoyenne));
   if (segment === "nouveaux") where.totalCommandes = { lte: 1 };
   if (segment === "inactifs") {
     const il30 = new Date(maintenant - 30 * JOUR);

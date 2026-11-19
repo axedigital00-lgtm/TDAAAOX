@@ -7,8 +7,8 @@ import {
   Bold, CheckCircle2, ExternalLink, Eye, Heading2, List, PenLine, RotateCcw, Sparkles,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Badge, Bouton, BoutonIcone, CLASSE_SAISIE, EtatChargement, EtatErreur, ZoneTexte, useConfirmation } from "@/components/ui";
-import { PageHeader } from "@/components/ui/adm";
+import { CLASSE_SAISIE, EtatChargement, EtatErreur, useConfirmation } from "@/components/ui";
+import { Badge, Banner, Button, PageHeader, Textarea } from "@/components/ui/adm";
 import { RenduPolitique } from "@/components/politiques/RenduPolitique";
 import {
   passagesACompleter, statutPolitique, TITRES_POLITIQUES, TYPES_POLITIQUES, type Politiques, type TypePolitique,
@@ -73,12 +73,12 @@ export default function PolitiquesPage() {
         body: JSON.stringify({ action, ...extra }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || d.message || t("Action impossible pour le moment. Réessaie dans un instant."));
+      if (!r.ok) throw new Error(d.error || d.message || t("Action impossible pour le moment. Réessayez dans un instant."));
       setPolitiques(d.politiques);
       if (d.slug) setSlug(d.slug);
       return d.politiques as Politiques;
     } catch (e) {
-      const msg = e instanceof Error && e.message ? e.message : t("Connexion impossible. Vérifie ta connexion internet puis réessaie.");
+      const msg = e instanceof Error && e.message ? e.message : t("Connexion impossible. Vérifiez votre connexion internet puis réessayez.");
       setErreur(msg);
       toast.error(msg);
       return null;
@@ -92,14 +92,14 @@ export default function PolitiquesPage() {
   async function enregistrer() {
     if (await agir("enregistrer", { type: actif, contenu: texte })) {
       oublierSaisie(actif);
-      toast.success(serveur?.valideeLe ? t("Modifications enregistrées. La politique est retirée de ta boutique jusqu'à sa validation.") : t("Modifications enregistrées."));
+      toast.success(serveur?.valideeLe ? t("Modifications enregistrées. La politique est retirée de votre boutique jusqu'à sa validation.") : t("Modifications enregistrées."));
     }
   }
 
   async function valider() {
     if (await agir("valider", { type: actif, contenu: texte })) {
       oublierSaisie(actif);
-      toast.success(t("« {0} » est validée et visible dans ta boutique.", t(TITRES_POLITIQUES[actif])));
+      toast.success(t("« {0} » est validée et visible dans votre boutique.", t(TITRES_POLITIQUES[actif])));
     }
   }
 
@@ -115,14 +115,14 @@ export default function PolitiquesPage() {
       oublierSaisie(actif);
       setConsigne("");
       setConsigneOuverte(false);
-      toast.success(t("Axia a réécrit « {0} ». Relis-la avant de la valider.", t(TITRES_POLITIQUES[actif])));
+      toast.success(t("Axia a réécrit « {0} ». Relisez-la avant de la valider.", t(TITRES_POLITIQUES[actif])));
     }
   }
 
   async function revenir() {
     if (!(await confirmer({
       titre: t("Revenir au brouillon d'Axia ?"), objet: t(TITRES_POLITIQUES[actif]),
-      description: t("Remplacer ton texte de « {0} » par le dernier brouillon d'Axia ?", t(TITRES_POLITIQUES[actif])),
+      description: t("Remplacer votre texte de « {0} » par le dernier brouillon d'Axia ?", t(TITRES_POLITIQUES[actif])),
       libelleConfirmer: t("Revenir au brouillon d'Axia"),
     }))) return;
     if (await agir("revenir", { type: actif })) {
@@ -133,7 +133,7 @@ export default function PolitiquesPage() {
 
   async function redigerTout() {
     const p = await agir("rediger", {});
-    if (p) toast.success(t("Axia a rédigé tes politiques. Relis chacune puis valide-la."));
+    if (p) toast.success(t("Axia a rédigé vos politiques. Relisez chacune puis validez-la."));
   }
 
   // ─── Barre de mise en forme (Markdown simple) ───
@@ -166,11 +166,11 @@ export default function PolitiquesPage() {
   const badge = (k: TypePolitique) => {
     const p = politiques?.[k];
     const s = statutPolitique(saisies[k] !== undefined && p ? { ...p, contenu: saisies[k]!, valideeLe: saisies[k] === p.contenu ? p.valideeLe : null } : p);
-    if (s === "validee") return <Badge ton="succes">{t("Validée")}</Badge>;
-    if (s === "a_completer") return <Badge ton="attention">{t("À compléter")}</Badge>;
-    if (s === "absente") return <Badge ton="neutre">{t("À rédiger")}</Badge>;
+    if (s === "validee") return <Badge tone="success">{t("Validée")}</Badge>;
+    if (s === "a_completer") return <Badge tone="attention">{t("À compléter")}</Badge>;
+    if (s === "absente") return <Badge tone="neutral">{t("À rédiger")}</Badge>;
     const deAxia = (saisies[k] ?? p?.contenu) === p?.brouillonAxia;
-    return <Badge ton={deAxia ? "info" : "neutre"}>{deAxia ? t("Brouillon d'Axia") : t("À valider")}</Badge>;
+    return <Badge tone={deAxia ? "info" : "neutral"}>{deAxia ? t("Brouillon d'Axia") : t("À valider")}</Badge>;
   };
 
   // ─── États chargement / erreur / vide ───
@@ -188,7 +188,7 @@ export default function PolitiquesPage() {
   if (erreurChargement || !politiques) {
     return (
       <div className="p-4 sm:p-6">{entete}
-        <EtatErreur className="max-w-lg" titre={t("Impossible de charger tes politiques.")} texte={t("Vérifie ta connexion internet puis réessaie.")} onReessayer={charger} />
+        <EtatErreur className="max-w-lg" titre={t("Impossible de charger vos politiques.")} texte={t("Vérifiez votre connexion internet puis réessayez.")} onReessayer={charger} />
       </div>
     );
   }
@@ -199,14 +199,14 @@ export default function PolitiquesPage() {
       <div className="p-4 sm:p-6">{entete}
         <div className="rounded-carte border border-bordure bg-carte p-carte max-w-xl">
           <Sparkles className="w-6 h-6 text-attention" aria-hidden />
-          <h2 className="mt-3 ax-sous-titre">{t("Ta boutique n'a pas encore de politiques")}</h2>
+          <h2 className="mt-3 ax-sous-titre">{t("Votre boutique n'a pas encore de politiques")}</h2>
           <p className="ax-texte-secondaire mt-1">
-            {t("Axia rédige les 4 politiques (livraison, retours et remboursements, confidentialité, conditions de vente) avec tes réglages réels : zones, tarifs, moyens de paiement et coordonnées. Ce qu'il ne connaît pas sera surligné en jaune pour que tu le complètes. Rien n'est publié sans ta validation.")}
+            {t("Axia rédige les 4 politiques (livraison, retours et remboursements, confidentialité, conditions de vente) avec vos réglages réels : zones, tarifs, moyens de paiement et coordonnées. Ce qu'il ne connaît pas sera surligné pour que vous le complétiez. Rien n'est publié sans votre validation.")}
           </p>
           {erreur && <p className="mt-3 ax-erreur-champ" role="alert">{erreur}</p>}
-          <Bouton className="mt-4" onClick={redigerTout} charge={occupe === "rediger"} texteCharge={t("Axia rédige tes politiques…")} icone={<Sparkles className="w-4 h-4" aria-hidden />}>
+          <Button variant="primary" className="mt-4" onClick={redigerTout} loading={occupe === "rediger"}>{<Sparkles className="w-4 h-4" aria-hidden />}
             {t("Faire rédiger mes politiques par Axia")}
-          </Bouton>
+          </Button>
         </div>
       </div>
     );
@@ -237,37 +237,38 @@ export default function PolitiquesPage() {
         <section className={`rounded-carte border border-bordure bg-carte p-4 min-w-0 ${vueMobile === "apercu" ? "hidden lg:block" : ""}`}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h2 className="ax-titre-section">{t(TITRES_POLITIQUES[actif])}</h2>
-            <Bouton variante="secondaire" taille="compact" className="lg:hidden" onClick={() => setVueMobile("apercu")} icone={<Eye className="w-4 h-4" aria-hidden />}>{t("Aperçu client")}</Bouton>
+            <Button variant="default" size="sm" className="lg:hidden" onClick={() => setVueMobile("apercu")}>{<Eye className="w-4 h-4" aria-hidden />}{t("Aperçu client")}</Button>
           </div>
 
           {valide && (
-            <Alerte ton="succes" className="mt-3" titre={t("Validée et visible dans ta boutique.")}
-              action={lienVitrine ? <a href={lienVitrine} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold underline inline-flex items-center gap-1">{t("Voir dans la boutique")} <ExternalLink className="w-3.5 h-3.5" aria-hidden /></a> : undefined}>
-              {t("Si tu la modifies, elle sera retirée de ta boutique jusqu'à ce que tu la valides à nouveau.")}
-            </Alerte>
+            <Banner tone="success" className="mt-3" title={t("Validée et visible dans votre boutique.")}
+>
+              {t("Si vous la modifiez, elle sera retirée de votre boutique jusqu'à ce que vous la validiez à nouveau.")}
+              {lienVitrine && <> <a href={lienVitrine} target="_blank" rel="noopener noreferrer" className="font-[550] inline-flex items-center gap-1">{t("Voir dans la boutique")} <ExternalLink className="w-3.5 h-3.5" aria-hidden /></a></>}
+            </Banner>
           )}
           {modifie && serveur?.valideeLe && (
-            <Alerte ton="attention" className="mt-3" titre={t("Tu modifies une politique publiée.")}>
-              {t("Dès que tu enregistres, elle est retirée de ta boutique jusqu'à ce que tu la valides à nouveau.")}
-            </Alerte>
+            <Banner tone="warning" className="mt-3" title={t("Vous modifiez une politique publiée.")}>
+              {t("Dès que vous enregistrez, elle est retirée de votre boutique jusqu'à ce que vous la validiez à nouveau.")}
+            </Banner>
           )}
 
           {!serveur?.contenu.trim() && !modifie ? (
             <div className="mt-4 rounded-controle border border-dashed border-bordure p-4">
-              <p className="ax-texte-secondaire">{t("Cette politique n'est pas encore rédigée. Écris-la toi-même ou laisse Axia préparer un brouillon avec tes réglages réels.")}</p>
+              <p className="ax-texte-secondaire">{t("Cette politique n'est pas encore rédigée. Écrivez-la vous-même ou laissez Axia préparer un brouillon avec vos réglages réels.")}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Bouton variante="secondaire" onClick={() => setSaisies((s) => ({ ...s, [actif]: "## " }))} icone={<PenLine className="w-4 h-4" aria-hidden />}>{t("Écrire moi-même")}</Bouton>
-                <Bouton onClick={reecrire} disabled={enCours && occupe !== "rediger"} charge={occupe === "rediger"} texteCharge={t("Axia rédige…")} icone={<Sparkles className="w-4 h-4" aria-hidden />}>
+                <Button variant="default" onClick={() => setSaisies((s) => ({ ...s, [actif]: "## " }))}>{<PenLine className="w-4 h-4" aria-hidden />}{t("Écrire moi-même")}</Button>
+                <Button variant="primary" onClick={reecrire} disabled={enCours && occupe !== "rediger"} loading={occupe === "rediger"}>{<Sparkles className="w-4 h-4" aria-hidden />}
                   {t("Faire rédiger par Axia")}
-                </Bouton>
+                </Button>
               </div>
             </div>
           ) : (
             <>
               <div className="mt-3 flex items-center gap-1 rounded-t-controle border border-b-0 border-bordure bg-carte-2 p-1">
-                <BoutonIcone label={t("Titre")} onClick={() => prefixerLigne("## ")}><Heading2 className="w-4 h-4" aria-hidden /></BoutonIcone>
-                <BoutonIcone label={t("Liste")} onClick={() => prefixerLigne("- ")}><List className="w-4 h-4" aria-hidden /></BoutonIcone>
-                <BoutonIcone label={t("Gras")} onClick={gras}><Bold className="w-4 h-4" aria-hidden /></BoutonIcone>
+                <Button aria-label={t("Titre")} title={t("Titre")} className="px-0! w-[30px]" variant="ghost" onClick={() => prefixerLigne("## ")}><Heading2 className="w-4 h-4" aria-hidden /></Button>
+                <Button aria-label={t("Liste")} title={t("Liste")} className="px-0! w-[30px]" variant="ghost" onClick={() => prefixerLigne("- ")}><List className="w-4 h-4" aria-hidden /></Button>
+                <Button aria-label={t("Gras")} title={t("Gras")} className="px-0! w-[30px]" variant="ghost" onClick={gras}><Bold className="w-4 h-4" aria-hidden /></Button>
                 <span className="ml-auto pr-2 text-xs text-doux hidden sm:inline">{t("## titre · - liste · **gras**")}</span>
               </div>
               <label htmlFor="texte-politique" className="sr-only">{t("Texte de la politique")}</label>
@@ -289,40 +290,40 @@ export default function PolitiquesPage() {
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-2 ax-aide">{t("Remplace chaque passage entre crochets par la bonne information. Ils ne sont jamais montrés à tes clients.")}</p>
+                  <p className="mt-2 ax-aide">{t("Remplacez chaque passage entre crochets par la bonne information. Ils ne sont jamais montrés à vos clients.")}</p>
                 </div>
               )}
 
               {erreur && <p className="mt-3 ax-erreur-champ" role="alert">{erreur}</p>}
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <Bouton onClick={valider} disabled={(enCours && occupe !== "valider") || passages.length > 0 || !texte.trim() || valide} charge={occupe === "valider"}
-                  title={passages.length ? t("Complète d'abord les passages surlignés") : undefined} icone={<CheckCircle2 className="w-4 h-4" aria-hidden />}>
+                <Button variant="primary" onClick={valider} disabled={(enCours && occupe !== "valider") || passages.length > 0 || !texte.trim() || valide} loading={occupe === "valider"}
+                  title={passages.length ? t("Complète d'abord les passages surlignés") : undefined}>{<CheckCircle2 className="w-4 h-4" aria-hidden />}
                   {valide ? t("Politique validée") : t("Valider cette politique")}
-                </Bouton>
+                </Button>
                 {modifie && (
-                  <Bouton variante="secondaire" onClick={enregistrer} disabled={enCours && occupe !== "enregistrer"} charge={occupe === "enregistrer"}>
+                  <Button variant="default" onClick={enregistrer} disabled={enCours && occupe !== "enregistrer"} loading={occupe === "enregistrer"}>
                     {t("Enregistrer les modifications")}
-                  </Bouton>
+                  </Button>
                 )}
-                <Bouton variante="secondaire" onClick={() => setConsigneOuverte((o) => !o)} disabled={enCours} aria-expanded={consigneOuverte} icone={<Sparkles className="w-4 h-4" aria-hidden />}>
+                <Button variant="default" onClick={() => setConsigneOuverte((o) => !o)} disabled={enCours} aria-expanded={consigneOuverte}>{<Sparkles className="w-4 h-4" aria-hidden />}
                   {t("Demander à Axia de réécrire")}
-                </Bouton>
+                </Button>
                 {serveur?.brouillonAxia && texte !== serveur.brouillonAxia && (
-                  <Bouton variante="secondaire" onClick={revenir} disabled={enCours && occupe !== "revenir"} charge={occupe === "revenir"} icone={<RotateCcw className="w-4 h-4" aria-hidden />}>
+                  <Button variant="default" onClick={revenir} disabled={enCours && occupe !== "revenir"} loading={occupe === "revenir"}>{<RotateCcw className="w-4 h-4" aria-hidden />}
                     {t("Revenir au brouillon d'Axia")}
-                  </Bouton>
+                  </Button>
                 )}
               </div>
 
               {consigneOuverte && (
                 <div className="mt-3 rounded-controle border border-bordure p-3 space-y-2">
-                  <ZoneTexte label={t("Ta consigne pour Axia")} mention="facultatif" value={consigne} onChange={(e) => setConsigne(e.target.value)} maxLength={1000} rows={3}
+                  <Textarea label={t("Votre consigne pour Axia")} value={consigne} onChange={(e) => setConsigne(e.target.value)} maxLength={1000} rows={3}
                     placeholder={t("Ex. : plus court, ton plus chaleureux, retours acceptés sous 7 jours")}
-                    aide={t("Avec une consigne, Axia retravaille ton texte actuel. Sans consigne, il repart de tes réglages. Il n'invente ni prix, ni délai, ni engagement : ce qu'il ignore reste à compléter.")} />
-                  <Bouton variante="sombre" onClick={reecrire} disabled={enCours && occupe !== "rediger"} charge={occupe === "rediger"} texteCharge={t("Axia réécrit…")} icone={<Sparkles className="w-4 h-4" aria-hidden />}>
+                    helpText={t("Avec une consigne, Axia retravaille votre texte actuel. Sans consigne, il repart de vos réglages. Il n'invente ni prix, ni délai, ni engagement : ce qu'il ignore reste à compléter.")} />
+                  <Button variant="primary" onClick={reecrire} disabled={enCours && occupe !== "rediger"} loading={occupe === "rediger"}>{<Sparkles className="w-4 h-4" aria-hidden />}
                     {t("Lancer la réécriture")}
-                  </Bouton>
+                  </Button>
                 </div>
               )}
             </>
@@ -333,14 +334,14 @@ export default function PolitiquesPage() {
         <section className={`rounded-carte border border-bordure bg-carte p-4 sm:p-5 min-w-0 ${vueMobile === "texte" ? "hidden lg:block" : ""}`} aria-label={t("Aperçu client")}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="ax-aide font-semibold">{t("Aperçu : tel que le client le verra")}</p>
-            <Bouton variante="secondaire" taille="compact" className="lg:hidden" onClick={() => setVueMobile("texte")} icone={<PenLine className="w-4 h-4" aria-hidden />}>{t("Modifier le texte")}</Bouton>
+            <Button variant="default" size="sm" className="lg:hidden" onClick={() => setVueMobile("texte")}>{<PenLine className="w-4 h-4" aria-hidden />}{t("Modifier le texte")}</Button>
           </div>
           <h2 className="mt-3 text-xl font-bold text-encre">{t(TITRES_POLITIQUES[actif])}</h2>
           <div className="mt-3 text-encre">
             {texte.trim() ? <RenduPolitique contenu={texte} surligner /> : <p className="ax-texte-secondaire">{t("Rien à afficher pour l'instant.")}</p>}
           </div>
           {passages.length > 0 && (
-            <p className="mt-4 ax-aide">{t("Les passages en jaune sont visibles seulement par toi. La politique n'apparaîtra dans ta boutique qu'une fois complétée et validée.")}</p>
+            <p className="mt-4 ax-aide">{t("Les passages surlignés ne sont visibles que par vous. La politique n'apparaîtra dans votre boutique qu'une fois complétée et validée.")}</p>
           )}
         </section>
       </div>

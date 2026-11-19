@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Upload, FileCode, Wand2, Copy, Sparkles } from "lucide-react";
 import { ApercuDesign, parametresApercu, optionsChangementDesign } from "@/components/dashboard/ApercuDesign";
-import { Alerte, Bouton, EnTetePage, EtatChargement, EtatErreur, Saisie, useConfirmation } from "@/components/ui";
+import { EtatChargement, EtatErreur, useConfirmation } from "@/components/ui";
+import { Banner, Button, PageHeader, TextField } from "@/components/ui/adm";
 import { useT } from "@/components/I18nProvider";
 import { PROMPTS_IMPORT, validerThemeImporte, type RapportTheme, type TypeImport } from "@/lib/prompt-import-theme";
 
@@ -131,9 +132,9 @@ export default function CreerThemePage() {
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-fond overflow-hidden">
       {dialogue}
-      <div className="px-4 pt-4 bg-carte border-b border-bordure flex-shrink-0 z-10">
-        <EnTetePage className="mb-3" titre={tr("Nouveau thème")} retour={{ href: "/dashboard/themes", libelle: tr("Thèmes") }}
-          description={tr("Choisissez un design prêt à l'emploi ou importez le vôtre.")} />
+      <div className="px-4 pt-1 bg-(--color-surface) border-b border-(--color-border) flex-shrink-0 z-10">
+        <PageHeader icon="grid" title={tr("Nouveau thème")} backHref="/dashboard/themes" />
+        <p className="-mt-1 mb-2 text-(--color-text-secondary)">{tr("Choisissez un design prêt à l'emploi ou importez le vôtre.")}</p>
         {/* Mode : bibliothèque AXSO Design, ou import de design perso */}
         <div role="tablist" className="flex items-center gap-1 pb-2 overflow-x-auto">
           {([["librairie", "Bibliothèque AXSO Design"], ["import", "Importer mon design"]] as [Mode, string][]).map(([m, label]) => (
@@ -159,10 +160,10 @@ export default function CreerThemePage() {
                 <div className="p-3.5">
                   <h2 className="text-sm font-bold text-encre">{tr(t.nom)}</h2>
                   <p className="ax-aide mb-3">{tr(t.description)}</p>
-                  <Bouton variante="secondaire" taille="compact" large onClick={() => utiliserDesignLibrairie(t.fichier, t.nom)}
-                    disabled={!!provisionnant && provisionnant !== t.fichier} charge={provisionnant === t.fichier} texteCharge={tr("Activation…")}>
+                  <Button variant="default" size="sm" fullWidth onClick={() => utiliserDesignLibrairie(t.fichier, t.nom)}
+                    disabled={!!provisionnant && provisionnant !== t.fichier} loading={provisionnant === t.fichier}>
                     {tr("Utiliser ce design")}
-                  </Bouton>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -190,7 +191,7 @@ export default function CreerThemePage() {
               ))}
             </div>
             {typeImport === "page" && (
-              <Saisie className="mb-4" label={tr("Nom de la page")} mention="facultatif" aide={tr("Sinon, le titre du fichier est utilisé.")}
+              <TextField className="mb-4" label={tr("Nom de la page")} helpText={tr("Sinon, le titre du fichier est utilisé.")}
                 value={nomPage} onChange={(e) => setNomPage(e.target.value)} maxLength={80} />
             )}
 
@@ -211,35 +212,35 @@ export default function CreerThemePage() {
               )}
             </label>
 
-            <Bouton large className="mt-5" onClick={importerDepuisFichier} disabled={!importFile} charge={importing} texteCharge={tr("Analyse en cours…")}>
+            <Button variant="primary" fullWidth className="mt-5" onClick={importerDepuisFichier} disabled={!importFile} loading={importing}>
               {tr(typeImport === "page" ? "Ajouter la page" : "Analyser & créer mon thème")}
-            </Bouton>
+            </Button>
           </div>
 
           {/* Fichier choisi : ce qui ne sera pas modifiable dans le Constructeur (lib/prompt-import-theme.ts). */}
           {rapport && (rapport.erreurs.length > 0 || rapport.avertissements.length > 0) && (
-            <Alerte ton={rapport.erreurs.length ? "erreur" : "attention"} className="w-full max-w-md" titre={tr("Ce fichier ne respecte pas tout le standard Axso")}>
+            <Banner tone={rapport.erreurs.length ? "critical" : "warning"} className="w-full max-w-md" title={tr("Ce fichier ne respecte pas tout le standard Axso")}>
               <ul className="list-disc pl-4 space-y-1">
-                {rapport.erreurs.map((m) => <li key={m} className="text-erreur">{m}</li>)}
+                {rapport.erreurs.map((m) => <li key={m} className="text-(--color-critical-text)">{m}</li>)}
                 {rapport.avertissements.map((m) => <li key={m}>{m}</li>)}
               </ul>
-            </Alerte>
+            </Banner>
           )}
 
           {/* Prompt standard à donner à une IA externe pour obtenir un fichier 100 % modifiable. */}
           <div className="w-full max-w-md bg-carte rounded-carte border border-bordure p-carte shadow-carte">
             <div className="flex items-center gap-2 mb-1.5">
               <Sparkles size={16} className="text-attention" aria-hidden />
-              <h2 className="ax-sous-titre">{tr("Faire créer ton thème par une IA")}</h2>
+              <h2 className="ax-sous-titre">{tr("Faire créer votre thème par une IA")}</h2>
             </div>
             <p className="ax-texte-secondaire mb-3">
-              {tr("Copie ce prompt dans ChatGPT, Claude ou une autre IA, décris ta boutique à la fin, puis importe ici le fichier .html obtenu. Il fixe seulement la structure technique : style, couleurs et textes restent libres.")}{" "}
+              {tr("Copiez ce prompt dans ChatGPT, Claude ou une autre IA, décrivez votre boutique à la fin, puis importez ici le fichier .html obtenu. Il fixe seulement la structure technique : style, couleurs et textes restent libres.")}{" "}
               <strong className="text-encre">{tr("Prompt pour : {0}", tr(TYPES_IMPORT.find((ti) => ti.id === typeImport)!.label))}</strong>
             </p>
             <pre className="max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-controle bg-carte-2 border border-bordure p-3 text-xs text-encre font-mono select-all">{prompt}</pre>
-            <Bouton variante="secondaire" large className="mt-3" onClick={copierPrompt} icone={<Copy size={14} aria-hidden />}>
+            <Button variant="default" fullWidth className="mt-3" onClick={copierPrompt}>{<Copy size={14} aria-hidden />}
               {tr("Copier le prompt")}
-            </Bouton>
+            </Button>
           </div>
         </div>
       )}

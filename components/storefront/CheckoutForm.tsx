@@ -9,7 +9,7 @@ import {
   Loader2, CreditCard, Shield,
   CheckCircle2, AlertCircle, MessageCircle, Download,
   Package, Zap, Phone, MapPin, User, Mail, ArrowLeft,
-  Receipt, Save, ClipboardList, Check
+  Receipt, Save, ClipboardList, Check, Gift
 } from "lucide-react";
 import { trackPixelEvent } from "./MetaPixel";
 import { trackTikTokEvent } from "./TikTokPixel";
@@ -53,7 +53,7 @@ function GpsStep({ label, steps }: { label: string; steps: string[] }) {
 }
 
 // ─── Récapitulatif commande ───────────────────────────────────────────────────
-function Recap({ theme, devise, items, total, codePromo, label, fraisLivraison, delaiLivraison }: any) {
+function Recap({ theme, devise, items, total, codePromo, label, fraisLivraison, delaiLivraison, carteCadeau = 0 }: any) {
   const t = useT();
   const { fmt, converti } = usePrix();
   return (
@@ -83,13 +83,19 @@ function Recap({ theme, devise, items, total, codePromo, label, fraisLivraison, 
             <span>{fraisLivraison > 0 ? fmt(fraisLivraison, devise) : t("Gratuite")}</span>
           </div>
         )}
+        {carteCadeau > 0 && (
+          <div className="flex justify-between mb-1 text-green-500">
+            <span>{t("Carte-cadeau")}</span>
+            <span>−{fmt(Math.min(carteCadeau, total + (fraisLivraison || 0)), devise)}</span>
+          </div>
+        )}
         <div className="flex justify-between font-bold text-base">
           <span>{t("Total")}</span>
-          <span style={{ color: theme.accent }}>{fmt(total + (fraisLivraison || 0), devise)}</span>
+          <span style={{ color: theme.accent }}>{fmt(Math.max(0, total + (fraisLivraison || 0) - carteCadeau), devise)}</span>
         </div>
         {converti(devise) && (
           <p className="mt-2 text-xs leading-relaxed opacity-60">
-            {t("Montant réel de la commande :")}{" "}<strong>{formatMontant(total + (fraisLivraison || 0), devise)}</strong>{" "}{t("— les prix dans votre devise sont une estimation au taux du jour.")}
+            {t("Montant réel de la commande :")}{" "}<strong>{formatMontant(Math.max(0, total + (fraisLivraison || 0) - carteCadeau), devise)}</strong>{" "}{t("— les prix dans votre devise sont une estimation au taux du jour.")}
           </p>
         )}
       </div>
@@ -285,6 +291,45 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
     return () => document.removeEventListener("keydown", echap);
   }, [popup, loading]);
 
+  // Carte-cadeau (D28) : vérifiée ici pour l'affichage ; revérifiée et débitée par le serveur à la commande.
+  const [carte, setCarte] = useState<{ code: string; solde: number; derniers4: string } | null>(null);
+  const [codeCarte, setCodeCarte] = useState("");
+  const [carteEnCours, setCarteEnCours] = useState(false);
+  const [erreurCarte, setErreurCarte] = useState("");
+  async function appliquerCarte() {
+    if (!codeCarte.trim() || carteEnCours) return;
+    setCarteEnCours(true); setErreurCarte("");
+    try {
+      const res = await fetch("/api/cartes-cadeaux/verifier", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tenantId, code: codeCarte }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErreurCarte(t(data.error || data.message || "Carte-cadeau invalide, épuisée ou expirée")); return; }
+      setCarte({ code: codeCarte, solde: data.solde, derniers4: data.derniers4 });
+      setCodeCarte("");
+    } catch { setErreurCarte(t("La carte n'a pas pu être vérifiée. Vérifiez votre connexion puis réessayez.")); }
+    finally { setCarteEnCours(false); }
+  }
+
+  // Paniers abandonnés (D28) : dès que nom et téléphone sont saisis, le panier est suivi pour la boutique
+  // (marqué récupéré quand la commande arrive au même numéro). Silencieux, jamais bloquant.
+  const [clePanier] = useState(() => {
+    try {
+      const k = sessionStorage.getItem("axso-panier-cle") || crypto.randomUUID();
+      sessionStorage.setItem("axso-panier-cle", k);
+      return k;
+    } catch { return crypto.randomUUID(); }
+  });
+  const lignesPanier = JSON.stringify(items.map((i: any) => ({ produitId: i.produitId, variante: i.variante ?? null, quantite: i.quantite })));
+  useEffect(() => {
+    if (done || !form.nom.trim() || form.telephone.replace(/\D/g, "").length < 8) return;
+    const minuteur = setTimeout(() => {
+      fetch("/api/paniers", {
+        method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+        body: JSON.stringify({ tenantId, cle: clePanier, nom: form.nom, telephone: form.telephone, ville: zone || form.ville || null, items: JSON.parse(lignesPanier) }),
+      }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(minuteur);
+  }, [done, form.nom, form.telephone, form.ville, zone, tenantId, clePanier, lignesPanier]);
+
   // Selon le pays du client : paiement à la livraison seulement dans le pays de la boutique (sauf réglage contraire).
   const moyens = moyensPhysique(paiement, { paysClient: codePays(form.pays), paysBoutique });
 
@@ -311,7 +356,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
           tenantId, slug, canal,
           client: form,
           items: items.map((i: any) => ({ produitId: i.produitId, nom: i.nom, prix: i.prix, quantite: i.quantite, variante: i.variante, imageUrl: i.imageUrl })),
-          total, devise, codePromo, zone: zoneEnvoyee || undefined,
+          total, devise, codePromo, carteCadeau: carte?.code || undefined, zone: zoneEnvoyee || undefined,
           codeAffiliation: codeRef || undefined,
           localisation: gps ? { lat: gps.lat, lng: gps.lng, adresseExacte: adresseExacte || form.adresse } : null,
           champPersonnalise: champPerso && champPersoValeur.trim() ? { label: champPerso, valeur: champPersoValeur.trim() } : undefined,
@@ -331,6 +376,7 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
       if (typeof window !== "undefined") (window as any).dataLayer?.push({ event: "purchase", value: total, currency: devise, num_items: items.length });
       oublierRef();
       viderPanier();
+      try { sessionStorage.removeItem("axso-panier-cle"); } catch {}
       setDone(data);
       onCommandee?.();
       if (canal === "whatsapp" && data.whatsappUrl) {
@@ -738,7 +784,29 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
       {/* Récap + CTA */}
       <div>
         <div className="space-y-4">
-          <Recap theme={theme} devise={devise} items={items} total={total} codePromo={codePromo} label={t("Votre commande")} fraisLivraison={fraisLivraison} delaiLivraison={delaiLivraison} />
+          <Recap theme={theme} devise={devise} items={items} total={total} codePromo={codePromo} label={t("Votre commande")} fraisLivraison={fraisLivraison} delaiLivraison={delaiLivraison} carteCadeau={carte?.solde ?? 0} />
+
+          <div className="rounded-2xl border p-4 space-y-2" style={{ backgroundColor: theme.surface, borderColor: `${theme.accent}20` }}>
+            {carte ? (
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-2"><Gift size={16} aria-hidden />{t("Carte-cadeau •••• {0} appliquée", carte.derniers4)}</span>
+                <button type="button" onClick={() => setCarte(null)} disabled={loading} className="text-xs underline opacity-70 hover:opacity-100">{t("Retirer")}</button>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="carte-cadeau" className="text-sm font-semibold flex items-center gap-2"><Gift size={16} aria-hidden />{t("Vous avez une carte-cadeau ?")}</label>
+                <div className="flex gap-2">
+                  <input id="carte-cadeau" value={codeCarte} onChange={e => { setCodeCarte(e.target.value); setErreurCarte(""); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); appliquerCarte(); } }}
+                    autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX" aria-invalid={!!erreurCarte} aria-describedby={erreurCarte ? "carte-cadeau-erreur" : undefined}
+                    className="flex-1 min-w-0 rounded-xl border px-3 py-2.5 text-sm bg-transparent" style={{ borderColor: erreurCarte ? "#ef4444" : `${theme.accent}30` }} />
+                  <button type="button" onClick={appliquerCarte} disabled={carteEnCours || !codeCarte.trim()} className="px-4 rounded-xl text-sm font-semibold disabled:opacity-50" style={{ background: theme.accent, color: "#fff" }}>
+                    {carteEnCours ? <Loader2 size={16} className="animate-spin" aria-label={t("Vérification…")} /> : t("Appliquer")}
+                  </button>
+                </div>
+                {erreurCarte && <p id="carte-cadeau-erreur" role="alert" className="text-xs text-red-500">{erreurCarte}</p>}
+              </>
+            )}
+          </div>
 
           {moyens.whatsapp && (
             <button onClick={() => setPopup("whatsapp")} disabled={loading}

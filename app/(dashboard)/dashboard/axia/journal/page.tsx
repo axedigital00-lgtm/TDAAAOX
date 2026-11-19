@@ -10,8 +10,9 @@ import {
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { ouvrirAxia } from "@/components/dashboard/AxiaPanneau";
-import { EtatVide, EtatErreur, SqueletteListe, Badge, Bouton } from "@/components/ui";
-import { PageHeader } from "@/components/ui/adm";
+import { EtatErreur, SqueletteListe } from "@/components/ui";
+import { Badge, Button, EmptyState, PageHeader } from "@/components/ui/adm";
+import { IllustrationGenerique } from "@/components/ui/illustrations";
 interface Decision {
   id: string;
   agentId: string;
@@ -81,7 +82,7 @@ export default function JournalAxiaPage() {
         setCursor(d.nextCursor ?? null);
         setAgents(d.agents ?? []);
       })
-      .catch((e: Error) => setErreur(e.message || t("Vérifie ta connexion internet puis réessaie.")))
+      .catch((e: Error) => setErreur(e.message || t("Vérifiez votre connexion internet puis réessayez.")))
       .finally(() => { setLoading(false); setLoadingPlus(false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -123,21 +124,21 @@ export default function JournalAxiaPage() {
       ) : erreur ? (
         <EtatErreur titre={t("Le journal n'a pas pu se charger")} texte={erreur} onReessayer={() => charger(filtre, null, false)} />
       ) : groupes.length === 0 ? (
-        <EtatVide
-          icone={<Sparkles />}
-          titre={filtre ? t("Aucune action de cet agent pour le moment") : t("AXIA n'a encore rien fait pour ta boutique")}
-          texte={t("Dès qu'AXIA ou un agent agit (après ton accord quand c'est sensible), l'action s'affiche ici avec son résultat.")}
+        <EmptyState
+          image={<IllustrationGenerique />}
+          title={filtre ? t("Aucune action de cet agent pour le moment") : t("AXIA n'a encore rien fait pour votre boutique")}
+          actions={filtre
+            ? <Button variant="default" onClick={() => setFiltre(null)}>{t("Voir toutes les actions")}</Button>
+            : <Button variant="primary" onClick={() => ouvrirAxia()}>{t("Demander quelque chose à AXIA")}</Button>}
         >
-          {filtre
-            ? <Bouton variante="secondaire" onClick={() => setFiltre(null)}>{t("Voir toutes les actions")}</Bouton>
-            : <Bouton onClick={() => ouvrirAxia()}>{t("Demander quelque chose à AXIA")}</Bouton>}
-        </EtatVide>
+          {t("Dès qu'AXIA ou un agent agit (après votre accord quand c'est sensible), l'action s'affiche ici avec son résultat.")}
+        </EmptyState>
       ) : (
         <div className="space-y-8">
           {groupes.map(({ jour, items }) => (
             <div key={jour}>
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.12em] mb-3 capitalize">{t(jour)}</p>
-              <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-gray-100">
+              <p className="text-[11px] font-black text-(--color-text-subdued) uppercase tracking-[0.12em] mb-3 capitalize">{t(jour)}</p>
+              <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-(--color-surface-tertiary)">
                 {items.map(d => {
                   const meta = metaPour(d.agentId);
                   return (
@@ -156,19 +157,19 @@ export default function JournalAxiaPage() {
                           {/* Action sensible : faite seulement après l'accord du marchand ; on montre son résultat. */}
                           {d.type === "action_autorisee" && typeof d.donnees?.succes === "boolean" && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
-                              <Badge ton="info">{t("Autorisée par toi")}</Badge>
-                              {d.donnees.succes ? <Badge ton="succes">{t("Réussie")}</Badge> : <Badge ton="erreur">{t("Échouée")}</Badge>}
+                              <Badge tone="info">{t("Autorisée par vous")}</Badge>
+                              {d.donnees.succes ? <Badge tone="success">{t("Réussie")}</Badge> : <Badge tone="critical">{t("Échouée")}</Badge>}
                             </div>
                           )}
                           {(d.impactEstime != null || d.impactReel != null) && (
                             <div className="flex items-center gap-2 mt-2">
                               {d.impactEstime != null && (
-                                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-(--banner-success-bg) text-(--badge-success-text) border border-(--badge-success-bg)">
                                   {t("Impact estimé :")}{" "}{fmt(d.impactEstime)}
                                 </span>
                               )}
                               {d.impactReel != null && (
-                                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#F5A623]/10 text-[#111111] border border-[#F5A623]/25">
+                                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-(--color-surface-selected) text-(--color-text-strong) border border-(--color-border-strong)">
                                   {t("Impact réel :")}{" "}{fmt(d.impactReel)}
                                 </span>
                               )}

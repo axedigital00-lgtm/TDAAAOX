@@ -11,10 +11,10 @@ test("filtres de la liste : tri par défaut sur la dépense, valeurs inconnues i
 });
 
 test("segment d'affichage : VIP, régulier, nouveau", () => {
-  assert.equal(segmentClient(5, 0, "XAF").label, "VIP");
-  assert.equal(segmentClient(1, 100_000, "XAF").label, "VIP");
-  assert.equal(segmentClient(2, 1000, "XAF").label, "Régulier");
-  assert.equal(segmentClient(0, 0, "XAF").label, "Nouveau");
+  assert.equal(segmentClient(5, 0, 50_000).label, "VIP");
+  assert.equal(segmentClient(1, 100_000, 50_000).label, "VIP");
+  assert.equal(segmentClient(2, 99_999, 50_000).label, "Régulier");
+  assert.equal(segmentClient(0, 0, 0).label, "Nouveau");
 });
 
 test("taux d'échec COD : seulement les livraisons COD terminées", () => {
@@ -33,8 +33,8 @@ test("taux d'échec COD : seulement les livraisons COD terminées", () => {
 test("segments des campagnes : mêmes règles que les e-mails", () => {
   const t0 = Date.UTC(2026, 10, 19);
   assert.deepEqual(whereSegment("b1", "tous", 0, t0), { tenantId: "b1" });
-  assert.deepEqual(whereSegment("b1", "vip", 5000, t0), { tenantId: "b1", totalDepense: { gte: 10000 } });
-  assert.deepEqual(whereSegment("b1", "vip", 0, t0), { tenantId: "b1", totalDepense: { gte: 1 } });
+  assert.deepEqual(whereSegment("b1", "vip", 5000, t0), { tenantId: "b1", OR: [{ totalCommandes: { gte: 5 } }, { totalDepense: { gte: 10000 } }] });
+  assert.deepEqual(whereSegment("b1", "vip", 0, t0), { tenantId: "b1", OR: [{ totalCommandes: { gte: 5 } }, { totalDepense: { gte: 1 } }] });
   assert.deepEqual(whereSegment("b1", "nouveaux", 0, t0), { tenantId: "b1", totalCommandes: { lte: 1 } });
   const il30 = new Date(t0 - 30 * 86_400_000);
   assert.deepEqual(whereSegment("b1", "inactifs", 0, t0), { tenantId: "b1", createdAt: { lte: il30 }, commandes: { none: { createdAt: { gte: il30 } } } });

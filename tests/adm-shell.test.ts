@@ -10,7 +10,7 @@ import { MENU, SECTIONS_PARAMETRES, pagesMenu, sectionsVisibles, estActif } from
 import { ROLE_PRESETS, type ModuleKey, type Niveau } from "@/lib/permissions";
 
 // Entrées nouvelles dans le menu (pages déjà existantes, D23) ; « Signaler un problème » est dans le menu du compte.
-const AJOUTS = new Set(["/dashboard/marketing/codes-promo", "/dashboard/clients/segments"]);
+const AJOUTS = new Set(["/dashboard/marketing/codes-promo", "/dashboard/clients/segments", "/dashboard/commandes/brouillons", "/dashboard/commandes/paniers"]);
 const HORS_MENU = new Set(["/dashboard/support"]);
 
 const grilles: [string, Record<ModuleKey, Niveau> | undefined][] = [["propriétaire", undefined], ...Object.entries(ROLE_PRESETS)];
@@ -52,7 +52,7 @@ test("menu : un seul lien actif sur les pages partagées", () => {
   assert.deepEqual(actifs("/dashboard/logistique/encaissements"), ["/dashboard/logistique/encaissements"]);
   assert.deepEqual(actifs("/dashboard/marketing/codes-promo"), ["/dashboard/marketing/codes-promo"]);
   assert.deepEqual(actifs("/dashboard/produits/categories"), ["/dashboard/produits/categories"]);
-  assert.deepEqual(actifs("/dashboard/clients/segments"), ["/dashboard/clients/segments"]);
+  assert.deepEqual(actifs("/dashboard/clients/segments"), ["/dashboard/clients/segments", "/dashboard/commandes/brouillons", "/dashboard/commandes/paniers"]);
   assert.deepEqual(actifs("/dashboard/clients/abc"), ["/dashboard/clients"]);
 });
 

@@ -3,8 +3,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
-import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AffiliationIncitationBanner } from "@/components/dashboard/AffiliationIncitationBanner";
 import { AvisAxsoCarte } from "@/components/dashboard/AvisAxsoCarte";
 import { BandeauCompletude } from "@/components/dashboard/BandeauCompletude";
@@ -18,7 +16,8 @@ import { eligibiliteAvis } from "@/lib/avis-plateforme";
 import { accesComplet, permissionsSession } from "@/lib/permissions-server";
 import { formatMontant } from "@/lib/utils";
 import { getT } from "@/lib/i18n/serveur";
-import { Bouton, EnTetePage } from "@/components/ui";
+import { Card, PageHeader } from "@/components/ui/adm";
+import { LineChart } from "@/components/ui/graphiques";
 import { lienBoutique } from "@/lib/origine-site";
 import { soldeDisponible } from "@/lib/wallet";
 import { chargerDerniersClients, chargerPeriode, chargerTopProduitsVilles, chargerVentesEnCours, compterATraiter } from "./donnees";
@@ -83,18 +82,16 @@ export default async function TableauDeBordPage({ searchParams }: { searchParams
   const prenom = session.user?.name?.split(" ")[0] ?? "";
   const prochaine = argent?.liberations[0]?.le ?? null;
 
+  const points = voitFinance ? courbe(cmds, b, t.loc) : [];
   return (
     <div className="space-y-4 sm:space-y-5">
       <AccueilTutorial />
 
-      <EnTetePage className="mb-0"
-        titre={t("Tableau de bord")}
-        description={prenom ? t("Bonjour {0}, voici les résultats de {1}.", prenom, tenant?.nomBoutique ?? "") : undefined}
-        indicateurs={<BoutonRevoirTutoriel moduleKey="accueil" />}
-        actions={voit("produits") && (
-          <Bouton variante="secondaire" href="/dashboard/produits/nouveau" icone={<Plus className="size-4" aria-hidden />}>{t("Ajouter un produit")}</Bouton>
-        )}
-      />
+      <div>
+        <PageHeader icon="gauge" title={t("Tableau de bord")} titleMeta={<BoutonRevoirTutoriel moduleKey="accueil" />}
+          primaryAction={voit("produits") ? { content: t("Ajouter un produit"), href: "/dashboard/produits/nouveau", icon: "plus" } : undefined} />
+        {prenom && <p className="-mt-1 text-(--color-text-secondary)">{t("Bonjour {0}, voici les résultats de {1}.", prenom, tenant?.nomBoutique ?? "")}</p>}
+      </div>
 
       {/* 1. État de la boutique + période */}
       {tenant && <BarreEtat statut={tenant.statut} url={url} nomBoutique={tenant.nomBoutique} />}
@@ -111,7 +108,13 @@ export default async function TableauDeBordPage({ searchParams }: { searchParams
       {voit("commandes") && <VentesEnCours groupes={enCours} montant={montant} />}
 
       {/* 5. Courbe des ventes sur la période */}
-      {voitFinance && <SalesChart donnees={courbe(cmds, b, t.loc)} devise={devise} libellePeriode={LIBELLES_PERIODE[periode]} />}
+      {voitFinance && points.length > 0 && (
+        <Card title={t("Ventes totales au fil du temps")}>
+          <LineChart serie={points.map((p) => p.montant)} libelles={points.map((p) => p.date)} hauteur={220} area devise={devise}
+            ariaLabel={t("Ventes totales, {0} : {1}", t(LIBELLES_PERIODE[periode]), formatMontant(points.reduce((s, p) => s + p.montant, 0), devise))}
+            legende={{ serie: t(LIBELLES_PERIODE[periode]) }} />
+        </Card>
+      )}
 
       {/* 6. Derniers clients */}
       {voit("clients") && <DerniersClients clients={clients} montant={montant} />}
