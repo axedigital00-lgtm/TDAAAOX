@@ -20,7 +20,7 @@ import type { ModuleKey, Niveau } from "@/lib/permissions";
 // AUTRES_OUTILS : pages qui n'ont pas d'entrée dans la barre latérale mais en avaient une ici.
 type ItemMobile = { href: string; label: string; Icon: React.ComponentType<{ size?: number; className?: string }>; moduleKey?: ModuleKey; requiresPalier?: Palier; messageVerrou?: string; opensAbonnement?: boolean };
 
-const AUTRES_OUTILS: ItemMobile[] = [
+export const AUTRES_OUTILS: ItemMobile[] = [
   { href: "/dashboard/scheduler",  label: "Planificateur",        Icon: Calendar,      moduleKey: "marketing" },
   { href: "/dashboard/publicite",  label: "Publicité Ads",        Icon: Megaphone,     moduleKey: "marketing" },
   { href: "/dashboard/sms",        label: "SMS / WhatsApp",       Icon: MessageSquare, moduleKey: "marketing" },

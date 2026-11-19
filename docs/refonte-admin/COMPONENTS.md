@@ -56,3 +56,21 @@ Fonctions pures (`echelle.ts`) : `formatCompact`, `formatValeur` (montant via `f
 - Vignettes du fil 280×140 (`slice`, remplissent leur conteneur) : `VignetteConversion`, `VignetteDomaine` (prop `domaine` : le vrai nom proposé), `VignetteLivraison`, `VignetteWhatsApp`, `VignetteApplications`, `VignetteCartons`.
 
 Écarts : pas de `DotGlobe` (vue en direct avec globe écartée, PLAN §3.1) ; pas d'illustration Mobile Money (D3), cartes-cadeaux, B2B, blog, catalogues (D5 : écrans absents) — à ajouter le jour où l'écran existe.
+
+## Lot 4 — listes et indicateurs
+
+Import : `@/components/ui/adm`. Tests : `tests/adm-index.test.ts`. Démo : `demo-index.tsx` de la recette (filtres, tri, vues et recherche agissent vraiment sur l'URL). Composants purs : la page charge les données à partir des paramètres d'URL et les passe en props.
+
+| Composant | Fichier | API |
+|---|---|---|
+| `IndexFilters` *(client)* | `IndexFilters.tsx` | `views [{id,label}]` (1re = défaut, `?vue=`), `viewActions?` (menu ⇅ de la vue active, seulement si la page enregistre des vues), `filters [{key,label,options}]` (`?<key>=`, pastilles « Libellé : valeur ✕ » + « Ajouter un filtre »), `sortOptions` (`?tri=colonne:asc\|desc`), `columns` + `hiddenColumns` + `onHiddenColumnsChange`, `searchPlaceholder`. Recherche `?q=` avec debounce 250 ms. Tout changement remet `page`/`curseur` à zéro. À rendre sous `<Suspense>` (utilise `useSearchParams`) |
+| `useColonnesMasquees(cle, parDefaut?)` | `IndexFilters.tsx` | `[masquees, setMasquees]`, mémorisé dans `localStorage` (`adm-colonnes:<cle>`), sans erreur si le stockage est bloqué |
+| `IndexTable<T>` *(client)* | `IndexTable.tsx` | `rows`, `columns: Column<T>[]` (`id, header, cell, align, numeric, width, sortable, hideOnMobile, mobilePrimary`), `getId`, `label` (nom accessible), `onRowClick` (ligne entière + Entrée ; les éléments interactifs d'une cellule ne déclenchent pas la ligne), `selectable`, `selected`/`onSelectionChange` (contrôlé ou interne), `promotedBulkActions`, `bulkActions` (menu ⋯), `hiddenColumns`, `sort` (« Date ↓ », `aria-sort`) + `onSort`, `loading` (8 lignes squelette), `emptyState`, `pagination {hasPrevious, hasNext, label, onPrevious, onNext}` |
+| `MetricsStrip` *(client)* | `MetricsStrip.tsx` | `period`, `periods?` + `onPeriodChange` (menu de période), `metrics [{id, label, definition?, value (formatée), delta? (%), sparkline?}]`. `delta` absent ou null → aucune variation affichée |
+| `formatDelta(n)` | `MetricsStrip.tsx` | `{ texte: "↗ 75 %", hausse }` ou null |
+| `EmptyState` *(client)* | `EmptyState.tsx` | `title`, `children` (texte), `image` (illustration 200×150), `actions` (secondaire puis primaire), `learnMore {topic, href}` → « En savoir plus sur les {topic} » |
+| Règles pures | `index-regles.ts` | `etatSelection`, `basculer`, `basculerTout`, `lireTri`, `ecrireTri`, `trier` (vides en bas, comparaison française numérique), `majRecherche(qs, patch)` |
+
+Mobile (≤ 820 px, §13.4) : plus d'en-têtes ni de cases ; chaque ligne devient un bloc (colonne `mobilePrimary` en gras sur toute la largeur, le reste en `flex-wrap` gris), `hideOnMobile` masquées ; appui long (500 ms) = sélection, puis un appui court bascule une ligne ; barre d'actions groupées fixée en bas. Barre de filtres et vues défilantes sans barre visible.
+
+Écarts : menu des vues (Renommer/Dupliquer/Supprimer) affiché seulement si la page fournit `viewActions` (aucune vue enregistrée n'existe côté back-end) ; période « Personnalisé » à fournir par la page dans `periods` si elle gère une plage de dates ; au-dessous de 1040 px l'infobulle de définition d'une métrique peut être rognée par le défilement horizontal.

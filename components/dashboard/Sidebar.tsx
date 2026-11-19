@@ -35,6 +35,7 @@ import { useAbonnementOverlay } from "@/components/dashboard/AbonnementOverlayPr
 import { palierAuMoins, type Palier } from "@/lib/plans";
 import type { ModuleKey, Niveau } from "@/lib/permissions";
 import { useT } from "@/components/I18nProvider";
+import { estActif, filtreParPermission } from "@/components/dashboard/shell/menu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,48 +94,9 @@ export interface SidebarProps {
   demarrage?: { restantes: number; hrefs: string[] } | null;
 }
 
-// ─── Filtrage par permissions ─────────────────────────────────────────────────
-
-function filtreParPermission(
-  items: NavItem[],
-  permissions?: Record<ModuleKey, Niveau>,
-): NavItem[] {
-  if (!permissions) return items;
-  return items.filter(it => !it.moduleKey || permissions[it.moduleKey] !== "aucun");
-}
-
-// ─── État actif ───────────────────────────────────────────────────────────────
-// Un href peut porter une query ("/dashboard/logistique?tab=pos") : le
-// pathname seul ne suffit alors pas à décider. On compare pathname + chaque
-// paire clé/valeur de la query, ce qui remplace l'ancien `activeOverride`
-// codé en dur pour le seul lien de la caisse.
-
-/** Le lien (avec ou sans query) correspond-il à l'adresse courante ? Une clé sans valeur
- *  (« /page?onglet ») exige seulement sa présence : /page?onglet=… reste actif. */
-function correspond(href: string, pathname: string, searchParams: URLSearchParams): boolean {
-  const [base, query] = href.split("?");
-  if (pathname !== base) return false;
-  for (const [cle, valeur] of new URLSearchParams(query ?? "")) {
-    if (valeur ? searchParams.get(cle) !== valeur : !searchParams.has(cle)) return false;
-  }
-  return true;
-}
-
-export function estActif(item: Pick<NavItem, "href" | "exact" | "excludePrefix">, pathname: string, searchParams: URLSearchParams): boolean {
-  if (item.excludePrefix?.some((p) => pathname.startsWith(p))) return false;
-
-  const [base, query] = item.href.split("?");
-  if (query) return correspond(item.href, pathname, searchParams);
-
-  // Un lien plus précis du menu (même page + query) prend la main : sur
-  // /dashboard/boutique?section=livraison, seule « Livraison » est surlignée, pas « Ma boutique ».
-  if (HREFS_AVEC_QUERY.some((h) => correspond(h, pathname, searchParams))) return false;
-
-  if (item.exact) return pathname === base;
-  // "/dashboard" est un préfixe de tout le dashboard : il exige l'égalité
-  // stricte pour ne pas rester actif sur toutes les pages.
-  return base !== "/dashboard" ? pathname.startsWith(base) : pathname === base;
-}
+// ─── Filtrage par permissions et état actif ──────────────────────────────────
+// Logique partagée avec le nouveau shell (components/dashboard/shell/menu.ts) : une seule source.
+export { estActif };
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
@@ -263,8 +225,6 @@ const GROUPES: NavGroupe[] = [
     ],
   },
 ];
-
-const HREFS_AVEC_QUERY = [...PRIMAIRES, ...GROUPES.flatMap((g) => g.items)].map((it) => it.href).filter((h) => h.includes("?"));
 
 /** Groupes du menu pour cette session : mêmes droits et même mode caisse partout (barre latérale, tiroir mobile). */
 export function groupesVisibles(permissions: Record<ModuleKey, Niveau> | undefined, modePos: "simple" | "pro", pathname: string, searchParams: URLSearchParams) {

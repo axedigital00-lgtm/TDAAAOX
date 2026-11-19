@@ -9,6 +9,8 @@ import { quotaCommandesAtteint, planActif } from "@/lib/abonnement";
 import { permissionsSession, estCaissierPur } from "@/lib/permissions-server";
 import { AbonnementOverlayProvider } from "@/components/dashboard/AbonnementOverlayProvider";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { AppShell } from "@/components/dashboard/shell/AppShell";
+import { cookies } from "next/headers";
 import { I18nProvider } from "@/components/I18nProvider";
 import { getLangue, dico } from "@/lib/i18n/serveur";
 import { DeviseProvider } from "@/components/dashboard/DeviseProvider";
@@ -67,12 +69,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
       }, () => null)
     : null;
 
+  // Admin refondu (docs/refonte-admin, lot 5) par défaut ; cookie admin_v2=0 = ancien cadre (retiré au lot 15).
+  const Shell = (await cookies()).get("admin_v2")?.value === "0" ? DashboardShell : AppShell;
+
   return (
     <I18nProvider langue={await getLangue()} dico={await dico("dashboard", "boutique")}>
     <AbonnementOverlayProvider palier={palier}>
-      <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo} demarrage={demarrage}>
+      <Shell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo} demarrage={demarrage}>
         <DeviseProvider devise={boutique?.devise || "XAF"}>{children}</DeviseProvider>
-      </DashboardShell>
+      </Shell>
       {/* Son audio sur chaque notification toast */}
       <NotificationSound />
       {/* Nouvelle commande : alerte distincte (son de caisse + carte). */}

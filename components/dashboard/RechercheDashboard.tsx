@@ -19,18 +19,59 @@ type Resultats = {
   commandes: { id: string; numero: string; clientNom: string; montantTotal: number; devise: string; statut: string }[];
   clients: { id: string; nom: string; telephone: string | null; email: string | null }[];
 };
-type Ligne = { cle: string; groupe: string; titre: string; detail?: string; href: string; Icone: React.ComponentType<{ size?: number; className?: string }>; image?: string | null };
+type Ligne = { cle: string; groupe: string; titre: string; detail?: string; href: string; Icone?: React.ComponentType<{ size?: number | string; className?: string }>; image?: string | null };
 
 const STATUTS: Record<string, string> = { en_attente: "En attente", confirmee: "Confirmée", en_preparation: "En préparation", expediee: "En livraison", livree: "Livrée", annulee: "Annulée", tentative_echouee: "Livraison échouée" };
+
+/** Logique de la recherche globale (pages du menu, sections des réglages, produits / commandes / clients).
+ *  `pages` doit être mémoïsé par l'appelant. Partagée par cette recherche et la palette du nouveau shell (components/dashboard/shell/CommandPalette.tsx). */
+export function useRecherche(pages: { href: string; label: string; groupe?: string; Icon?: Ligne["Icone"] }[], permissions?: Record<ModuleKey, Niveau>) {
+  const tr = useT();
+  const [q, setQ] = useState("");
+  const [res, setRes] = useState<Resultats | null>(null);
+  const [chargement, setChargement] = useState(false);
+  const [actif, setActif] = useState(0);
+  // Données (anti-rebond ; une réponse périmée n'écrase jamais la plus récente)
+  useEffect(() => {
+    const terme = q.trim();
+    if (terme.length < 2) { setRes(null); setChargement(false); return; }
+    setChargement(true);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`/api/recherche?q=${encodeURIComponent(terme)}`, { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setRes(d); })
+        .catch(() => {}).finally(() => { if (!ctrl.signal.aborted) setChargement(false); });
+    }, 200);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [q]);
+
+  // Sections des pages Réglages (ex. « horaires » → Réglages › Coordonnées), filtrées par permissions.
+  const sections = useMemo(() => SECTIONS_INDEX.filter((s) => !s.moduleKey || !permissions || permissions[s.moduleKey] !== "aucun"), [permissions]);
+  const lignes: Ligne[] = useMemo(() => {
+    if (!q.trim()) return [];
+    const l: Ligne[] = chercher(pages, q, (p) => textesPage(p, tr))
+      .slice(0, 5)
+      .map((p) => ({ cle: `page-${p.href}`, groupe: "Pages", titre: p.label, detail: p.groupe || undefined, href: p.href, Icone: p.Icon }));
+    l.push(...chercher(sections, q, (s) => ({ principal: `${s.label} ${tr(s.label)}`, secondaires: [s.groupe, tr(s.groupe), s.mots] }))
+      .slice(0, 4)
+      .map((s) => ({ cle: `section-${s.groupe}-${s.label}`, groupe: "Sections", titre: s.label, detail: s.groupe, href: s.href, Icone: s.href === "/dashboard/profil" ? User : Settings })));
+    if (res) {
+      l.push(...res.produits.map((p) => ({ cle: `p-${p.id}`, groupe: "Produits", titre: p.nom, detail: `${formatMontant(p.prix, res.devise)}${p.actif ? "" : " · masqué"}`, href: `/dashboard/produits/${p.id}`, Icone: Package, image: p.image })));
+      l.push(...res.commandes.map((c) => ({ cle: `c-${c.id}`, groupe: "Commandes", titre: `#${c.numero} · ${c.clientNom}`, detail: `${formatMontant(c.montantTotal, c.devise)} · ${STATUTS[c.statut] ?? c.statut}`, href: `/dashboard/commandes/${c.id}`, Icone: ShoppingBag })));
+      l.push(...res.clients.map((c) => ({ cle: `cl-${c.id}`, groupe: "Clients", titre: c.nom, detail: [c.telephone, c.email].filter(Boolean).join(" · ") || undefined, href: `/dashboard/clients?q=${encodeURIComponent(c.nom)}`, Icone: User })));
+    }
+    return l;
+  }, [q, res, pages, sections, tr]);
+
+  useEffect(() => setActif(0), [q, res]);
+  return { q, setQ, lignes, chargement, actif, setActif };
+}
 
 export function RechercheDashboard({ permissions, mobile = false }: { permissions?: Record<ModuleKey, Niveau>; mobile?: boolean }) {
   const tr = useT();
   const router = useRouter();
-  const [q, setQ] = useState("");
+  const { q, setQ, lignes, chargement, actif, setActif } = useRecherche(useMemo(() => pagesDashboard(permissions), [permissions]), permissions);
   const [ouvert, setOuvert] = useState(false);
-  const [res, setRes] = useState<Resultats | null>(null);
-  const [chargement, setChargement] = useState(false);
-  const [actif, setActif] = useState(0);
   const champ = useRef<HTMLInputElement>(null);
   const boite = useRef<HTMLDivElement>(null);
 
@@ -58,40 +99,6 @@ export function RechercheDashboard({ permissions, mobile = false }: { permission
     return () => document.removeEventListener("mousedown", onDown);
   }, [ouvert, mobile]);
 
-  // Données (anti-rebond ; une réponse périmée n'écrase jamais la plus récente)
-  useEffect(() => {
-    const terme = q.trim();
-    if (terme.length < 2) { setRes(null); setChargement(false); return; }
-    setChargement(true);
-    const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      fetch(`/api/recherche?q=${encodeURIComponent(terme)}`, { signal: ctrl.signal })
-        .then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setRes(d); })
-        .catch(() => {}).finally(() => { if (!ctrl.signal.aborted) setChargement(false); });
-    }, 200);
-    return () => { clearTimeout(t); ctrl.abort(); };
-  }, [q]);
-
-  const pages = useMemo(() => pagesDashboard(permissions), [permissions]);
-  // Sections des pages Réglages (ex. « horaires » → Réglages › Coordonnées), filtrées par permissions.
-  const sections = useMemo(() => SECTIONS_INDEX.filter((s) => !s.moduleKey || !permissions || permissions[s.moduleKey] !== "aucun"), [permissions]);
-  const lignes: Ligne[] = useMemo(() => {
-    if (!q.trim()) return [];
-    const l: Ligne[] = chercher(pages, q, (p) => textesPage(p, tr))
-      .slice(0, 5)
-      .map((p) => ({ cle: `page-${p.href}`, groupe: "Pages", titre: p.label, detail: p.groupe || undefined, href: p.href, Icone: p.Icon as Ligne["Icone"] }));
-    l.push(...chercher(sections, q, (s) => ({ principal: `${s.label} ${tr(s.label)}`, secondaires: [s.groupe, tr(s.groupe), s.mots] }))
-      .slice(0, 4)
-      .map((s) => ({ cle: `section-${s.groupe}-${s.label}`, groupe: "Sections", titre: s.label, detail: s.groupe, href: s.href, Icone: s.href === "/dashboard/profil" ? User : Settings })));
-    if (res) {
-      l.push(...res.produits.map((p) => ({ cle: `p-${p.id}`, groupe: "Produits", titre: p.nom, detail: `${formatMontant(p.prix, res.devise)}${p.actif ? "" : " · masqué"}`, href: `/dashboard/produits/${p.id}`, Icone: Package, image: p.image })));
-      l.push(...res.commandes.map((c) => ({ cle: `c-${c.id}`, groupe: "Commandes", titre: `#${c.numero} · ${c.clientNom}`, detail: `${formatMontant(c.montantTotal, c.devise)} · ${STATUTS[c.statut] ?? c.statut}`, href: `/dashboard/commandes/${c.id}`, Icone: ShoppingBag })));
-      l.push(...res.clients.map((c) => ({ cle: `cl-${c.id}`, groupe: "Clients", titre: c.nom, detail: [c.telephone, c.email].filter(Boolean).join(" · ") || undefined, href: `/dashboard/clients?q=${encodeURIComponent(c.nom)}`, Icone: User })));
-    }
-    return l;
-  }, [q, res, pages, sections, tr]);
-
-  useEffect(() => setActif(0), [q, res]);
 
   const aller = (href: string) => { setOuvert(false); setQ(""); champ.current?.blur(); router.push(href); };
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -124,7 +131,7 @@ export function RechercheDashboard({ permissions, mobile = false }: { permission
             className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${i === actif ? "bg-[#FFF7ED]" : ""}`}>
             {l.image
               ? <img src={l.image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
-              : <span className="w-8 h-8 rounded-lg bg-[#F5F5F7] flex items-center justify-center flex-shrink-0 text-[#777777]"><l.Icone size={15} /></span>}
+              : <span className="w-8 h-8 rounded-lg bg-[#F5F5F7] flex items-center justify-center flex-shrink-0 text-[#777777]">{l.Icone && <l.Icone size={15} />}</span>}
             <span className="flex-1 min-w-0">
               <span className="block text-[13px] font-medium text-[#111111] truncate">{tr(l.titre)}</span>
               {l.detail && <span className="block text-[11.5px] text-[#999999] truncate">{tr(l.detail)}</span>}

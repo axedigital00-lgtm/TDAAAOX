@@ -29,7 +29,7 @@ test("IconButton : nom accessible obligatoire", () => {
 });
 
 test("Badge : ton et pastille de progression", () => {
-  const s = html(h(Badge, { tone: "attention", progress: "partial" }, "À la livraison"));
+  const s = html(h(Badge, { tone: "attention", progress: "partial", children: "À la livraison" }));
   assert.match(s, /data-tone="attention"/);
   assert.match(s, /data-progress="partial"/);
   assert.doesNotMatch(html(h(Badge, null, "Brouillon")), /data-progress/);
@@ -89,8 +89,8 @@ test("Modal et BottomSheet : <dialog> titré, contenu monté seulement ouvert", 
   const ouvert = html(h(Modal, { open: true, onClose: noop, title: "Supprimer ?", footer: h(Button, { variant: "critical" }, "Supprimer") }, "Corps"));
   assert.match(ouvert, /<dialog[^>]*aria-labelledby="[^"]+"/);
   assert.match(ouvert, /Corps/);
-  assert.doesNotMatch(html(h(Modal, { open: false, onClose: noop, title: "T" }, "Corps")), /Corps/);
-  assert.match(html(h(BottomSheet, { open: true, onClose: noop, title: "Actions" }, "x")), /cursor-grab/);
+  assert.doesNotMatch(html(h(Modal, { open: false, onClose: noop, title: "T", children: "Corps" })), /Corps/);
+  assert.match(html(h(BottomSheet, { open: true, onClose: noop, title: "Actions", children: "x" })), /cursor-grab/);
 });
 
 test("Menu, Popover, Tooltip", () => {
@@ -98,8 +98,8 @@ test("Menu, Popover, Tooltip", () => {
   assert.match(m, /role="menu"/);
   assert.equal((m.match(/role="menuitem"/g) ?? []).length, 3);
   assert.match(m, /aria-disabled="true"/);
-  assert.doesNotMatch(html(h(Popover, { open: false, onClose: noop, activator: h("button", null, "Ouvrir") }, "Contenu")), /Contenu/);
-  assert.doesNotMatch(html(h(Tooltip, { content: "Aide" }, h("span", null, "?"))), /role="tooltip"/); // délai de 300 ms
+  assert.doesNotMatch(html(h(Popover, { open: false, onClose: noop, activator: h("button", null, "Ouvrir"), children: "Contenu" })), /Contenu/);
+  assert.doesNotMatch(html(h(Tooltip, { content: "Aide", children: h("span", null, "?") })), /role="tooltip"/); // délai de 300 ms
 });
 
 test("PageHeader : titre, retour, action principale, menu mobile", () => {

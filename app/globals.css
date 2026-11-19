@@ -826,3 +826,11 @@ body > .axs-store > div > :is(footer, :has(footer)) {
 .adm :focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
 @keyframes adm-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .adm *, .adm *::before, .adm *::after { animation-duration: 0s !important; transition-duration: 0s !important; } }
+/* Cadre de l'admin (lot 5, components/dashboard/shell) : barres de défilement fines (§5.1, §5.2), panneau AXIA (D12). */
+.adm .adm-main { scrollbar-width: thin; scrollbar-color: #d4d4d4 transparent; }
+.adm .adm-main::-webkit-scrollbar { width: 10px; }
+.adm .adm-main::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 9999px; border: 3px solid #fff; }
+.adm .adm-nav-scroll { scrollbar-width: thin; scrollbar-color: #333 transparent; }
+@media (min-width: 1024px) {
+  .adm .adm-axia > aside { width: 400px; margin: 6px 0 0 6px; border: 0; border-radius: var(--radius-2xl); box-shadow: var(--shadow-drawer); overflow: hidden; }
+}
