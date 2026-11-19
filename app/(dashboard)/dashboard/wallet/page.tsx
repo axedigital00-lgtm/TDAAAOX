@@ -6,8 +6,9 @@ import {
   XCircle, TrendingUp, ShieldCheck, Loader2, RefreshCw,
   Smartphone, Building2,
 } from "lucide-react";
-import { Alerte, Badge, Bouton, Champ, CLASSE_SAISIE, EnTetePage, EtatErreur, EtatVide, Modale, Saisie, SqueletteListe, type Ton } from "@/components/ui";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { Alerte, Badge, Bouton, Champ, CLASSE_SAISIE, EtatErreur, EtatVide, Modale, Saisie, SqueletteListe, type Ton } from "@/components/ui";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
+import { EnTeteModule } from "@/app/(dashboard)/dashboard/clients/EnTeteModule";
 import { basculerBoutique } from "@/components/dashboard/BoutiqueSwitcher";
 import { useT } from "@/components/I18nProvider";
 import { exempleTelephone, normaliserTelephone } from "@/lib/devise-convert";
@@ -336,11 +337,8 @@ export default function WalletPage() {
     <div className="space-y-5 max-w-5xl">
       <ModuleTutorial moduleKey="wallet" titre={tr("Mon argent")} sousTitre={tr("Ton solde et tes retraits")} steps={WALLET_TUTORIAL_STEPS} />
 
-      <EnTetePage className="mb-0 pt-1"
-        titre={tr("Mon argent")}
-        description={tr("Ce que tu peux retirer, ce qui arrive et ce que tu as déjà retiré")}
-        indicateurs={<BoutonRevoirTutoriel moduleKey="wallet" />}
-        actions={<Bouton variante="secondaire" onClick={charger} charge={loading} texteCharge={tr("Actualisation…")} icone={<RefreshCw className="size-4" aria-hidden />}>{tr("Actualiser")}</Bouton>}
+      <EnTeteModule icon="money" title={tr("Mon argent")} tutoriel="wallet"
+        secondaryActions={[{ content: loading ? tr("Actualisation…") : tr("Actualiser"), onAction: charger, disabled: loading }]}
       />
 
       {loading && !wallet ? (

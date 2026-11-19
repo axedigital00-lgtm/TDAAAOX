@@ -4,7 +4,7 @@
 // mode caisse (kiosque), tour de bienvenue, pages plein écran (constructeur, thèmes), compteur de
 // la promo, bandeau de quota, panneau AXIA monté une seule fois, children monté une seule fois.
 // L'ancien cadre reste disponible avec le cookie admin_v2=0 (app/(dashboard)/layout.tsx), jusqu'au lot 15.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Sparkles, ShoppingCart, Store, Users } from "lucide-react";
@@ -18,6 +18,7 @@ import { AxiaPanneau, basculerAxia, ouvrirAxia, useEtatAxia } from "@/components
 import type { Palier } from "@/lib/plans";
 import type { ModuleKey, Niveau } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { Banner, Modal } from "@/components/ui/adm";
 import { inter } from "@/app/(dashboard)/police";
 import { Sidebar, SettingsSidebar, NavPrincipale, memoriserRetour, type ShellProps } from "./Sidebar";
 import { CommandPalette, ouvrirPalette } from "./CommandPalette";
@@ -60,6 +61,8 @@ export function AppShell({ children, session, boutique, quotaAtteint, palier, pe
   const pathname = usePathname();
   const router = useRouter();
   const [tiroir, setTiroir] = useState(false);
+  const [aide, setAide] = useState(false);
+  const enLigne = useEnLigne();
   const pleinEcran = PLEIN_ECRAN.some((r) => pathname.startsWith(r));
   const parametres = pathname.startsWith("/dashboard/parametres");
 
@@ -71,6 +74,7 @@ export function AppShell({ children, session, boutique, quotaAtteint, palier, pe
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || estSaisie(e.target)) return;
+      if (e.key === "?") { e.preventDefault(); setAide(true); return; }
       const k = e.key.toLowerCase();
       if (Date.now() - g.current < 1000 && ALLER[k]) { g.current = 0; router.push(ALLER[k]); return; }
       g.current = k === "g" ? Date.now() : 0;
@@ -101,6 +105,11 @@ export function AppShell({ children, session, boutique, quotaAtteint, palier, pe
             pleinEcran ? "flex flex-col overflow-hidden" : "overflow-y-auto")}>
             {pleinEcran ? children : (
               <div key={pathname} className="ax-page-enter mx-auto w-full max-w-[1200px] space-y-4 px-(--page-padding-x) pt-4 pb-[120px] md:space-y-0">
+                {!enLigne && (
+                  <Banner tone="warning" className="sticky top-0 z-(--z-header) mb-4 max-[820px]:top-[52px]">
+                    {t("Vous êtes hors ligne. Vos modifications ne pourront pas être enregistrées tant que la connexion n'est pas revenue.")}
+                  </Banner>
+                )}
                 {promo && <CompteurPromoDashboard finLe={promo.finLe} maintenant={promo.maintenant} />}
                 {quotaAtteint && !promo && <QuotaBanner />}
                 {children}
@@ -118,7 +127,52 @@ export function AppShell({ children, session, boutique, quotaAtteint, palier, pe
       </Tiroir>
       {!pleinEcran && !SANS_DOCK.includes(pathname) && <AxiaDock />}
       <CommandPalette permissions={permissions} />
+      <AideRaccourcis ouvert={aide} onClose={() => setAide(false)} />
     </div>
+  );
+}
+
+// navigator.onLine : faux seulement quand l'appareil n'a plus de réseau du tout (pas une connexion lente).
+const abonnerReseau = (cb: () => void) => {
+  window.addEventListener("online", cb);
+  window.addEventListener("offline", cb);
+  return () => { window.removeEventListener("online", cb); window.removeEventListener("offline", cb); };
+};
+function useEnLigne() {
+  return useSyncExternalStore(abonnerReseau, () => navigator.onLine, () => true);
+}
+
+/** Aide des raccourcis (« ? », §11) : uniquement ceux qui sont réellement codés. */
+const RACCOURCIS: [string[], string][] = [
+  [["Ctrl", "K"], "Rechercher des pages, commandes, produits, clients…"],
+  [["Ctrl", "J"], "Ouvrir ou fermer AXIA"],
+  [["Ctrl", "S"], "Enregistrer les modifications d'une fiche"],
+  [["G", "H"], "Aller à l'Accueil"],
+  [["G", "O"], "Aller aux Commandes"],
+  [["G", "P"], "Aller aux Produits"],
+  [["G", "C"], "Aller aux Clients"],
+  [["G", "A"], "Aller aux Analyses"],
+  [["Échap"], "Fermer la fenêtre ou le panneau"],
+  [["?"], "Afficher cette aide"],
+];
+function AideRaccourcis({ ouvert, onClose }: { ouvert: boolean; onClose: () => void }) {
+  const t = useT();
+  return (
+    <Modal open={ouvert} onClose={onClose} size="sm" title={t("Raccourcis clavier")}>
+      <dl className="m-0 divide-y divide-(--color-border-secondary)">
+        {RACCOURCIS.map(([touches, action]) => (
+          <div key={action} className="flex items-center justify-between gap-3 py-2">
+            <dt className="text-(--color-text)">{t(action)}</dt>
+            <dd className="m-0 flex flex-none gap-1">
+              {touches.map((k) => (
+                <kbd key={k} className="min-w-6 rounded-(--radius-sm) bg-(--color-surface-tertiary) px-1.5 text-center font-sans text-xs font-[550] text-(--color-text-strong)">{k === "Échap" ? t("Échap") : k}</kbd>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 mb-0 text-xs text-(--color-text-secondary)">{t("Sur Mac, Ctrl correspond à ⌘. Les touches G puis une lettre s'enchaînent en moins d'une seconde.")}</p>
+    </Modal>
   );
 }
 

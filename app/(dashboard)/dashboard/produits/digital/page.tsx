@@ -3,7 +3,8 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, Download, BookOpen, Monitor, FileText, Music, Video, Package, TrendingUp, Shield, MoreHorizontal, Copy, Archive, ArchiveRestore, Search, X, Users, BarChart2, Send, Ban, RefreshCw, Loader2, AlertCircle, Check, Eye, Clock, Infinity, FileDown, Key } from "lucide-react";
 import { formatMontant, formatDate } from "@/lib/utils";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
+import { EnTeteModule } from "@/app/(dashboard)/dashboard/clients/EnTeteModule";
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
@@ -707,30 +708,9 @@ export default function DigitalProduitsPage() {
   return (
     <div className="space-y-6">
       <ModuleTutorial moduleKey="produits-digital" titre={tr("Produits digitaux")} sousTitre={tr("Fichiers, formations, licences")} steps={DIGITAL_TUTORIAL_STEPS} />
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex flex-wrap items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-[#111111] font-poppins">{tr("Produits Digitaux")}</h1>
-            <BoutonRevoirTutoriel moduleKey="produits-digital" />
-            {stats && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]">
-                {tr(stats.totalProduits)}{" "}{tr("au total")}
-              </span>
-            )}
-          </div>
-          <p className="text-[#717171] text-sm">
-            {tr("Ebooks, cours, logiciels, templates, audio, vidéo — livrés instantanément")}
-          </p>
-        </div>
-        <Link
-          href="/dashboard/produits/digital/nouveau"
-          className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl bg-[#111111] text-white whitespace-nowrap hover:bg-[#333333] transition-colors"
-        >
-          <Plus size={15} />
-          {tr("Nouveau produit digital")}
-        </Link>
-      </div>
+      <EnTeteModule icon="doc" title={tr("Produits numériques")} backHref="/dashboard/produits" tutoriel="produits-digital"
+        titleMeta={stats ? <span className="text-(--color-text-secondary)">{tr(stats.totalProduits)} {tr("au total")}</span> : undefined}
+        primaryAction={{ content: tr("Nouveau produit numérique"), href: "/dashboard/produits/digital/nouveau", icon: "plus" }} />
 
       {/* ── Produits nouveau système ── */}
 

@@ -21,6 +21,8 @@ export function ContextualSaveBar({ dirty, onSave, onDiscard, saving, message }:
   const t = useT();
   const [pending, setPending] = useState<HTMLAnchorElement | null>(null);
   const allow = useRef(false);
+  const save = useRef({ onSave, saving });
+  save.current = { onSave, saving };
 
   useEffect(() => {
     if (!dirty) return;
@@ -34,9 +36,17 @@ export function ContextualSaveBar({ dirty, onSave, onDiscard, saving, message }:
       e.stopPropagation();
       setPending(a);
     };
+    // Ctrl/Cmd+S : enregistrer (§11) au lieu d'enregistrer la page HTML.
+    const key = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (!save.current.saving) void save.current.onSave();
+      }
+    };
     window.addEventListener("beforeunload", unload);
+    window.addEventListener("keydown", key);
     document.addEventListener("click", click, true);
-    return () => { window.removeEventListener("beforeunload", unload); document.removeEventListener("click", click, true); };
+    return () => { window.removeEventListener("beforeunload", unload); window.removeEventListener("keydown", key); document.removeEventListener("click", click, true); };
   }, [dirty]);
 
   const leave = () => {

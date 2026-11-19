@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { Plus, Star, Package, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
+import { EnTeteModule } from "@/app/(dashboard)/dashboard/clients/EnTeteModule";
 import { useT } from "@/components/I18nProvider";
-import { Badge, Bouton, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation } from "@/components/ui";
+import { Badge, Bouton, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 const ENTREPOTS_TUTORIAL_STEPS = [
@@ -109,13 +110,8 @@ export default function EntrepotsPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {dialogue}
       <ModuleTutorial moduleKey="entrepots" titre={t("Entrepôts")} sousTitre={t("Tes points de stockage")} steps={ENTREPOTS_TUTORIAL_STEPS} />
-      <EnTetePage
-        retour={{ href: "/dashboard/logistique", libelle: t("Logistique") }}
-        titre={t("Entrepôts")}
-        description={t("Les lieux où tu ranges ton stock. Le stock de chaque produit est suivi par entrepôt.")}
-        indicateurs={<><AgentActiveIndicator label={t("Agent Stock actif")} /><BoutonRevoirTutoriel moduleKey="entrepots" /></>}
-        className="mb-0"
-      />
+      <EnTeteModule icon="box" title={t("Entrepôts")} backHref="/dashboard/logistique" tutoriel="entrepots"
+        titleMeta={<AgentActiveIndicator label={t("Agent Stock actif")} />} />
 
       {/* Compteurs */}
       <div className="grid grid-cols-3 gap-3">

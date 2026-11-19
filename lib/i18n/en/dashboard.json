@@ -5232,5 +5232,20 @@
   "Type de fichier": "File type",
   "Personnalisez l'apparence de votre boutique": "Customize your store's look",
   "Images": "Images",
-  "Échecs": "Failures"
+  "Échecs": "Failures",
+ "Vos données ne sont pas perdues. Réessayez ; si la page ne revient pas, rechargez-la ou signalez le problème (le détail ci-dessous est joint automatiquement).": "Your data is not lost. Try again; if the page does not come back, reload it or report the problem (the details below are attached automatically).",
+ "Le lien est peut-être erroné, ou l'élément a été supprimé.": "The link may be wrong, or the item has been deleted.",
+ "Vous êtes hors ligne. Vos modifications ne pourront pas être enregistrées tant que la connexion n'est pas revenue.": "You are offline. Your changes cannot be saved until the connection is back.",
+ "Raccourcis clavier": "Keyboard shortcuts",
+ "Ouvrir ou fermer AXIA": "Open or close AXIA",
+ "Enregistrer les modifications d'une fiche": "Save changes on a detail page",
+ "Aller à l'Accueil": "Go to Home",
+ "Aller aux Commandes": "Go to Orders",
+ "Aller aux Produits": "Go to Products",
+ "Aller aux Clients": "Go to Customers",
+ "Aller aux Analyses": "Go to Analytics",
+ "Fermer la fenêtre ou le panneau": "Close the dialog or panel",
+ "Afficher cette aide": "Show this help",
+ "Sur Mac, Ctrl correspond à ⌘. Les touches G puis une lettre s'enchaînent en moins d'une seconde.": "On Mac, Ctrl is ⌘. Press G then a letter within one second.",
+ "Nouveau produit numérique": "New digital product"
 }

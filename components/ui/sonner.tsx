@@ -1,9 +1,12 @@
 "use client"
 
+import { usePathname } from "next/navigation"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
+  // Admin marchand refondu (§7.12) : toasts centrés à 76 px du bas, au-dessus du dock AXIA.
+  const adm = usePathname()?.startsWith("/dashboard")
   return (
     <Sonner
       // L'interface n'a pas de mode sombre (pas de ThemeProvider) : en « system », les
@@ -41,6 +44,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         },
       }}
       {...props}
+      {...(adm && { position: "bottom-center" as const, offset: 76, mobileOffset: 76 })}
     />
   )
 }
