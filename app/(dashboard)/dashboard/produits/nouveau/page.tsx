@@ -18,7 +18,8 @@ import { GardeProduitPhysique } from "@/components/dashboard/GardeProduitPhysiqu
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { PolitiquePrix } from "@/components/dashboard/PolitiquePrix";
-import { Badge, Bouton, EnTetePage } from "@/components/ui";
+import { Badge, ContextualSaveBar, PageHeader, Toggle } from "@/components/ui/adm";
+import { CARTE, CHAMP } from "../styles";
 
 const TYPES_PRODUIT = [
   {
@@ -26,23 +27,51 @@ const TYPES_PRODUIT = [
     icon: Package,
     label: "Physique",
     desc: "Stock, livraison, poids",
-    color: "#F5A623",
   },
   {
     id: "digital",
     icon: Download,
     label: "Digital",
     desc: "Fichier, formation, licence, bundle — assistant dédié",
-    color: "#1B2A4A",
   },
   {
     id: "dropshipping",
     icon: Truck,
     label: "Dropshipping",
     desc: "Fournisseur externe, envoi direct",
-    color: "#34d399",
   },
 ];
+
+const FORM_VIDE = {
+  type: "physique" as "physique" | "digital" | "dropshipping",
+  nom: "",
+  slug: "",
+  description: "",
+  prix: "",
+  prixCompare: "",
+  cout: "",
+  stock: "0",
+  sku: "",
+  codeBarres: "",
+  categorie: "",
+  tags: [] as string[],
+  images: [] as string[],
+  videos: [] as string[],
+  actif: true,
+  featured: false,
+  poids: "",
+  metaTitle: "",
+  metaDesc: "",
+  // digital
+  fichierUrl: "",
+  fichierNom: "",
+  fichierTaille: 0,
+  instructionsTelechargement: "",
+  // dropshipping
+  prixFournisseur: "",
+  urlFournisseur: "",
+  nomFournisseur: "",
+};
 
 function formatTaille(octets: number): string {
   if (octets < 1024) return `${octets} o`;
@@ -77,36 +106,7 @@ function FormulaireProduit() {
   const categoriesBoutique = useCategoriesBoutique();
   const [scanBarcodeOuvert, setScanBarcodeOuvert] = useState(false);
 
-  const [form, setForm] = useState({
-    type: "physique" as "physique" | "digital" | "dropshipping",
-    nom: "",
-    slug: "",
-    description: "",
-    prix: "",
-    prixCompare: "",
-    cout: "",
-    stock: "0",
-    sku: "",
-    codeBarres: "",
-    categorie: "",
-    tags: [] as string[],
-    images: [] as string[],
-    videos: [] as string[],
-    actif: true,
-    featured: false,
-    poids: "",
-    metaTitle: "",
-    metaDesc: "",
-    // digital
-    fichierUrl: "",
-    fichierNom: "",
-    fichierTaille: 0,
-    instructionsTelechargement: "",
-    // dropshipping
-    prixFournisseur: "",
-    urlFournisseur: "",
-    nomFournisseur: "",
-  });
+  const [form, setForm] = useState(FORM_VIDE);
 
   const nomsOptions = optionsVariantes(categoriesBoutique, form.categorie).noms;
   useEffect(() => {
@@ -297,18 +297,22 @@ function FormulaireProduit() {
     }
   }
 
-  const inputClass = "w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 placeholder:text-[#CCCCCC] transition-all";
+  const inputClass = CHAMP;
+  // Barre « Modifications non enregistrées » dès qu'un champ est rempli (rien n'est encore créé).
+  const modifie = JSON.stringify(form) !== JSON.stringify(FORM_VIDE) || variantes.length > 0;
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <EnTetePage
-        className="mb-0"
-        retour={{ href: "/dashboard/produits", libelle: tr("Produits") }}
-        titre={tr("Ajouter un produit")}
-        description={tr("Commencez par l'essentiel : type, nom, prix, photos et stock. Les autres réglages sont facultatifs.")}
-        indicateurs={form.actif ? <Badge ton="succes">{tr("Sera en ligne")}</Badge> : <Badge>{tr("Brouillon")}</Badge>}
-        actions={<Bouton variante="primaire" onClick={sauvegarder} charge={saving} texteCharge={tr("Création…")} icone={<Plus className="size-4" aria-hidden />}>{tr("Créer le produit")}</Bouton>}
+    <div className="mx-auto w-full max-w-[1000px] space-y-4">
+      <ContextualSaveBar dirty={modifie} saving={saving} onSave={sauvegarder} message={tr("Produit non enregistré")}
+        onDiscard={() => { setForm(FORM_VIDE); setVariantes([]); }} />
+      <PageHeader
+        icon="tag"
+        backHref="/dashboard/produits"
+        title={tr("Ajouter un produit")}
+        titleMeta={form.actif ? <Badge tone="success">{tr("Sera en ligne")}</Badge> : <Badge tone="info">{tr("Brouillon")}</Badge>}
+        primaryAction={{ content: tr("Créer le produit"), loading: saving, onAction: sauvegarder }}
       />
+      <p className="m-0 text-(--color-text-secondary)">{tr("Commencez par l'essentiel : type, nom, prix, photos et stock. Les autres réglages sont facultatifs.")}</p>
 
       {/* ─── Sélecteur de type ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -320,27 +324,20 @@ function FormulaireProduit() {
             <button
               key={t.id}
               onClick={() => estDigital ? router.push("/dashboard/produits/digital/nouveau") : set("type", t.id)}
-              className="flex items-start gap-3 p-4 rounded-2xl border text-left transition-all"
-              style={{
-                borderColor: actif ? t.color + "50" : "rgba(229,231,235,1)",
-                background: actif ? t.color + "08" : "white",
-                boxShadow: actif ? `0 0 20px ${t.color}20` : "none",
-              }}
+              aria-pressed={estDigital ? undefined : actif}
+              className={`flex items-start gap-3 rounded-(--radius-xl) bg-(--color-surface) p-4 text-left transition-shadow ${actif ? "shadow-[0_0_0_2px_var(--color-border-strong)]" : "shadow-(--shadow-card) hover:bg-(--color-surface-secondary)"}`}
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{ background: t.color + "15" }}>
-                <Icone size={18} style={{ color: t.color }} />
+              <div className="grid size-10 shrink-0 place-items-center rounded-(--radius-md) bg-(--color-surface-tertiary)">
+                <Icone size={18} className="text-(--color-icon-header)" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900 text-sm">{tr(t.label)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{tr(t.desc)}</p>
+                <p className="font-semibold text-(--color-text-strong) text-sm">{tr(t.label)}</p>
+                <p className="text-xs text-(--color-text-secondary) mt-0.5">{tr(t.desc)}</p>
               </div>
               {estDigital ? (
-                <ExternalLink size={13} className="ml-auto text-gray-300 flex-shrink-0 mt-0.5" />
+                <ExternalLink size={13} className="ml-auto text-(--color-text-subdued) flex-shrink-0 mt-0.5" />
               ) : actif && (
-                <div className="ml-auto w-5 h-5 rounded-full flex items-center justify-center" style={{ background: t.color }}>
-                  <span className="text-white text-[10px] font-bold">✓</span>
-                </div>
+                <span aria-hidden className="ml-auto grid size-5 shrink-0 place-items-center rounded-full bg-(--color-primary) text-[10px] font-bold text-white">✓</span>
               )}
             </button>
           );
@@ -352,10 +349,10 @@ function FormulaireProduit() {
         <div className="min-w-0 space-y-5">
 
           {/* Infos générales */}
-          <div className="ax-card p-6 space-y-4">
+          <div className={`${CARTE} space-y-4`}>
             <div className="flex items-center gap-2 mb-1">
-              <Package size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Informations générales")}</h2>
+              <Package size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Informations générales")}</h2>
             </div>
             <div>
               <label htmlFor="produit-nom" className="ax-label block mb-1.5">{tr("Nom du produit *")}</label>
@@ -363,17 +360,17 @@ function FormulaireProduit() {
             </div>
             <div>
               <label className="ax-label block mb-1.5">{tr("Adresse de la page produit (facultatif)")}</label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                <span className="text-gray-400 text-xs flex-shrink-0">/produits/</span>
-                <input value={form.slug} onChange={e => set("slug", e.target.value)} className="bg-transparent text-sm text-gray-600 outline-none flex-1 min-w-0" />
+              <div className="flex items-center gap-2 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3">
+                <span className="text-(--color-text-secondary) text-xs flex-shrink-0">/produits/</span>
+                <input value={form.slug} onChange={e => set("slug", e.target.value)} className="bg-transparent text-sm text-(--color-text) outline-none flex-1 min-w-0" />
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-gray-400 text-xs">{tr("Description")}</label>
+                <label className="text-(--color-text-secondary) text-xs">{tr("Description")}</label>
                 <div className="flex gap-2">
                   <button onClick={genererDescription} disabled={genIA}
-                    className="flex items-center gap-1 text-[#F5A623] text-xs hover:text-[#d4820a] transition-colors disabled:opacity-50">
+                    className="flex items-center gap-1 text-(--color-icon-header) text-xs hover:underline transition-colors disabled:opacity-50">
                     {genIA ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}{" "}{tr("Générer avec l'IA")}
                   </button>
                 </div>
@@ -384,10 +381,10 @@ function FormulaireProduit() {
           </div>
 
           {/* Prix & Stock */}
-          <div className="ax-card p-6 space-y-4">
+          <div className={`${CARTE} space-y-4`}>
             <div className="flex items-center gap-2 mb-1">
-              <BarChart2 size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Prix & Stock")}</h2>
+              <BarChart2 size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Prix & Stock")}</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -417,8 +414,7 @@ function FormulaireProduit() {
                         type="button"
                         onClick={() => setScanBarcodeOuvert(true)}
                         title={tr("Scanner le code-barres avec la caméra")}
-                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-semibold text-[12.5px] text-white shrink-0 transition-all hover:opacity-90"
-                        style={{ background: "#F5A623" }}
+                        className="flex items-center gap-1.5 px-3 min-h-8 rounded-(--radius-md) font-[550] text-[13px] text-white shrink-0 bg-(--color-primary) shadow-(--shadow-button-primary) hover:bg-(--color-primary-hover)"
                       >
                         <ScanLine size={14} />{" "}{tr("Scanner")}
                       </button>
@@ -430,22 +426,22 @@ function FormulaireProduit() {
                 <div>
                   <label className="ax-label block mb-1.5">{tr("Prix d'achat (coût)")}</label>
                   <input type="number" value={form.cout} onChange={e => set("cout", e.target.value)} placeholder="0" min="0" className={inputClass} />
-                  <p className="text-[11px] text-gray-400 mt-1">{tr("Pour calculer la vraie rentabilité dans le module Point de vente")}</p>
+                  <p className="text-[11px] text-(--color-text-secondary) mt-1">{tr("Pour calculer la vraie rentabilité dans le module Point de vente")}</p>
                 </div>
               )}
             </div>
             {form.type === "digital" && (
-              <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 text-purple-700 text-xs flex items-center gap-2">
+              <div className="bg-(--color-magic-bg) border border-(--color-magic-border) rounded-xl px-4 py-2.5 text-(--color-magic-text) text-xs flex items-center gap-2">
                 <Info size={12} />{" "}{tr("Stock automatiquement illimité pour les produits digitaux")}
               </div>
             )}
             {form.type === "dropshipping" && marge !== null && (
-              <div className={`rounded-xl px-4 py-2.5 text-xs flex items-center gap-2 ${marge >= 30 ? "bg-green-50 border border-green-200 text-green-700" : marge >= 10 ? "bg-yellow-50 border border-yellow-200 text-yellow-700" : "bg-red-50 border border-red-200 text-red-600"}`}>
+              <div className={`rounded-xl px-4 py-2.5 text-xs flex items-center gap-2 ${marge >= 30 ? "bg-(--banner-success-bg) border border-(--badge-success-bg) text-(--badge-success-text)" : marge >= 10 ? "bg-(--banner-warning-bg) border border-(--badge-warning-bg) text-(--badge-warning-text)" : "bg-(--banner-critical-bg) border border-(--badge-critical-bg) text-(--color-critical-text)"}`}>
                 <BarChart2 size={12} />{" "}{tr("Marge :")}{" "}{tr(marge)}% {marge >= 30 ? tr("✓ Bonne marge") : marge >= 10 ? tr("⚠ Marge faible") : tr("✗ Marge insuffisante")}
               </div>
             )}
             {form.type === "physique" && margeCout !== null && (
-              <div className={`rounded-xl px-4 py-2.5 text-xs flex items-center gap-2 ${margeCout >= 30 ? "bg-green-50 border border-green-200 text-green-700" : margeCout >= 10 ? "bg-yellow-50 border border-yellow-200 text-yellow-700" : "bg-red-50 border border-red-200 text-red-600"}`}>
+              <div className={`rounded-xl px-4 py-2.5 text-xs flex items-center gap-2 ${margeCout >= 30 ? "bg-(--banner-success-bg) border border-(--badge-success-bg) text-(--badge-success-text)" : margeCout >= 10 ? "bg-(--banner-warning-bg) border border-(--badge-warning-bg) text-(--badge-warning-text)" : "bg-(--banner-critical-bg) border border-(--badge-critical-bg) text-(--color-critical-text)"}`}>
                 <BarChart2 size={12} />{" "}{tr("Marge brute :")}{" "}{tr(margeCout)}% {margeCout >= 30 ? tr("✓ Bonne marge") : margeCout >= 10 ? tr("⚠ Marge faible") : tr("✗ Marge insuffisante")}
               </div>
             )}
@@ -453,10 +449,10 @@ function FormulaireProduit() {
 
           {/* ─── Section DROPSHIPPING ─── */}
           {form.type === "dropshipping" && (
-            <div className="bg-white border border-emerald-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-(--badge-success-bg) rounded-(--radius-lg) p-6 space-y-4">
               <div className="flex items-center gap-2 mb-1">
-                <Truck size={15} className="text-emerald-500" />
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Informations fournisseur")}</h2>
+                <Truck size={15} className="text-(--badge-success-text)" />
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Informations fournisseur")}</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -475,7 +471,7 @@ function FormulaireProduit() {
                     placeholder="https://aliexpress.com/item/..." className={`${inputClass} flex-1 min-w-0`} />
                   {form.urlFournisseur && (
                     <a href={form.urlFournisseur} target="_blank" rel="noopener noreferrer"
-                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 hover:text-gray-700 transition-colors">
+                      className="px-3 py-2 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl text-(--color-text-secondary) hover:text-(--color-text) transition-colors">
                       <ExternalLink size={15} />
                     </a>
                   )}
@@ -486,27 +482,27 @@ function FormulaireProduit() {
 
           {/* ─── Section DIGITAL ─── */}
           {form.type === "digital" && (
-            <div className="bg-white border border-purple-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-(--color-magic-border) rounded-(--radius-lg) p-6 space-y-4">
               <div className="flex items-center gap-2 mb-1">
-                <FileText size={15} className="text-purple-500" />
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Fichier digital *")}</h2>
+                <FileText size={15} className="text-(--color-magic-text)" />
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Fichier digital *")}</h2>
               </div>
 
               {!form.fichierUrl ? (
                 <div
-                  className="border-2 border-dashed border-purple-200 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/50 transition-all"
+                  className="border-2 border-dashed border-(--color-magic-border) rounded-xl p-8 text-center cursor-pointer hover:border-(--color-magic-text) hover:bg-(--color-magic-bg) transition-all"
                   onClick={() => digitalFileRef.current?.click()}
                 >
                   {uploadingFichier ? (
                     <div className="flex flex-col items-center gap-2">
-                      <Loader2 size={28} className="text-purple-400 animate-spin" />
-                      <p className="text-sm text-purple-500">{tr("Upload en cours…")}</p>
+                      <Loader2 size={28} className="text-(--color-magic-text) animate-spin" />
+                      <p className="text-sm text-(--color-magic-text)">{tr("Upload en cours…")}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2">
-                      <Upload size={28} className="text-purple-300" />
-                      <p className="text-sm font-medium text-gray-700">{tr("Cliquez pour uploader votre fichier")}</p>
-                      <p className="text-xs text-gray-400">{tr("PDF, ZIP, MP3, MP4, DOCX — max 200 Mo")}</p>
+                      <Upload size={28} className="text-(--color-magic-text)" />
+                      <p className="text-sm font-medium text-(--color-text)">{tr("Cliquez pour uploader votre fichier")}</p>
+                      <p className="text-xs text-(--color-text-secondary)">{tr("PDF, ZIP, MP3, MP4, DOCX — max 200 Mo")}</p>
                     </div>
                   )}
                   <input ref={digitalFileRef} type="file" className="hidden"
@@ -514,16 +510,16 @@ function FormulaireProduit() {
                     onChange={e => e.target.files?.[0] && uploadFichierDigital(e.target.files[0])} />
                 </div>
               ) : (
-                <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-xl p-4">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-                    <FileText size={18} className="text-purple-500" />
+                <div className="flex items-center gap-3 bg-(--color-magic-bg) border border-(--color-magic-border) rounded-xl p-4">
+                  <div className="w-10 h-10 rounded-xl bg-(--color-magic-border) flex items-center justify-center flex-shrink-0">
+                    <FileText size={18} className="text-(--color-magic-text)" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{tr(form.fichierNom)}</p>
-                    <p className="text-xs text-gray-400">{formatTaille(form.fichierTaille)}{" "}{tr("· Prêt à l'envoi")}</p>
+                    <p className="text-sm font-semibold text-(--color-text-strong) truncate">{tr(form.fichierNom)}</p>
+                    <p className="text-xs text-(--color-text-secondary)">{formatTaille(form.fichierTaille)}{" "}{tr("· Prêt à l'envoi")}</p>
                   </div>
                   <button onClick={() => { set("fichierUrl", ""); set("fichierNom", ""); set("fichierTaille", 0); }}
-                    className="text-red-400 hover:text-red-600 transition-colors"><X size={16} /></button>
+                    className="text-(--color-critical) hover:text-(--color-critical-text) transition-colors"><X size={16} /></button>
                 </div>
               )}
 
@@ -537,23 +533,23 @@ function FormulaireProduit() {
           )}
 
           {/* Médias : Images + Vidéos */}
-          <div className="ax-card p-6 space-y-5">
+          <div className={`${CARTE} space-y-5`}>
             <div className="flex items-center gap-2 mb-1">
-              <ImageIcon size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Images & Vidéos")}</h2>
+              <ImageIcon size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Images & Vidéos")}</h2>
             </div>
 
             {/* Images */}
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="text-gray-600 text-xs font-medium">{tr("Images")}</label>
+                <label className="text-(--color-text) text-xs font-medium">{tr("Images")}</label>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={genererImageIA} disabled={genImage || !form.nom}
-                    className="flex items-center gap-1.5 text-xs bg-[#F5A623]/10 text-[#F5A623] border border-[#F5A623]/20 px-3 py-1.5 rounded-lg hover:bg-[#F5A623]/20 transition-all disabled:opacity-50">
+                    className="flex items-center gap-1.5 text-xs bg-(--color-surface-tertiary) text-(--color-icon-header) border border-(--color-border) px-3 py-1.5 rounded-lg hover:bg-(--color-tint-hover) transition-all disabled:opacity-50">
                     {genImage ? <Loader2 size={10} className="animate-spin" /> : <Zap size={10} />}{" "}{tr("Générer avec l'IA")}
                   </button>
                   <button onClick={() => fileInputRef.current?.click()} disabled={uploadingMedia}
-                    className="flex items-center gap-1.5 text-xs bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">
+                    className="flex items-center gap-1.5 text-xs bg-(--color-surface-secondary) text-(--color-text) border border-(--color-border) px-3 py-1.5 rounded-lg hover:bg-(--color-surface-tertiary) transition-all">
                     {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}{" "}{tr("Importer (images carrées)")}
                   </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept="image/*" multiple
@@ -564,38 +560,38 @@ function FormulaireProduit() {
                 <input value={imageInput} onChange={e => setImageInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") ajouterImageUrl(); }}
                   placeholder={tr("Ou collez une URL d'image...")}
-                  className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50 placeholder:text-gray-400" />
+                  className="flex-1 min-w-0 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-3 py-2 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong) placeholder:text-(--color-text-secondary)" />
                 <button onClick={ajouterImageUrl}
-                  className="px-3 py-2 bg-[#F5A623]/10 border border-[#F5A623]/20 text-[#F5A623] rounded-xl text-sm hover:bg-[#F5A623]/20 transition-all">
+                  className="px-3 py-2 bg-(--color-surface-tertiary) border border-(--color-border) text-(--color-icon-header) rounded-xl text-sm hover:bg-(--color-tint-hover) transition-all">
                   <Plus size={15} />
                 </button>
               </div>
               {form.images.length > 0 ? (
                 <div className="grid grid-cols-4 gap-2">
                   {form.images.map((img, i) => (
-                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-200">
+                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-(--color-surface-secondary) border border-(--color-border)">
                       <img src={img} alt="" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = "none")} />
-                      {i === 0 && <div className="absolute bottom-1 left-1 bg-[#F5A623] text-white text-[9px] px-1.5 py-0.5 rounded font-medium">{tr("Principale")}</div>}
+                      {i === 0 && <div className="absolute bottom-1 left-1 bg-(--color-primary) text-white text-[9px] px-1.5 py-0.5 rounded font-medium">{tr("Principale")}</div>}
                       <button onClick={() => set("images", form.images.filter((_, j) => j !== i))}
-                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        className="absolute top-1 right-1 w-6 h-6 bg-(--color-critical) rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <X size={9} className="text-white" />
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
-                  <p className="text-gray-400 text-xs">{tr("Uploadez ou collez des URLs d'images ci-dessus")}</p>
+                <div className="border-2 border-dashed border-(--color-border) rounded-xl p-6 text-center">
+                  <p className="text-(--color-text-secondary) text-xs">{tr("Uploadez ou collez des URLs d'images ci-dessus")}</p>
                 </div>
               )}
             </div>
 
             {/* Vidéos */}
-            <div className="space-y-3 pt-3 border-t border-gray-100">
+            <div className="space-y-3 pt-3 border-t border-(--color-border-secondary)">
               <div className="flex items-center justify-between">
-                <label className="text-gray-600 text-xs font-medium">{tr("Vidéos produit")}</label>
+                <label className="text-(--color-text) text-xs font-medium">{tr("Vidéos produit")}</label>
                 <button onClick={() => videoInputRef.current?.click()} disabled={uploadingMedia}
-                  className="flex items-center gap-1.5 text-xs bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">
+                  className="flex items-center gap-1.5 text-xs bg-(--color-surface-secondary) text-(--color-text) border border-(--color-border) px-3 py-1.5 rounded-lg hover:bg-(--color-surface-tertiary) transition-all">
                   {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Video size={10} />}{" "}{tr("Upload vidéo MP4")}
                 </button>
                 <input ref={videoInputRef} type="file" className="hidden" accept="video/mp4,video/webm"
@@ -604,22 +600,22 @@ function FormulaireProduit() {
               {form.videos.length > 0 ? (
                 <div className="space-y-2">
                   {form.videos.map((v, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
-                      <Video size={14} className="text-gray-400 flex-shrink-0" />
-                      <p className="text-xs text-gray-600 flex-1 truncate">{tr(v)}</p>
+                    <div key={i} className="flex items-center gap-3 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl p-3">
+                      <Video size={14} className="text-(--color-text-secondary) flex-shrink-0" />
+                      <p className="text-xs text-(--color-text) flex-1 truncate">{tr(v)}</p>
                       <button onClick={() => set("videos", form.videos.filter((_, j) => j !== i))}
-                        className="text-red-400 hover:text-red-600"><X size={13} /></button>
+                        className="text-(--color-critical) hover:text-(--color-critical-text)"><X size={13} /></button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 text-center py-3">{tr("Aucune vidéo — max 100 Mo par vidéo")}</p>
+                <p className="text-xs text-(--color-text-secondary) text-center py-3">{tr("Aucune vidéo — max 100 Mo par vidéo")}</p>
               )}
             </div>
           </div>
 
           {/* SEO */}
-          <details className="ax-card p-6">
+          <details className={`${CARTE}`}>
             <summary className="flex items-center gap-2 min-h-10 cursor-pointer select-none">
               <Globe size={15} className="text-primaire" aria-hidden />
               <h2 className="text-[13px] font-semibold text-encre">{tr("Référencement Google et partage")}</h2>
@@ -641,29 +637,29 @@ function FormulaireProduit() {
         {/* Colonne latérale */}
         <div className="space-y-5">
           {/* Catégorie & Tags */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+          <div className={`${CARTE} space-y-4`}>
             <div className="flex items-center gap-2 mb-1">
-              <Tag size={14} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Catégorie & Tags")}</h2>
+              <Tag size={14} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Collection et tags")}</h2>
             </div>
             <select value={form.categorie} onChange={e => set("categorie", e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50">
-              <option value="">{categoriesBoutique?.length === 0 ? tr("Aucune catégorie — crée-les d'abord") : tr("Sélectionner...")}</option>
+              className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong)">
+              <option value="">{categoriesBoutique?.length === 0 ? tr("Aucune collection : créez-en d'abord") : tr("Sélectionner...")}</option>
               {(categoriesBoutique ?? []).map(c => <option key={c.id} value={c.nom}>{tr(c.nom)}</option>)}
               {form.categorie && categoriesBoutique && !categoriesBoutique.some(c => c.nom === form.categorie) && <option value={form.categorie}>{tr(form.categorie)}</option>}
             </select>
-            <Link href="/dashboard/produits/categories" className="block -mt-2 text-[12px] font-medium text-[#B45309] hover:underline">{tr("Gérer les catégories et leurs options →")}</Link>
+            <Link href="/dashboard/produits/categories" className="block -mt-2 text-[12px] font-medium text-(--color-link) hover:underline">{tr("Gérer les collections et leurs options →")}</Link>
             <div className="flex gap-2">
               <input value={tagInput} onChange={e => setTagInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); const t = tagInput.trim().toLowerCase(); if (t && !form.tags.includes(t)) set("tags", [...form.tags, t]); setTagInput(""); }}}
-                placeholder={tr("Ajouter un tag...")} className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-xs focus:outline-none focus:border-[#F5A623]/50" />
+                placeholder={tr("Ajouter un tag...")} className="flex-1 min-w-0 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-3 py-2 text-(--color-text-strong) text-xs focus:outline-none focus:border-(--color-border-strong)" />
               <button onClick={() => { const t = tagInput.trim().toLowerCase(); if (t && !form.tags.includes(t)) set("tags", [...form.tags, t]); setTagInput(""); }}
-                className="flex-shrink-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 hover:text-gray-900 text-xs">+</button>
+                className="flex-shrink-0 px-3 py-2 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl text-(--color-text-secondary) hover:text-(--color-text-strong) text-xs">+</button>
             </div>
             {form.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {form.tags.map(t => (
-                  <span key={t} className="flex items-center gap-1 bg-[#F5A623]/10 border border-[#F5A623]/20 text-[#F5A623] text-xs px-2 py-1 rounded-lg">
+                  <span key={t} className="flex items-center gap-1 bg-(--color-surface-tertiary) border border-(--color-border) text-(--color-icon-header) text-xs px-2 py-1 rounded-lg">
                     {tr(t)}<button onClick={() => set("tags", form.tags.filter(x => x !== t))}><X size={9} /></button>
                   </span>
                 ))}
@@ -673,45 +669,45 @@ function FormulaireProduit() {
 
           {/* ─── Variantes ─── */}
           {form.type !== "digital" && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+            <div className={`${CARTE} space-y-4`}>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Variantes (taille, couleur, matière…)")}</h2>
-                <span className="flex-shrink-0 whitespace-nowrap text-[11px] bg-[#F5A623]/10 text-[#F5A623] px-2 py-0.5 rounded-full">{variantes.length} variante(s)</span>
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Variantes (taille, couleur, matière…)")}</h2>
+                <span className="flex-shrink-0 whitespace-nowrap text-[11px] bg-(--color-surface-tertiary) text-(--color-icon-header) px-2 py-0.5 rounded-full">{variantes.length} variante(s)</span>
               </div>
 
               {/* Form ajout variante */}
-              <div className="bg-[#FAFAFA] rounded-xl p-3 space-y-2">
+              <div className="bg-(--color-surface-secondary) rounded-xl p-3 space-y-2">
                 <datalist id="valeurs-option">{optionsVariantes(categoriesBoutique, form.categorie).valeurs(varianteForm.nom).map(v => <option key={v} value={v} />)}</datalist>
                 <div className="grid grid-cols-2 gap-2">
                   <select
                     value={varianteForm.nom}
                     onChange={e => setVarianteForm(v => ({ ...v, nom: e.target.value }))}
-                    className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
+                    className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
                   >
                     {optionsVariantes(categoriesBoutique, form.categorie).noms.map(n => <option key={n}>{n}</option>)}
                   </select>
                   <input
-                    className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
+                    className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
                     placeholder={tr("Valeur (ex: XL, Rouge)")}
                     list="valeurs-option"
                     value={varianteForm.valeur}
                     onChange={e => setVarianteForm(v => ({ ...v, valeur: e.target.value }))}
                   />
                   <input
-                    className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
+                    className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
                     placeholder={tr("SKU (optionnel)")}
                     value={varianteForm.sku}
                     onChange={e => setVarianteForm(v => ({ ...v, sku: e.target.value }))}
                   />
                   <input
-                    className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
+                    className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
                     placeholder={tr("Prix (défaut: {0})", form.prix || "0")}
                     type="number"
                     value={varianteForm.prix}
                     onChange={e => setVarianteForm(v => ({ ...v, prix: e.target.value }))}
                   />
                   <input
-                    className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
+                    className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white"
                     placeholder={tr("Stock")}
                     type="number"
                     value={varianteForm.stock}
@@ -724,7 +720,7 @@ function FormulaireProduit() {
                     setVariantes(vs => [...vs, { ...varianteForm }]);
                     setVarianteForm(v => ({ ...v, valeur: "", sku: "", prix: "", stock: "0", image: "" }));
                   }}
-                  className="w-full py-2 rounded-xl border-2 border-dashed border-[#F5A623]/40 text-[12px] text-[#F5A623] font-semibold hover:bg-[#FFF8EC] transition-all"
+                  className="w-full py-2 rounded-xl border-2 border-dashed border-(--color-border-strong) text-[12px] text-(--color-icon-header) font-semibold hover:bg-(--color-surface-secondary) transition-all"
                 >
                   {tr("+ Ajouter cette variante")}
                 </button>
@@ -734,13 +730,13 @@ function FormulaireProduit() {
               {variantes.length > 0 && (
                 <div className="space-y-1.5">
                   {variantes.map((v, idx) => (
-                    <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-[#FAFAFA] rounded-xl px-3 py-2">
-                      <span className="text-[11px] bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full font-medium">{tr(v.nom)}</span>
-                      <span className="text-[12px] font-semibold text-[#111] flex-1 min-w-0 break-words">{tr(v.valeur)}</span>
-                      {v.sku && <span className="text-[10px] text-[#AAA] font-mono">{tr(v.sku)}</span>}
-                      <span className="text-[12px] text-[#F5A623] font-bold">{v.prix || form.prix} XAF</span>
-                      <span className="text-[11px] text-[#888]">{tr("S:")}{v.stock}</span>
-                      <button onClick={() => setVariantes(vs => vs.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 ml-1">
+                    <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-(--color-surface-secondary) rounded-xl px-3 py-2">
+                      <span className="text-[11px] bg-(--color-surface-tertiary) text-(--color-icon-header) px-2 py-0.5 rounded-full font-medium">{tr(v.nom)}</span>
+                      <span className="text-[12px] font-semibold text-(--color-text-strong) flex-1 min-w-0 break-words">{tr(v.valeur)}</span>
+                      {v.sku && <span className="text-[10px] text-(--color-text-subdued) font-mono">{tr(v.sku)}</span>}
+                      <span className="text-[12px] text-(--color-icon-header) font-bold">{v.prix || form.prix} XAF</span>
+                      <span className="text-[11px] text-(--color-text-secondary)">{tr("S:")}{v.stock}</span>
+                      <button onClick={() => setVariantes(vs => vs.filter((_, i) => i !== idx))} className="text-(--color-critical) hover:text-(--color-critical-text) ml-1">
                         <X size={12} />
                       </button>
                     </div>
@@ -751,52 +747,45 @@ function FormulaireProduit() {
           )}
 
           {/* Options */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
-            <h2 className="text-[13px] font-semibold text-[#111111] mb-1">{tr("Options")}</h2>
+          <div className={`${CARTE} space-y-3`}>
+            <h2 className="text-[13px] font-semibold text-(--color-text-strong) mb-1">{tr("Options")}</h2>
             {[
               { label: "Produit actif", desc: "Visible sur la boutique", key: "actif" },
               { label: "Mis en avant", desc: "Affiché en page d'accueil", key: "featured" },
             ].map(opt => (
               <div key={opt.key} className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-800 text-sm">{tr(opt.label)}</p>
-                  <p className="text-gray-400 text-xs">{tr(opt.desc)}</p>
+                  <p className="text-(--color-text-strong) text-sm">{tr(opt.label)}</p>
+                  <p className="text-(--color-text-secondary) text-xs">{tr(opt.desc)}</p>
                 </div>
-                <button type="button" role="switch" aria-checked={!!(form as any)[opt.key]} aria-label={tr(opt.label)} onClick={() => set(opt.key, !(form as any)[opt.key])}
-                  className={`w-11 h-6 rounded-full transition-all relative ${(form as any)[opt.key] ? "bg-[#F5A623]" : "bg-gray-200"}`}>
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${(form as any)[opt.key] ? "left-5" : "left-0.5"}`} />
-                </button>
+                <Toggle checked={!!(form as any)[opt.key]} onChange={(v) => set(opt.key, v)} label={tr(opt.label)} />
               </div>
             ))}
             {form.type === "physique" && (
               <div className="pt-2">
                 <label className="ax-label block mb-1.5">{tr("Poids (kg)")}</label>
                 <input type="number" value={form.poids} onChange={e => set("poids", e.target.value)} placeholder="0.5" min="0" step="0.01"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50" />
+                  className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-2.5 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong)" />
               </div>
             )}
           </div>
 
           {/* Aperçu */}
           {(form.nom || form.images[0]) && (
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <p className="text-gray-400 text-xs px-4 pt-3 pb-2">{tr("Aperçu boutique")}</p>
-              <div className="aspect-square bg-gray-50 overflow-hidden">
-                {form.images[0] ? <img src={form.images[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package size={40} className="text-gray-300" /></div>}
+            <div className="bg-white border border-(--color-border-secondary) rounded-(--radius-lg) overflow-hidden">
+              <p className="text-(--color-text-secondary) text-xs px-4 pt-3 pb-2">{tr("Aperçu boutique")}</p>
+              <div className="aspect-square bg-(--color-surface-secondary) overflow-hidden">
+                {form.images[0] ? <img src={form.images[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package size={40} className="text-(--color-text-subdued)" /></div>}
               </div>
               <div className="p-4">
-                <p className="font-medium text-gray-800 text-sm line-clamp-2">{tr(form.nom) || tr("Nom du produit")}</p>
+                <p className="font-medium text-(--color-text-strong) text-sm line-clamp-2">{tr(form.nom) || tr("Nom du produit")}</p>
                 {form.prix && (
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[#F5A623] font-bold text-sm">{fmt(Number(form.prix) || 0)}</span>
-                    {form.prixCompare && <span className="text-gray-400 text-xs line-through">{tr(form.prixCompare)}</span>}
+                    <span className="text-(--color-text-strong) font-bold text-sm">{fmt(Number(form.prix) || 0)}</span>
+                    {form.prixCompare && <span className="text-(--color-text-secondary) text-xs line-through">{tr(form.prixCompare)}</span>}
                   </div>
                 )}
-                <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full font-medium"
-                  style={{
-                    background: form.type === "digital" ? "rgba(124,58,237,0.1)" : form.type === "dropshipping" ? "rgba(52,211,153,0.1)" : "rgba(245,166,35,0.1)",
-                    color: form.type === "digital" ? "#1B2A4A" : form.type === "dropshipping" ? "#059669" : "#F5A623",
-                  }}>
+                <span className="mt-2 inline-block rounded-(--radius-md) bg-(--color-surface-tertiary) px-2 py-0.5 text-[11px] font-[550] text-(--color-text)">
                   {form.type === "digital" ? <><FileText size={11} className="inline-block mr-1" />{tr("Digital")}</> : form.type === "dropshipping" ? <><Truck size={11} className="inline-block mr-1" />{tr("Dropshipping")}</> : <><Package size={11} className="inline-block mr-1" />{tr("Physique")}</>}
                 </span>
               </div>

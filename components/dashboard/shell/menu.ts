@@ -62,7 +62,8 @@ export const MENU: SectionMenu[] = [
     { href: "/dashboard/sourcing", label: "Sourcing", requiresPalier: "palier2", moduleKey: "produits" },
   ] },
   { id: "clients", label: "Clients", icon: "user", bloc: "principal", items: [
-    { href: "/dashboard/clients", label: "Clients", moduleKey: "clients" },
+    { href: "/dashboard/clients", label: "Clients", moduleKey: "clients", excludePrefix: ["/dashboard/clients/segments"] },
+    { href: "/dashboard/clients/segments", label: "Segments", moduleKey: "clients" },
     { href: "/dashboard/avis", label: "Avis clients", moduleKey: "clients" },
   ] },
   { id: "croissance", label: "Croissance", icon: "gauge", bloc: "principal", items: [

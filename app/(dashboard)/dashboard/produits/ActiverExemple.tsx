@@ -3,9 +3,9 @@
 // une fois prix, photo et stock vérifiés. PUT /api/produits/[id] avec actif:true → exempleAxia:false.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ImagePlus, Loader2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { televerser } from "@/lib/televerser";
+import { Banner, Button, Modal, TextField, Thumbnail } from "@/components/ui/adm";
 
 export function ActiverExemple({ id, nom, prix, image, digital }: { id: string; nom: string; prix: number; image?: string; digital: boolean }) {
   const t = useT();
@@ -30,9 +30,9 @@ export function ActiverExemple({ id, nom, prix, image, digital }: { id: string; 
   const activer = async (e: React.FormEvent) => {
     e.preventDefault();
     const p = Number(prixSaisi), s = Number(stock);
-    if (!(p > 0)) return setErreur("Indique ton vrai prix.");
-    if (!digital && (stock === "" || !Number.isInteger(s) || s < 0)) return setErreur("Indique ton stock réel.");
-    if (!photo) return setErreur("Ajoute une photo de ton produit.");
+    if (!(p > 0)) return setErreur("Indiquez votre vrai prix.");
+    if (!digital && (stock === "" || !Number.isInteger(s) || s < 0)) return setErreur("Indiquez votre stock réel.");
+    if (!photo) return setErreur("Ajoutez une photo de votre produit.");
     setErreur(""); setEnvoi(true);
     const r = await fetch(`/api/produits/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
@@ -41,41 +41,33 @@ export function ActiverExemple({ id, nom, prix, image, digital }: { id: string; 
     const d = await r.json().catch(() => ({}));
     setEnvoi(false);
     if (!r.ok) return setErreur(d.error || "Activation impossible.");
+    setOuvert(false);
     router.refresh();
   };
 
-  if (!ouvert) return (
-    <button type="button" onClick={() => setOuvert(true)}
-      className="w-full min-h-[44px] rounded-2xl bg-[#111111] text-white text-[12.5px] font-semibold px-3">
-      {t("Activer ce produit")}
-    </button>
-  );
-
+  // data-stop : dans une ligne de liste cliquable, un clic dans la fenêtre n'ouvre pas la fiche.
   return (
-    <form onSubmit={activer} className="ax-card p-3 space-y-2.5" aria-label={t("Activer {0}", nom)}>
-      <p className="text-[11.5px] text-[#888]">{t("Vérifie le prix, la photo et le stock : le produit devient visible de tes clients.")}</p>
-      <label className="block text-[11.5px] font-semibold text-[#111]">{t("Prix")}
-        <input type="number" inputMode="decimal" min="0" step="any" required value={prixSaisi} onChange={(e) => setPrixSaisi(e.target.value)}
-          className="mt-1 w-full border border-[#E5E5E5] rounded-lg px-3 py-2.5 text-[14px]" />
-      </label>
-      {!digital && (
-        <label className="block text-[11.5px] font-semibold text-[#111]">{t("Stock disponible")}
-          <input type="number" inputMode="numeric" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)}
-            className="mt-1 w-full border border-[#E5E5E5] rounded-lg px-3 py-2.5 text-[14px]" />
-        </label>
-      )}
-      <label className="flex items-center gap-2 min-h-[44px] cursor-pointer text-[12px] font-semibold text-[#111]">
-        {photo ? <img src={photo} alt={nom} className="w-11 h-11 rounded-lg object-cover" /> : <span className="w-11 h-11 rounded-lg bg-[#F5F5F7] flex items-center justify-center"><ImagePlus size={16} className="text-[#999]" /></span>}
-        {photo ? t("Changer la photo") : t("Ajouter une photo")}
-        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) ajouterPhoto(f); }} />
-      </label>
-      {erreur && <p role="alert" className="text-[11.5px] font-medium text-[#B91C1C]">{t(erreur)}</p>}
-      <div className="flex gap-2">
-        <button type="submit" disabled={envoi} className="flex-1 min-h-[44px] rounded-xl bg-[#111111] text-white text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
-          {envoi ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}{t("Activer")}
-        </button>
-        <button type="button" onClick={() => setOuvert(false)} className="min-h-[44px] px-3 rounded-xl border border-[#E5E5E5] text-[12.5px] text-[#666]">{t("Annuler")}</button>
-      </div>
-    </form>
+    <span data-stop>
+      <Button size="sm" variant="primary" onClick={() => setOuvert(true)}>{t("Activer ce produit")}</Button>
+      <Modal open={ouvert} onClose={() => setOuvert(false)} locked={envoi} size="sm" title={t("Activer {0}", nom)}
+        footer={<>
+          <Button onClick={() => setOuvert(false)} disabled={envoi}>{t("Annuler")}</Button>
+          <Button variant="primary" type="submit" form={`activer-${id}`} loading={envoi}>{t("Activer")}</Button>
+        </>}>
+        <form id={`activer-${id}`} onSubmit={activer} className="space-y-3">
+          <p className="m-0 text-(--color-text-secondary)">{t("Vérifiez le prix, la photo et le stock : le produit devient visible de vos clients.")}</p>
+          <TextField label={t("Prix")} type="number" inputMode="decimal" min="0" step="any" required value={prixSaisi} onChange={(e) => setPrixSaisi(e.target.value)} />
+          {!digital && (
+            <TextField label={t("Stock disponible")} type="number" inputMode="numeric" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} />
+          )}
+          <label className="flex cursor-pointer items-center gap-3 font-[550] text-(--color-text-strong)">
+            <Thumbnail src={photo || null} alt={nom} size={40} />
+            {photo ? t("Changer la photo") : t("Ajouter une photo")}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) ajouterPhoto(f); }} />
+          </label>
+          {erreur && <Banner tone="critical">{t(erreur)}</Banner>}
+        </form>
+      </Modal>
+    </span>
   );
 }

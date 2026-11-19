@@ -1,18 +1,17 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { Bouton } from "@/components/ui";
+import { Banner, Button, Modal, Spinner, buttonClasses } from "@/components/ui/adm";
+import { Icon } from "@/components/ui/icones";
 
 type Resultat = { importes: number; erreurs: { ligne: number; message: string }[] };
 
-/** Bouton « Importer (Excel) » de la page Produits — appelle /api/produits/importer. */
-export function ImportProduitsExcel() {
+/** Fenêtre « Importer des produits » de la page Produits — appelle /api/produits/importer. Ouverte par l'en-tête. */
+export function ImportProduitsExcel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [ouvert, setOuvert] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
   const [resultat, setResultat] = useState<Resultat | null>(null);
@@ -27,67 +26,44 @@ export function ImportProduitsExcel() {
       if (!res.ok) setErreur(data.message ?? t("Import impossible"));
       else { setResultat(data); if (data.importes) router.refresh(); }
     } catch {
-      setErreur(t("Connexion perdue, réessaie."));
+      setErreur(t("Connexion perdue. Réessayez."));
     } finally {
       setEnvoi(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
 
-  function fermer() { setOuvert(false); setErreur(""); setResultat(null); }
+  function fermer() { onClose(); setErreur(""); setResultat(null); }
 
   return (
-    <>
-      <Bouton variante="secondaire" onClick={() => setOuvert(true)} icone={<FileSpreadsheet className="size-4" aria-hidden />}>
-        {t("Importer depuis Excel")}
-      </Bouton>
-
-      {ouvert && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={fermer}>
-          <div role="dialog" aria-modal="true" aria-labelledby="titre-import" onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <h2 id="titre-import" className="text-[16px] font-bold text-[#111111]">{t("Importer des produits")}</h2>
-                <p className="text-[12.5px] text-[#888888] mt-1">{t("Remplis le modèle Excel (une ligne par produit), puis envoie-le. Fichiers .xlsx ou .csv acceptés.")}</p>
-              </div>
-              <button type="button" onClick={fermer} aria-label={t("Fermer")} className="p-1.5 rounded-xl hover:bg-[#F5F5F7]"><X size={16} /></button>
-            </div>
-
-            <a href="/api/produits/importer" download
-              className="flex items-center gap-2 text-[13px] font-semibold text-[#111111] bg-[#F5F5F7] rounded-2xl px-4 py-3 hover:bg-[#EDEDF0] transition-colors">
-              <Download size={15} style={{ color: "#F5A623" }} />{" "}{t("Télécharger le modèle Excel")}
-            </a>
-
-            <label className={`mt-3 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl px-4 py-8 text-center cursor-pointer transition-colors ${envoi ? "border-[#F5A623] bg-[#FFFBEB]" : "border-[#E8E8E8] hover:border-[#F5A623]"}`}>
-              {envoi ? <Loader2 size={22} className="animate-spin" style={{ color: "#F5A623" }} /> : <Upload size={22} style={{ color: "#F5A623" }} />}
-              <span className="text-[13px] font-semibold text-[#111111]">{envoi ? t("Import en cours…") : t("Choisir mon fichier")}</span>
-              <span className="text-[11.5px] text-[#AAAAAA]">{t("Colonnes obligatoires : Nom et Prix")}</span>
-              <input ref={inputRef} type="file" className="sr-only" disabled={envoi}
-                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) importer(f); }} />
-            </label>
-
-            {erreur && <p role="alert" className="mt-3 text-[12.5px] text-red-600 bg-red-50 rounded-xl px-3 py-2">{erreur}</p>}
-
-            {resultat && (
-              <div className="mt-3 space-y-2" role="status">
-                <p className="text-[13px] font-semibold text-green-700 bg-green-50 rounded-xl px-3 py-2">
-                  {resultat.importes}{" "}{t(resultat.importes > 1 ? "produits importés" : "produit importé")}
-                </p>
-                {resultat.erreurs.length > 0 && (
-                  <div className="text-[12px] text-[#D97706] bg-[#FFFBEB] rounded-xl px-3 py-2">
-                    <p className="font-semibold mb-1">{resultat.erreurs.length}{" "}{t("ligne(s) ignorée(s) :")}</p>
-                    <ul className="space-y-0.5 max-h-40 overflow-y-auto">
-                      {resultat.erreurs.map((e) => <li key={e.ligne}>{t("Ligne")}{" "}{e.ligne} — {t(e.message)}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
+    <Modal open={open} onClose={fermer} locked={envoi} size="sm" title={t("Importer des produits")}
+      footer={<Button onClick={fermer} disabled={envoi}>{t("Fermer")}</Button>}>
+      <div className="space-y-3">
+        <p className="m-0 text-(--color-text-secondary)">{t("Remplissez le modèle Excel (une ligne par produit), puis envoyez-le. Fichiers .xlsx ou .csv acceptés.")}</p>
+        <a href="/api/produits/importer" download className={buttonClasses({})}><Icon name="export" />{t("Télécharger le modèle Excel")}</a>
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-(--radius-lg) border border-dashed border-(--color-border-input) px-4 py-8 text-center hover:bg-(--color-surface-secondary)">
+          {envoi ? <Spinner /> : <Icon name="import" size={20} />}
+          <span className="font-[550] text-(--color-text-strong)">{envoi ? t("Import en cours…") : t("Choisir mon fichier")}</span>
+          <span className="text-xs text-(--color-text-secondary)">{t("Colonnes obligatoires : Nom et Prix")}</span>
+          <input ref={inputRef} type="file" className="sr-only" disabled={envoi}
+            accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) importer(f); }} />
+        </label>
+        {erreur && <Banner tone="critical">{erreur}</Banner>}
+        {resultat && (
+          <Banner tone={resultat.erreurs.length ? "warning" : "success"}
+            title={`${resultat.importes} ${t(resultat.importes > 1 ? "produits importés" : "produit importé")}`}>
+            {resultat.erreurs.length > 0 && (
+              <>
+                <p className="m-0 font-[550]">{resultat.erreurs.length}{" "}{t("ligne(s) ignorée(s) :")}</p>
+                <ul className="m-0 max-h-40 list-none space-y-0.5 overflow-y-auto p-0">
+                  {resultat.erreurs.map((e) => <li key={e.ligne}>{t("Ligne")}{" "}{e.ligne} — {t(e.message)}</li>)}
+                </ul>
+              </>
             )}
-          </div>
-        </div>
-      )}
-    </>
+          </Banner>
+        )}
+      </div>
+    </Modal>
   );
 }

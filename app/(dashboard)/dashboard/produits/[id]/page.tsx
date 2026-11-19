@@ -27,12 +27,14 @@ import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { PolitiquePrix } from "@/components/dashboard/PolitiquePrix";
 import { urlBoutique } from "@/lib/utils";
-import { Badge, Bouton, EnTetePage, EtatChargement, EtatErreur, useConfirmation } from "@/components/ui";
+import { Bouton, EtatErreur, useConfirmation } from "@/components/ui";
+import { Badge, ContextualSaveBar, PageHeader, SkeletonPage, Toggle } from "@/components/ui/adm";
+import { CARTE, CHAMP } from "../styles";
 
 const TYPES_PRODUIT = [
-  { id: "physique",     icon: Package,  label: "Physique",      desc: "Stock, livraison, poids",                 color: "#F5A623" },
-  { id: "digital",      icon: Download, label: "Digital",       desc: "PDF, vidéo, logiciel — livré par email",  color: "#1B2A4A" },
-  { id: "dropshipping", icon: Truck,    label: "Dropshipping",  desc: "Fournisseur externe, envoi direct",       color: "#34d399" },
+  { id: "physique",     icon: Package,  label: "Physique",      desc: "Stock, livraison, poids" },
+  { id: "digital",      icon: Download, label: "Digital",       desc: "PDF, vidéo, logiciel — livré par email" },
+  { id: "dropshipping", icon: Truck,    label: "Dropshipping",  desc: "Fournisseur externe, envoi direct" },
 ] as const;
 
 function formatTaille(octets: number) {
@@ -92,6 +94,8 @@ export default function EditProduitPage() {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const digitalFileRef = useRef<HTMLInputElement>(null);
 
+  // Dernier état enregistré : la barre « Modifications non enregistrées » compare le formulaire à lui.
+  const [enregistre, setEnregistre] = useState<FormState | null>(null);
   const [form, setFormState] = useState<FormState>({
     nom: "", slug: "", description: "", prix: "", prixCompare: "", cout: "", stock: "0", sku: "", codeBarres: "",
     categorie: "", tags: [], images: [], videos: [],
@@ -117,7 +121,7 @@ export default function EditProduitPage() {
         // Produit introuvable (404, autre boutique) ou erreur serveur : message au lieu d'un plantage
         if (!ok || !p) { setErreurChargement(d.message || d.error || tr("Produit introuvable")); setLoading(false); return; }
         setStats({ ventes: p.ventes ?? 0, vues: p.vues ?? 0, avis: p._count?.avis ?? 0, commandes: p._count?.lignesCommande ?? 0 });
-        setFormState({
+        const initial: FormState = {
           nom: p.nom ?? "",
           slug: p.slug ?? "",
           description: p.description ?? "",
@@ -152,7 +156,9 @@ export default function EditProduitPage() {
           nomFournisseur: p.nomFournisseur ?? "",
           affiliationActive: p.affiliationActive ?? false,
           tauxCommissionAff: p.tauxCommissionAff ? String(Math.round(p.tauxCommissionAff * 100)) : "",
-        });
+        };
+        setFormState(initial);
+        setEnregistre(initial);
         // Load variantes
         if (p.variantes?.length) {
           setVariantes(p.variantes.map((v: any) => ({
@@ -217,6 +223,7 @@ export default function EditProduitPage() {
         body: JSON.stringify({ type: newType }),
       });
       if (!res.ok) { set("type", ancien); throw new Error(); }
+      setEnregistre(e => e && { ...e, type: newType });
       toast.success(tr("Type changé → {0}", newType === "digital" ? "Digital" : newType === "dropshipping" ? "Dropshipping" : "Physique"));
     } catch {
       toast.error(tr("Erreur lors du changement de type"));
@@ -360,6 +367,7 @@ export default function EditProduitPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.details?.[0] ? `${data.error} : ${data.details[0].path?.join(".")} — ${data.details[0].message}` : data.error || "Erreur");
+      setEnregistre(form_);
       toast.success(tr("Modifications du produit enregistrées."));
     } catch (e: any) { toast.error(tr(e.message)); }
     finally { setSaving(false); }
@@ -378,9 +386,10 @@ export default function EditProduitPage() {
     else { toast.error(tr((await res.json().catch(() => ({}))).error || "Le produit n'a pas pu être supprimé. Réessayez dans un instant.")); setDeleting(false); }
   }
 
-  const inputClass = "w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 placeholder:text-[#CCCCCC] transition-all";
+  const inputClass = CHAMP;
+  const modifie = !!enregistre && JSON.stringify(form) !== JSON.stringify(enregistre);
 
-  if (loading) return <EtatChargement texte={tr("Chargement du produit…")} />;
+  if (loading) return <SkeletonPage label={tr("Chargement du produit…")} />;
 
   if (erreurChargement) return (
     <EtatErreur className="max-w-md mx-auto" titre={tr("Ce produit ne peut pas être ouvert")}
@@ -391,25 +400,26 @@ export default function EditProduitPage() {
 
   return (
     <>
-    <div className="max-w-4xl space-y-6">
+    <div className="mx-auto w-full max-w-[1000px] space-y-4">
 
-      <EnTetePage
-        className="mb-0"
-        retour={{ href: "/dashboard/produits", libelle: tr("Produits") }}
-        titre={<span className="line-clamp-2 break-words">{form.nom || tr("Modifier le produit")}</span>}
-        indicateurs={form.actif ? <Badge ton="succes" icone={<Eye aria-hidden />}>{tr("En ligne")}</Badge> : <Badge icone={<EyeOff aria-hidden />}>{tr("Hors ligne")}</Badge>}
-        description={<>{stats.ventes} {tr(stats.ventes > 1 ? "ventes" : "vente")} · {stats.vues} {tr(stats.vues > 1 ? "vues" : "vue")} · {stats.avis} {tr("avis")}</>}
-        actions={<>
-          <Bouton variante="danger" onClick={supprimer} charge={deleting} icone={<Trash2 className="size-4" aria-hidden />}>{tr("Supprimer")}</Bouton>
-          <Bouton variante="secondaire" icone={form.actif ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
-            onClick={() => {
-              if (!form.actif) { setShowPubAssistant(true); }
-              else { set("actif", false); toast.info(tr("Le produit sera masqué de la boutique quand vous enregistrerez.")); }
-            }}>
-            {form.actif ? tr("Masquer de la boutique") : tr("Publier")}
-          </Bouton>
-          <Bouton variante="primaire" onClick={() => sauvegarder()} charge={saving} texteCharge={tr("Enregistrement…")} icone={<Save className="size-4" aria-hidden />}>{tr("Enregistrer")}</Bouton>
+      <ContextualSaveBar dirty={modifie} saving={saving} onSave={() => sauvegarder()} onDiscard={() => enregistre && setFormState(enregistre)} />
+      <PageHeader
+        icon="tag"
+        backHref="/dashboard/produits"
+        title={<span className="line-clamp-1 break-words">{form.nom || tr("Modifier le produit")}</span>}
+        titleMeta={<>
+          {form.actif ? <Badge tone="success">{tr("En ligne")}</Badge> : <Badge tone="neutral">{tr("Hors ligne")}</Badge>}
+          <span>{stats.ventes} {tr(stats.ventes > 1 ? "ventes" : "vente")} · {stats.vues} {tr(stats.vues > 1 ? "vues" : "vue")} · {stats.avis} {tr("avis")}</span>
         </>}
+        primaryAction={{ content: tr("Enregistrer"), loading: saving, onAction: () => sauvegarder() }}
+        secondaryActions={[{
+          content: form.actif ? tr("Masquer de la boutique") : tr("Publier"), icon: "eye",
+          onAction: () => {
+            if (!form.actif) { setShowPubAssistant(true); }
+            else { set("actif", false); toast.info(tr("Le produit sera masqué de la boutique quand vous enregistrerez.")); }
+          },
+        }]}
+        overflowActions={[{ content: tr("Supprimer le produit"), destructive: true, disabled: deleting, onAction: supprimer }]}
       />
 
       {/* ── Sélecteur de type ── */}
@@ -419,24 +429,17 @@ export default function EditProduitPage() {
           const actif = form.type === t.id;
           return (
             <button key={t.id} onClick={() => changerType(t.id)}
-              className="flex items-start gap-3 p-4 rounded-2xl border text-left transition-all"
-              style={{
-                borderColor: actif ? `${t.color}50` : "#e5e7eb",
-                background: actif ? `${t.color}08` : "white",
-                boxShadow: actif ? `0 0 20px ${t.color}20` : "none",
-              }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `${t.color}15` }}>
-                <Icone size={18} style={{ color: t.color }} />
+              aria-pressed={actif}
+              className={`flex items-start gap-3 rounded-(--radius-xl) bg-(--color-surface) p-4 text-left transition-shadow ${actif ? "shadow-[0_0_0_2px_var(--color-border-strong)]" : "shadow-(--shadow-card) hover:bg-(--color-surface-secondary)"}`}>
+              <div className="grid size-10 shrink-0 place-items-center rounded-(--radius-md) bg-(--color-surface-tertiary)">
+                <Icone size={18} className="text-(--color-icon-header)" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900 text-sm">{tr(t.label)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{tr(t.desc)}</p>
+                <p className="font-semibold text-(--color-text-strong) text-sm">{tr(t.label)}</p>
+                <p className="text-xs text-(--color-text-secondary) mt-0.5">{tr(t.desc)}</p>
               </div>
               {actif && (
-                <div className="ml-auto w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: t.color }}>
-                  <span className="text-white text-[10px] font-bold">✓</span>
-                </div>
+                <span aria-hidden className="ml-auto grid size-5 shrink-0 place-items-center rounded-full bg-(--color-primary) text-[10px] font-bold text-white">✓</span>
               )}
             </button>
           );
@@ -448,10 +451,10 @@ export default function EditProduitPage() {
         <div className="min-w-0 space-y-5">
 
           {/* Infos générales */}
-          <div className="ax-card p-6 space-y-4">
+          <div className={`${CARTE} space-y-4`}>
             <div className="flex items-center gap-2 mb-1">
-              <Package size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Informations générales")}</h2>
+              <Package size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Informations générales")}</h2>
             </div>
             <div>
               <label htmlFor="produit-nom" className="ax-label block mb-1.5">{tr("Nom du produit *")}</label>
@@ -459,16 +462,16 @@ export default function EditProduitPage() {
             </div>
             <div>
               <label className="ax-label block mb-1.5">{tr("Adresse de la page produit (facultatif)")}</label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                <span className="text-gray-400 text-xs flex-shrink-0">/produits/</span>
-                <input value={form.slug} onChange={e => set("slug", e.target.value)} className="bg-transparent text-sm text-gray-600 outline-none flex-1 min-w-0" />
+              <div className="flex items-center gap-2 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3">
+                <span className="text-(--color-text-secondary) text-xs flex-shrink-0">/produits/</span>
+                <input value={form.slug} onChange={e => set("slug", e.target.value)} className="bg-transparent text-sm text-(--color-text) outline-none flex-1 min-w-0" />
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-gray-400 text-xs">{tr("Description")}</label>
+                <label className="text-(--color-text-secondary) text-xs">{tr("Description")}</label>
                 <button onClick={genererDescription} disabled={genIA}
-                  className="flex items-center gap-1 text-[#F5A623] text-xs hover:text-[#d4820a] transition-colors disabled:opacity-50">
+                  className="flex items-center gap-1 text-(--color-icon-header) text-xs hover:underline transition-colors disabled:opacity-50">
                   {genIA ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}{" "}{tr("Régénérer avec l'IA")}
                 </button>
               </div>
@@ -478,10 +481,10 @@ export default function EditProduitPage() {
           </div>
 
           {/* Prix & Stock */}
-          <div className="ax-card p-6 space-y-6">
+          <div className={`${CARTE} space-y-6`}>
             <div className="flex items-center gap-2">
-              <BarChart2 size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Prix & Stock")}</h2>
+              <BarChart2 size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Prix & Stock")}</h2>
             </div>
 
             {/* Tarification */}
@@ -491,15 +494,15 @@ export default function EditProduitPage() {
                   <label className="ax-label block mb-1.5">{tr("Prix de vente *")}</label>
                   <div className="relative">
                     <input type="number" inputMode="decimal" step="any" min="0" value={form.prix} onChange={e => set("prix", e.target.value)} placeholder="0" className={`${inputClass} pr-16`} />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-[#AAAAAA]">{tr(devise)}</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-(--color-text-subdued)">{tr(devise)}</span>
                   </div>
                   <div className="mt-2"><PolitiquePrix prix={form.prix} type={form.type} /></div>
                 </div>
                 <div>
                   <label className="ax-label block mb-1.5">{tr("Prix barré (avant promo)")}</label>
                   <div className="relative">
-                    <input type="number" inputMode="decimal" step="any" min="0" value={form.prixCompare} onChange={e => set("prixCompare", e.target.value)} placeholder={tr("Optionnel")} className={`${inputClass} pr-16 ${promoInvalide ? "!border-red-300" : ""}`} />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-[#AAAAAA]">{tr(devise)}</span>
+                    <input type="number" inputMode="decimal" step="any" min="0" value={form.prixCompare} onChange={e => set("prixCompare", e.target.value)} placeholder={tr("Optionnel")} className={`${inputClass} pr-16 ${promoInvalide ? "!border-(--color-critical)" : ""}`} />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-(--color-text-subdued)">{tr(devise)}</span>
                   </div>
                 </div>
                 {form.type === "physique" && (
@@ -507,40 +510,40 @@ export default function EditProduitPage() {
                     <label className="ax-label block mb-1.5">{tr("Prix d'achat (coût)")}</label>
                     <div className="relative">
                       <input type="number" inputMode="decimal" step="any" min="0" value={form.cout} onChange={e => set("cout", e.target.value)} placeholder={tr("Optionnel")} className={`${inputClass} pr-16`} />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-[#AAAAAA]">{tr(devise)}</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-(--color-text-subdued)">{tr(devise)}</span>
                     </div>
                   </div>
                 )}
               </div>
-              {promoInvalide && <p className="text-[11px] text-red-500">{tr("Le prix barré doit être supérieur au prix de vente, sinon il ne s'affiche pas comme une promo.")}</p>}
+              {promoInvalide && <p className="text-[11px] text-(--color-critical-text)">{tr("Le prix barré doit être supérieur au prix de vente, sinon il ne s'affiche pas comme une promo.")}</p>}
               {(remisePct !== null || (form.type === "physique" && margeCout !== null) || (form.type === "dropshipping" && marge !== null)) && (
                 <div className="flex flex-wrap gap-2">
                   {remisePct !== null && (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#FFF8EC] text-[#B45309]">{tr("Promo affichée : -")}{tr(remisePct)}%</span>
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-(--color-surface-secondary) text-(--color-link)">{tr("Promo affichée : -")}{tr(remisePct)}%</span>
                   )}
                   {[form.type === "physique" ? margeCout : form.type === "dropshipping" ? marge : null].filter((m): m is number => m !== null).map(m => (
-                    <span key="marge" className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${m >= 30 ? "bg-green-50 text-green-700" : m >= 10 ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-600"}`}>
+                    <span key="marge" className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${m >= 30 ? "bg-(--banner-success-bg) text-(--badge-success-text)" : m >= 10 ? "bg-(--banner-warning-bg) text-(--badge-warning-text)" : "bg-(--banner-critical-bg) text-(--color-critical-text)"}`}>
                       {tr("Marge :")}{" "}{tr(m)}% · {fmt(Math.max(0, (parseFloat(form.prix) || 0) - (parseFloat(form.type === "physique" ? form.cout : form.prixFournisseur) || 0)))} / vente
                     </span>
                   ))}
                 </div>
               )}
-              {form.type === "physique" && <p className="text-[11px] text-gray-400">{tr("Le coût sert à calculer ta vraie rentabilité (marge, bénéfices) dans le Point de vente. Il n'est jamais visible par les clients.")}</p>}
+              {form.type === "physique" && <p className="text-[11px] text-(--color-text-secondary)">{tr("Le coût sert à calculer ta vraie rentabilité (marge, bénéfices) dans le Point de vente. Il n'est jamais visible par les clients.")}</p>}
             </div>
 
             {/* Inventaire */}
             {estDigital ? (
-              <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 text-purple-700 text-xs flex items-center gap-2">
+              <div className="bg-(--color-magic-bg) border border-(--color-magic-border) rounded-xl px-4 py-2.5 text-(--color-magic-text) text-xs flex items-center gap-2">
                 <Info size={12} />{" "}{tr("Stock automatiquement illimité pour les produits digitaux")}
               </div>
             ) : (
-              <div className="space-y-4 pt-5 border-t border-gray-100">
-                <p className="text-[12px] font-semibold text-[#111111]">{tr("Inventaire")}</p>
+              <div className="space-y-4 pt-5 border-t border-(--color-border-secondary)">
+                <p className="text-[12px] font-semibold text-(--color-text-strong)">{tr("Inventaire")}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="stock" className="ax-label block mb-1.5">{tr("Stock disponible")}</label>
                     <input id="stock" type="number" inputMode="numeric" step="1" min="0" value={form.stock} onChange={e => set("stock", e.target.value)} className={inputClass} />
-                    {variantes.length > 0 && <p className="text-[11px] text-gray-400 mt-1">{tr("Les variantes ont chacune leur propre stock (colonne de droite).")}</p>}
+                    {variantes.length > 0 && <p className="text-[11px] text-(--color-text-secondary) mt-1">{tr("Les variantes ont chacune leur propre stock (colonne de droite).")}</p>}
                   </div>
                   <div>
                     <label className="ax-label block mb-1.5">{tr("SKU / Référence")}</label>
@@ -553,19 +556,18 @@ export default function EditProduitPage() {
                     <input value={form.codeBarres} onChange={e => set("codeBarres", e.target.value)} placeholder="ex: 6001234567890" className={`${inputClass} flex-1 min-w-0`} />
                     <div className="flex gap-2">
                       <button type="button" onClick={() => setScanBarcodeOuvert(true)} title={tr("Scanner le code-barres avec la caméra")}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl font-semibold text-[12.5px] text-white transition-all hover:opacity-90"
-                        style={{ background: "#F5A623" }}>
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 min-h-8 rounded-(--radius-md) font-[550] text-[13px] text-white bg-(--color-primary) shadow-(--shadow-button-primary) hover:bg-(--color-primary-hover)">
                         <ScanLine size={14} />{" "}{tr("Scanner")}
                       </button>
                       <button type="button"
                         onClick={() => { set("codeBarres", genererEAN13()); toast.success(tr("Code-barres généré — pense à enregistrer, puis imprime l'étiquette ci-dessous")); }}
                         title={tr("Générer un code-barres pour ce produit")}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl font-semibold text-[12.5px] text-gray-700 border border-[#E8E8E8] bg-white transition-all hover:bg-gray-50">
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-3 rounded-(--radius-lg) font-semibold text-[12.5px] text-(--color-text) border border-(--color-border) bg-white transition-all hover:bg-(--color-surface-secondary)">
                         <RefreshCw size={14} />{" "}{tr("Générer")}
                       </button>
                     </div>
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-1.5">{tr("Pas de code d'origine ? Génère-en un, imprime l'étiquette et colle-la sur le produit.")}</p>
+                  <p className="text-[11px] text-(--color-text-secondary) mt-1.5">{tr("Pas de code d'origine ? Génère-en un, imprime l'étiquette et colle-la sur le produit.")}</p>
                   <BarcodeLabelPreview value={form.codeBarres} nom={form.nom || "Produit"} prix={form.prix ? `${fmt(Number(form.prix) || 0)}` : undefined} />
                 </div>
               </div>
@@ -573,26 +575,22 @@ export default function EditProduitPage() {
           </div>
 
           {/* Programme d'affiliation */}
-          <div className="ax-card p-6 space-y-4">
+          <div className={`${CARTE} space-y-4`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap size={15} className="text-[#F5A623]" />
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Ouvrir aux affiliés")}</h2>
+                <Zap size={15} className="text-(--color-icon-header)" />
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Ouvrir aux affiliés")}</h2>
               </div>
-              <button type="button" onClick={() => set("affiliationActive", !form.affiliationActive)}
-                className="w-9 h-5 rounded-full relative transition-all flex-shrink-0"
-                style={{ background: form.affiliationActive ? "#10b981" : "#E5E5E5" }}>
-                <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all" style={{ left: form.affiliationActive ? "18px" : "2px" }} />
-              </button>
+              <Toggle checked={form.affiliationActive} onChange={(v) => set("affiliationActive", v)} label={tr("Ouvrir aux affiliés")} />
             </div>
-            <p className="text-[11.5px] text-gray-400">
+            <p className="text-[11.5px] text-(--color-text-secondary)">
               {tr("Des affiliés font la promotion de ce produit avec leur lien. Sur les ventes payées en ligne qu'ils t'apportent, Axso leur verse une commission prélevée sur ta part.")}
             </p>
             {form.affiliationActive && (
               <div>
                 <label className="ax-label block mb-1.5">{tr("Taux de commission affilié (%)")}</label>
                 <input type="number" value={form.tauxCommissionAff} onChange={e => set("tauxCommissionAff", e.target.value)} min="0" max="100" placeholder={affDigital ? "20" : "10"} className={inputClass} />
-                <p className="text-[10.5px] text-gray-400 mt-1.5">{affDigital
+                <p className="text-[10.5px] text-(--color-text-secondary) mt-1.5">{affDigital
                   ? tr("Laisse vide pour le taux par défaut de ta boutique (10 % si non réglé). Jamais moins de 20 % pour un produit numérique. Ex : 30 = 30 % de ton prix pour l'affilié sur chaque vente.")
                   : tr("Laisse vide pour le taux par défaut de ta boutique (10 % si non réglé). Jamais moins de 10 % pour un produit physique. Ex : 15 = 15 % de ton prix pour l'affilié sur chaque vente.")}</p>
               </div>
@@ -601,10 +599,10 @@ export default function EditProduitPage() {
 
           {/* Section DROPSHIPPING */}
           {form.type === "dropshipping" && (
-            <div className="bg-white border border-emerald-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-(--badge-success-bg) rounded-(--radius-lg) p-6 space-y-4">
               <div className="flex items-center gap-2 mb-1">
-                <Truck size={15} className="text-emerald-500" />
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Informations fournisseur")}</h2>
+                <Truck size={15} className="text-(--badge-success-text)" />
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Informations fournisseur")}</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -623,7 +621,7 @@ export default function EditProduitPage() {
                     placeholder="https://aliexpress.com/item/..." className={`${inputClass} flex-1 min-w-0`} />
                   {form.urlFournisseur && (
                     <a href={form.urlFournisseur} target="_blank" rel="noopener noreferrer"
-                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 hover:text-gray-700 transition-colors">
+                      className="px-3 py-2 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl text-(--color-text-secondary) hover:text-(--color-text) transition-colors">
                       <ExternalLink size={15} />
                     </a>
                   )}
@@ -634,25 +632,25 @@ export default function EditProduitPage() {
 
           {/* Section DIGITAL */}
           {form.type === "digital" && (
-            <div className="bg-white border border-purple-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-(--color-magic-border) rounded-(--radius-lg) p-6 space-y-4">
               <div className="flex items-center gap-2 mb-1">
-                <FileText size={15} className="text-purple-500" />
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Fichier digital")}</h2>
+                <FileText size={15} className="text-(--color-magic-text)" />
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Fichier digital")}</h2>
               </div>
               {!form.fichierUrl ? (
                 <div
-                  className="border-2 border-dashed border-purple-200 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/50 transition-all"
+                  className="border-2 border-dashed border-(--color-magic-border) rounded-xl p-8 text-center cursor-pointer hover:border-(--color-magic-text) hover:bg-(--color-magic-bg) transition-all"
                   onClick={() => digitalFileRef.current?.click()}>
                   {uploadingFichier ? (
                     <div className="flex flex-col items-center gap-2">
-                      <Loader2 size={28} className="text-purple-400 animate-spin" />
-                      <p className="text-sm text-purple-500">{tr("Upload en cours…")}</p>
+                      <Loader2 size={28} className="text-(--color-magic-text) animate-spin" />
+                      <p className="text-sm text-(--color-magic-text)">{tr("Upload en cours…")}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2">
-                      <Upload size={28} className="text-purple-300" />
-                      <p className="text-sm font-medium text-gray-700">{tr("Cliquez pour uploader votre fichier")}</p>
-                      <p className="text-xs text-gray-400">{tr("PDF, ZIP, MP3, MP4, DOCX — max 200 Mo")}</p>
+                      <Upload size={28} className="text-(--color-magic-text)" />
+                      <p className="text-sm font-medium text-(--color-text)">{tr("Cliquez pour uploader votre fichier")}</p>
+                      <p className="text-xs text-(--color-text-secondary)">{tr("PDF, ZIP, MP3, MP4, DOCX — max 200 Mo")}</p>
                     </div>
                   )}
                   <input ref={digitalFileRef} type="file" className="hidden"
@@ -660,20 +658,20 @@ export default function EditProduitPage() {
                     onChange={e => e.target.files?.[0] && uploadFichierDigital(e.target.files[0])} />
                 </div>
               ) : (
-                <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-xl p-4">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-                    <FileText size={18} className="text-purple-500" />
+                <div className="flex items-center gap-3 bg-(--color-magic-bg) border border-(--color-magic-border) rounded-xl p-4">
+                  <div className="w-10 h-10 rounded-xl bg-(--color-magic-border) flex items-center justify-center flex-shrink-0">
+                    <FileText size={18} className="text-(--color-magic-text)" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{tr(form.fichierNom) || tr("Fichier uploadé")}</p>
-                    <p className="text-xs text-gray-400">{form.fichierTaille ? formatTaille(form.fichierTaille) : tr("Taille inconnue")}{" "}{tr("· Prêt à l'envoi")}</p>
+                    <p className="text-sm font-semibold text-(--color-text-strong) truncate">{tr(form.fichierNom) || tr("Fichier uploadé")}</p>
+                    <p className="text-xs text-(--color-text-secondary)">{form.fichierTaille ? formatTaille(form.fichierTaille) : tr("Taille inconnue")}{" "}{tr("· Prêt à l'envoi")}</p>
                   </div>
-                  {uploadingFichier ? <Loader2 size={16} className="animate-spin text-purple-400" /> : (
+                  {uploadingFichier ? <Loader2 size={16} className="animate-spin text-(--color-magic-text)" /> : (
                     <button onClick={() => digitalFileRef.current?.click()}
-                      className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800"><RefreshCw size={13} />{tr("Remplacer")}</button>
+                      className="flex items-center gap-1 text-xs text-(--color-magic-text) hover:text-(--color-magic-text)"><RefreshCw size={13} />{tr("Remplacer")}</button>
                   )}
                   <button onClick={() => { set("fichierUrl", ""); set("fichierNom", ""); set("fichierTaille", 0); }}
-                    className="text-red-400 hover:text-red-600 transition-colors"><X size={16} /></button>
+                    className="text-(--color-critical) hover:text-(--color-critical-text) transition-colors"><X size={16} /></button>
                   <input ref={digitalFileRef} type="file" className="hidden"
                     accept=".pdf,.zip,.mp3,.mp4,.docx,.xlsx,.wav,.ogg"
                     onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadFichierDigital(f); }} />
@@ -691,10 +689,10 @@ export default function EditProduitPage() {
 
           {/* Section FICHIERS (produit à plusieurs fichiers) */}
           {form.type === "fichier" && (
-            <div className="bg-white border border-purple-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-(--color-magic-border) rounded-(--radius-lg) p-6 space-y-4">
               <div className="flex items-center gap-2 mb-1">
-                <FileText size={15} className="text-purple-500" />
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Fichiers livrés")}</h2>
+                <FileText size={15} className="text-(--color-magic-text)" />
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Fichiers livrés")}</h2>
               </div>
               <FichiersLivres produitId={id} />
               <PrevenirAcheteurs produitId={id} />
@@ -703,22 +701,22 @@ export default function EditProduitPage() {
           )}
 
           {/* Médias */}
-          <div className="ax-card p-6 space-y-5">
+          <div className={`${CARTE} space-y-5`}>
             <div className="flex items-center gap-2 mb-1">
-              <ImageIcon size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Images & Vidéos")}</h2>
+              <ImageIcon size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Images & Vidéos")}</h2>
             </div>
             {/* Images */}
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="text-gray-600 text-xs font-medium">{tr("Images")}</label>
+                <label className="text-(--color-text) text-xs font-medium">{tr("Images")}</label>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={genererImageIA} disabled={genImage || !form.nom}
-                    className="flex items-center gap-1.5 text-xs bg-[#F5A623]/10 text-[#F5A623] border border-[#F5A623]/20 px-3 py-1.5 rounded-lg hover:bg-[#F5A623]/20 transition-all disabled:opacity-50">
+                    className="flex items-center gap-1.5 text-xs bg-(--color-surface-tertiary) text-(--color-icon-header) border border-(--color-border) px-3 py-1.5 rounded-lg hover:bg-(--color-tint-hover) transition-all disabled:opacity-50">
                     {genImage ? <Loader2 size={10} className="animate-spin" /> : <Zap size={10} />}{" "}{tr("Générer avec l'IA")}
                   </button>
                   <button onClick={() => fileInputRef.current?.click()} disabled={uploadingMedia}
-                    className="flex items-center gap-1.5 text-xs bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">
+                    className="flex items-center gap-1.5 text-xs bg-(--color-surface-secondary) text-(--color-text) border border-(--color-border) px-3 py-1.5 rounded-lg hover:bg-(--color-surface-tertiary) transition-all">
                     {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}{" "}{tr("Importer (images carrées)")}
                   </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept="image/*" multiple
@@ -729,37 +727,37 @@ export default function EditProduitPage() {
                 <input value={imageInput} onChange={e => setImageInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") ajouterImageUrl(); }}
                   placeholder={tr("Ou collez une URL d'image...")}
-                  className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50 placeholder:text-gray-400" />
+                  className="flex-1 min-w-0 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-3 py-2 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong) placeholder:text-(--color-text-secondary)" />
                 <button onClick={ajouterImageUrl}
-                  className="px-3 py-2 bg-[#F5A623]/10 border border-[#F5A623]/20 text-[#F5A623] rounded-xl hover:bg-[#F5A623]/20 transition-all">
+                  className="px-3 py-2 bg-(--color-surface-tertiary) border border-(--color-border) text-(--color-icon-header) rounded-xl hover:bg-(--color-tint-hover) transition-all">
                   <Plus size={15} />
                 </button>
               </div>
               {form.images.length > 0 ? (
                 <div className="grid grid-cols-4 gap-2">
                   {form.images.map((img, i) => (
-                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-200">
+                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-(--color-surface-secondary) border border-(--color-border)">
                       <img src={img} alt="" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = "none")} />
-                      {i === 0 && <div className="absolute bottom-1 left-1 bg-[#F5A623] text-white text-[9px] px-1.5 py-0.5 rounded font-medium">{tr("Principale")}</div>}
+                      {i === 0 && <div className="absolute bottom-1 left-1 bg-(--color-primary) text-white text-[9px] px-1.5 py-0.5 rounded font-medium">{tr("Principale")}</div>}
                       <button onClick={() => set("images", form.images.filter((_, j) => j !== i))}
-                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        className="absolute top-1 right-1 w-6 h-6 bg-(--color-critical) rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <X size={9} className="text-white" />
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
-                  <p className="text-gray-400 text-xs">{tr("Uploadez ou collez des URLs d'images ci-dessus")}</p>
+                <div className="border-2 border-dashed border-(--color-border) rounded-xl p-6 text-center">
+                  <p className="text-(--color-text-secondary) text-xs">{tr("Uploadez ou collez des URLs d'images ci-dessus")}</p>
                 </div>
               )}
             </div>
             {/* Vidéos */}
-            <div className="space-y-3 pt-3 border-t border-gray-100">
+            <div className="space-y-3 pt-3 border-t border-(--color-border-secondary)">
               <div className="flex items-center justify-between">
-                <label className="text-gray-600 text-xs font-medium">{tr("Vidéos produit")}</label>
+                <label className="text-(--color-text) text-xs font-medium">{tr("Vidéos produit")}</label>
                 <button onClick={() => videoInputRef.current?.click()} disabled={uploadingMedia}
-                  className="flex items-center gap-1.5 text-xs bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">
+                  className="flex items-center gap-1.5 text-xs bg-(--color-surface-secondary) text-(--color-text) border border-(--color-border) px-3 py-1.5 rounded-lg hover:bg-(--color-surface-tertiary) transition-all">
                   {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Video size={10} />}{" "}{tr("Upload vidéo")}
                 </button>
                 <input ref={videoInputRef} type="file" className="hidden" accept="video/mp4,video/webm"
@@ -768,21 +766,21 @@ export default function EditProduitPage() {
               {(form.videos ?? []).length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {form.videos.map((v, i) => (
-                    <div key={v} className="relative rounded-xl overflow-hidden bg-black border border-gray-200">
+                    <div key={v} className="relative rounded-xl overflow-hidden bg-black border border-(--color-border)">
                       <video src={v} controls playsInline preload="metadata" className="w-full aspect-video" />
                       <button onClick={() => set("videos", form.videos.filter((_, j) => j !== i))} title={tr("Retirer la vidéo")}
-                        className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"><X size={11} className="text-white" /></button>
+                        className="absolute top-1.5 right-1.5 w-6 h-6 bg-(--color-critical) rounded-full flex items-center justify-center"><X size={11} className="text-white" /></button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 text-center py-3">{tr("Aucune vidéo — elles s'affichent sur la page produit de ta boutique, sous la fiche.")}</p>
+                <p className="text-xs text-(--color-text-secondary) text-center py-3">{tr("Aucune vidéo — elles s'affichent sur la page produit de ta boutique, sous la fiche.")}</p>
               )}
             </div>
           </div>
 
           {/* SEO & Open Graph */}
-          <details className="ax-card p-6">
+          <details className={`${CARTE}`}>
             <summary className="flex items-center gap-2 min-h-10 cursor-pointer select-none">
               <Globe size={15} className="text-primaire" aria-hidden />
               <h2 className="text-[13px] font-semibold text-encre">{tr("Référencement Google et partage")}</h2>
@@ -792,28 +790,28 @@ export default function EditProduitPage() {
             <div>
               <label className="ax-label block mb-1.5">{tr("Titre affiché sur Google")}</label>
               <input value={form.metaTitle} onChange={e => set("metaTitle", e.target.value)} placeholder={tr("Titre pour Google (max 60 car.)")} className={inputClass} />
-              {form.metaTitle && <p className={`text-[10px] mt-1 ${form.metaTitle.length > 60 ? "text-red-400" : "text-gray-400"}`}>{form.metaTitle.length}/60</p>}
+              {form.metaTitle && <p className={`text-[10px] mt-1 ${form.metaTitle.length > 60 ? "text-(--color-critical)" : "text-(--color-text-secondary)"}`}>{form.metaTitle.length}/60</p>}
             </div>
             <div>
               <label className="ax-label block mb-1.5">{tr("Description affichée sur Google")}</label>
               <textarea value={form.metaDesc} onChange={e => set("metaDesc", e.target.value)} rows={2} placeholder={tr("Description Google (max 155 car.)…")} className={`${inputClass} resize-none`} />
-              {form.metaDesc && <p className={`text-[10px] mt-1 ${form.metaDesc.length > 155 ? "text-red-400" : "text-gray-400"}`}>{form.metaDesc.length}/155</p>}
+              {form.metaDesc && <p className={`text-[10px] mt-1 ${form.metaDesc.length > 155 ? "text-(--color-critical)" : "text-(--color-text-secondary)"}`}>{form.metaDesc.length}/155</p>}
             </div>
             <div>
               <label className="ax-label block mb-1.5">{tr("Image Open Graph (partage réseaux sociaux)")}</label>
               <input value={form.ogImage} onChange={e => set("ogImage", e.target.value)} placeholder="URL de l'image (1200×630px recommandé)" className={inputClass} />
               {form.ogImage && (
-                <div className="mt-2 rounded-xl overflow-hidden border border-gray-200 h-20">
+                <div className="mt-2 rounded-xl overflow-hidden border border-(--color-border) h-20">
                   <img src={form.ogImage} alt="OG" className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                 </div>
               )}
-              <p className="text-[10px] text-gray-400 mt-1">{tr("Si vide, la première image produit est utilisée.")}</p>
+              <p className="text-[10px] text-(--color-text-secondary) mt-1">{tr("Si vide, la première image produit est utilisée.")}</p>
             </div>
           </div>
           </details>
 
           {/* Tarification avancée (variantes de prix) */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
+          <div className={`${CARTE}`}>
             <VariantesPrixManager
               produitId={id}
               boutiqueUrl={boutiqueUrl}
@@ -824,23 +822,23 @@ export default function EditProduitPage() {
 
           {/* Clés de licence */}
           {form.type === "licence" && (
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="bg-white border border-(--color-border-secondary) rounded-(--radius-lg) overflow-hidden">
               <ClesLicenceManager produitId={id} />
             </div>
           )}
 
           {/* Formation — chapitres et leçons */}
           {form.type === "formation" && (
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="bg-white border border-(--color-border-secondary) rounded-(--radius-lg) overflow-hidden">
               <FormationManager produitId={id} />
             </div>
           )}
 
           {/* FAQ */}
-          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="bg-white border border-(--color-border-secondary) rounded-(--radius-lg) overflow-hidden">
             <div className="flex items-center gap-2 px-5 pt-5 pb-1">
-              <HelpCircle size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">FAQ</h2>
+              <HelpCircle size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">FAQ</h2>
             </div>
             <FaqManager
               produitId={id}
@@ -851,10 +849,10 @@ export default function EditProduitPage() {
           </div>
 
           {/* Champs à la commande */}
-          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="bg-white border border-(--color-border-secondary) rounded-(--radius-lg) overflow-hidden">
             <div className="flex items-center gap-2 px-5 pt-5 pb-1">
-              <ListOrdered size={15} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Champs personnalisés à la commande")}</h2>
+              <ListOrdered size={15} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Champs personnalisés à la commande")}</h2>
             </div>
             <ChampsCommandeManager
               produitId={id}
@@ -867,17 +865,17 @@ export default function EditProduitPage() {
         <div className="space-y-5">
 
           {/* Stats */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <h2 className="text-[13px] font-semibold text-[#111111] mb-3">{tr("Statistiques")}</h2>
+          <div className={`${CARTE}`}>
+            <h2 className="text-[13px] font-semibold text-(--color-text-strong) mb-3">{tr("Statistiques")}</h2>
             <div className="space-y-3">
               {[
-                { label: "Ventes totales", value: stats.ventes, color: "text-[#F5A623]" },
-                { label: "Vues totales", value: stats.vues, color: "text-[#D4911A]" },
-                { label: "Avis reçus", value: stats.avis, color: "text-yellow-500" },
-                { label: "Dans commandes", value: stats.commandes, color: "text-emerald-500" },
+                { label: "Ventes totales", value: stats.ventes, color: "text-(--color-text-strong)" },
+                { label: "Vues totales", value: stats.vues, color: "text-(--color-text-strong)" },
+                { label: "Avis reçus", value: stats.avis, color: "text-(--color-text-strong)" },
+                { label: "Dans commandes", value: stats.commandes, color: "text-(--color-text-strong)" },
               ].map(s => (
                 <div key={s.label} className="flex items-center justify-between">
-                  <span className="text-gray-400 text-xs">{tr(s.label)}</span>
+                  <span className="text-(--color-text-secondary) text-xs">{tr(s.label)}</span>
                   <span className={`font-bold text-sm ${s.color}`}>{tr(s.value)}</span>
                 </div>
               ))}
@@ -885,30 +883,30 @@ export default function EditProduitPage() {
           </div>
 
           {/* Catégorie & Tags */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+          <div className={`${CARTE} space-y-4`}>
             <div className="flex items-center gap-2 mb-1">
-              <Tag size={14} className="text-[#F5A623]" />
-              <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Catégorie & Tags")}</h2>
+              <Tag size={14} className="text-(--color-icon-header)" />
+              <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Collection et tags")}</h2>
             </div>
             <select value={form.categorie} onChange={e => set("categorie", e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50">
-              <option value="">{categoriesBoutique?.length === 0 ? tr("Aucune catégorie — crée-les d'abord") : tr("Sélectionner...")}</option>
+              className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-3 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong)">
+              <option value="">{categoriesBoutique?.length === 0 ? tr("Aucune collection : créez-en d'abord") : tr("Sélectionner...")}</option>
               {(categoriesBoutique ?? []).map(c => <option key={c.id} value={c.nom}>{tr(c.nom)}</option>)}
               {form.categorie && categoriesBoutique && !categoriesBoutique.some(c => c.nom === form.categorie) && <option value={form.categorie}>{tr(form.categorie)}</option>}
             </select>
-            <Link href="/dashboard/produits/categories" className="block -mt-2 text-[12px] font-medium text-[#B45309] hover:underline">{tr("Gérer les catégories et leurs options →")}</Link>
+            <Link href="/dashboard/produits/categories" className="block -mt-2 text-[12px] font-medium text-(--color-link) hover:underline">{tr("Gérer les collections et leurs options →")}</Link>
             <div className="flex gap-2">
               <input value={tagInput} onChange={e => setTagInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); const t = tagInput.trim().toLowerCase(); if (t && !form.tags.includes(t)) set("tags", [...form.tags, t]); setTagInput(""); }}}
                 placeholder={tr("Ajouter un tag...")}
-                className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-xs focus:outline-none focus:border-[#F5A623]/50 placeholder:text-gray-400" />
+                className="flex-1 min-w-0 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-3 py-2 text-(--color-text-strong) text-xs focus:outline-none focus:border-(--color-border-strong) placeholder:text-(--color-text-secondary)" />
               <button onClick={() => { const t = tagInput.trim().toLowerCase(); if (t && !form.tags.includes(t)) set("tags", [...form.tags, t]); setTagInput(""); }}
-                className="flex-shrink-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 hover:text-gray-900 text-xs">+</button>
+                className="flex-shrink-0 px-3 py-2 bg-(--color-surface-secondary) border border-(--color-border) rounded-xl text-(--color-text-secondary) hover:text-(--color-text-strong) text-xs">+</button>
             </div>
             {(form.tags ?? []).length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {form.tags.map(t => (
-                  <span key={t} className="flex items-center gap-1 bg-[#F5A623]/10 border border-[#F5A623]/20 text-[#F5A623] text-xs px-2 py-1 rounded-lg">
+                  <span key={t} className="flex items-center gap-1 bg-(--color-surface-tertiary) border border-(--color-border) text-(--color-icon-header) text-xs px-2 py-1 rounded-lg">
                     {tr(t)}<button onClick={() => set("tags", form.tags.filter(x => x !== t))}><X size={9} /></button>
                   </span>
                 ))}
@@ -918,45 +916,45 @@ export default function EditProduitPage() {
 
           {/* ─── Variantes ─── */}
           {!estDigital && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+            <div className={`${CARTE} space-y-4`}>
               <div className="flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Variantes")}</h2>
-                <span className="flex-shrink-0 whitespace-nowrap text-[11px] bg-[#F5A623]/10 text-[#F5A623] px-2 py-0.5 rounded-full">{variantes.length} variante(s)</span>
+                <h2 className="text-[13px] font-semibold text-(--color-text-strong)">{tr("Variantes")}</h2>
+                <span className="flex-shrink-0 whitespace-nowrap text-[11px] bg-(--color-surface-tertiary) text-(--color-icon-header) px-2 py-0.5 rounded-full">{variantes.length} variante(s)</span>
               </div>
               {/* Existantes */}
               {variantes.length > 0 && (
                 <div className="space-y-1.5">
                   {variantes.map((v, idx) => (
-                    <div key={idx} className="flex flex-wrap items-center gap-x-2 gap-y-1 bg-[#FAFAFA] rounded-xl px-3 py-2">
-                      <span className="text-[11px] bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full font-medium">{tr(v.nom)}</span>
-                      <span className="text-[12px] font-semibold text-[#111] flex-1 min-w-0 break-words">{tr(v.valeur)}</span>
-                      {v.sku && <span className="text-[10px] text-[#AAA] font-mono">{tr(v.sku)}</span>}
-                      <span className="text-[12px] text-[#F5A623] font-bold">{fmt(Number(v.prix || form.prix) || 0)}</span>
-                      <span className="text-[11px] text-[#888]">{tr("S:")}{v.stock}</span>
-                      <button onClick={() => supprimerVariante(v.id, idx)} className="text-red-400 hover:text-red-600 ml-1 text-xs">✕</button>
+                    <div key={idx} className="flex flex-wrap items-center gap-x-2 gap-y-1 bg-(--color-surface-secondary) rounded-xl px-3 py-2">
+                      <span className="text-[11px] bg-(--color-surface-tertiary) text-(--color-icon-header) px-2 py-0.5 rounded-full font-medium">{tr(v.nom)}</span>
+                      <span className="text-[12px] font-semibold text-(--color-text-strong) flex-1 min-w-0 break-words">{tr(v.valeur)}</span>
+                      {v.sku && <span className="text-[10px] text-(--color-text-subdued) font-mono">{tr(v.sku)}</span>}
+                      <span className="text-[12px] text-(--color-icon-header) font-bold">{fmt(Number(v.prix || form.prix) || 0)}</span>
+                      <span className="text-[11px] text-(--color-text-secondary)">{tr("S:")}{v.stock}</span>
+                      <button onClick={() => supprimerVariante(v.id, idx)} className="text-(--color-critical) hover:text-(--color-critical-text) ml-1 text-xs">✕</button>
                     </div>
                   ))}
                 </div>
               )}
               {/* Formulaire ajout */}
-              <div className="bg-[#FAFAFA] rounded-xl p-3 space-y-2">
+              <div className="bg-(--color-surface-secondary) rounded-xl p-3 space-y-2">
                 <datalist id="valeurs-option">{optionsVariantes(categoriesBoutique, form.categorie).valeurs(varianteForm.nom).map(v => <option key={v} value={v} />)}</datalist>
                 <div className="grid grid-cols-2 gap-2">
                   <select value={varianteForm.nom} onChange={e => setVarianteForm(v => ({ ...v, nom: e.target.value }))}
-                    className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white">
+                    className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white">
                     {optionsVariantes(categoriesBoutique, form.categorie).noms.map(n => <option key={n}>{n}</option>)}
                   </select>
-                  <input className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("Valeur (ex: XL, Rouge)")} list="valeurs-option"
+                  <input className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("Valeur (ex: XL, Rouge)")} list="valeurs-option"
                     value={varianteForm.valeur} onChange={e => setVarianteForm(v => ({ ...v, valeur: e.target.value }))} />
-                  <input className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("SKU (optionnel)")}
+                  <input className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("SKU (optionnel)")}
                     value={varianteForm.sku} onChange={e => setVarianteForm(v => ({ ...v, sku: e.target.value }))} />
-                  <input className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("Prix (défaut: {0})", form.prix)} type="number"
+                  <input className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("Prix (défaut: {0})", form.prix)} type="number"
                     value={varianteForm.prix} onChange={e => setVarianteForm(v => ({ ...v, prix: e.target.value }))} />
-                  <input className="w-full min-w-0 border border-[#E8E8E8] rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("Stock")} type="number"
+                  <input className="w-full min-w-0 border border-(--color-border) rounded-xl px-3 py-2 text-[12px] outline-none bg-white" placeholder={tr("Stock")} type="number"
                     value={varianteForm.stock} onChange={e => setVarianteForm(v => ({ ...v, stock: e.target.value }))} />
                 </div>
                 <button onClick={ajouterVariante} disabled={!varianteForm.valeur || savingVariante}
-                  className="w-full py-2 rounded-xl border-2 border-dashed border-[#F5A623]/40 text-[12px] text-[#F5A623] font-semibold hover:bg-[#FFF8EC] transition-all disabled:opacity-40">
+                  className="w-full py-2 rounded-xl border-2 border-dashed border-(--color-border-strong) text-[12px] text-(--color-icon-header) font-semibold hover:bg-(--color-surface-secondary) transition-all disabled:opacity-40">
                   {savingVariante ? "..." : tr("+ Ajouter cette variante")}
                 </button>
               </div>
@@ -964,8 +962,8 @@ export default function EditProduitPage() {
           )}
 
           {/* Options */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
-            <h2 className="text-[13px] font-semibold text-[#111111] mb-1">{tr("Options")}</h2>
+          <div className={`${CARTE} space-y-3`}>
+            <h2 className="text-[13px] font-semibold text-(--color-text-strong) mb-1">{tr("Options")}</h2>
             {[
               { label: "Produit actif", desc: "Accessible et visible sur la boutique", key: "actif", icon: <Eye size={12} /> },
               { label: "Mis en avant", desc: "Affiché en page d'accueil", key: "featured", icon: null },
@@ -974,53 +972,50 @@ export default function EditProduitPage() {
             ].map(opt => (
               <div key={opt.key} className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-800 text-sm">{tr(opt.label)}</p>
-                  <p className="text-gray-400 text-xs">{tr(opt.desc)}</p>
+                  <p className="text-(--color-text-strong) text-sm">{tr(opt.label)}</p>
+                  <p className="text-(--color-text-secondary) text-xs">{tr(opt.desc)}</p>
                 </div>
-                <button type="button" role="switch" aria-checked={!!(form as any)[opt.key]} aria-label={tr(opt.label)} onClick={() => set(opt.key, !(form as any)[opt.key])}
-                  className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${(form as any)[opt.key] ? "bg-[#F5A623]" : "bg-gray-200"}`}>
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${(form as any)[opt.key] ? "left-5" : "left-0.5"}`} />
-                </button>
+                <Toggle checked={!!(form as any)[opt.key]} onChange={(v) => set(opt.key, v)} label={tr(opt.label)} />
               </div>
             ))}
 
             {/* Texte bouton achat */}
-            <div className="pt-2 border-t border-gray-100">
+            <div className="pt-2 border-t border-(--color-border-secondary)">
               <label className="ax-label block mb-1.5 flex items-center gap-1.5">
-                <ShoppingCart size={12} className="text-gray-400" />{" "}{tr("Texte du bouton d'achat")}
+                <ShoppingCart size={12} className="text-(--color-text-secondary)" />{" "}{tr("Texte du bouton d'achat")}
               </label>
               <input
                 value={form.texteBoutonAchat}
                 onChange={e => set("texteBoutonAchat", e.target.value)}
                 placeholder={tr("Acheter maintenant")}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50"
+                className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-3 py-2.5 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong)"
               />
             </div>
 
             {form.type === "physique" && (
-              <div className="pt-2 border-t border-gray-100">
+              <div className="pt-2 border-t border-(--color-border-secondary)">
                 <label className="ax-label block mb-1.5">{tr("Poids (kg)")}</label>
                 <input type="number" value={form.poids} onChange={e => set("poids", e.target.value)} placeholder="0.5" min="0" step="0.01"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/50" />
+                  className="w-full bg-(--color-surface-secondary) border border-(--color-border) rounded-xl px-4 py-2.5 text-(--color-text-strong) text-sm focus:outline-none focus:border-(--color-border-strong)" />
               </div>
             )}
           </div>
 
           {/* Aperçu */}
           {(form.nom || (form.images ?? []).length > 0) && (
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <p className="text-gray-400 text-xs px-4 pt-3 pb-2">{tr("Aperçu boutique")}</p>
-              <div className="aspect-square bg-gray-50 overflow-hidden">
+            <div className="bg-white border border-(--color-border-secondary) rounded-(--radius-lg) overflow-hidden">
+              <p className="text-(--color-text-secondary) text-xs px-4 pt-3 pb-2">{tr("Aperçu boutique")}</p>
+              <div className="aspect-square bg-(--color-surface-secondary) overflow-hidden">
                 {form.images?.[0]
                   ? <img src={form.images[0]} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center">{form.type === "digital" ? <Download size={40} className="text-gray-300" /> : <Package size={40} className="text-gray-300" />}</div>}
+                  : <div className="w-full h-full flex items-center justify-center">{form.type === "digital" ? <Download size={40} className="text-(--color-text-subdued)" /> : <Package size={40} className="text-(--color-text-subdued)" />}</div>}
               </div>
               <div className="p-4">
-                <p className="font-medium text-gray-800 text-sm line-clamp-2">{tr(form.nom) || tr("Nom du produit")}</p>
+                <p className="font-medium text-(--color-text-strong) text-sm line-clamp-2">{tr(form.nom) || tr("Nom du produit")}</p>
                 {form.prix && (
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[#F5A623] font-bold text-sm">{fmt(Number(form.prix) || 0)}</span>
-                    {remisePct !== null && <span className="text-gray-400 text-xs line-through">{fmt(prixCompareNum)}</span>}
+                    <span className="text-(--color-icon-header) font-bold text-sm">{fmt(Number(form.prix) || 0)}</span>
+                    {remisePct !== null && <span className="text-(--color-text-secondary) text-xs line-through">{fmt(prixCompareNum)}</span>}
                   </div>
                 )}
               </div>
