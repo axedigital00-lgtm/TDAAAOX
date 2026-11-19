@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Calendar, Plus, Clock, Trash2, CheckCircle2, XCircle, Loader2, Sparkles, X, Edit3, Zap, Camera, ThumbsUp, Music4, MessageCircle, Bird } from "lucide-react";
+import { Calendar, Clock, Trash2, CheckCircle2, XCircle, Loader2, Sparkles, X, Edit3, Zap, Camera, ThumbsUp, Music4, MessageCircle, Bird } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
-import { Bouton, BoutonIcone, EnTetePage, useConfirmation } from "@/components/ui";
+import { BoutonIcone, useConfirmation } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 
 type Statut = "planifie" | "publie" | "annule";
 
@@ -219,10 +220,8 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
   return (
     <div className="space-y-6">
       {dialogue}
-      <EnTetePage className="mb-0"
-        titre={t("Planificateur social")}
-        description={t("Planifiez vos posts avec l'IA — Instagram, TikTok, Facebook…")}
-        actions={<Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{t("Nouveau post")}</Bouton>} />
+      <PageHeader icon="calendar" title={t("Planificateur social")}
+        primaryAction={{ content: t("Nouveau post"), icon: "plus", onAction: () => setShowModal(true) }} />
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

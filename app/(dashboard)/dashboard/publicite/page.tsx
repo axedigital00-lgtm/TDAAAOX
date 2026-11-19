@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Megaphone, Plus, Loader2, X, Sparkles, TrendingUp, Eye, MousePointer, ShoppingCart, DollarSign, Pause, Play, Trash2, Zap, Target, BarChart2, Users, Music, Search } from "lucide-react";
+import { Megaphone, Loader2, X, Sparkles, TrendingUp, Eye, MousePointer, ShoppingCart, DollarSign, Pause, Play, Trash2, Zap, Target, BarChart2, Users, Music, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
-import { Bouton, BoutonIcone, EnTetePage, useConfirmation } from "@/components/ui";
+import { BoutonIcone, useConfirmation } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 interface Campagne {
   id: string;
   plateforme: string;
@@ -323,10 +324,8 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
   return (
     <div className="space-y-6">
       {dialogue}
-      <EnTetePage className="mb-0"
-        titre={t("Publicité")}
-        description={t("Gérez vos campagnes Meta, Google et TikTok")}
-        actions={<Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{t("Nouvelle campagne")}</Bouton>} />
+      <PageHeader icon="meta" title={t("Publicité")}
+        primaryAction={{ content: t("Nouvelle campagne"), icon: "plus", onAction: () => setShowModal(true) }} />
 
       {/* KPIs globaux */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

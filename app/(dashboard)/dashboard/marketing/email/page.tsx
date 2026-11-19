@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Send, Wand2, Users, CheckCircle2, XCircle, Mail, RefreshCw, Sparkles, Eye, Gem, Moon, Flame, Crown, UserPlus } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatVide, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
+import { Alerte, Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EtatVide, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Stats {
@@ -182,10 +183,7 @@ export default function EmailMarketingPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       {dialogue}
-      <EnTetePage className="mb-0"
-        retour={{ href: "/dashboard/marketing", libelle: tr("Marketing") }}
-        titre={tr("Email Marketing")}
-        description={tr("Envoyez des campagnes directement depuis Axso")} />
+      <PageHeader icon="mail" title={tr("Email Marketing")} backHref="/dashboard/marketing" />
 
       <div className="flex gap-1 bg-carte-2 border border-bordure rounded-controle p-1 w-full sm:w-fit" role="tablist" aria-label={tr("Email Marketing")}>
         {([["composer", tr("Composer")], ["historique", <>{tr("Historique (")}{historique.length})</>]] as const).map(([cle, libelle]) => (

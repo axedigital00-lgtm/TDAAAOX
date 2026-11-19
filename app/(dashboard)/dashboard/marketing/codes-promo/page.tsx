@@ -1,28 +1,27 @@
 ﻿"use client";
-// Dashboard — Codes Promo
-import { useState, useEffect } from "react";
+// Réductions (masterprompt §8.14) — codes promo : vues et recherche dans l'URL, création en fenêtre.
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Tag, Trash2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation } from "@/components/ui";
-
-type CodePromo = {
-  id: string;
-  code: string;
-  type: string;
-  valeur: number;
-  actif: boolean;
-  utilisations: number;
-  maxUtilisations: number | null;
-  dateExpiration: string | null;
-};
+import { useDevise } from "@/components/dashboard/DeviseProvider";
+import { EtatErreur, useConfirmation } from "@/components/ui";
+import {
+  Badge, Button, EmptyState, IconButton, IndexFilters, IndexTable, Modal, PageHeader, Select, TextField,
+  useColonnesMasquees, type Column,
+} from "@/components/ui/adm";
+import { IllustrationReductions } from "@/components/ui/illustrations";
+import { BADGE_STATUT, filtrerReductions, statutReduction, type CodeReduction } from "./regles";
 
 const FORM_VIDE = { code: "", type: "pourcentage", valeur: 10, maxUtilisations: "" };
 
-export default function CodesPromoPage() {
+function Reductions() {
   const t = useT();
+  const { fmt } = useDevise();
+  const params = useSearchParams();
   const { confirmer, dialogue } = useConfirmation();
-  const [codes, setCodes] = useState<CodePromo[]>([]);
+  const [masquees, setMasquees] = useColonnesMasquees("reductions", []);
+  const [codes, setCodes] = useState<CodeReduction[]>([]);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -50,7 +49,7 @@ export default function CodesPromoPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.error ? t(d.error) : t("Le code n'a pas été créé. Vérifie les champs et réessaie."));
+        toast.error(d.error ? t(d.error) : t("Le code n'a pas été créé. Vérifiez les champs et réessayez."));
         return;
       }
       const nouveau = await res.json();
@@ -59,16 +58,16 @@ export default function CodesPromoPage() {
       setForm(FORM_VIDE);
       toast.success(t("Code promo {0} créé.", nouveau.code ?? form.code));
     } catch {
-      toast.error(t("Connexion impossible : le code n'a pas été créé. Réessaie."));
+      toast.error(t("Connexion impossible : le code n'a pas été créé. Réessayez."));
     } finally {
       setSaving(false);
     }
   }
 
-  async function supprimer(code: CodePromo) {
+  async function supprimer(code: CodeReduction) {
     if (!(await confirmer({
       titre: t("Supprimer ce code promo ?"), objet: code.code,
-      description: t("Tes clients ne pourront plus l'utiliser. Les commandes déjà passées avec ce code ne changent pas."),
+      description: t("Vos clients ne pourront plus l'utiliser. Les commandes déjà passées avec ce code ne changent pas."),
       libelleConfirmer: t("Supprimer le code"),
     }))) return;
     try {
@@ -77,97 +76,79 @@ export default function CodesPromoPage() {
       setCodes((prev) => prev.filter((c) => c.id !== code.id));
       toast.success(t("Code {0} supprimé.", code.code));
     } catch {
-      toast.error(t("Le code {0} n'a pas été supprimé. Réessaie.", code.code));
+      toast.error(t("Le code {0} n'a pas été supprimé. Réessayez.", code.code));
     }
   }
 
-  const remise = (code: CodePromo) => code.type === "pourcentage" ? `${code.valeur}%` : `${code.valeur} (${t("fixe")})`;
+  const remise = (c: CodeReduction) => c.type === "pourcentage" ? t("{0} % de remise", c.valeur) : t("{0} de remise", fmt(c.valeur));
+  const admissibilite = (c: CodeReduction) => [
+    c.produitIds?.length ? t("Certains produits") : t("Toute la boutique"),
+    c.minCommande ? t("dès {0}", fmt(c.minCommande)) : null,
+  ].filter(Boolean).join(" · ");
+
+  const colonnes: Column<CodeReduction>[] = [
+    { id: "titre", header: t("Titre"), mobilePrimary: true,
+      cell: (c) => <span className="block"><span className="font-mono">{c.code}</span><span className="block text-xs font-normal text-(--color-text-secondary)">{remise(c)}</span></span> },
+    { id: "statut", header: t("Statut"), cell: (c) => { const b = BADGE_STATUT[statutReduction(c)]; return <Badge tone={b.tone}>{t(b.label)}</Badge>; } },
+    { id: "methode", header: t("Méthode"), cell: () => t("Code"), hideOnMobile: true },
+    { id: "admissibilite", header: t("Admissibilité"), cell: admissibilite, hideOnMobile: true },
+    { id: "type", header: t("Type"), cell: (c) => c.type === "pourcentage" ? t("Pourcentage") : t("Montant fixe") },
+    { id: "utilisations", header: t("Utilisations"), numeric: true, align: "end", cell: (c) => `${c.utilisations}/${c.maxUtilisations ?? "∞"}` },
+    { id: "actions", header: "", align: "end",
+      cell: (c) => <IconButton icon="x" aria-label={t("Supprimer le code {0}", c.code)} onClick={() => supprimer(c)} /> },
+  ];
+  const lignes = filtrerReductions(codes, params.get("vue"), params.get("q"));
+  const ouvrir = () => setShowForm(true);
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-4">
       {dialogue}
-      <EnTetePage className="mb-0"
-        retour={{ href: "/dashboard/marketing", libelle: t("Marketing") }}
-        titre={t("Codes Promo")}
-        description={loading || erreur ? undefined : <>{codes.length}{" "}{t("code(s) au total")}</>}
-        actions={!showForm && <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{t("Créer un code")}</Bouton>} />
+      <PageHeader icon="discount" title={t("Réductions")} backHref="/dashboard/marketing"
+        primaryAction={{ content: t("Créer une réduction"), onAction: ouvrir }} />
 
-      {showForm && (
-        <form onSubmit={creer} className="ax-card p-carte space-y-champs">
-          <h2 className="ax-sous-titre">{t("Nouveau code promo")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Saisie label={t("Code")} required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-              placeholder="SOLDES25" classeChamp="font-mono" aide={t("Ce que le client tape au paiement.")} />
-            <Champ label={t("Type")}>
-              {(a) => (
-                <select {...a} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={CLASSE_SAISIE}>
-                  <option value="pourcentage">{t("Pourcentage (%)")}</option>
-                  <option value="fixe">{t("Montant fixe")}</option>
-                </select>
-              )}
-            </Champ>
-            <Saisie label={t("Valeur")} required type="number" min={1} value={form.valeur}
-              onChange={(e) => setForm({ ...form, valeur: Number(e.target.value) })} suffixe={form.type === "pourcentage" ? "%" : undefined} />
-            <Saisie label={t("Nombre maximum d'utilisations")} mention="facultatif" type="number" min={1} value={form.maxUtilisations}
-              onChange={(e) => setForm({ ...form, maxUtilisations: e.target.value })} placeholder="∞" aide={t("Laisse vide pour un nombre illimité.")} />
-          </div>
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-            <Bouton variante="secondaire" onClick={() => setShowForm(false)} disabled={saving}>{t("Annuler")}</Bouton>
-            <Bouton type="submit" disabled={!form.code || !form.valeur} charge={saving} texteCharge={t("Création…")}>{t("Créer le code")}</Bouton>
-          </div>
-        </form>
-      )}
-
-      {loading ? (
-        <SqueletteListe lignes={4} libelle={t("Chargement des codes promo…")} />
-      ) : erreur ? (
-        <EtatErreur titre={t("Les codes promo n'ont pas pu être chargés")} texte={t("Vérifie ta connexion et réessaie.")} onReessayer={charger} />
-      ) : codes.length === 0 ? (
-        <EtatVide icone={<Tag />} titre={t("Aucun code promo")}
-          texte={t("Un code promo offre une remise à tes clients au moment du paiement. Crée ton premier code pour lancer une offre.")}>
-          {!showForm && <Bouton icone={<Plus className="size-4" aria-hidden />} onClick={() => setShowForm(true)}>{t("Créer un code")}</Bouton>}
-        </EtatVide>
+      {erreur ? (
+        <EtatErreur titre={t("Les codes promo n'ont pas pu être chargés")} texte={t("Vérifiez votre connexion et réessayez.")} onReessayer={charger} />
+      ) : !loading && codes.length === 0 ? (
+        <EmptyState title={t("Gérez vos réductions")} image={<IllustrationReductions />}
+          actions={<Button variant="primary" onClick={ouvrir}>{t("Créer une réduction")}</Button>}>
+          {t("Un code promo offre une remise à vos clients au moment du paiement. Créez votre premier code pour lancer une offre.")}
+        </EmptyState>
       ) : (
-        <div className="ax-card overflow-hidden">
-          {/* Téléphone : cartes empilées */}
-          <ul className="sm:hidden divide-y divide-bordure">
-            {codes.map((code) => (
-              <li key={code.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 min-w-0 space-y-1">
-                  <code className="inline-block text-sm font-mono font-bold px-2 py-0.5 rounded-controle bg-primaire-fond text-encre border border-attention-bordure">{code.code}</code>
-                  <p className="ax-aide">{remise(code)} · {code.utilisations}/{code.maxUtilisations ?? "∞"} {t("utilisations")}</p>
-                </div>
-                <Badge ton={code.actif ? "succes" : "neutre"}>{code.actif ? t("Actif") : t("Inactif")}</Badge>
-                <BoutonIcone label={t("Supprimer le code {0}", code.code)} onClick={() => supprimer(code)} className="text-erreur"><Trash2 className="size-4" aria-hidden /></BoutonIcone>
-              </li>
-            ))}
-          </ul>
-          {/* Ordinateur : tableau */}
-          <table className="hidden sm:table w-full text-sm">
-            <thead>
-              <tr className="border-b border-bordure bg-carte-2">
-                {["Code", "Remise", "Utilisations", "Statut"].map((h) => (
-                  <th key={h} scope="col" className="text-left text-xs text-doux font-semibold px-5 py-3">{t(h)}</th>
-                ))}
-                <th scope="col" className="px-5 py-3"><span className="sr-only">{t("Actions")}</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-bordure">
-              {codes.map((code) => (
-                <tr key={code.id}>
-                  <td className="px-5 py-3"><code className="text-encre bg-primaire-fond border border-attention-bordure px-2 py-1 rounded-controle font-mono font-bold">{code.code}</code></td>
-                  <td className="px-5 py-3 text-encre">{remise(code)}</td>
-                  <td className="px-5 py-3 text-doux tabular-nums">{code.utilisations}/{code.maxUtilisations ?? "∞"}</td>
-                  <td className="px-5 py-3"><Badge ton={code.actif ? "succes" : "neutre"}>{code.actif ? t("Actif") : t("Inactif")}</Badge></td>
-                  <td className="px-5 py-2 text-right">
-                    <BoutonIcone label={t("Supprimer le code {0}", code.code)} onClick={() => supprimer(code)} className="text-erreur"><Trash2 className="size-4" aria-hidden /></BoutonIcone>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-hidden rounded-(--radius-xl) bg-(--color-surface) shadow-(--shadow-card)">
+          <IndexFilters
+            views={[{ id: "toutes", label: t("Toutes") }, { id: "actives", label: t("Actives") }, { id: "expirees", label: t("Expirées") }]}
+            filters={[]}
+            sortOptions={[]}
+            columns={colonnes.filter((c) => !c.mobilePrimary && c.id !== "actions").map((c) => ({ id: c.id, header: c.header }))}
+            hiddenColumns={masquees}
+            onHiddenColumnsChange={setMasquees}
+            searchPlaceholder={t("Rechercher un code")}
+          />
+          <IndexTable label={t("Réductions")} rows={lignes} columns={colonnes} getId={(c) => c.id} loading={loading} hiddenColumns={masquees}
+            emptyState={<p className="border-t border-(--color-border-secondary) px-6 py-12 text-center text-sm text-(--color-text-secondary)">{t("Aucune réduction ne correspond à cette vue.")}</p>} />
         </div>
       )}
+
+      <Modal open={showForm} onClose={() => !saving && setShowForm(false)} title={t("Nouveau code promo")} size="sm"
+        footer={<>
+          <Button onClick={() => setShowForm(false)} disabled={saving}>{t("Annuler")}</Button>
+          <Button variant="primary" type="submit" form="form-reduction" disabled={!form.code || !form.valeur} loading={saving}>{t("Créer le code")}</Button>
+        </>}>
+        <form id="form-reduction" onSubmit={creer} className="space-y-3">
+          <TextField label={t("Code")} required value={form.code} placeholder="SOLDES25" className="font-mono"
+            onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} helpText={t("Ce que le client tape au paiement.")} />
+          <Select label={t("Type")} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
+            options={[{ value: "pourcentage", label: t("Pourcentage (%)") }, { value: "fixe", label: t("Montant fixe") }]} />
+          <TextField label={t("Valeur")} required type="number" min={1} value={form.valeur}
+            onChange={(e) => setForm({ ...form, valeur: Number(e.target.value) })} />
+          <TextField label={t("Nombre maximum d'utilisations (facultatif)")} type="number" min={1} value={form.maxUtilisations} placeholder="∞"
+            onChange={(e) => setForm({ ...form, maxUtilisations: e.target.value })} helpText={t("Laissez vide pour un nombre illimité.")} />
+        </form>
+      </Modal>
     </div>
   );
+}
+
+export default function CodesPromoPage() {
+  return <Suspense fallback={null}><Reductions /></Suspense>;
 }

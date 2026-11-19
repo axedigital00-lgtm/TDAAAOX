@@ -4,7 +4,8 @@ import { Search, Plus, Loader2, X, Sparkles, Globe, Zap, Trash2, Eye, BarChart2 
 import { toast } from "sonner";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
 import { useT } from "@/components/I18nProvider";
-import { Bouton, BoutonIcone, EnTetePage, useConfirmation } from "@/components/ui";
+import { Bouton, BoutonIcone, useConfirmation } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 
 interface VeilleItem {
   id: string;
@@ -121,10 +122,9 @@ Format: liste claire. Adapté marché africain.`,
   return (
     <div className="space-y-6">
       {dialogue}
-      <EnTetePage className="mb-0"
-        titre={<span className="inline-flex items-center gap-2">{t("Veille Concurrentielle")}{" "}<AgentActiveIndicator label={t("Agent Veille actif")} /></span>}
-        description={t("Surveillez vos concurrents, détectez les opportunités")}
-        actions={<Bouton onClick={() => setShowModal(true)} icone={<Plus className="size-4" aria-hidden />}>{t("Ajouter un concurrent")}</Bouton>} />
+      <PageHeader icon="eye" title={t("Veille concurrentielle")} titleMeta={<AgentActiveIndicator label={t("Agent Veille actif")} />}
+        primaryAction={{ content: t("Ajouter un concurrent"), icon: "plus", onAction: () => setShowModal(true) }} />
+      <p className="m-0 -mt-2 max-w-3xl text-(--color-text-secondary)">{t("Surveillez vos concurrents, détectez les opportunités")}</p>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

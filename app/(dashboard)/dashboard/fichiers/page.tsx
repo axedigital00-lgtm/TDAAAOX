@@ -1,11 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FolderOpen, Upload, Copy, Check, Trash2, Film, FileText } from "lucide-react";
+import { Film, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { televerser } from "@/lib/televerser";
 import { TYPES_FICHIERS } from "@/lib/types-fichiers";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Bouton, BoutonIcone, Confirmation, EnTetePage, EtatChargement, EtatVide, Saisie } from "@/components/ui";
+import { Banner, Button, EmptyState, IndexTable, Modal, PageHeader, Tabs, TextField, Thumbnail, type Column } from "@/components/ui/adm";
+import { IllustrationFichiers } from "@/components/ui/illustrations";
 
 // externe : image d'un produit hébergée ailleurs (IA, lien collé) — affichée, jamais supprimée d'ici.
 interface Fichier { url: string; nom: string; type: "image" | "video" | "document"; taille: number | null; date: string; externe?: boolean; produitId?: string }
@@ -68,113 +69,101 @@ export default function FichiersPage() {
   };
 
   const visibles = fichiers.filter((f) => !recherche.trim() || nomLisible(f.nom).toLowerCase().includes(recherche.trim().toLowerCase()));
+  const [aSupprimer, setASupprimer] = useState<Fichier | null>(null);
+  const [suppression, setSuppression] = useState(false);
+  const [copie, setCopie] = useState<string | null>(null);
+  const copier = (url: string) => { navigator.clipboard.writeText(url); setCopie(url); setTimeout(() => setCopie(null), 1500); };
+  const supprimer = async () => {
+    if (!aSupprimer) return;
+    setSuppression(true);
+    const r = await fetch("/api/fichiers", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: aSupprimer.url }) }).catch(() => null);
+    setSuppression(false);
+    if (!r?.ok) { toast.error(t("Suppression impossible")); return; }
+    const url = aSupprimer.url;
+    setFichiers((l) => l.filter((x) => x.url !== url));
+    setASupprimer(null);
+    toast.success(t("Fichier supprimé"));
+  };
+  const importerAction = { content: envoi ? `${t("Import…")} ${envoi.fait}/${envoi.total}` : t("Importer des fichiers"), icon: "import" as const, onAction: () => champ.current?.click(), disabled: indisponible, loading: !!envoi };
+
+  const colonnes: Column<Fichier>[] = [
+    { id: "nom", header: t("Fichier"), mobilePrimary: true, cell: (f) => (
+      <a href={f.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-3 text-inherit no-underline">
+        <Apercu fichier={f} />
+        <span className="truncate" title={nomLisible(f.nom)}>{nomLisible(f.nom)}</span>
+      </a>
+    ) },
+    { id: "type", header: t("Type"), hideOnMobile: true, cell: (f) => f.externe ? t("Lien externe · image produit") : (f.nom.split(".").pop() ?? "").toUpperCase() },
+    { id: "taille", header: t("Taille"), numeric: true, align: "end", cell: (f) => f.externe ? "—" : taille(f.taille ?? 0) },
+    { id: "date", header: t("Date"), hideOnMobile: true, cell: (f) => f.externe ? "—" : new Date(f.date).toLocaleDateString() },
+    { id: "actions", header: "", align: "end", cell: (f) => (
+      <span className="inline-flex gap-1.5">
+        <Button size="sm" icon={copie === f.url ? "checkCircle" : "link"} onClick={() => copier(f.url)}>{copie === f.url ? t("Copié") : t("Copier le lien")}</Button>
+        {!f.externe && <Button size="sm" variant="critical" onClick={() => setASupprimer(f)}>{t("Supprimer")}</Button>}
+      </span>
+    ) },
+  ];
 
   return (
     <div
-      className="space-y-6 max-w-6xl"
+      className="space-y-4"
       onDragOver={(e) => { e.preventDefault(); setSurvolDepot(true); }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setSurvolDepot(false); }}
       onDrop={(e) => { e.preventDefault(); setSurvolDepot(false); importer(e.dataTransfer.files); }}
     >
       <input ref={champ} type="file" multiple accept={ACCEPTES.join(",")} className="hidden" onChange={(e) => e.target.files && importer(e.target.files)} />
-      <EnTetePage
-        className="mb-0"
-        titre={t("Fichiers")}
-        description={t("Les images, vidéos et documents de votre boutique, réutilisables partout (constructeur, pages, liens…).")}
-        actions={
-          <Bouton onClick={() => champ.current?.click()} disabled={indisponible} charge={!!envoi}
-            texteCharge={envoi ? `${t("Import…")} ${envoi.fait}/${envoi.total}` : undefined} icone={<Upload className="size-4" aria-hidden />}>
-            {t("Importer des fichiers")}
-          </Bouton>
-        }
-      />
+      <PageHeader icon="folder" title={t("Fichiers")} primaryAction={importerAction} />
 
       {indisponible ? (
-        <Alerte ton="attention" titre={t("Le stockage des fichiers n'est pas configuré sur ce serveur : la bibliothèque est indisponible.")} />
+        <Banner tone="warning" title={t("Le stockage des fichiers n'est pas configuré sur ce serveur : la bibliothèque est indisponible.")} />
+      ) : !chargement && !fichiers.length && filtre === "tous" ? (
+        <EmptyState title={t("Aucun fichier pour l'instant — importez-en ou glissez-les ici.")} image={<IllustrationFichiers />}
+          actions={<Button variant="primary" icon="import" onClick={() => champ.current?.click()} disabled={!!envoi}>{t("Importer des fichiers")}</Button>}>
+          {t("Les images, vidéos et documents de votre boutique, réutilisables partout (constructeur, pages, liens…).")}
+        </EmptyState>
       ) : (
-        <>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex rounded-lg border border-gray-200 bg-white p-0.5">
-              {([["tous", "Tous"], ["image", "Images"], ["video", "Vidéos"], ["document", "Documents"]] as [Filtre, string][]).map(([v, l]) => (
-                <button key={v} onClick={() => setFiltre(v)} aria-pressed={filtre === v}
-                  className={`px-3.5 py-1.5 rounded-md text-[13.5px] font-medium transition-colors ${filtre === v ? "bg-[#FFF1D6] text-[#C77C0A]" : "text-gray-500 hover:text-gray-800"}`}>
-                  {t(l)}
-                </button>
-              ))}
+        <div className={`overflow-hidden rounded-(--radius-xl) bg-(--color-surface) shadow-(--shadow-card) outline-2 outline-dashed transition-[outline-color] ${survolDepot ? "outline-(--color-focus-ring)" : "outline-transparent"}`}>
+          <div className="flex flex-wrap items-end gap-3 border-b border-(--color-border-secondary) px-3">
+            <Tabs label={t("Type de fichier")} selected={filtre} onSelect={(id) => setFiltre(id as Filtre)} className="border-b-0"
+              tabs={([["tous", "Tous"], ["image", "Images"], ["video", "Vidéos"], ["document", "Documents"]] as [Filtre, string][]).map(([id, l]) => ({ id, label: t(l) }))} />
+            <div className="ml-auto min-w-[200px] flex-1 py-2 sm:max-w-xs">
+              <TextField type="search" label={t("Rechercher un fichier")} labelHidden value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={t("Rechercher un fichier")} />
             </div>
-            <Saisie type="search" label={t("Rechercher un fichier")} labelMasque className="flex-1 min-w-[200px] space-y-0"
-              value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={t("Rechercher un fichier")} />
           </div>
-
-          <div className={`rounded-2xl border-2 border-dashed p-4 transition-colors ${survolDepot ? "border-[#F5A623] bg-[#FFF7EA]" : "border-transparent"}`}>
-            {chargement && !fichiers.length ? (
-              <EtatChargement />
-            ) : !visibles.length ? (
-              <EtatVide icone={<FolderOpen />}
-                titre={recherche ? t("Aucun fichier ne correspond.") : t("Aucun fichier pour l'instant — importez-en ou glissez-les ici.")}>
-                <Bouton variante="secondaire" onClick={() => champ.current?.click()} disabled={!!envoi} icone={<Upload className="size-4" aria-hidden />}>
-                  {t("Importer des fichiers")}
-                </Bouton>
-              </EtatVide>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {visibles.map((f) => <Carte key={f.url} fichier={f} onSupprime={() => setFichiers((l) => l.filter((x) => x.url !== f.url))} />)}
-              </div>
-            )}
-          </div>
+          <IndexTable
+            label={t("Fichiers")}
+            rows={visibles}
+            columns={colonnes}
+            getId={(f) => f.url}
+            loading={chargement && !fichiers.length}
+            emptyState={<p className="px-6 py-12 text-center text-(--color-text-secondary)">{t("Aucun fichier ne correspond.")}</p>}
+          />
           {suite && (
-            <div className="flex justify-center">
-              <Bouton variante="secondaire" onClick={() => charger(suite)} charge={chargement} texteCharge={t("Chargement…")}>{t("Afficher plus")}</Bouton>
+            <div className="flex justify-center border-t border-(--color-border-secondary) bg-(--color-surface-secondary) p-2">
+              <Button size="sm" onClick={() => charger(suite)} loading={chargement}>{t("Afficher plus")}</Button>
             </div>
           )}
-        </>
+        </div>
       )}
+
+      <Modal open={!!aSupprimer} onClose={() => setASupprimer(null)} locked={suppression} size="sm" title={t("Supprimer ce fichier ?")}
+        footer={<>
+          <Button onClick={() => setASupprimer(null)} disabled={suppression}>{t("Annuler")}</Button>
+          <Button variant="critical" onClick={supprimer} loading={suppression}>{t("Supprimer le fichier")}</Button>
+        </>}>
+        <p className="m-0"><strong>{aSupprimer && nomLisible(aSupprimer.nom)}</strong></p>
+        <p className="m-0 mt-1 text-(--color-text-secondary)">{t("Il disparaîtra aussi des pages qui l'utilisent.")}</p>
+      </Modal>
     </div>
   );
 }
 
-function Carte({ fichier: f, onSupprime }: { fichier: Fichier; onSupprime: () => void }) {
-  const t = useT();
-  const [copie, setCopie] = useState(false);
-  const [confirmer, setConfirmer] = useState(false);
-
-  const copier = () => { navigator.clipboard.writeText(f.url); setCopie(true); setTimeout(() => setCopie(false), 1500); };
-  // Lève en cas d'échec : la fenêtre de confirmation reste ouverte.
-  const supprimer = async () => {
-    const r = await fetch("/api/fichiers", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: f.url }) }).catch(() => null);
-    if (!r?.ok) { toast.error(t("Suppression impossible")); throw new Error("suppression"); }
-    onSupprime(); toast.success(t("Fichier supprimé"));
-  };
-
+/** Vignette 32 px (§7.5 : table de fichiers). */
+function Apercu({ fichier: f }: { fichier: Fichier }) {
+  if (f.type === "image") return <Thumbnail src={f.url} alt={nomLisible(f.nom)} size={32} />;
   return (
-    <div className="group rounded-xl border border-gray-200 bg-white overflow-hidden">
-      <a href={f.url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-gray-50 relative">
-        {f.type === "document"
-          ? <span className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-gray-400"><FileText size={30} /><span className="text-[12px] font-semibold uppercase">{f.nom.split(".").pop()}</span></span>
-          : f.type === "video"
-          ? <><video src={f.url} muted preload="metadata" className="w-full h-full object-cover" /><Film size={16} className="absolute top-2 left-2 text-white drop-shadow" /></>
-          : <img src={f.url} alt={nomLisible(f.nom)} loading="lazy" className="w-full h-full object-cover" />}
-      </a>
-      <div className="p-2.5">
-        <p className="text-[13px] font-medium text-gray-800 truncate" title={nomLisible(f.nom)}>{nomLisible(f.nom)}</p>
-        <p className="text-[12px] text-gray-400">{f.externe ? t("Lien externe · image produit") : `${taille(f.taille ?? 0)} · ${new Date(f.date).toLocaleDateString()}`}</p>
-        <div className="mt-2 flex gap-1.5">
-          <Bouton variante="secondaire" taille="compact" className="flex-1 min-w-0" onClick={copier}
-            icone={copie ? <Check className="size-3.5 text-succes" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}>
-            {copie ? t("Copié") : t("Copier le lien")}
-          </Bouton>
-          {!f.externe && (
-            <BoutonIcone variante="danger" label={t("Supprimer")} onClick={() => setConfirmer(true)} className="sm:size-8 sm:min-h-8">
-              <Trash2 className="size-3.5" aria-hidden />
-            </BoutonIcone>
-          )}
-        </div>
-        {!f.externe && (
-          <Confirmation ouverte={confirmer} onFermer={() => setConfirmer(false)} onConfirmer={supprimer}
-            titre={t("Supprimer ce fichier ?")} objet={nomLisible(f.nom)}
-            description={t("Il disparaîtra aussi des pages qui l'utilisent.")} libelleConfirmer={t("Supprimer le fichier")} />
-        )}
-      </div>
-    </div>
+    <span className="grid size-8 shrink-0 place-items-center rounded-(--radius-md) border border-(--color-border) bg-[#fafafa] text-(--color-text-subdued)">
+      {f.type === "video" ? <Film size={16} aria-hidden /> : <FileText size={16} aria-hidden />}
+    </span>
   );
 }

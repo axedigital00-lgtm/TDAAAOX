@@ -8,13 +8,13 @@ import {
   Store, Palette, Globe, Link2, Truck, Save, Loader2,
   ExternalLink, Copy, Check, Camera, Users, Music, MessageCircle,
   Mail, Phone, MapPin, CheckCircle2, Plus, X, Sparkles,
-  Sliders, Power, Pause, ArrowUpRight, Package, ShoppingBag, Calendar, Share2,
+  Sliders, Power, Pause, ArrowUpRight, Package, ShoppingBag, Calendar,
   Layers, Lock,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { PlanBadge } from "@/components/dashboard/PlanBadge";
 import { NouvelleBoutiqueModal } from "@/components/dashboard/NouvelleBoutiqueModal";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { urlBoutique } from "@/lib/utils";
 import { PAYS_DEVISES } from "@/lib/ai-agent";
 import { SelectPays } from "@/components/ui/SelectPays";
@@ -23,6 +23,7 @@ import { useT } from "@/components/I18nProvider";
 import { lireReglagesLivraison, normaliserZone, type ZoneLivraison } from "@/lib/livraison-reglages";
 import { BannierePub } from "@/components/dashboard/BannierePub";
 import { CarteAffilies } from "@/components/dashboard/CarteAffilies";
+import { Badge as AdmBadge, Button, Card, CardSection, IconButton, PageHeader, Thumbnail } from "@/components/ui/adm";
 import { Badge, Bouton, BoutonIcone, classesBouton, Champ, Confirmation, EtatErreur, SqueletteListe, Saisie, ZoneTexte, CLASSE_SAISIE } from "@/components/ui";
 
 const CARTE = "rounded-carte border border-bordure bg-carte shadow-carte p-carte space-y-champs";
@@ -280,99 +281,72 @@ export default function BoutiquePage() {
         <EtatErreur titre={tr("Les informations de votre boutique n'ont pas pu être chargées.")} texte={tr("Vérifiez votre connexion puis réessayez. Rien n'a été modifié.")} onReessayer={chargerTenant} />
       )}
 
-      {/* ── Hero identité ── */}
-      <div className="ax-card overflow-hidden">
-        <div className="h-28 sm:h-36 relative" style={{ background: form.bannerUrl ? undefined : `linear-gradient(135deg, ${theme.accent}, ${theme.fond})` }}>
-          {form.bannerUrl && <img src={form.bannerUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/5" />
-          {tenant && (
-            <div className="absolute top-3 right-3 flex items-center gap-2">
-              <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer"
-                aria-label={tr("Voir la boutique")}
-                className="flex items-center gap-1.5 text-xs font-semibold leading-none text-white bg-black/35 backdrop-blur-md border border-white/20 px-3 h-10 rounded-full hover:bg-black/50 transition-all">
-                <ExternalLink size={13} aria-hidden /> <span className="hidden sm:inline">{tr("Voir la boutique")}</span>
-              </a>
-              {/* Nouvelle boutique : multi-boutique réservé au Palier 2 (même règle que l'onglet « Mes boutiques »). */}
-              {!loadingBoutiques && (peutCreerBoutique ? (
-                <button onClick={() => setModalNouvelleBoutique(true)} title={tr("Créer une nouvelle boutique")} aria-label={tr("Créer une nouvelle boutique")}
-                  className="flex items-center gap-1.5 text-xs font-semibold leading-none text-sur-primaire bg-primaire border border-primaire px-3 h-10 rounded-full hover:bg-primaire-hover transition-all">
-                  <Plus size={13} aria-hidden /> <span className="hidden sm:inline">{tr("Nouvelle boutique")}</span>
-                </button>
-              ) : (
-                <Link href="/dashboard/abonnement" title={tr("Plusieurs boutiques : disponible au Palier 2")} aria-label={tr("Plusieurs boutiques : disponible au Palier 2")}
-                  className="flex items-center gap-1.5 text-xs font-semibold leading-none text-white bg-black/35 backdrop-blur-md border border-white/20 px-3 h-10 rounded-full hover:bg-black/50 transition-all">
-                  <Lock size={12} aria-hidden /> <span className="hidden sm:inline">{tr("Nouvelle boutique · Palier 2")}</span>
-                </Link>
-              ))}
-              <button onClick={partager} aria-label={tr("Partager le lien de la boutique")} title={tr("Partager le lien de la boutique")}
-                className="flex items-center text-white bg-black/35 backdrop-blur-md border border-white/20 size-10 justify-center rounded-full hover:bg-black/50 transition-all">
-                {copied ? <Check size={14} className="text-green-300" aria-hidden /> : <Share2 size={14} aria-hidden />}
-              </button>
-            </div>
-          )}
+      {/* ── En-tête Boutique en ligne (§8.20) ── */}
+      <PageHeader icon="store" title={tr("Boutique en ligne")}
+        titleMeta={<span className="flex items-center gap-2">
+          <button onClick={() => setSection("avance")} title={tr("Changer le statut de la boutique")} className="rounded-(--radius-md)">
+            <AdmBadge tone={enLigne ? "success" : "attention"}>{enLigne ? tr("En ligne") : tr("En pause")}</AdmBadge>
+          </button>
+          {tenant && <PlanBadge plan={tenant.planType} size="sm" />}
+        </span>}
+        primaryAction={{ content: tr("Personnaliser"), icon: "pen", href: "/dashboard/builder" }}
+        secondaryActions={tenant ? [{ content: tr("Voir la boutique"), icon: "external", onAction: () => window.open(urlBoutique(tenant), "_blank", "noopener") }] : []}
+        overflowActions={[
+          { content: copied ? tr("Lien copié") : tr("Partager le lien de la boutique"), onAction: partager },
+          ...(!loadingBoutiques ? [peutCreerBoutique
+            ? { content: tr("Créer une nouvelle boutique"), onAction: () => setModalNouvelleBoutique(true) }
+            : { content: tr("Nouvelle boutique · Palier 2"), href: "/dashboard/abonnement" }] : []),
+          { content: tr("Revoir le tutoriel"), onAction: () => window.dispatchEvent(new CustomEvent("axso:ouvrir-tutoriel", { detail: "boutique" })) },
+        ]} />
+
+      {/* Thème actuel : aperçu + accès constructeur, thèmes, politiques. */}
+      <Card padding="none">
+        <div className="relative h-28 sm:h-36" style={{ background: form.bannerUrl ? undefined : "var(--color-surface-tertiary)" }}>
+          {form.bannerUrl && <img src={form.bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         </div>
-
-        <div className="px-5 sm:px-7 pb-5">
-          {/* Avatar — se chevauche uniquement lui-même sur la bannière */}
-          <div className="w-20 h-20 sm:w-24 sm:h-24 -mt-10 sm:-mt-12 rounded-3xl overflow-hidden ring-4 ring-white shadow-lg flex items-center justify-center relative z-10"
-            style={{ background: form.logoUrl ? "#fff" : theme.fond }}>
-            {form.logoUrl
-              ? <img src={form.logoUrl} alt="" className="w-full h-full object-cover" />
-              : <Store size={26} style={{ color: theme.accent }} />}
-          </div>
-
-          {/* Nom, statut & complétion — en flux normal, jamais superposés à la bannière */}
-          <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="min-w-0">
-              <p className="ax-aide">{tr("Ma boutique")}</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="ax-titre-page truncate max-w-full">
-                  {tr(form.nomBoutique) || tr("Ma Boutique")}
-                </h1>
-                <BoutonRevoirTutoriel moduleKey="boutique" />
-                <button onClick={() => setSection("avance")} title={tr("Changer le statut de la boutique")} className="rounded-full focus-visible:outline-2 focus-visible:outline-focus">
-                  <Badge ton={enLigne ? "succes" : "attention"} icone={enLigne ? <Power aria-hidden /> : <Pause aria-hidden />}>{enLigne ? tr("En ligne") : tr("En pause")}</Badge>
-                </button>
-                {tenant && <PlanBadge plan={tenant.planType} size="sm" />}
-              </div>
-              <div className="flex items-center gap-1 mt-1 text-xs leading-tight text-doux">
-                <Globe size={12} className="flex-shrink-0" aria-hidden />
-                <span className="truncate">{tr(urlProd) || "votre-boutique.axsoafrica.com"}</span>
-                {tenant && (
-                  <BoutonIcone label={copied ? tr("Lien copié") : tr("Copier le lien de la boutique")} onClick={copierLien} className="-my-2">
-                    {copied ? <Check className="size-3.5 text-succes" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
-                  </BoutonIcone>
-                )}
-              </div>
+        <CardSection>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Thumbnail src={form.logoUrl || null} alt={form.nomBoutique || tr("Ma Boutique")} size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="m-0 truncate font-semibold text-(--color-text-strong)">{tr(form.nomBoutique) || tr("Ma Boutique")}</p>
+              <p className="m-0 flex items-center gap-1 truncate text-xs text-(--color-text-secondary)">
+                {tr(urlProd) || "votre-boutique.axsoafrica.com"}
+                {tenant && <IconButton icon={copied ? "checkCircle" : "link"} aria-label={copied ? tr("Lien copié") : tr("Copier le lien de la boutique")} onClick={copierLien} />}
+              </p>
             </div>
-            <div className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
               <ProgressRing pct={completion} />
               <div className="leading-tight">
-                <p className="text-xs font-bold text-encre leading-tight">{tr("Profil")}{" "}{tr(completion)}%</p>
-                <p className="text-xs text-doux leading-tight">{completion === 100 ? tr("Boutique complète") : tr("à compléter")}</p>
+                <p className="m-0 text-xs font-semibold text-(--color-text-strong)">{tr("Profil")}{" "}{tr(completion)}%</p>
+                <p className="m-0 text-xs text-(--color-text-secondary)">{completion === 100 ? tr("Boutique complète") : tr("à compléter")}</p>
               </div>
             </div>
           </div>
-
-          {/* Stats rapides */}
-          {tenant?._count && (
-            <div className="grid grid-cols-3 gap-2.5 mt-5">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="primary" icon="pen" href="/dashboard/builder">{tr("Personnaliser")}</Button>
+            <Button icon="grid" href="/dashboard/themes">{tr("Bibliothèque de thèmes")}</Button>
+            <Button icon="doc" href="/dashboard/boutique/politiques">{tr("Politiques")}</Button>
+          </div>
+        </CardSection>
+        {tenant?._count && (
+          <CardSection>
+            <div className="grid grid-cols-3 gap-2.5">
               <StatCard Icon={Package} label={tr("Produits")} value={tenant._count.produits ?? 0} />
               <StatCard Icon={ShoppingBag} label={tr("Commandes")} value={tenant._count.commandes ?? 0} />
               <StatCard Icon={Users} label={tr("Clients")} value={tenant._count.clients ?? 0} />
             </div>
-          )}
-        </div>
-      </div>
+          </CardSection>
+        )}
+      </Card>
 
       {/* Rappel : téléphone et adresse affichés aux clients (pied de page, page Contact). */}
       {savedForm && (!savedForm.telephone.trim() || !savedForm.adresse.trim()) && (
         <div className="rounded-carte p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 border border-attention-bordure bg-attention-fond">
           <div className="w-10 h-10 rounded-controle bg-carte flex items-center justify-center flex-shrink-0" aria-hidden><MapPin size={18} className="text-attention" /></div>
           <div className="flex-1 min-w-0">
-            <p className="ax-sous-titre">{tr("Complète tes coordonnées")}</p>
+            <p className="ax-sous-titre">{tr("Complétez vos coordonnées")}</p>
             <p className="ax-texte-secondaire">
-              {tr("Ajoute ton {0} : il s'affiche en bas de ta boutique et sur ta page Contact. Les clients font plus confiance à une boutique qu'ils peuvent appeler ou trouver.",
+              {tr("Ajoutez votre {0} : il s'affiche en bas de votre boutique et sur votre page Contact. Les clients font plus confiance à une boutique qu'ils peuvent appeler ou trouver.",
                 [!savedForm.telephone.trim() && tr("numéro de téléphone"), !savedForm.adresse.trim() && tr("adresse physique")].filter(Boolean).join(tr(" et ")))}
             </p>
           </div>

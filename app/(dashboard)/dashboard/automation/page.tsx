@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Zap, Trash2, Mail, MessageSquare, Phone, ShoppingCart, Hand, Package, Gift, Clock } from "lucide-react";
+import { Zap, Trash2, Mail, MessageSquare, Phone, ShoppingCart, Hand, Package, Gift, Clock } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { PageHeader } from "@/components/ui/adm";
 
 interface Workflow {
   id: string;
@@ -93,19 +94,8 @@ export default function AutomationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Automation")}</h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{t("Séquences marketing automatiques")}</p>
-        </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold"
-          style={{ background: "#F5A623" }}
-        >
-          <Plus size={14} />{" "}{t("Nouveau workflow")}
-        </button>
-      </div>
+      <PageHeader icon="bolt" title={t("Automation")}
+        primaryAction={{ content: t("Nouveau workflow"), icon: "plus", onAction: () => setShowForm(true) }} />
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">

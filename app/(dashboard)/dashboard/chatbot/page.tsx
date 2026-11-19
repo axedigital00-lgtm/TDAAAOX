@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  BotMessageSquare, Save, Loader2, CheckCircle2, Power,
+  BotMessageSquare, Save, Loader2, CheckCircle2,
   Clock, MessageSquare, Sparkles, Info, ChevronDown, ChevronUp,
   Phone, AlertCircle, Plus, Trash2
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { Badge, PageHeader } from "@/components/ui/adm";
 
 interface ChatbotConfig {
   delaiReponse: number;
@@ -92,21 +93,9 @@ ${config.messageAccueil ? `Message d'accueil: ${config.messageAccueil}` : ""}`;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("Chatbot WhatsApp IA")}</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{t("AXIA répond automatiquement à vos messages WhatsApp")}</p>
-        </div>
-        {/* Toggle ON/OFF */}
-        <button
-          onClick={() => setActif(a => !a)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm transition-all ${actif ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-gray-100 text-gray-500"}`}
-        >
-          <Power size={15}/>
-          {actif ? t("Actif") : t("Inactif")}
-        </button>
-      </div>
+      <PageHeader icon="whatsapp" title={t("Chatbot WhatsApp IA")}
+        titleMeta={<Badge tone={actif ? "success" : "neutral"}>{actif ? t("Actif") : t("Inactif")}</Badge>}
+        primaryAction={{ content: actif ? t("Désactiver le chatbot") : t("Activer le chatbot"), onAction: () => setActif((a) => !a) }} />
 
       {/* Warning si WhatsApp pas connecté */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">

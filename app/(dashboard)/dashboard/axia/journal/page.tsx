@@ -10,7 +10,8 @@ import {
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { ouvrirAxia } from "@/components/dashboard/AxiaPanneau";
-import { EnTetePage, EtatVide, EtatErreur, SqueletteListe, Badge, Bouton } from "@/components/ui";
+import { EtatVide, EtatErreur, SqueletteListe, Badge, Bouton } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 interface Decision {
   id: string;
   agentId: string;
@@ -90,12 +91,9 @@ export default function JournalAxiaPage() {
   const groupes = grouperParJour(decisions);
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-      <EnTetePage
-        retour={{ href: "/dashboard/accueil?axia", libelle: t("Retour à AXIA") }}
-        titre={t("Journal d'activité AXIA")}
-        description={t("Chaque action faite par AXIA et ses agents pour ta boutique, avec son résultat. Les actions sensibles n'apparaissent ici qu'après ton accord.")}
-      />
+    <div className="space-y-6">
+      <PageHeader icon="history" title={t("Journal d'activité AXIA")} backHref="/dashboard/accueil?axia" />
+      <p className="m-0 -mt-2 max-w-3xl text-(--color-text-secondary)">{t("Chaque action faite par AXIA et ses agents pour votre boutique, avec son résultat. Les actions sensibles n'apparaissent ici qu'après votre accord.")}</p>
 
       {/* Filtres */}
       <div className="flex items-center gap-2 flex-wrap">

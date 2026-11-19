@@ -7,7 +7,8 @@ import {
   Bold, CheckCircle2, ExternalLink, Eye, Heading2, List, PenLine, RotateCcw, Sparkles,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Badge, Bouton, BoutonIcone, CLASSE_SAISIE, EnTetePage, EtatChargement, EtatErreur, ZoneTexte, useConfirmation } from "@/components/ui";
+import { Alerte, Badge, Bouton, BoutonIcone, CLASSE_SAISIE, EtatChargement, EtatErreur, ZoneTexte, useConfirmation } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 import { RenduPolitique } from "@/components/politiques/RenduPolitique";
 import {
   passagesACompleter, statutPolitique, TITRES_POLITIQUES, TYPES_POLITIQUES, type Politiques, type TypePolitique,
@@ -176,8 +177,8 @@ export default function PolitiquesPage() {
   const entete = (
     <>
       {dialogue}
-      <EnTetePage titre={t("Politiques de la boutique")} retour={{ href: "/dashboard/boutique", libelle: t("Ma boutique") }}
-        description={t("Ce que tes clients lisent avant d'acheter. Axia les rédige avec les vraies informations de ta boutique ; tu complètes ce qu'il ne peut pas savoir, puis tu valides. Seules les politiques validées apparaissent dans ta boutique.")} />
+      <PageHeader icon="doc" title={t("Politiques de la boutique")} backHref="/dashboard/boutique" />
+      <p className="m-0 -mt-2 max-w-3xl text-(--color-text-secondary)">{t("Ce que vos clients lisent avant d'acheter. Axia les rédige avec les vraies informations de votre boutique ; vous complétez ce qu'il ne peut pas savoir, puis vous validez. Seules les politiques validées apparaissent dans votre boutique.")}</p>
     </>
   );
 

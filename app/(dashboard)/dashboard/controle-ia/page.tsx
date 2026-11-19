@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, Copy, ShieldOff, Check, X, Loader2, Pause, Play, Trash2, Lock, Unlock, ExternalLink, RotateCcw } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { EnTetePage, EtatChargement, useConfirmation } from "@/components/ui";
+import { EtatChargement, useConfirmation } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 
 interface Droit { libelle: string; niveau: string }
 interface Connexion { id: string; client: string; fournisseur: string; droits: Droit[]; mode: string; variationPrixMax: number; budgetPubMax: number; transactionMax: number; risqueBuilderMax: string; utiliseLe: string | null; createdAt: string }
@@ -126,12 +127,10 @@ export default function ControleIAPage() {
   );
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-6">
       {dialogue}
-      <EnTetePage
-        titre={tr("Contrôle IA")}
-        description={tr("Pilote ta boutique depuis Claude, ChatGPT ou un autre assistant, sans jamais lui donner ton mot de passe. Tu décides ce que chaque IA peut faire seule et ce qui attend ton accord.")}
-      />
+      <PageHeader icon="shield" title={tr("Contrôle IA")} />
+      <p className="m-0 -mt-2 max-w-3xl text-(--color-text-secondary)">{tr("Pilotez votre boutique depuis Claude, ChatGPT ou un autre assistant, sans jamais lui donner votre mot de passe. Vous décidez ce que chaque IA peut faire seule et ce qui attend votre accord.")}</p>
 
       <div className="ax-card p-4 sm:p-6 space-y-4">
         <h2 className="font-bold text-gray-900">{tr("Relier un assistant")}</h2>

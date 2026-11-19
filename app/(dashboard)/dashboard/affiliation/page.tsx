@@ -6,12 +6,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Users, Link2, Copy, CheckCheck, Eye, ShoppingBag, Settings, Search, Target, UserCheck, UserX, Receipt, Package } from "lucide-react";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { toast } from "sonner";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { formatMontant } from "@/lib/utils";
-import { Alerte, Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation, type Ton } from "@/components/ui";
+import { Alerte, Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EtatErreur, EtatVide, Saisie, SqueletteListe, useConfirmation, type Ton } from "@/components/ui";
+import { EnTeteModule } from "../clients/EnTeteModule";
 
 const AFFILIATION_TUTORIAL_STEPS = [
   { Icon: Settings, titre: "Active l'affiliation",       description: "Choisis ton taux par défaut et ouvre tes produits aux affiliés depuis leur fiche." },
@@ -397,10 +398,8 @@ export default function AffiliationPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <ModuleTutorial moduleKey="affiliation" titre={tr("Affiliation")} sousTitre={tr("Des affiliés vendent tes produits")} steps={AFFILIATION_TUTORIAL_STEPS} />
-      <EnTetePage className="mb-0"
-        titre={<span className="inline-flex items-center gap-2">{tr("Affiliation")}{" "}<AgentActiveIndicator label={tr("Agent Growth actif")} /></span>}
-        description={tr("Réglages, affiliés et ventes apportées")}
-        indicateurs={<BoutonRevoirTutoriel moduleKey="affiliation" />} />
+      <EnTeteModule icon="users" title={tr("Affiliation")} tutoriel="affiliation"
+        titleMeta={<AgentActiveIndicator label={tr("Agent Growth actif")} />} />
 
       {/* Le compte marchand sert aussi de compte affilié : recommander les produits d'autres boutiques. */}
       <Link href="/affilie" className="flex min-h-12 items-center justify-between gap-3 rounded-carte bg-secondaire text-white px-4 py-3 focus-visible:outline-2 focus-visible:outline-focus">

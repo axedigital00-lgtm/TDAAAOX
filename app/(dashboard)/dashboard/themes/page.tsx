@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PCOnlyGate } from "@/components/dashboard/PCOnlyGate";
 import { ApercuDesign, parametresApercu, fichierDuTheme, optionsChangementDesign } from "@/components/dashboard/ApercuDesign";
-import { Badge, Bouton, BoutonIcone, EtatChargement, EtatErreur, EtatVide, classesBouton, useConfirmation } from "@/components/ui";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { Badge, Bouton, BoutonIcone, EtatChargement, EtatErreur, EtatVide, useConfirmation } from "@/components/ui";
+import { Badge as AdmBadge, PageHeader } from "@/components/ui/adm";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import {
-  Plus, Palette, Trash2, Edit2, ExternalLink,
-  Sparkles, ArrowLeft,
+  Palette, Trash2, Edit2,
+  Sparkles,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { urlBoutique } from "@/lib/utils";
@@ -138,39 +139,19 @@ export default function ThemesPage() {
   const custom = themes.filter((t) => !t.builtin);
 
   return (
-    <div className="h-screen flex flex-col bg-fond overflow-hidden">
+    <div className="h-screen flex flex-col bg-(--color-bg) overflow-hidden">
       {dialogue}
-      <ModuleTutorial moduleKey="themes" titre={tr("Thèmes")} sousTitre={tr("Personnalise l'apparence de ta boutique")} steps={THEMES_TUTORIAL_STEPS} />
+      <ModuleTutorial moduleKey="themes" titre={tr("Thèmes")} sousTitre={tr("Personnalisez l'apparence de votre boutique")} steps={THEMES_TUTORIAL_STEPS} />
       <PCOnlyGate label={tr("Theme Studio")} />
 
-      {/* ── Header ── */}
-      <header className="min-h-14 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 px-6 bg-carte border-b border-bordure flex-shrink-0">
-        <Bouton variante="fantome" taille="compact" href="/dashboard/boutique" icone={<ArrowLeft size={15} aria-hidden />}>
-          {tr("Ma boutique")}
-        </Bouton>
-        <div className="h-5 w-px bg-bordure" aria-hidden />
-        <div className="flex items-center gap-2">
-          <Palette size={16} className="text-attention" aria-hidden />
-          <h1 className="ax-sous-titre">{tr("Thèmes")}</h1>
-          <BoutonRevoirTutoriel moduleKey="themes" />
-        </div>
-
-        {tenant && (
-          <div className="ml-auto flex flex-wrap items-center gap-3">
-            <Badge ton="accent">
-              {tr("Thème actif :")} {tr(themes.find((t) => t.id === tenant.themeId || t.slug === tenant.themeId)?.nom) || tr(tenant.themeId)}
-            </Badge>
-            {tenant.slug && (
-              <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer" className={classesBouton({ variante: "secondaire", taille: "compact" })}>
-                <ExternalLink size={13} aria-hidden />{tr("Voir la boutique")}
-              </a>
-            )}
-            <Bouton taille="compact" onClick={() => router.push("/dashboard/themes/creer")} icone={<Plus size={14} aria-hidden />}>
-              {tr("Créer un thème")}
-            </Bouton>
-          </div>
-        )}
-      </header>
+      {/* ── En-tête (§8.20 : bibliothèque de thèmes) ── */}
+      <div className="flex-shrink-0 border-b border-(--color-border) bg-(--color-surface) px-3">
+        <PageHeader icon="grid" title={tr("Thèmes")} backHref="/dashboard/boutique"
+          titleMeta={tenant ? <AdmBadge tone="info">{tr("Thème actif :")} {tr(themes.find((t) => t.id === tenant.themeId || t.slug === tenant.themeId)?.nom) || tr(tenant.themeId)}</AdmBadge> : undefined}
+          primaryAction={tenant ? { content: tr("Créer un thème"), icon: "plus", onAction: () => router.push("/dashboard/themes/creer") } : undefined}
+          secondaryActions={tenant?.slug ? [{ content: tr("Voir la boutique"), icon: "external", onAction: () => window.open(urlBoutique(tenant), "_blank", "noopener") }] : []}
+          overflowActions={[{ content: tr("Revoir le tutoriel"), onAction: () => window.dispatchEvent(new CustomEvent("axso:ouvrir-tutoriel", { detail: "themes" })) }]} />
+      </div>
 
       {/* ── Body ── */}
       <div className="flex-1 overflow-y-auto px-6 py-6">

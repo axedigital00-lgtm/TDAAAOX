@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Plus, Loader2, X, Sparkles, Send, Users, CheckCircle2, Zap, Smartphone, Crown, Moon, ShoppingCart, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Badge, Bouton, EnTetePage, EtatVide, Modale, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
+import { Alerte, Badge, Bouton, EtatVide, Modale, Saisie, ZoneTexte, useConfirmation } from "@/components/ui";
+import { PageHeader } from "@/components/ui/adm";
 
 const SEGMENTS = [
   { id: "tous",     label: "Tous les clients", desc: "Toute votre base clients", Icon: Users    },
@@ -124,12 +125,8 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
   return (
     <div className="space-y-6">
       {dialogue}
-      <EnTetePage className="mb-0"
-        titre={tr("SMS & WhatsApp")}
-        description={tr("Envoyez des campagnes SMS à vos clients")}
-        actions={<Bouton onClick={() => setShowModal(true)} disabled={!disponible} icone={<Plus className="size-4" aria-hidden />}>
-          {tr(disponible ? "Nouvelle campagne" : "Bientôt disponible")}
-        </Bouton>} />
+      <PageHeader icon="whatsapp" title={tr("SMS & WhatsApp")}
+        primaryAction={{ content: tr(disponible ? "Nouvelle campagne" : "Bientôt disponible"), icon: "plus", onAction: () => setShowModal(true), disabled: !disponible }} />
 
       {!disponible && (
         <Alerte ton="info" titre={tr("Les campagnes SMS seront bientôt disponibles")}

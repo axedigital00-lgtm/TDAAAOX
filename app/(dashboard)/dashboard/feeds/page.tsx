@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import { Copy, Check, ExternalLink, Package, RefreshCw, Info, Zap, Search, Globe, Music4, CheckCircle, ClipboardList, Gift } from "lucide-react";
 import { toast } from "sonner";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Badge, Bouton, EnTetePage, Squelette, classesBouton } from "@/components/ui";
+import { Alerte, Badge, Bouton, Squelette, classesBouton } from "@/components/ui";
+import { EnTeteModule } from "../clients/EnTeteModule";
 
 const FEEDS_TUTORIAL_STEPS = [
   { Icon: Search,       titre: "Google Shopping gratuit", description: "Soumettez votre flux XML dans Google Merchant Center pour apparaître gratuitement dans Google Shopping et Google Images." },
@@ -113,10 +114,7 @@ export default function FeedsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <ModuleTutorial moduleKey="feeds" titre={t("Flux produits")} sousTitre={t("Diffuse ton catalogue ailleurs")} steps={FEEDS_TUTORIAL_STEPS} />
-      <EnTetePage className="mb-0"
-        titre={t("Flux Produits (Feeds)")}
-        indicateurs={<BoutonRevoirTutoriel moduleKey="feeds" />}
-        description={t("Synchronisez votre catalogue sur Google, Meta et TikTok automatiquement")} />
+      <EnTeteModule icon="database" title={t("Flux Produits (Feeds)")} tutoriel="feeds" />
 
       {erreur && (
         <Alerte ton="erreur" titre={t("L'adresse de ta boutique n'a pas pu être chargée")}

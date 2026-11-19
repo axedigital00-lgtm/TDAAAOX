@@ -1,4 +1,5 @@
 "use client";
+import { PageHeader, Tabs } from "@/components/ui/adm";
 import { useState, useRef, useEffect } from "react";
 import {
   Video, Mic, FileText, Zap, Loader2, Play, Download,
@@ -588,34 +589,14 @@ export default function StudioPage() {
   const [tab, setTab] = useState<TabId>("video");
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#F5A623] to-purple-600 flex items-center justify-center">
-          <Film size={22} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-poppins">{tr("Studio de Contenu IA")}</h1>
-          <p className="text-gray-400 text-sm">{tr("Vidéos, voix off, scripts, posts — tout généré par l'IA")}</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl w-fit">
-        {TABS.map(t => {
-          const Icone = t.icon;
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${tab === t.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-              <Icone size={15} />
-              <span className="hidden sm:inline">{tr(t.label)}</span>
-            </button>
-          );
-        })}
-      </div>
+    <div className="space-y-4 h-full flex flex-col">
+      <PageHeader icon="sparkle" title={tr("Studio de contenu IA")} />
+      <p className="m-0 -mt-4 text-(--color-text-secondary)">{tr("Vidéos, voix off, scripts, posts — tout généré par l'IA")}</p>
+      <Tabs label={tr("Studio de contenu IA")} selected={tab} onSelect={(id) => setTab(id as TabId)}
+        tabs={TABS.map((o) => ({ id: o.id, label: tr(o.label) }))} />
 
       {/* Content */}
-      <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-6">
+      <div className="flex-1 rounded-(--radius-xl) bg-(--color-surface) p-4 shadow-(--shadow-card) sm:p-6">
         {tab === "video"  && <TabVideo />}
         {tab === "voix"   && <TabVoixOff />}
         {tab === "script" && <TabScript />}

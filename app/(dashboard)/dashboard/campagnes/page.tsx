@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Trash2, Eye, MousePointer, Megaphone, Zap, Mail, MessageSquare, Phone, Trophy, ShoppingCart, Smile, Package, Clock, Sparkles, Plus } from "lucide-react";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
 import { toast } from "sonner";
-import { Alerte, Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EnTetePage, EtatErreur, EtatVide, Saisie, SqueletteListe, ZoneTexte, useConfirmation } from "@/components/ui";
+import { Alerte, Badge, Bouton, BoutonIcone, Champ, CLASSE_SAISIE, EtatErreur, EtatVide, Saisie, SqueletteListe, ZoneTexte, useConfirmation } from "@/components/ui";
+import { EnTeteModule } from "../clients/EnTeteModule";
 
 const CAMPAGNES_TUTORIAL_STEPS = [
   { Icon: Megaphone,   titre: "Créez des popups",              description: "Popup centré, bandeau ou slide-in : affichez une offre au bon moment (délai, exit intent, scroll, 1ère visite)." },
@@ -344,10 +345,7 @@ export default function CampagnesPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <ModuleTutorial moduleKey="campagnes" titre={t("Campagnes")} sousTitre={t("Notifications & relances")} steps={CAMPAGNES_TUTORIAL_STEPS} />
-      <EnTetePage className="mb-0"
-        titre={t("Campagnes")}
-        description={t("Popups sur ta boutique, relances automatiques de tes clients et badges marchands")}
-        indicateurs={<BoutonRevoirTutoriel moduleKey="campagnes" />} />
+      <EnTeteModule icon="bolt" title={t("Campagnes")} tutoriel="campagnes" />
 
       <div className="flex gap-1 bg-carte-2 border border-bordure rounded-controle p-1 overflow-x-auto" role="tablist" aria-label={t("Sections des campagnes")}>
         {TABS.map(({id,label})=>(

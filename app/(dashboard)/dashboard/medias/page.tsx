@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
-import { Alerte, Badge, Bouton, BoutonIcone, Confirmation, EnTetePage, EtatErreur, EtatVide, Modale, SqueletteListe, ZoneTexte } from "@/components/ui";
+import { Alerte, Badge, Bouton, BoutonIcone, Confirmation, EtatErreur, EtatVide, Modale, SqueletteListe, ZoneTexte } from "@/components/ui";
+import { MetricsStrip, PageHeader, Tabs } from "@/components/ui/adm";
 
 interface Media {
   id: string; prompt: string; style: string;
@@ -189,52 +190,22 @@ export default function MediasPage() {
   }
 
   return (
-    <div className="space-y-section">
-      <EnTetePage
-        className="mb-0"
-        titre={tr("Médiathèque IA")}
-        description={tr("Vidéos et images générées par IA")}
-        actions={<>
-          <Bouton variante="secondaire" onClick={charger} icone={<RefreshCw size={15} aria-hidden />}>{tr("Actualiser")}</Bouton>
-          <Bouton onClick={() => setShowModal(true)} icone={<Wand2 size={15} aria-hidden />}>{tr("Générer un média")}</Bouton>
-        </>}
-      />
+    <div className="space-y-4">
+      <PageHeader icon="sparkle" title={tr("Médiathèque IA")}
+        primaryAction={{ content: tr("Générer un média"), icon: "sparkle", onAction: () => setShowModal(true) }}
+        secondaryActions={[{ content: tr("Actualiser"), onAction: charger }]} />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Total", value: stats.total, icon: Sparkles, cls: "bg-carte-2 text-doux" },
-          { label: "Prêts", value: stats.pretes, icon: CheckCircle2, cls: "bg-succes-fond text-succes" },
-          { label: "En cours", value: stats.enCours, icon: Clock, cls: "bg-attention-fond text-attention" },
-          { label: "Échecs", value: stats.erreurs, icon: XCircle, cls: "bg-erreur-fond text-erreur" },
-        ].map(s => (
-          <div key={s.label} className="bg-carte border border-bordure rounded-carte p-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-controle flex items-center justify-center flex-shrink-0 ${s.cls}`} aria-hidden>
-              <s.icon size={16} />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-encre">{tr(s.value)}</p>
-              <p className="text-xs text-doux">{tr(s.label)}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      {stats.total > 0 && (
+        <MetricsStrip period={tr("Vidéos et images générées par IA")} metrics={[
+          { id: "total", label: tr("Total"), value: String(stats.total) },
+          { id: "prets", label: tr("Prêts"), value: String(stats.pretes) },
+          { id: "encours", label: tr("En cours"), value: String(stats.enCours) },
+          { id: "echecs", label: tr("Échecs"), value: String(stats.erreurs) },
+        ]} />
+      )}
 
-      {/* Filtres */}
-      <div className="flex flex-wrap gap-2" role="group" aria-label={tr("Filtrer les médias")}>
-        {(["tous", "image", "video"] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            aria-pressed={filter === f}
-            className={`flex items-center gap-1.5 px-4 min-h-10 rounded-controle text-sm font-semibold border transition-all ${filter === f ? "bg-secondaire text-carte border-secondaire" : "bg-carte border-bordure text-doux hover:border-bordure-forte"}`}
-          >
-            {f === "video" && <Film size={14} aria-hidden />}
-            {f === "image" && <Image size={14} aria-hidden />}
-            {f === "tous" ? tr("Tous les médias") : f === "video" ? tr("Vidéos") : tr("Images")}
-          </button>
-        ))}
-      </div>
+      <Tabs label={tr("Filtrer les médias")} selected={filter} onSelect={(id) => setFilter(id as typeof filter)}
+        tabs={[{ id: "tous", label: tr("Tous les médias") }, { id: "image", label: tr("Images") }, { id: "video", label: tr("Vidéos") }]} />
 
       {/* Grille médias */}
       {loading ? (

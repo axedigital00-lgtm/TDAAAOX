@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { useConfirmation } from "@/components/ui";
+import { Badge, PageHeader } from "@/components/ui/adm";
 
 interface TenantTracking {
   metaPixelId: string | null;
@@ -574,72 +575,9 @@ export default function TrackingPage() {
   return (
     <div className="space-y-5 max-w-3xl">
 
-      {/* ── Hero header ─────────────────────────────────────────────────────── */}
-      <div
-        className="relative rounded-2xl overflow-hidden p-6"
-        style={{ background: "linear-gradient(135deg, #0F0F0F 0%, #1B2A4A 100%)" }}
-      >
-        {/* Subtle dot pattern */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.04]"
-          style={{
-            backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
-            backgroundSize: "20px 20px",
-          }}
-        />
-
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-[#F5A623] uppercase tracking-[0.25em] mb-1.5">
-              {tr("Module marketing")}
-            </p>
-            <h1 className="text-xl font-black text-white" style={{ fontFamily: "Poppins, sans-serif" }}>
-              {tr("Tracking & Pixels")}
-            </h1>
-            <p className="text-sm text-gray-400 mt-1 leading-relaxed">
-              {tr("Vos pixels se chargent automatiquement sur votre boutique à chaque visite.")}
-            </p>
-          </div>
-
-          <div className="flex-shrink-0 text-right">
-            <div
-              className="text-4xl font-black"
-              style={{
-                fontFamily: "Poppins, sans-serif",
-                background: actifs > 0
-                  ? "linear-gradient(135deg, #F5A623, #FFCC70)"
-                  : "none",
-                WebkitBackgroundClip: actifs > 0 ? "text" : undefined,
-                WebkitTextFillColor: actifs > 0 ? "transparent" : "#4B4B4B",
-                color: actifs > 0 ? undefined : "#4B4B4B",
-              }}
-            >
-              {tr(actifs)}<span className="text-2xl text-gray-600 font-medium">/4</span>
-            </div>
-            <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
-              {actifs === 0 ? tr("Aucun pixel actif") : actifs === 4 ? tr("Tous actifs") : tr("pixel{0} actif{1}", actifs > 1 ? "s" : "", actifs > 1 ? "s" : "")}
-            </p>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="relative mt-5">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-700 ease-out"
-                style={{
-                  width: `${(actifs / 4) * 100}%`,
-                  background: actifs > 0 ? "linear-gradient(90deg, #F5A623, #FFB347)" : "transparent",
-                }}
-              />
-            </div>
-            <span className="text-[11px] text-gray-500 font-mono flex-shrink-0">
-              {Math.round((actifs / 4) * 100)}%
-            </span>
-          </div>
-        </div>
-      </div>
+      <PageHeader icon="eye" title={tr("Tracking & Pixels")} backHref="/dashboard/marketing"
+        titleMeta={<Badge tone={actifs > 0 ? "info" : "neutral"}>{actifs === 0 ? tr("Aucun pixel actif") : `${actifs}/4 · ${actifs === 4 ? tr("Tous actifs") : tr("pixel{0} actif{1}", actifs > 1 ? "s" : "", actifs > 1 ? "s" : "")}`}</Badge>} />
+      <p className="text-[13px] text-(--color-text-secondary)">{tr("Vos pixels se chargent automatiquement sur votre boutique à chaque visite.")}</p>
 
       {/* ── Platform cards ──────────────────────────────────────────────────── */}
       <div className="space-y-3">

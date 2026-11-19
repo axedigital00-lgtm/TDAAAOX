@@ -1,4 +1,5 @@
 "use client";
+import { Badge as AdmBadge, PageHeader } from "@/components/ui/adm";
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send, Loader2, CheckCircle2, Zap, BrainCircuit,
@@ -422,36 +423,17 @@ export default function AgentsPage() {
   const showSuggestions = messages.length <= 1 && !loading;
 
   return (
-    <div className="h-full flex flex-col min-h-0 bg-gray-50/50">
+    <div className="h-full flex flex-col min-h-0 bg-(--color-bg)">
 
-      {/* ── Header ── */}
-      <div className="flex-shrink-0 flex items-center gap-4 px-6 py-4 bg-white border-b border-[#F3F3F3]">
-        <div style={{ filter: `drop-shadow(0 0 14px ${meta.glow})` }}>
-          <AgentAvatar3D agentId="axia" size={46} pulse={loading}/>
-        </div>
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-[18px] font-bold text-[#111111]">AXIA</h1>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full text-white" style={{ background: `linear-gradient(135deg, ${meta.color}, ${meta.color}bb)` }}>
-              {tr("Agent IA")}
-            </span>
-            <span className="flex items-center gap-1 text-[11px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>
-              {tr("En ligne")}
-            </span>
-          </div>
-          <p className="text-[12px] text-[#AAAAAA] mt-0.5">{tr("Marketing · Stocks · Revenus · Analytics · Livraisons · Clients")}</p>
-        </div>
-
-        <button
-          onClick={() => setShowOrchestrator(true)}
-          className="ml-auto flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all border hover:shadow-md flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, #11111112, #33333312)", borderColor: "#11111130", color: "#111111" }}
-        >
-          <BrainCircuit size={14}/>
-          <span className="hidden sm:inline">{tr("Mode Autonome")}</span>
-          <span className="text-[9px] bg-purple-600 text-white px-1.5 py-0.5 rounded-full">AUTO</span>
-        </button>
+      {/* ── En-tête : accueil de la section Agents (Autopilot = Mode autonome, D25) ── */}
+      <div className="flex-shrink-0 border-b border-(--color-border) bg-(--color-surface) px-3">
+        <PageHeader icon="sparkle" title={tr("Agents")}
+          titleMeta={<span className="flex items-center gap-2"><AgentAvatar3D agentId="axia" size={24} pulse={loading}/><AdmBadge tone="success">{tr("En ligne")}</AdmBadge></span>}
+          primaryAction={{ content: tr("Mode Autonome"), icon: "bolt", onAction: () => setShowOrchestrator(true) }}
+          secondaryActions={[
+            { content: tr("Journal d'activité AXIA"), icon: "history", href: "/dashboard/axia/journal" },
+            { content: tr("Contrôle IA"), icon: "shield", href: "/dashboard/controle-ia" },
+          ]} />
       </div>
 
       {/* ── Corps ── */}

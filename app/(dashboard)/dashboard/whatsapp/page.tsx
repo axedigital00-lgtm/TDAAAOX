@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, Send, Search, CheckCircle2, Clock, Truck, Package, XCircle, Phone, Settings, Wifi, WifiOff, Loader2, ShoppingBag, ArrowLeft, CheckCheck, Check, Zap, MapPin, FileText, RefreshCw, Bell, Lightbulb, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Badge as AdmBadge, PageHeader, Tabs } from "@/components/ui/adm";
 import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
@@ -551,6 +552,11 @@ export default function WhatsAppPage() {
   );
   const convActuelle = conversations.find(c => c.de === contactActif);
 
+  // Onglets de la chaîne WhatsApp (§8.22) : Messages ici, Diffusions = campagnes WhatsApp, Paramètres = connexion.
+  // ?onglet=parametres ouvre directement les réglages de la connexion.
+  const onglet = params.get("onglet") === "parametres" ? "parametres" : "messages";
+  useEffect(() => { if (onglet === "parametres") setShowConfig(true); }, [onglet]);
+
   if (!loading && locked) {
     return (
       <UpgradeGate
@@ -562,7 +568,16 @@ export default function WhatsAppPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] rounded-2xl overflow-hidden border border-white/5" style={{ background: "#0d1117" }}>
+    <div className="space-y-3">
+    <PageHeader icon="whatsapp" title={tr("WhatsApp Business")}
+      titleMeta={<AdmBadge tone={connecte ? "success" : "neutral"}>{connecte ? tr("Actif") : tr("Hors ligne")}</AdmBadge>}
+      secondaryActions={[{ content: tr("Réglages de la connexion WhatsApp"), icon: "gear", onAction: () => setShowConfig(true) }]} />
+    <Tabs label={tr("WhatsApp Business")} selected={onglet} tabs={[
+      { id: "messages", label: tr("Messages"), href: "/dashboard/whatsapp" },
+      { id: "diffusions", label: tr("Diffusions"), href: "/dashboard/campagnes" },
+      { id: "parametres", label: tr("Paramètres"), href: "/dashboard/whatsapp?onglet=parametres" },
+    ]} />
+    <div className="flex h-[calc(100vh-12rem)] rounded-2xl overflow-hidden border border-white/5" style={{ background: "#0d1117" }}>
       <ModuleTutorial moduleKey="whatsapp" titre="WhatsApp" sousTitre={tr("Vends et discute via WhatsApp")} steps={WHATSAPP_TUTORIAL_STEPS} />
 
       {/* ── GAUCHE : Conversations ── */}
@@ -897,6 +912,7 @@ export default function WhatsAppPage() {
       {showConfig && (
         <ConfigPanel tenantId={tenantId} onClose={() => setShowConfig(false)} onConnecte={cfg => { setWaConfig(cfg); setShowConfig(false); }} />
       )}
+    </div>
     </div>
   );
 }
