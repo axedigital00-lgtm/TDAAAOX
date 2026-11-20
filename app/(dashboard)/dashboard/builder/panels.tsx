@@ -1347,7 +1347,7 @@ export function PanelPageSections({ config, set, pageKey, titre }: { config: The
   const [erreur, setErreur] = useState<string | null>(null);
 
   // Toutes les modifications passent par lib/pages-annexes.ts — le même code
-  // qu'exécute AXIA (outil modifier_page) : mêmes règles, mêmes ids.
+  // qu'exécute Stella (outil modifier_page) : mêmes règles, mêmes ids.
   const agir = (a: ActionPage) => {
     try {
       const r = appliquerActionPage(page, pageKey, a);
@@ -1493,7 +1493,7 @@ export function PanelProduit({ config, setProductPage, set, boutiqueCreeLe }: an
   }, [aOuvrir]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Toutes les modifications passent par lib/fiche-produit.ts — le même code
-  // qu'exécute AXIA (outil modifier_fiche_produit) : mêmes règles, mêmes ids.
+  // qu'exécute Stella (outil modifier_fiche_produit) : mêmes règles, mêmes ids.
   const agir = (a: ActionFiche) => {
     try {
       const { pp: next, id } = appliquerActionFiche(pp, a);

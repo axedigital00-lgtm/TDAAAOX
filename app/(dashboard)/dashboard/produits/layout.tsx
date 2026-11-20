@@ -1,19 +1,9 @@
 import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
-import { ProduitsSubSidebar } from "@/components/dashboard/ProduitsSubSidebar";
 
-// Pilote du pattern sidebar à deux niveaux : sur mobile/tablette, la
-// sous-sidebar reste masquée (ProduitsSubSidebar gère son propre
-// `hidden lg:flex`) — la navigation module reste accessible via la sidebar
-// principale, pas de régression sur petit écran.
+// Les sous-pages de Produits passent par la sidebar (Produits › …) et le menu
+// d'actions de l'en-tête : plus de sous-barre latérale propre à la section.
 export default async function ProduitsLayout({ children }: { children: React.ReactNode }) {
   await exigerModule(await auth(), "produits");
-  return (
-    <div className="flex items-start gap-6">
-      <ProduitsSubSidebar />
-      <div className="flex-1 min-w-0">
-        {children}
-      </div>
-    </div>
-  );
+  return children;
 }

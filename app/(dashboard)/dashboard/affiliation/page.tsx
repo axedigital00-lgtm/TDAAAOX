@@ -11,6 +11,9 @@ import { toast } from "sonner";
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { formatMontant } from "@/lib/utils";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner, Toggle } from "@/components/dashboard/design-system/components/primitives";
+import { Badge as BadgeDS } from "@/components/dashboard/design-system/components/Badge";
 
 const AFFILIATION_TUTORIAL_STEPS = [
   { Icon: Settings, titre: "Active l'affiliation",       description: "Choisis ton taux par défaut et ouvre tes produits aux affiliés depuis leur fiche." },
@@ -37,25 +40,21 @@ const TABS = [
 
 function Badge({ statut }: { statut: string }) {
   const tr = useT();
-  const map: Record<string, { label: string; cls: string }> = {
-    actif:      { label: "Actif",       cls: "bg-green-100 text-green-700" },
-    en_attente: { label: "En attente",  cls: "bg-amber-100 text-amber-700" },
-    suspendu:   { label: "Suspendu",    cls: "bg-red-100 text-red-600" },
-    disponible: { label: "Disponible",  cls: "bg-[#F5A623]/15 text-[#111111]" },
-    versee:     { label: "Versée",      cls: "bg-green-100 text-green-700" },
-    annulee:    { label: "Annulée",     cls: "bg-red-100 text-red-600" },
+  const map: Record<string, { label: string; tone: "success" | "attention" | "critical" | "info" | "neutral" }> = {
+    actif:      { label: "Actif",      tone: "success" },
+    en_attente: { label: "En attente", tone: "attention" },
+    suspendu:   { label: "Suspendu",   tone: "critical" },
+    disponible: { label: "Disponible", tone: "info" },
+    versee:     { label: "Versée",     tone: "success" },
+    annulee:    { label: "Annulée",    tone: "critical" },
   };
-  const m = map[statut] ?? { label: statut, cls: "bg-gray-100 text-gray-500" };
-  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${m.cls}`}>{tr(m.label)}</span>;
+  const m = map[statut] ?? { label: statut, tone: "neutral" as const };
+  return <BadgeDS tone={m.tone}>{tr(m.label)}</BadgeDS>;
 }
 
 function Interrupteur({ actif, onClick, disabled }: { actif: boolean; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} role="switch" aria-checked={actif}
-      className={`w-9 h-5 rounded-full transition-colors relative shrink-0 disabled:opacity-50 ${actif ? "bg-[#F5A623]" : "bg-gray-200"}`}>
-      <span className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all ${actif ? "left-4" : "left-0.5"}`} />
-    </button>
-  );
+  const tr = useT();
+  return <Toggle checked={actif} onChange={() => onClick()} disabled={disabled} label={tr("Activer / désactiver")} />;
 }
 
 // ─── Réglages ─────────────────────────────────────────────────────────────────
@@ -95,13 +94,13 @@ function OngletReglages() {
   if (!prog) {
     return (
       <div className="py-10 text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 flex items-center justify-center mx-auto">
-          <Target size={28} className="text-[#F5A623]" />
+        <div className="w-16 h-16 rounded-2xl bg-[#f1f1f1] flex items-center justify-center mx-auto">
+          <Target size={28} className="text-[#1a1a1a]" />
         </div>
         <p className="text-[14px] font-bold text-[#111]">{tr("L'affiliation n'est pas encore activée")}</p>
         <p className="text-[12px] text-gray-400 max-w-sm mx-auto">{tr("Des affiliés font la promotion de tes produits. Axso leur verse la commission, prélevée sur ta part des ventes payées en ligne uniquement.")}</p>
         <button onClick={() => enregistrer({ actif: true })} disabled={saving}
-          className="px-5 py-2.5 bg-[#F5A623] text-white rounded-xl text-[12px] font-bold disabled:opacity-50">
+          className="px-5 py-2.5 bg-[#1a1a1a] text-white rounded-xl text-[12px] font-bold disabled:opacity-50">
           {saving ? tr("Activation…") : tr("Activer l'affiliation")}
         </button>
       </div>
@@ -127,9 +126,9 @@ function OngletReglages() {
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{tr("Taux de commission par défaut (%)")}</label>
           <div className="mt-1 flex gap-2">
             <input type="number" min={1} max={90} value={taux} onChange={e => setTaux(e.target.value)}
-              className="w-28 border border-gray-200 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#F5A623]/60" />
+              className="w-28 border border-gray-200 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#1a1a1a]" />
             <button onClick={() => enregistrer({ valeurCommission: tauxNum })} disabled={!tauxModifie || saving}
-              className="px-4 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-bold disabled:opacity-40">
+              className="px-4 py-2 bg-[#1a1a1a] text-white rounded-xl text-[12px] font-bold disabled:opacity-40">
               {tr("Enregistrer")}
             </button>
           </div>
@@ -150,21 +149,21 @@ function OngletReglages() {
 
         <div className="border-t border-gray-100 pt-4 flex items-center justify-between gap-3">
           <p className="text-[12px] text-gray-600 flex items-center gap-2">
-            <Package size={14} className="text-[#F5A623]" />
+            <Package size={14} className="text-[#1a1a1a]" />
             <span><strong className="text-[#111]">{produitsOuverts}</strong>{" "}{tr(produitsOuverts > 1 ? "produits ouverts aux affiliés" : "produit ouvert aux affiliés")}</span>
           </p>
-          <Link href="/dashboard/produits" className="text-[11px] font-bold text-[#F5A623] hover:underline shrink-0">{tr("Gérer mes produits")}</Link>
+          <Link href="/dashboard/produits" className="text-[11px] font-bold text-[#1a1a1a] hover:underline shrink-0">{tr("Gérer mes produits")}</Link>
         </div>
       </div>
 
-      <div className="bg-[#FFF8EC] border border-[#F5A623]/30 rounded-2xl p-4">
+      <div className="bg-[#f7f7f7] border border-[#e3e3e3] rounded-2xl p-4">
         <p className="text-[11px] font-bold text-[#d4880d] mb-1">{tr("Lien d'invitation")}</p>
         <p className="text-[11px] text-gray-500 mb-2">{tr("Partage ce lien : les affiliés créent leur compte Axso et rejoignent ta boutique.")}</p>
         <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0 bg-white border border-[#F5A623]/20 rounded-xl px-3 py-2 text-[11px] font-mono text-gray-500 truncate">{lien}</div>
+          <div className="flex-1 min-w-0 bg-white border border-[#e3e3e3] rounded-xl px-3 py-2 text-[11px] font-mono text-gray-500 truncate">{lien}</div>
           <button onClick={() => { navigator.clipboard.writeText(lien).catch(() => {}); setCopie(true); setTimeout(() => setCopie(false), 2000); }}
             aria-label={tr("Copier le lien")}
-            className={`shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold transition-all ${copie ? "bg-green-100 text-green-700" : "bg-[#F5A623] text-white"}`}>
+            className={`shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold transition-all ${copie ? "bg-green-100 text-green-700" : "bg-[#1a1a1a] text-white"}`}>
             {copie ? <CheckCheck size={12} /> : <Copy size={12} />}
           </button>
         </div>
@@ -219,10 +218,10 @@ function OngletAffilies() {
         <div className="relative flex-1 min-w-0">
           <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("Rechercher un affilié…")}
-            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-[12px] outline-none focus:border-[#F5A623]/50" />
+            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-[12px] outline-none focus:border-[#1a1a1a]" />
         </div>
         <select value={filtre} onChange={e => setFiltre(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-[#F5A623]/50 bg-white">
+          className="border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-[#1a1a1a] bg-white">
           <option value="all">{tr("Tous")}</option>
           <option value="en_attente">{tr("En attente")}</option>
           <option value="actif">{tr("Actifs")}</option>
@@ -243,7 +242,7 @@ function OngletAffilies() {
           {affilies.map(a => (
             <div key={a.id} className="ax-card bg-white border border-gray-100 rounded-2xl p-4">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#111111]/15 flex items-center justify-center text-[12px] font-bold text-[#1B2A4A] shrink-0">
+                <div className="w-9 h-9 rounded-full bg-[#e3e3e3] flex items-center justify-center text-[12px] font-bold text-[#303030] shrink-0">
                   {a.nom.slice(0, 1).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -252,11 +251,11 @@ function OngletAffilies() {
                     <Badge statut={a.statut} />
                   </div>
                   <p className="text-[11px] text-gray-400 break-words">{a.email}</p>
-                  <p className="text-[10px] font-mono text-[#F5A623] mt-0.5">{tr("Code :")}{" "}{a.codeParrainage}</p>
+                  <p className="text-[10px] font-mono text-[#1a1a1a] mt-0.5">{tr("Code :")}{" "}{a.codeParrainage}</p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-gray-400">
                     <span><Eye size={10} className="inline mr-1" />{a.clics}{" "}{tr("clics")}</span>
                     <span><ShoppingBag size={10} className="inline mr-1" />{a.conversions}{" "}{tr("ventes")}</span>
-                    <span className="text-[#F5A623] font-bold">{fmt(a.commissionTotal)}{" "}{tr("de commissions")}</span>
+                    <span className="text-[#1a1a1a] font-bold">{fmt(a.commissionTotal)}{" "}{tr("de commissions")}</span>
                   </div>
                 </div>
               </div>
@@ -324,11 +323,11 @@ function OngletVentes() {
                 <p className="text-[12.5px] font-semibold text-[#111]">
                   {c.numero ? `#${c.numero}` : tr("Commande")}{" "}<span className="text-gray-400 font-normal">· {new Date(c.createdAt).toLocaleDateString("fr-FR")}</span>
                 </p>
-                <p className="text-[11px] text-gray-400 truncate">{tr("Affilié :")}{" "}{c.affilie}{" "}<span className="font-mono text-[#F5A623]">{c.code}</span></p>
+                <p className="text-[11px] text-gray-400 truncate">{tr("Affilié :")}{" "}{c.affilie}{" "}<span className="font-mono text-[#1a1a1a]">{c.code}</span></p>
                 <p className="text-[11px] text-gray-400">{tr("Commande :")}{" "}{montant(c.valeurCommande, c.devise)}</p>
               </div>
               <div className="text-right shrink-0 space-y-1">
-                <p className="text-[13px] font-bold text-[#F5A623]">{montant(c.montant, c.devise)}</p>
+                <p className="text-[13px] font-bold text-[#1a1a1a]">{montant(c.montant, c.devise)}</p>
                 <Badge statut={c.etat} />
               </div>
             </div>
@@ -347,35 +346,33 @@ export default function AffiliationPage() {
   const [onglet, setOnglet] = useState(TABS.some(t => t.id === initial) ? initial! : "reglages");
 
   return (
-    <div className="p-5 max-w-4xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <Page>
       <ModuleTutorial moduleKey="affiliation" titre={tr("Affiliation")} sousTitre={tr("Des affiliés vendent tes produits")} steps={AFFILIATION_TUTORIAL_STEPS} />
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-[18px] font-bold text-[#111] inline-flex items-center gap-2">{tr("Affiliation")}{" "}<AgentActiveIndicator label={tr("Agent Growth actif")} /></h1>
-          <BoutonRevoirTutoriel moduleKey="affiliation" />
-        </div>
-        <p className="text-[12px] text-gray-500">{tr("Réglages, affiliés et ventes apportées")}</p>
-      </div>
+      <PageHeader icon="users" backHref="/dashboard/marketing"
+        title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{tr("Affiliation")}<BoutonRevoirTutoriel moduleKey="affiliation" /></span>}
+        secondaryActions={[{ content: tr("Mon espace affilié"), href: "/affilie" }]}
+        extraActions={<AgentActiveIndicator label={tr("Agent Growth actif")} />} />
 
       {/* Le compte marchand sert aussi de compte affilié : recommander les produits d'autres boutiques. */}
-      <Link href="/affilie" className="flex items-center justify-between gap-3 rounded-2xl bg-[#111] text-white px-4 py-3">
-        <span className="text-[12.5px]"><span className="font-bold text-[#F5A623]">{tr("Mon espace affilié")}</span>{" · "}{tr("gagne des commissions en recommandant les produits d'autres boutiques")}</span>
-        <Link2 size={15} className="text-[#F5A623] flex-shrink-0" />
-      </Link>
-
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 overflow-x-auto">
-        {TABS.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setOnglet(id)}
-            className={`flex-1 py-2 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${onglet === id ? "bg-white shadow-sm text-[#111]" : "text-gray-500 hover:text-gray-700"}`}>
-            <Icon size={11} />
-            {tr(label)}
-          </button>
-        ))}
+      <div style={{ marginBottom: "var(--space-400)" }}>
+        <Banner action={<Link href="/affilie" className="axd-btn axd-btn--sm">{tr("Ouvrir")}</Link>}>
+          {tr("Votre compte sert aussi d’espace affilié : gagnez des commissions en recommandant les produits d’autres boutiques.")}
+        </Banner>
       </div>
 
-      {onglet === "reglages" && <OngletReglages />}
-      {onglet === "affilies" && <OngletAffilies />}
-      {onglet === "ventes"   && <OngletVentes />}
-    </div>
+      <div className="axd-card" style={{ overflow: "hidden", marginBottom: "var(--space-400)" }}>
+        <div className="axd-ix-bar" style={{ borderBottom: 0 }}>
+          <div className="axd-ix-tabs" role="tablist">
+            {TABS.map(({ id, label }) => <button key={id} type="button" role="tab" aria-selected={onglet === id} className="axd-ix-tab" onClick={() => setOnglet(id)}>{tr(label)}</button>)}
+          </div>
+        </div>
+      </div>
+
+      <div className="axd-heritage">
+        {onglet === "reglages" && <OngletReglages />}
+        {onglet === "affilies" && <OngletAffilies />}
+        {onglet === "ventes"   && <OngletVentes />}
+      </div>
+    </Page>
   );
 }

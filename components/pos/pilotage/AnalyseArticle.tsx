@@ -40,7 +40,7 @@ export default function AnalyseArticle({ produitId, varianteId, caisseId, hrefCo
   const q = (v: number) => `${Math.round(v * 100) / 100}${unite ? ` ${unite}` : ""}`;
 
   return (
-    <section aria-label={t("Analyse de l'article")} className="rounded-2xl border border-[#E8E8E8] bg-white p-4">
+    <section aria-label={t("Analyse de l'article")} className="rounded-[12px] border border-[#E8E8E8] bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-[13px] font-bold text-[#111111]">{t("Analyse")} <span className="font-normal text-[#888888]">· {t("estimation")}</span></h3>
         <Badge ton={n.ton}>{t(n.libelle)}</Badge>

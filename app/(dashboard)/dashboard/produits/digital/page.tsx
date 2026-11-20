@@ -711,7 +711,7 @@ export default function DigitalProduitsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex flex-wrap items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-[#111111] font-poppins">{tr("Produits Digitaux")}</h1>
+            <h1 className="text-2xl font-bold text-[#111111] font-[family-name:var(--merchant-font)]">{tr("Produits Digitaux")}</h1>
             <BoutonRevoirTutoriel moduleKey="produits-digital" />
             {stats && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]">

@@ -157,7 +157,7 @@ export function genererDemo(maintenant = Date.now()): Dataset {
         }
         derniere = Math.max(derniere, Math.min(t + r() * 7 * JOUR, maintenant));
         const dt = t + r() * 7 * JOUR;
-        if (r() < 0.03) tickets.push({ id: `${mId}_t${tickets.length}`, marchandId: mId, date: dt, resoluLe: r() < 0.9 ? dt + (0.2 + r() * 3) * JOUR : null, sujet: pick(r, [["Paiement non reçu", 3], ["Livraison", 2], ["Configuration boutique", 3], ["Axia IA", 1], ["Abonnement", 1]]) });
+        if (r() < 0.03) tickets.push({ id: `${mId}_t${tickets.length}`, marchandId: mId, date: dt, resoluLe: r() < 0.9 ? dt + (0.2 + r() * 3) * JOUR : null, sujet: pick(r, [["Paiement non reçu", 3], ["Livraison", 2], ["Configuration boutique", 3], ["Stella IA", 1], ["Abonnement", 1]]) });
       }
 
       marchands.push({
@@ -189,7 +189,7 @@ export function genererDemo(maintenant = Date.now()): Dataset {
     { id: "exp1", nom: "Onboarding en 3 étapes", type: "Onboarding", hypothese: "Réduire l'onboarding de 6 à 3 étapes augmente la création de boutique.", statut: "en_cours", debut: fin - 21 * JOUR, fin: null, variantes: [{ nom: "Contrôle", population: 412, conversions: 289 }, { nom: "3 étapes", population: 405, conversions: 318 }] },
     { id: "exp2", nom: "Prix Pro 5 000 vs 6 000 FCFA", type: "Pricing", hypothese: "Un Pro à 5 000 FCFA augmente la conversion payante sans baisser le MRR.", statut: "en_cours", debut: fin - 30 * JOUR, fin: null, variantes: [{ nom: "6 000 FCFA", population: 820, conversions: 61 }, { nom: "5 000 FCFA", population: 806, conversions: 74 }] },
     { id: "exp3", nom: "Landing « Vendez sur WhatsApp »", type: "Landing page", hypothese: "Mettre WhatsApp en avant augmente les inscriptions.", statut: "terminee", debut: fin - 75 * JOUR, fin: fin - 45 * JOUR, variantes: [{ nom: "Actuelle", population: 5400, conversions: 210 }, { nom: "WhatsApp", population: 5350, conversions: 268 }] },
-    { id: "exp4", nom: "Axia proposé dès la 1re fiche produit", type: "Fonctionnalité", hypothese: "Suggérer Axia à la création de fiche augmente l'adoption IA.", statut: "terminee", debut: fin - 60 * JOUR, fin: fin - 30 * JOUR, variantes: [{ nom: "Sans suggestion", population: 640, conversions: 141 }, { nom: "Avec suggestion", population: 655, conversions: 149 }] },
+    { id: "exp4", nom: "Stella proposé dès la 1re fiche produit", type: "Fonctionnalité", hypothese: "Suggérer Stella à la création de fiche augmente l'adoption IA.", statut: "terminee", debut: fin - 60 * JOUR, fin: fin - 30 * JOUR, variantes: [{ nom: "Sans suggestion", population: 640, conversions: 141 }, { nom: "Avec suggestion", population: 655, conversions: 149 }] },
     { id: "exp5", nom: "Relance SMS J+3 sans commande", type: "Campagne", hypothese: "Une relance SMS à J+3 augmente la première commande.", statut: "brouillon", debut: fin, fin: null, variantes: [] },
   ];
   const incidents: Incident[] = [

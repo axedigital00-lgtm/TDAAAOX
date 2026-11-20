@@ -136,7 +136,7 @@ export function ChoixArticle({ label = "Ajouter un article", onChoisir, caisseId
     onChoisir({ produitId: a.produitId, varianteId: v?.id ?? null, nom: a.nom, variante: v ? `${v.nom}: ${v.valeur}` : null, uniteVente: a.uniteVente, suiviSerie: a.suiviSerie, stock: v ? v.stock : a.stock });
     setQ(""); setTrouves([]); setAvecVariantes(null);
   };
-  const ligne = cn("flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] hover:bg-[#FFF7ED]", FOCUS);
+  const ligne = cn("flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] hover:bg-[#f1f1f1]", FOCUS);
 
   return (
     <div>
@@ -157,7 +157,7 @@ export function ChoixArticle({ label = "Ajouter un article", onChoisir, caisseId
             <p className="text-[12px] font-bold text-[#111111]">{t("Quelle variante de « {0} » ?", avecVariantes.nom)}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {avecVariantes.variantes.map((v) => (
-                <button key={v.id} type="button" onClick={() => choisir(avecVariantes, v)} className={cn("min-h-11 rounded-xl border border-[#E8E8E8] px-3 text-[12.5px] font-semibold hover:border-[#F5A623]", FOCUS)}>
+                <button key={v.id} type="button" onClick={() => choisir(avecVariantes, v)} className={cn("min-h-11 rounded-xl border border-[#E8E8E8] px-3 text-[12.5px] font-semibold hover:border-[#8a8a8a]", FOCUS)}>
                   {v.nom}: {v.valeur}
                 </button>
               ))}
@@ -184,7 +184,7 @@ export function ChoixArticle({ label = "Ajouter un article", onChoisir, caisseId
 export function Onglets<T extends string>({ onglets, actif, onChange, label }: { onglets: { id: T; libelle: string; compte?: number | null }[]; actif: T; onChange: (id: T) => void; label: string }) {
   const t = useT();
   return (
-    <div role="tablist" aria-label={t(label)} className="flex w-full gap-1 overflow-x-auto rounded-2xl bg-[#F0F0F0] p-1 sm:w-fit">
+    <div role="tablist" aria-label={t(label)} className="flex w-full gap-1 overflow-x-auto rounded-[12px] bg-[#F0F0F0] p-1 sm:w-fit">
       {onglets.map((o) => (
         <button key={o.id} type="button" role="tab" aria-selected={actif === o.id} onClick={() => onChange(o.id)}
           className={cn("min-h-11 whitespace-nowrap rounded-xl px-3.5 text-[12.5px] font-semibold transition-colors", FOCUS, actif === o.id ? "bg-white text-[#111111] shadow-sm" : "text-[#666666] hover:text-[#111111]")}>

@@ -1,4 +1,4 @@
-// Charte de la landing (relevée sur le hero, le Constructeur et Axia) : chaque section
+// Charte de la landing (relevée sur le hero, le Constructeur et Stella) : chaque section
 // reprend ces classes pour garder les mêmes titres, textes et boutons.
 export const SECTION = "py-20 sm:py-24 scroll-mt-24";
 export const SURTITRE = "text-[#F5A623] text-sm font-bold uppercase tracking-widest mb-4 block";

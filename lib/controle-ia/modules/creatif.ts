@@ -3,7 +3,7 @@
 // - Les moteurs sont abstraits (../creation/moteurs.ts) : une capacité sans moteur → UNAVAILABLE.
 // - Tout média généré passe par enregistrerMedia() : rangé dans le dossier de la boutique, indexé,
 //   à l'état de PROPOSITION. Rien n'est publié sans attach_media (accord du marchand).
-// - Ce qui existe déjà dans AXIA n'est pas refait : generer_image / generer_video / generer_voiceover,
+// - Ce qui existe déjà dans Stella n'est pas refait : generer_image / generer_video / generer_voiceover,
 //   higgsfield_*, creer_code_promo, envoyer_campagne_email, sms_campagne, whatsapp_diffusion,
 //   generer_post_social, meta_poster_*, meta_planifier_post, creer_popup, SEO (enrichir_produit, modifier_boutique).
 // - Aucun jeton n'est lu ici : Meta et Higgsfield passent par lib/mcp/executor.ts.

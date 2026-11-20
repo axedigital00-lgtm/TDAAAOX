@@ -3,7 +3,7 @@ import { annoncerInscription } from "@/lib/push";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { requireNiveau } from "@/lib/permissions-server";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/mots-de-passe";
 import { z } from "zod";
 import { emailDejaPris, normaliserEmail } from "@/lib/unicite-email";
 

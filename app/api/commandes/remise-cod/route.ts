@@ -4,7 +4,7 @@ import { requireNiveau } from "@/lib/permissions-server";
 import { marquerEspecesRemises } from "@/lib/cycle-livraison";
 
 // PATCH — le marchand confirme avoir reçu le cash COD remis par un livreur.
-// Logique partagée avec AXIA : lib/cycle-livraison.ts
+// Logique partagée avec Stella : lib/cycle-livraison.ts
 export async function PATCH(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });

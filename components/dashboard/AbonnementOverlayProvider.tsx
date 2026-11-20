@@ -5,7 +5,7 @@ import { AbonnementOverlay } from "@/components/dashboard/AbonnementOverlay";
 import type { Palier } from "@/lib/plans";
 
 interface AbonnementOverlayCtx {
-  // `message` : pourquoi l'overlay s'ouvre (ex. « AXIA est disponible à partir du Palier Pro »).
+  // `message` : pourquoi l'overlay s'ouvre (ex. « Stella est disponible à partir du Palier Pro »).
   openAbonnement: (palierRequis?: Palier, message?: string) => void;
   closeAbonnement: () => void;
   palier: Palier; // palier actif de la boutique

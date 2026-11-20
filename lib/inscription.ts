@@ -36,7 +36,7 @@ export function palierJauge(p: number): string {
 }
 
 // ─── Progression sauvegardée dans le navigateur ─────────────────────────────
-// Reprise après un rechargement. Jamais le mot de passe. Le plan d'Axia est gardé
+// Reprise après un rechargement. Jamais le mot de passe. Le plan de Stella est gardé
 // pour ne pas relancer (et repayer) l'analyse.
 export const CLE_PROGRESSION = "axso_inscription_v1";
 const DUREE_MAX = 7 * 86400_000;
@@ -68,10 +68,10 @@ const schemaProgression = z.object({
   creee: z.object({ email: z.string(), slug: z.string() }).nullable().default(null),
   le: z.number(),
 });
-// Le schéma vérifie la forme minimale ; le plan reste typé comme celui renvoyé par Axia.
+// Le schéma vérifie la forme minimale ; le plan reste typé comme celui renvoyé par Stella.
 export type Progression = Omit<z.infer<typeof schemaProgression>, "plan"> & { plan: (PlanBoutique & { messageIA?: string }) | null };
 
-/** Signature des réponses qui servent à l'analyse d'Axia. */
+/** Signature des réponses qui servent à l'analyse de Stella. */
 export const signatureReponses = (p: Pick<Progression, "typeBoutique" | "vente" | "nom" | "paysCode">) =>
   JSON.stringify([p.typeBoutique, p.vente, p.nom, p.paysCode]);
 
@@ -93,7 +93,7 @@ export function lireProgression(brut: string | null, maintenant = Date.now()): P
   if (p.etape === "analyse") return { ...p, etape: p.plan && p.planPour === signatureReponses(p) ? "design" : "pays" };
   // Sans mot de passe sauvegardé, le décollage reprend à l'écran des accès.
   if (p.etape === "decollage" || p.etape === "code" || p.etape === "revelation") return { ...p, etape: "acces" };
-  // Écrans qui demandent le plan d'Axia : sans lui, retour au pays.
+  // Écrans qui demandent le plan de Stella : sans lui, retour au pays.
   if (["design", "identite", "acces"].includes(p.etape) && !p.plan) return { ...p, etape: "pays" };
   return p;
 }

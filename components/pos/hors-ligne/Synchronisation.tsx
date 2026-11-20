@@ -37,7 +37,7 @@ export function BandeauHorsLigne({ onOuvrir }: { onOuvrir: () => void }) {
 
   if (hl.reconnexion) {
     return (
-      <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3 text-[12.5px] leading-relaxed text-[#92400E]">
+      <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3 text-[12.5px] leading-relaxed text-[#92400E]">
         <AlertTriangle size={16} aria-hidden className="flex-shrink-0" />
         <p className="min-w-0 flex-1">
           <strong>{t("Reconnexion nécessaire.")}</strong> {t(hl.blocage ?? "Votre session a expiré.")} {hl.enAttente > 0 ? t("{0} vente(s) restent enregistrées sur cet appareil et partiront dès votre reconnexion.", hl.enAttente) : null}
@@ -48,7 +48,7 @@ export function BandeauHorsLigne({ onOuvrir }: { onOuvrir: () => void }) {
   }
   if (!hl.enLigne) {
     return (
-      <section role="status" aria-label={t("Mode hors ligne")} className="rounded-2xl border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3 text-[12.5px] leading-relaxed text-[#92400E]">
+      <section role="status" aria-label={t("Mode hors ligne")} className="rounded-[12px] border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3 text-[12.5px] leading-relaxed text-[#92400E]">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <p className="flex min-w-0 flex-1 items-center gap-2 text-[13px] font-bold tracking-wide"><span aria-hidden>🟠</span><WifiOff size={15} aria-hidden />{t("MODE HORS LIGNE")}</p>
           <Bouton variante="secondaire" taille="compact" onClick={onOuvrir}>{hl.enAttente > 0 ? t("{0} vente(s) en attente", hl.enAttente) : t("Synchronisation")}</Bouton>
@@ -70,7 +70,7 @@ export function BandeauHorsLigne({ onOuvrir }: { onOuvrir: () => void }) {
   if (hl.enAttente > 0 || hl.aTraiter > 0 || hl.conflits > 0) {
     const ton = hl.aTraiter > 0 || hl.conflits > 0;
     return (
-      <div role="status" className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-4 py-2.5 text-[12.5px] leading-relaxed ${ton ? "border-[#FECACA] bg-[#FEF2F2] text-[#991B1B]" : "border-[#BFDBFE] bg-[#EFF6FF] text-[#1E40AF]"}`}>
+      <div role="status" className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] border px-4 py-2.5 text-[12.5px] leading-relaxed ${ton ? "border-[#FECACA] bg-[#FEF2F2] text-[#991B1B]" : "border-[#BFDBFE] bg-[#EFF6FF] text-[#1E40AF]"}`}>
         {ton ? <AlertTriangle size={16} aria-hidden className="flex-shrink-0" /> : <Clock size={16} aria-hidden className="flex-shrink-0" />}
         <p className="min-w-0 flex-1">
           {hl.enAttente > 0 && <>{hl.blocage ? t(hl.blocage) : t("{0} vente(s) hors ligne en cours d'envoi au serveur.", hl.enAttente)} </>}
@@ -145,7 +145,7 @@ export function EcranSynchronisation({ ouverte, onFermer }: { ouverte: boolean; 
             [t("En attente d'envoi"), String(hl.enAttente)],
             [t("Catalogue enregistré"), hl.catalogueAt ? `${age(t, hl.catalogueAt)} · ${t("{0} article(s)", hl.articles)}` : t("jamais")],
           ].map(([k, v]) => (
-            <div key={k} className="rounded-xl bg-[#FAFAFA] px-3 py-2"><dt className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{k}</dt><dd className="text-[13px] font-bold text-[#111111]">{v}</dd></div>
+            <div key={k} className="rounded-xl bg-[#FAFAFA] px-3 py-2"><dt className="text-[11px] font-semibold text-[#666666]">{k}</dt><dd className="text-[13px] font-bold text-[#111111]">{v}</dd></div>
           ))}
         </dl>
         {hl.actif && hl.enLigne && (
@@ -158,11 +158,11 @@ export function EcranSynchronisation({ ouverte, onFermer }: { ouverte: boolean; 
           <>
             {aTraiter.length > 0 && (
               <section aria-label={t("À traiter")} className="space-y-2">
-                <h3 className="text-[12px] font-bold uppercase tracking-wide text-[#B91C1C]">{t("À traiter")} ({aTraiter.length})</h3>
+                <h3 className="text-[12px] font-bold text-[#B91C1C]">{t("À traiter")} ({aTraiter.length})</h3>
                 <p>{t("Le serveur a refusé ces ventes pour une raison qui ne se réglera pas seule. Elles restent sur cet appareil : corrigez la cause puis relancez, ou réglez le cas à la main et classez-le.")}</p>
                 <ul className="space-y-2">
                   {aTraiter.map((m) => (
-                    <li key={m.cle} className="rounded-2xl border border-[#FECACA] p-3">
+                    <li key={m.cle} className="rounded-[12px] border border-[#FECACA] p-3">
                       {titre(m)}
                       <p className="text-[11.5px] text-[#666666]">{heure(m.creeLocalAt)} · {t("{0} essai(s)", m.tentatives)}</p>
                       <p className="mt-1 text-[#B91C1C]">{t(m.erreur?.message ?? "Refusée par le serveur.")}</p>
@@ -193,11 +193,11 @@ export function EcranSynchronisation({ ouverte, onFermer }: { ouverte: boolean; 
 
             {conflits.length > 0 && (
               <section aria-label={t("Écarts à vérifier")} className="space-y-2">
-                <h3 className="text-[12px] font-bold uppercase tracking-wide text-[#B45309]">{t("Écarts à vérifier")} ({conflits.length})</h3>
+                <h3 className="text-[12px] font-bold text-[#5e4200]">{t("Écarts à vérifier")} ({conflits.length})</h3>
                 <p>{t("Ces ventes sont enregistrées sur le serveur. Il a constaté un écart avec son état, signalé aussi au responsable (alerte et journal d'audit).")}</p>
                 <ul className="space-y-2">
                   {conflits.map((m) => (
-                    <li key={m.cle} className="rounded-2xl border border-[#FCD34D] p-3">
+                    <li key={m.cle} className="rounded-[12px] border border-[#FCD34D] p-3">
                       {titre(m)}
                       <ul className="mt-1 list-disc space-y-1 pl-4">{m.resultat?.conflits?.map((c, i) => <li key={i}>{t(c.message)}</li>)}</ul>
                       <div className="mt-2 flex justify-end"><Bouton variante="secondaire" taille="compact" onClick={() => agir(m.cle, () => marquerVue(m.cle))} charge={action === m.cle}>{t("J'ai vérifié")}</Bouton></div>
@@ -208,11 +208,11 @@ export function EcranSynchronisation({ ouverte, onFermer }: { ouverte: boolean; 
             )}
 
             <section aria-label={t("En attente d'envoi")} className="space-y-2">
-              <h3 className="text-[12px] font-bold uppercase tracking-wide text-[#111111]">{t("En attente d'envoi")} ({enAttente.length})</h3>
+              <h3 className="text-[12px] font-bold text-[#111111]">{t("En attente d'envoi")} ({enAttente.length})</h3>
               {enAttente.length === 0 ? <EtatVide compact titre="Aucune vente en attente" texte="Tout ce qui a été saisi sur cet appareil est enregistré sur le serveur." /> : (
                 <ul className="space-y-2">
                   {enAttente.map((m, i) => (
-                    <li key={m.cle} className="rounded-2xl border border-[#E8E8E8] p-3">
+                    <li key={m.cle} className="rounded-[12px] border border-[#E8E8E8] p-3">
                       {titre(m)}
                       <p className="flex flex-wrap items-center gap-2 text-[11.5px] text-[#666666]">
                         {heure(m.creeLocalAt)}
@@ -232,10 +232,10 @@ export function EcranSynchronisation({ ouverte, onFermer }: { ouverte: boolean; 
           </>
         )}
 
-        <section aria-label={t("Limites du mode hors ligne")} className="rounded-2xl bg-[#FAFAFA] p-3">
-          <h3 className="text-[12px] font-bold uppercase tracking-wide text-[#111111]">{t("Limites du mode hors ligne")}</h3>
+        <section aria-label={t("Limites du mode hors ligne")} className="rounded-[12px] bg-[#FAFAFA] p-3">
+          <h3 className="text-[12px] font-bold text-[#111111]">{t("Limites du mode hors ligne")}</h3>
           <ul className="mt-1 list-disc space-y-1 pl-4">{LIMITES.map((l) => <li key={l}>{t(l)}</li>)}</ul>
-          {hl.persistant === false && <p className="mt-2 text-[#B45309]">{t("Ce navigateur n'a pas garanti la conservation des données de la caisse : il peut les effacer s'il manque de place.")}</p>}
+          {hl.persistant === false && <p className="mt-2 text-[#5e4200]">{t("Ce navigateur n'a pas garanti la conservation des données de la caisse : il peut les effacer s'il manque de place.")}</p>}
         </section>
       </div>
     </Tiroir>

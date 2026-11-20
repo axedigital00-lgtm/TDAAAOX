@@ -33,7 +33,7 @@ function Semaines({ valeurs, unite }: { valeurs: number[]; unite: string }) {
   return (
     <div>
       <div className="flex h-10 items-end gap-1" aria-hidden>
-        {valeurs.map((v, i) => <span key={i} className="flex-1 rounded-sm bg-[#F5A623]" style={{ height: `${Math.max(4, (v / max) * 100)}%`, opacity: v ? 1 : 0.25 }} />)}
+        {valeurs.map((v, i) => <span key={i} className="flex-1 rounded-sm bg-[#1a1a1a]" style={{ height: `${Math.max(4, (v / max) * 100)}%`, opacity: v ? 1 : 0.25 }} />)}
       </div>
       <p className="mt-1 text-[11px] text-[#888888]">{t("Ventes par semaine, de la plus ancienne à la dernière")} : {valeurs.map((v) => qte(v, unite)).join(" · ")}</p>
     </div>
@@ -95,7 +95,7 @@ export function Reappro({ onBonsCrees }: { onBonsCrees: () => void }) {
                 <li key={l.produitId} className="py-3">
                   <div className="flex flex-wrap items-start gap-3">
                     <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-start gap-3">
-                      <input type="checkbox" className={`mt-1 h-5 w-5 flex-shrink-0 accent-[#F5A623] ${FOCUS}`} checked={c.coche} disabled={!d.peutCreer} onChange={(e) => modifier(l.produitId, { coche: e.target.checked })} />
+                      <input type="checkbox" className={`mt-1 h-5 w-5 flex-shrink-0 accent-[#1a1a1a] ${FOCUS}`} checked={c.coche} disabled={!d.peutCreer} onChange={(e) => modifier(l.produitId, { coche: e.target.checked })} />
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-2"><span className="text-[14px] font-bold text-[#111111]">{l.nom}</span><Badge ton={NIVEAUX[l.niveau].ton}>{t(NIVEAUX[l.niveau].label)}</Badge></span>
                         <span className="mt-0.5 block text-[13px] text-[#111111]">{t("Recommandation : commander {0}", qte(k.quantite, l.uniteVente))}{l.uniteVente === "kg" ? "" : ` ${t(k.quantite > 1 ? "unités" : "unité")}`}</span>
@@ -106,10 +106,10 @@ export function Reappro({ onBonsCrees }: { onBonsCrees: () => void }) {
                       </span>
                     </label>
                     <div className="flex flex-wrap items-end gap-2">
-                      <label className="block w-28 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t(l.uniteVente === "kg" ? "Grammes" : "Quantité")}
+                      <label className="block w-28 text-[11px] font-semibold text-[#666666]">{t(l.uniteVente === "kg" ? "Grammes" : "Quantité")}
                         <input type="number" inputMode="numeric" min={1} step={1} className={`${CLASSE_SAISIE} mt-1`} value={c.quantite} disabled={!d.peutCreer} onChange={(e) => modifier(l.produitId, { quantite: e.target.value })} />
                       </label>
-                      <label className="block w-44 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Fournisseur")}
+                      <label className="block w-44 text-[11px] font-semibold text-[#666666]">{t("Fournisseur")}
                         <select className={`${CLASSE_SAISIE} mt-1`} value={c.fournisseurId} disabled={!d.peutCreer} onChange={(e) => modifier(l.produitId, { fournisseurId: e.target.value })}>
                           <option value="">{t("À choisir")}</option>
                           {d.fournisseurs.map((f) => <option key={f.id} value={f.id}>{f.nom}{f.id === l.fournisseur?.id && l.fournisseur.principal ? ` (${t("principal")})` : ""}</option>)}
@@ -120,7 +120,7 @@ export function Reappro({ onBonsCrees }: { onBonsCrees: () => void }) {
                   </div>
 
                   <details className="mt-1 sm:ml-8">
-                    <summary className="flex min-h-11 cursor-pointer items-center text-[12px] font-semibold text-[#B45309]">{t("Détail du calcul")}</summary>
+                    <summary className="flex min-h-11 cursor-pointer items-center text-[12px] font-semibold text-[#5e4200]">{t("Détail du calcul")}</summary>
                     <div className="space-y-2 rounded-xl bg-[#FAFAFA] p-3 text-[12px] leading-relaxed text-[#444444]">
                       <ol className="list-decimal space-y-1 pl-4">
                         <li>{t("Vitesse de vente : {0} vendus en 30 jours, soit {1} par jour.", qte(l.ventes30j, l.uniteVente), (l.ventes30j / 30).toLocaleString(t.loc, { maximumFractionDigits: 1 }))}</li>

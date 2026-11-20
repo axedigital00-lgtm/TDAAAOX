@@ -1,6 +1,6 @@
 // Endpoint générique MCP — aucun appelant connu (à supprimer). En attendant :
 // accès complet requis, limite de débit IA, et toute action qui publie ou envoie
-// devient une demande d'accord du marchand (comme AXIA), jamais un envoi direct.
+// devient une demande d'accord du marchand (comme Stella), jamais un envoi direct.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { z } from "zod";

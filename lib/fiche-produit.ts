@@ -1,7 +1,7 @@
 // Fiche produit — SOURCE UNIQUE des sections et de leurs opérations.
-// Le panneau « Fiche produit » du Constructeur ET l'outil AXIA
+// Le panneau « Fiche produit » du Constructeur ET l'outil Stella
 // `modifier_fiche_produit` passent tous les deux par `appliquerActionFiche` :
-// toute action faisable à la main l'est par AXIA, avec les mêmes garde-fous
+// toute action faisable à la main l'est par Stella, avec les mêmes garde-fous
 // (sections uniques jamais dupliquées, ids uniques, sections de base jamais
 // supprimées — seulement masquées). Module pur : client et serveur.
 import {
@@ -104,7 +104,7 @@ function nouvelId(type: string, sections: ProductPageSection[]): string {
   return id;
 }
 
-/** Retrouve une section par id, ou par type pour une section unique (pratique pour AXIA). */
+/** Retrouve une section par id, ou par type pour une section unique (pratique pour Stella). */
 export function trouverSection(sections: ProductPageSection[], ref: string): ProductPageSection | undefined {
   return sections.find((s) => s.id === ref) ?? sections.find((s) => s.type === ref);
 }
@@ -120,7 +120,7 @@ export type ActionFiche =
 
 /**
  * Applique une action à la fiche produit et renvoie la nouvelle config.
- * Lève une Error au message lisible (affiché au marchand / renvoyé à AXIA)
+ * Lève une Error au message lisible (affiché au marchand / renvoyé à Stella)
  * si l'action est invalide — jamais d'état cassé enregistré.
  */
 export function appliquerActionFiche(pp: ThemeProductPageConfig | null | undefined, a: ActionFiche): { pp: ThemeProductPageConfig; id?: string } {
@@ -168,7 +168,7 @@ export function appliquerActionFiche(pp: ThemeProductPageConfig | null | undefin
   }
 }
 
-/** Résumé lisible de la fiche (ordre, état, id) — pour AXIA. */
+/** Résumé lisible de la fiche (ordre, état, id) — pour Stella. */
 export function resumerFiche(pp?: ThemeProductPageConfig | null): string {
   const s = sectionsFiche(pp);
   return `Mise en page : ${pp?.layout ?? "amazon"}\n` + s.map((x, i) => `${i}. ${SECTIONS_FICHE[x.type]?.label ?? x.type} [id=${x.id}, type=${x.type}]${x.actif ? "" : " (masquée)"}`).join("\n");

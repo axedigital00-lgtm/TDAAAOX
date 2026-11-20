@@ -1,10 +1,15 @@
 "use client";
+// Contenu → Médias : images et vidéos générées par l'IA pour les produits et
+// campagnes. Génération dans une fenêtre, suivi automatique des médias en cours.
 import { useState, useEffect, useCallback } from "react";
-import {
-  Film, Image, Plus, Loader2, Trash2, Download, Copy,
-  RefreshCw, Wand2, Play, CheckCircle2, XCircle, Clock, Sparkles, X
-} from "lucide-react";
+import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner, Field } from "@/components/dashboard/design-system/components/primitives";
+import { Button } from "@/components/dashboard/design-system/components/Button";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Modal } from "@/components/dashboard/design-system/components/Modal";
+import { Icon } from "@/components/dashboard/design-system/icons/Icon";
 
 interface Media {
   id: string; prompt: string; style: string;
@@ -24,87 +29,52 @@ const MODELES_IMAGE = [
   { id: "gpt-image", label: "Modèle Créatif", desc: "Créatif publicitaire" },
   { id: "seedream-4.0", label: "Modèle Artistique", desc: "Artistique · Lifestyle" },
 ];
-const STYLES_VIDEO = ["product", "ugc", "ad", "cinematic", "demo"];
-const STYLES_IMAGE = ["product_photo", "lifestyle", "advertisement", "minimal", "artistic"];
+const STYLES_VIDEO: [string, string][] = [["product", "Produit"], ["ugc", "Témoignage client"], ["ad", "Publicité"], ["cinematic", "Cinématique"], ["demo", "Démonstration"]];
+const STYLES_IMAGE: [string, string][] = [["product_photo", "Photo produit"], ["lifestyle", "Mise en situation"], ["advertisement", "Publicité"], ["minimal", "Minimaliste"], ["artistic", "Artistique"]];
+const FILTRES: ["tous" | "image" | "video", string][] = [["tous", "Tous"], ["image", "Images"], ["video", "Vidéos"]];
 
-function StatutBadge({ statut }: { statut: string }) {
+function Statut({ statut }: { statut: Media["statut"] }) {
   const tr = useT();
-  if (statut === "pret") return <span className="flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-medium"><CheckCircle2 size={10}/>{" "}{tr("Prêt")}</span>;
-  if (statut === "en_cours") return <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium"><Loader2 size={10} className="animate-spin"/>{" "}{tr("En cours")}</span>;
-  return <span className="flex items-center gap-1 text-xs bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-medium"><XCircle size={10}/>{" "}{tr("Erreur")}</span>;
+  if (statut === "pret") return <Badge tone="success">{tr("Prêt")}</Badge>;
+  if (statut === "en_cours") return <Badge tone="info" progress="partial">{tr("En cours")}</Badge>;
+  return <Badge tone="critical">{tr("Erreur")}</Badge>;
 }
 
-function MediaCard({ media, onDelete, onCopy }: { media: Media; onDelete: (id: string) => void; onCopy: (url: string) => void }) {
+function CarteMedia({ media, onDelete, onCopy }: { media: Media; onDelete: (id: string) => void; onCopy: (url: string) => void }) {
   const tr = useT();
   const url = media.videoUrl ?? media.thumbnailUrl;
   const estVideo = !!media.videoUrl;
-
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden group hover:shadow-lg transition-all">
-      {/* Aperçu */}
-      <div className="relative aspect-video bg-gray-50">
+    <article className="axd-media">
+      <div className="axd-media__apercu">
         {media.statut === "en_cours" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <Loader2 size={28} className="text-[#F5A623] animate-spin"/>
-            <p className="text-xs text-gray-400">{tr("Génération en cours…")}</p>
-          </div>
+          <span className="axd-media__etat">{tr("Génération en cours…")}</span>
         ) : media.statut === "erreur" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-            <XCircle size={24} className="text-red-400"/>
-            <p className="text-xs text-red-500 text-center line-clamp-2">{tr(media.erreur) ?? tr("Erreur de génération")}</p>
-          </div>
+          <span className="axd-media__etat" style={{ color: "var(--color-critical-text)" }}>{tr(media.erreur) || tr("Erreur de génération")}</span>
         ) : url && estVideo ? (
-          <video src={url} className="w-full h-full object-cover" muted loop/>
+          <video src={url} muted loop controls preload="metadata" />
         ) : url ? (
-          <img src={url} alt={media.prompt} className="w-full h-full object-cover"/>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Wand2 size={24} className="text-gray-300"/>
-          </div>
-        )}
-
-        {/* Overlay actions */}
-        {url && media.statut === "pret" && (
-          <div className="absolute inset-0 bg-black/40 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-            {estVideo && (
-              <button className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all">
-                <Play size={16} className="text-white ml-0.5"/>
-              </button>
-            )}
-            <a href={url} download className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all">
-              <Download size={16} className="text-white"/>
-            </a>
-            <button onClick={() => onCopy(url)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all">
-              <Copy size={16} className="text-white"/>
-            </button>
-          </div>
-        )}
-
-        {/* Badge type */}
-        <div className="absolute top-2 left-2">
-          <span className="text-xs bg-black/60 text-white px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1">
-            {estVideo ? <Film size={10}/> : <Image size={10}/>}
-            {estVideo ? tr("Vidéo") : tr("Image")}
-          </span>
+          <img src={url} alt={media.prompt} loading="lazy" />
+        ) : null}
+        <span className="axd-media__type">{estVideo ? tr("Vidéo") : tr("Image")}</span>
+      </div>
+      <div className="axd-media__corps">
+        <p className="axd-media__prompt" title={media.prompt}>{media.prompt}</p>
+        <div className="axd-media__pied">
+          <Statut statut={media.statut} />
+          <span>{new Date(media.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })}</span>
+        </div>
+        <div className="axd-media__actions">
+          {url && media.statut === "pret" && (
+            <>
+              <Button size="sm" href={url} external>{tr("Télécharger")}</Button>
+              <Button size="sm" variant="plain" onClick={() => onCopy(url)}>{tr("Copier le lien")}</Button>
+            </>
+          )}
+          <button type="button" className="axd-icon-btn" style={{ marginLeft: "auto" }} onClick={() => onDelete(media.id)} aria-label={tr("Supprimer")} title={tr("Supprimer")}><Icon name="x" /></button>
         </div>
       </div>
-
-      {/* Infos */}
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <p className="text-xs text-gray-700 line-clamp-2 flex-1 leading-relaxed">{tr(media.prompt)}</p>
-          <button onClick={() => onDelete(media.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0">
-            <Trash2 size={12}/>
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <StatutBadge statut={media.statut}/>
-          <span className="text-[10px] text-gray-400">
-            {new Date(media.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })}
-          </span>
-        </div>
-      </div>
-    </div>
+    </article>
   );
 }
 
@@ -115,9 +85,8 @@ export default function MediasPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"tous" | "video" | "image">("tous");
   const [showModal, setShowModal] = useState(false);
-  const [copied, setCopied] = useState(false);
 
-  // Formulaire génération
+  // Formulaire de génération
   const [type, setType] = useState<"video" | "image">("image");
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState("recraft-4.1");
@@ -137,14 +106,14 @@ export default function MediasPage() {
 
   useEffect(() => { charger(); }, [charger]);
 
-  // Polling auto si des médias sont en cours
+  // Suivi automatique tant que des médias sont en cours
   useEffect(() => {
     if (!medias.some(m => m.statut === "en_cours")) return;
     const t = setInterval(charger, 5000);
     return () => clearInterval(t);
   }, [medias, charger]);
 
-  // Changer modèle par défaut selon type
+  // Modèle et style par défaut selon le type
   useEffect(() => {
     setModel(type === "video" ? "kling-3.0" : "recraft-4.1");
     setStyle(type === "video" ? "product" : "product_photo");
@@ -167,194 +136,119 @@ export default function MediasPage() {
   }
 
   async function supprimer(id: string) {
+    if (!confirm(tr("Supprimer ce média ?"))) return;
     await fetch(`/api/medias?id=${id}`, { method: "DELETE" });
     setMedias(ms => ms.filter(m => m.id !== id));
   }
 
   function copier(url: string) {
     navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    toast.success(tr("Lien copié"));
   }
 
+  const modeles = type === "video" ? MODELES_VIDEO : MODELES_IMAGE;
+  const styles = type === "video" ? STYLES_VIDEO : STYLES_IMAGE;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{tr("Médiathèque IA")}</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{tr("Vidéos et images générées par IA")}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={charger} className="p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all">
-            <RefreshCw size={15}/>
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm text-white transition-all"
-            style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)", boxShadow: "0 4px 16px rgba(245,166,35,0.3)" }}
-          >
-            <Wand2 size={14}/>{" "}{tr("Générer")}
-          </button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        icon="image"
+        title={tr("Médias")}
+        secondaryActions={[{ content: tr("Actualiser"), onAction: charger }]}
+        primaryAction={{ content: tr("Générer avec l’IA"), onAction: () => setShowModal(true) }}
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="axd-grid axd-g4" style={{ marginBottom: "var(--space-400)" }}>
         {[
-          { label: "Total", value: stats.total, icon: Sparkles, color: "#6366f1", bg: "#eef2ff" },
-          { label: "Prêts", value: stats.pretes, icon: CheckCircle2, color: "#059669", bg: "#ecfdf5" },
-          { label: "En cours", value: stats.enCours, icon: Clock, color: "#d97706", bg: "#fffbeb" },
-          { label: "Erreurs", value: stats.erreurs, icon: XCircle, color: "#dc2626", bg: "#fef2f2" },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: s.bg }}>
-              <s.icon size={16} style={{ color: s.color }}/>
-            </div>
-            <div>
-              <p className="text-xl font-bold text-gray-900">{tr(s.value)}</p>
-              <p className="text-xs text-gray-400">{tr(s.label)}</p>
-            </div>
+          { l: "Total", v: stats.total },
+          { l: "Prêts", v: stats.pretes },
+          { l: "En cours", v: stats.enCours },
+          { l: "Erreurs", v: stats.erreurs },
+        ].map((s) => (
+          <div key={s.l} className="axd-card axd-card--pad">
+            <div className="axd-kpi__t">{tr(s.l)}</div>
+            <div className="axd-kpi__v" style={{ marginBottom: 0 }}>{s.v.toLocaleString(tr.loc)}</div>
           </div>
         ))}
       </div>
 
-      {/* Filtres */}
-      <div className="flex gap-2">
-        {(["tous", "image", "video"] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-all capitalize ${filter === f ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}
-          >
-            {f === "video" && <Film size={13}/>}
-            {f === "image" && <Image size={13}/>}
-            {f === "tous" ? tr("Tous les médias") : f === "video" ? tr("Vidéos") : tr("Images")}
-          </button>
-        ))}
-      </div>
-
-      {/* Grille médias */}
-      {loading ? (
-        <div className="flex justify-center py-20"><Loader2 size={28} className="text-gray-300 animate-spin"/></div>
-      ) : medias.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-16 text-center">
-          <Wand2 size={40} className="mx-auto text-gray-300 mb-4"/>
-          <h3 className="text-lg font-bold text-gray-700 mb-2">{tr("Médiathèque vide")}</h3>
-          <p className="text-gray-400 text-sm mb-6">{tr("Générez des vidéos et images IA pour vos produits et campagnes")}</p>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm text-white mx-auto" style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)" }}>
-            <Sparkles size={14}/>{" "}{tr("Générer mon premier média")}
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {medias.map(m => (
-            <MediaCard key={m.id} media={m} onDelete={supprimer} onCopy={copier}/>
-          ))}
-        </div>
-      )}
-
-      {/* Toast copié */}
-      {copied && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 z-50">
-          <CheckCircle2 size={14} className="text-green-400"/>{" "}{tr("URL copiée !")}
-        </div>
-      )}
-
-      {/* ── Modal Génération ── */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-              <div>
-                <h2 className="font-bold text-gray-900 text-lg">{tr("Générer un média IA")}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{tr("Higgsfield · Kling 3.0 · Recraft 4.1 · Veo 3.1")}</p>
-              </div>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-all">
-                <X size={18}/>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5">
-              {/* Type */}
-              <div className="grid grid-cols-2 gap-3">
-                {(["image", "video"] as const).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setType(t)}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-2xl border-2 font-semibold text-sm transition-all ${type === t ? "border-[#F5A623] bg-amber-50 text-[#F5A623]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                  >
-                    {t === "image" ? <Image size={16}/> : <Film size={16}/>}
-                    {t === "image" ? tr("Image") : tr("Vidéo")}
-                  </button>
-                ))}
-              </div>
-
-              {/* Prompt */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">{tr("Décrivez ce que vous voulez générer *")}</label>
-                <textarea
-                  value={prompt}
-                  onChange={e => setPrompt(e.target.value)}
-                  placeholder={type === "video"
-                    ? tr("Ex: Sac à main en cuir marron, fond blanc, rotation 360°, lumière studio professionnelle…")
-                    : tr("Ex: Photo produit robe wax premium sur fond blanc, ultra HD, éclairage professionnel…")}
-                  rows={3}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#F5A623]/60 resize-none"
-                />
-              </div>
-
-              {/* Modèle */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">{tr("Modèle")}</label>
-                <div className="space-y-1.5">
-                  {(type === "video" ? MODELES_VIDEO : MODELES_IMAGE).map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => setModel(m.id)}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all text-sm ${model === m.id ? "border-[#F5A623] bg-amber-50" : "border-gray-100 hover:border-gray-200"}`}
-                    >
-                      <span className={`font-semibold ${model === m.id ? "text-[#e8950f]" : "text-gray-700"}`}>{tr(m.label)}</span>
-                      <span className="text-xs text-gray-400">{tr(m.desc)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Style */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">{tr("Style")}</label>
-                <div className="flex flex-wrap gap-2">
-                  {(type === "video" ? STYLES_VIDEO : STYLES_IMAGE).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setStyle(s)}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all capitalize ${style === s ? "border-[#F5A623] bg-amber-50 text-[#e8950f]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                    >
-                      {s.replace(/_/g, " ")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Info Higgsfield requis */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 flex items-start gap-2">
-                <Sparkles size={13} className="flex-shrink-0 mt-0.5"/>
-                <span>{tr("Nécessite Higgsfield connecté dans")}{" "}<a href="/dashboard/connecteurs" className="font-bold underline">{tr("Connecteurs")}</a>{tr(". Sans connexion, une image placeholder sera générée.")}</span>
-              </div>
-
-              <button
-                onClick={generer}
-                disabled={generating || !prompt.trim()}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm transition-all disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)" }}
-              >
-                {generating ? <><Loader2 size={14} className="animate-spin"/>{" "}{tr("Lancement…")}</> : <><Wand2 size={14}/>{" "}{tr("Générer")}{" "}{type === "video" ? tr("la vidéo") : "l'image"}</>}
-              </button>
-            </div>
+      <div className="axd-card" style={{ overflow: "hidden" }}>
+        <div className="axd-ix-bar">
+          <div className="axd-ix-tabs" role="tablist">
+            {FILTRES.map(([v, l]) => <button key={v} type="button" role="tab" aria-selected={filter === v} className="axd-ix-tab" onClick={() => setFilter(v)}>{tr(l)}</button>)}
           </div>
         </div>
-      )}
-    </div>
+        {loading ? (
+          <p className="axd-fichiers__etat">{tr("Chargement…")}</p>
+        ) : medias.length === 0 ? (
+          <div className="axd-empty">
+            {filter === "video" ? (
+              <figure style={{ width: "min(100%, 360px)", margin: "0 auto 20px" }}>
+                <video src="/editorial/film-board.mp4" poster="/editorial/film-board.webp" playsInline controls preload="none"
+                  aria-label={tr("Exemple de film produit")} style={{ width: "100%", borderRadius: 16 }} />
+                <figcaption>{tr("Exemple de film produit")}</figcaption>
+              </figure>
+            ) : <img src="/editorial/mediatheque.webp" alt="" loading="lazy" width={320} height={160}
+              style={{ width: "min(100%, 320px)", height: "auto", aspectRatio: "2 / 1", objectFit: "cover", margin: "0 auto 20px", borderRadius: 16 }} />}
+            <h3>{tr("Créez vos premiers visuels avec l’IA")}</h3>
+            <p>{tr("Photos produit, mises en situation et vidéos publicitaires, générées à partir d’une simple description.")}</p>
+            <div className="axd-empty__actions"><Button variant="primary" onClick={() => setShowModal(true)}>{tr("Générer un média")}</Button></div>
+          </div>
+        ) : (
+          <div className="axd-media-grille">
+            {medias.map(m => <CarteMedia key={m.id} media={m} onDelete={supprimer} onCopy={copier} />)}
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title={tr("Générer un média")}
+        footer={<>
+          <Button onClick={() => setShowModal(false)}>{tr("Annuler")}</Button>
+          <Button variant="primary" onClick={generer} loading={generating} disabled={!prompt.trim()}>{type === "video" ? tr("Générer la vidéo") : tr("Générer l’image")}</Button>
+        </>}
+      >
+        <div style={{ display: "grid", gap: "var(--space-400)", padding: "var(--space-400)" }}>
+          <div className="axd-seg" role="group" aria-label={tr("Type de média")}>
+            {(["image", "video"] as const).map((v) => (
+              <button key={v} type="button" className="axd-choix" aria-pressed={type === v} onClick={() => setType(v)}>{v === "image" ? tr("Image") : tr("Vidéo")}</button>
+            ))}
+          </div>
+
+          <Field label={tr("Décrivez ce que vous voulez générer")}>
+            {(p) => (
+              <textarea {...p} className="axd-input" rows={3} value={prompt} onChange={e => setPrompt(e.target.value)} style={{ height: "auto", padding: "8px 12px", resize: "vertical" }}
+                placeholder={type === "video"
+                  ? tr("Ex : sac à main en cuir marron, fond blanc, rotation à 360°, lumière studio")
+                  : tr("Ex : robe en wax sur fond blanc, photo produit très nette, éclairage studio")} />
+            )}
+          </Field>
+
+          <div>
+            <p className="axd-field__label" style={{ marginBottom: 6 }}>{tr("Modèle")}</p>
+            <div style={{ display: "grid", gap: 6 }}>
+              {modeles.map(m => (
+                <button key={m.id} type="button" className="axd-choix axd-choix--ligne" aria-pressed={model === m.id} onClick={() => setModel(m.id)}>
+                  <b>{tr(m.label)}</b><span>{tr(m.desc)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="axd-field__label" style={{ marginBottom: 6 }}>{tr("Style")}</p>
+            <div className="axd-chips" style={{ margin: 0 }}>
+              {styles.map(([id, l]) => <button key={id} type="button" className="axd-chip" aria-pressed={style === id} onClick={() => setStyle(id)}>{tr(l)}</button>)}
+            </div>
+          </div>
+
+          <Banner tone="info">
+            {tr("Nécessite Higgsfield connecté dans")}{" "}<a href="/dashboard/connecteurs" style={{ textDecoration: "underline" }}>{tr("Connecteurs")}</a>{tr(". Sans connexion, une image placeholder sera générée.")}
+          </Banner>
+        </div>
+      </Modal>
+    </Page>
   );
 }

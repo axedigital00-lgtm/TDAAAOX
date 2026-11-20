@@ -1,4 +1,4 @@
-// Bulle AXIA du dashboard : lit les prises de parole d'AXIA (constats et
+// Bulle Stella du dashboard : lit les prises de parole de Stella (constats et
 // demandes de confirmation) et applique la décision du marchand.
 import { NextResponse, after } from "next/server";
 import { z } from "zod";
@@ -29,7 +29,7 @@ type Action = { outil?: string; args?: Record<string, any>; agent?: string; prom
 function visible(p: { type: string; action: unknown }, droits: GrillePermissions, complet: boolean) {
   if (p.type !== "confirmation") return complet;
   const a = p.action as Action | null;
-  // Demande d'une IA externe (lib/controle-ia) : ses outils ne sont pas tous des outils AXIA.
+  // Demande d'une IA externe (lib/controle-ia) : ses outils ne sont pas tous des outils Stella.
   if (a?.ia && a.outil) return accordVisible(a.outil, droits);
   return a?.agent ? complet : !!a?.outil && outilAutorise(a.outil, droits);
 }
@@ -46,7 +46,7 @@ export async function GET() {
   const ctx = await contexte();
   if (!ctx) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const { tenantId, droits, complet } = ctx;
-  // AXIA (prises de parole et demandes d'accord) : Palier Pro et plus, comme AXIA plein écran.
+  // Stella (prises de parole et demandes d'accord) : Palier Pro et plus, comme Stella plein écran.
   if (!palierAuMoins((await planActif(tenantId)).plan, "palier1")) return NextResponse.json({ propositions: [] });
 
   if (complet) {
@@ -89,7 +89,7 @@ export async function PATCH(req: Request) {
   const { tenantId, droits, complet } = ctx;
 
   if (!palierAuMoins((await planActif(tenantId)).plan, "palier1")) {
-    return NextResponse.json({ error: "AXIA est disponible à partir du Palier Pro." }, { status: 403 });
+    return NextResponse.json({ error: "Stella est disponible à partir du Palier Pro." }, { status: 403 });
   }
 
   const parsed = schema.safeParse(await req.json().catch(() => null));

@@ -19,7 +19,7 @@ export const PLANS_CATALOGUE = [
     features: [
       { label: "Commandes limitées (60/mois)", ok: true },
       { label: "WhatsApp Business intégré", ok: true },
-      { label: "AXIA IA — outils essentiels", ok: true },
+      { label: "Stella IA — outils essentiels", ok: true },
       { label: "Social Media intégré", ok: true },
       { label: "1 boutique en ligne", ok: true },
       { label: "Support WhatsApp (lun-ven, 8h-20h)", ok: true },
@@ -43,7 +43,7 @@ export const PLANS_CATALOGUE = [
     features: [
       { label: "Commandes illimitées", ok: true },
       { label: "WhatsApp Business intégré", ok: true },
-      { label: "AXIA IA — outils avancés (agents, automatisations)", ok: true },
+      { label: "Stella IA — outils avancés (agents, automatisations)", ok: true },
       { label: "Marketing & campagnes (email, SMS, réseaux sociaux)", ok: true },
       { label: "Analytics avancés — historique complet", ok: true },
       { label: "Support WhatsApp (lun-ven, 8h-20h)", ok: true },
@@ -65,7 +65,7 @@ export const PLANS_CATALOGUE = [
     recommande: false,
     features: [
       { label: "AUCUNE LIMITE — tout inclus", ok: true },
-      { label: "AXIA IA — tous les outils (médias, ads, entrepôts…)", ok: true },
+      { label: "Stella IA — tous les outils (médias, ads, entrepôts…)", ok: true },
       { label: "Sourcing dropshipping mondial", ok: true },
       { label: "Analytics temps réel", ok: true },
       { label: "Multi-boutique", ok: true },

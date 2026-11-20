@@ -1,6 +1,6 @@
 // Source unique de vérité pour savoir si une boutique a le minimum requis
 // pour passer de "brouillon" à "active" (publiée, visible sur /{slug}).
-// Utilisé par PATCH /api/tenants (garde-fou serveur) et par l'outil Axia
+// Utilisé par PATCH /api/tenants (garde-fou serveur) et par l'outil Stella
 // publier_boutique — les deux doivent toujours s'accorder sur les mêmes critères.
 import { prisma } from "@/lib/prisma";
 

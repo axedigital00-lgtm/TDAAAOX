@@ -64,8 +64,8 @@ const ACTIONS: Record<string, [string, string]> = {
   echecs_paiement: ["Analyser les échecs par moyen de paiement et par pays.", "—"],
   north_star: ["Accompagner les marchands sans vente récente.", "Partager les bonnes pratiques des marchands qui vendent."],
   marchands_actifs: ["Relancer les marchands dormants.", "Transformer ces actifs en marchands payants."],
-  requetes_ia: ["Promouvoir Axia auprès des marchands actifs.", "Surveiller le coût IA et proposer Axia en upsell."],
-  adoption_ia: ["Promouvoir Axia auprès des marchands actifs.", "Mettre en avant les cas d'usage Axia qui marchent."],
+  requetes_ia: ["Promouvoir Stella auprès des marchands actifs.", "Surveiller le coût IA et proposer Stella en upsell."],
+  adoption_ia: ["Promouvoir Stella auprès des marchands actifs.", "Mettre en avant les cas d'usage Stella qui marchent."],
   conversion_payante: ["Revoir l'offre Pro et ses déclencheurs d'upgrade.", "Proposer l'Illimité aux Pro les plus actifs."],
   livraison: ["Vérifier les livreurs et zones en échec.", "—"],
   panier_moyen: ["Proposer bundles et ventes additionnelles aux marchands.", "—"],
@@ -177,8 +177,8 @@ export function santeMarchand(m: Marchand, s: StatsMarchand, poids: PoidsSante, 
   const signaux: string[] = [];
   if (s.joursInactif >= 7 && s.joursInactif < 999) signaux.push(t("{0} jours sans activité", s.joursInactif));
   if (croissance != null && croissance <= -0.3) signaux.push(t("commandes {0} sur 30 jours", formatVariation(croissance, "nombre")));
-  if (s.ia30 === 0 && s.iaAvant > 0) signaux.push(t("n'utilise plus Axia"));
-  else if (s.ia30 === 0) signaux.push(t("aucun usage d'Axia"));
+  if (s.ia30 === 0 && s.iaAvant > 0) signaux.push(t("n'utilise plus Stella"));
+  else if (s.ia30 === 0) signaux.push(t("aucun usage de Stella"));
   if (s.echecs30 > 0) signaux.push(t(s.echecs30 > 1 ? "{0} paiements échoués" : "{0} paiement échoué", s.echecs30));
   if (s.mrrAvant > 0 && s.mrr === 0) signaux.push(t("abonnement non renouvelé"));
   if (s.ticketsOuverts) signaux.push(t(s.ticketsOuverts > 1 ? "{0} tickets support ouverts" : "{0} ticket support ouvert", s.ticketsOuverts));
@@ -215,7 +215,7 @@ export function radarExpansion(v: Vue, stats: Map<string, StatsMarchand>, t: T =
     if (m.plan === "palier0" && (s.commandes30 >= 40 || s.gmv30 >= 500_000)) {
       out.push({ marchand: m, score: Math.round(Math.min(99, Math.max(s.commandes30 / 60, s.gmv30 / 1_500_000) * 100)), raison: s.commandes30 >= 40 ? t("{0} commandes en 30 jours (limite Essentiel : 60/mois)", s.commandes30) : t("{0} de GMV en 30 jours sur le plan gratuit", formatValeur(s.gmv30, "xaf")), planRecommande: "palier1", revenuPotentiel: PRIX_PLAN.palier1 });
     } else if (m.plan === "palier1" && (s.gmv30 >= 3_000_000 || s.ia30 >= 40 || s.fonctions30.size >= 6)) {
-      out.push({ marchand: m, score: Math.round(Math.min(99, Math.max(s.gmv30 / 6_000_000, s.ia30 / 80, s.fonctions30.size / 8) * 100)), raison: s.gmv30 >= 3_000_000 ? t("{0} de GMV en 30 jours", formatValeur(s.gmv30, "xaf")) : s.ia30 >= 40 ? t("{0} requêtes Axia en 30 jours", s.ia30) : t("{0} fonctionnalités utilisées", s.fonctions30.size), planRecommande: "palier2", revenuPotentiel: PRIX_PLAN.palier2 - PRIX_PLAN.palier1 });
+      out.push({ marchand: m, score: Math.round(Math.min(99, Math.max(s.gmv30 / 6_000_000, s.ia30 / 80, s.fonctions30.size / 8) * 100)), raison: s.gmv30 >= 3_000_000 ? t("{0} de GMV en 30 jours", formatValeur(s.gmv30, "xaf")) : s.ia30 >= 40 ? t("{0} requêtes Stella en 30 jours", s.ia30) : t("{0} fonctionnalités utilisées", s.fonctions30.size), planRecommande: "palier2", revenuPotentiel: PRIX_PLAN.palier2 - PRIX_PLAN.palier1 });
     } else if (m.plan === "palier2" && s.gmv30 >= 20_000_000) {
       out.push({ marchand: m, score: 90, raison: t("{0} de GMV en 30 jours : profil grand compte", formatValeur(s.gmv30, "xaf")), planRecommande: "entreprise", revenuPotentiel: 0 });
     }
@@ -306,7 +306,7 @@ export function scoreAxso(v: Vue, f: Fenetres, stats: Map<string, StatsMarchand>
     { id: "produit", nom: "Produit", causes: [cause("activation")], recommandation: "Réduire les frictions de l'onboarding.", lien: "/admin/produit" },
     { id: "infrastructure", nom: "Infrastructure", causes: [cause("succes_paiement"), v.ds.manques.includes("incidents") ? t("Incidents non suivis") : t("{0} incident(s) ouvert(s)", v.ds.incidents.filter((i) => !i.resoluLe).length)], recommandation: "Suivre le taux de succès des paiements avec le prestataire.", lien: "/admin/paiements" },
     { id: "succes", nom: "Succès client", causes: ["Moyenne des scores santé des marchands actifs"], recommandation: "Appeler les marchands « À risque » à fort revenu.", lien: "/admin/succes-client" },
-    { id: "ia", nom: "IA", causes: [cause("adoption_ia"), cause("requetes_ia")], recommandation: "Promouvoir Axia aux marchands qui ne l'utilisent pas.", lien: "/admin/ia" },
+    { id: "ia", nom: "IA", causes: [cause("adoption_ia"), cause("requetes_ia")], recommandation: "Promouvoir Stella aux marchands qui ne l'utilisent pas.", lien: "/admin/ia" },
     { id: "operations", nom: "Opérations", causes: [cause("livraison"), cause("delai_livraison")], recommandation: "Analyser les échecs de livraison par zone.", lien: "/admin/operations" },
   ]).map((s) => ({ ...s, nom: t(s.nom), causes: s.causes.map((c) => t(c)), recommandation: t(s.recommandation), score: a[s.id as keyof typeof a], precedent: b[s.id as keyof typeof b] }));
   return { global: moyenne(sous.map((s) => s.score)), precedent: moyenne(sous.map((s) => s.precedent)), sous };

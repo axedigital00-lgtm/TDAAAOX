@@ -1,5 +1,5 @@
 // AXSO CONTROL — côté serveur : jetons OAuth des IA externes et exécution de leurs
-// appels d'outils. Deux sources d'outils, un seul circuit : les outils d'AXIA
+// appels d'outils. Deux sources d'outils, un seul circuit : les outils de Stella
 // (lib/axia/tools.ts) et les modules spécialisés (lib/controle-ia/modules). Pour chaque
 // appel : droits → politique (accord du marchand) → idempotence → exécution → reçu → journal.
 // La boutique et le compte viennent TOUJOURS du jeton, jamais des paramètres envoyés par l'IA.
@@ -133,7 +133,7 @@ export async function contexteDuJeton(bearer: string | null): Promise<ContexteIA
   return contexteDeConnexion(j.connexionId);
 }
 
-/** Les IA externes passent par le même palier qu'AXIA (Pro et plus) ; certains outils demandent le palier supérieur (OutilIA.tier). */
+/** Les IA externes passent par le même palier que Stella (Pro et plus) ; certains outils demandent le palier supérieur (OutilIA.tier). */
 export const planSuffisant = (plan: Palier) => palierAuMoins(plan, "palier1");
 
 // ─── Limites de débit ────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ export function debitDepasse(ctx: ContexteIA, ip: string): boolean {
 // ─── Catalogue d'outils ──────────────────────────────────────────────────────
 interface Fiche extends Omit<OutilIA, "module" | "risque"> { module: ModuleKey | null; risque: Risque; source: "coeur" | "axia" | ModuleIA }
 
-// Jamais exposés : la délégation AXIA lance des sous-agents qui n'appliquent pas les droits (voir axso_delegate, module objectifs).
+// Jamais exposés : la délégation Stella lance des sous-agents qui n'appliquent pas les droits (voir axso_delegate, module objectifs).
 // modifier_produit / supprimer_produit : les IA externes ont update_product, manage_variants, adjust_inventory et
 // delete_catalog_item, soumis à leurs propres limites (variation de prix, risque élevé).
 const EXCLUS = new Set(["deleguer_vers_agent", "modifier_produit", "supprimer_produit"]);
@@ -182,18 +182,18 @@ const COEUR: Fiche[] = [
   { name: "axso_annuler_action", description: "Annule une modification faite par cette connexion (prix, fiche produit, thème, pages, réglages) : remet l'état d'avant, si personne n'a modifié l'élément depuis. L'action_id est renvoyé par chaque modification.", parameters: objet({ action_id: { type: "string" } }, ["action_id"]), niveauEcriture: true },
 ].map(({ niveauEcriture, ...o }: any) => ({ ...o, module: null, niveau: niveauEcriture ? "ecriture" : "lecture", risque: "faible", capacite: "controle", source: "coeur" }) as Fiche);
 
-const AXIA: Fiche[] = AXIA_TOOLS.filter((o) => !EXCLUS.has(o.name) && niveauRequis(o.name)).map((o) => ({
+const Stella: Fiche[] = AXIA_TOOLS.filter((o) => !EXCLUS.has(o.name) && niveauRequis(o.name)).map((o) => ({
   name: o.name, description: o.description, parameters: o.parameters as Fiche["parameters"], tier: o.tier,
   module: moduleRequis(o.name), niveau: niveauRequis(o.name)!, risque: risqueOutil(o.name, estSensible(o.name)),
   scope: scopeFinAxia(o.name), capacite: CAPACITES_AXIA[moduleRequis(o.name)!], source: "axia",
   ...(o.name === "meta_creer_campagne_ads" && { montant: (a: Record<string, any>) => ({ type: "pub" as const, valeur: Number(a.budget_jour) }) }),
 }));
 
-// Un nom d'outil n'existe qu'une fois : le cœur puis AXIA l'emportent sur un module qui le redéclarerait.
+// Un nom d'outil n'existe qu'une fois : le cœur puis Stella l'emportent sur un module qui le redéclarerait.
 const CATALOGUE: Fiche[] = (() => {
   const vus = new Set<string>();
   const modules = MODULES_IA.flatMap((m) => m.outils.map((o) => ({ ...o, risque: o.risque ?? "faible", scope: o.scope ?? scopeFinAxia(o.name), source: m }) as Fiche));
-  return [...COEUR, ...AXIA, ...modules].filter((f) => !vus.has(f.name) && vus.add(f.name));
+  return [...COEUR, ...Stella, ...modules].filter((f) => !vus.has(f.name) && vus.add(f.name));
 })();
 const fiche = (nom: string) => CATALOGUE.find((f) => f.name === nom);
 

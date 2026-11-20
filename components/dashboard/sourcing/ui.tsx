@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Loader2, Info } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 
-export const POLICE = { fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" } as const;
+export const POLICE = { fontFamily: "var(--merchant-font)" } as const;
 
 /** Lecture d'une route /api/sourcing : données, chargement, erreur, rechargement. */
 export function useApi<T>(url: string | null) {

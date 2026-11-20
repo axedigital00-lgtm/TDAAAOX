@@ -1,4 +1,4 @@
-// AXIA ne fait jamais disparaître l'en-tête (navbar) de la page d'accueil.
+// Stella ne fait jamais disparaître l'en-tête (navbar) de la page d'accueil.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { protegerEntete } from "@/lib/agent-actions";

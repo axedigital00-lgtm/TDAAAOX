@@ -2,7 +2,7 @@ import { aiLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { annoncerInscription } from "@/lib/push";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/mots-de-passe";
 import { analyserBusinessEtCreerPlan, deviseDuPays } from "@/lib/ai-agent";
 import { slugify, slugBoutiqueValide } from "@/lib/utils";
 import { z } from "zod";

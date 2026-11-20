@@ -96,7 +96,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
           {(() => { const pire = score.sous.filter((s) => s.score != null).sort((x, y) => x.score! - y.score!)[0]; return pire ? <p className="text-[12px] mt-3 pt-3 border-t cc-sep"><span className="cc-faint">{tx("Point faible :")} </span><strong>{pire.nom}</strong> — {pire.recommandation}</p> : null; })()}
         </Carte>
 
-        <Carte titre="Axia Executive Brief" sousTitre={tx("Généré à partir des données · {0}", tx(f.libelle).toLowerCase())} className="order-2 lg:order-3 lg:col-span-2 xl:col-span-1">
+        <Carte titre="Stella Executive Brief" sousTitre={tx("Généré à partir des données · {0}", tx(f.libelle).toLowerCase())} className="order-2 lg:order-3 lg:col-span-2 xl:col-span-1">
           <ul className="space-y-1.5 text-[13px] leading-relaxed">
             {resume.phrases.map((p, i) => <li key={i} className="flex gap-2"><span className="cc-faint mt-[3px] text-[10px]">●</span><span>{p}</span></li>)}
           </ul>

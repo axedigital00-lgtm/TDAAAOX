@@ -1,4 +1,5 @@
 "use client";
+import { AxiaMark } from "@/components/dashboard/design-system/icons/Icon";
 import { AvatarCompte } from "@/components/dashboard/AvatarCompte";
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -13,9 +14,9 @@ import { useRouter } from "next/navigation";
 import { pageAOuvrir, ouvrirPage, sansMarque } from "@/lib/axia/pages";
 
 const AXIA_TUTORIAL_STEPS = [
-  { Icon: MessageSquare, titre: "Discute avec AXIA", description: "Pose n'importe quelle question sur ta boutique — ventes, stock, clients — ou demande-lui d'agir directement : créer un produit, lancer une promo, relancer un client." },
-  { Icon: Mic,           titre: "Mode vocal",         description: "Touche l'icône téléphone pour parler à AXIA à voix haute — elle t'écoute, réfléchit et te répond, comme un vrai appel." },
-  { Icon: History,       titre: "Historique & Journal", description: "Toutes tes conversations sont sauvegardées (icône panneau à gauche). Le Journal liste chaque action qu'AXIA a effectuée pour toi, en toute transparence." },
+  { Icon: MessageSquare, titre: "Discute avec Stella", description: "Pose n'importe quelle question sur ta boutique — ventes, stock, clients — ou demande-lui d'agir directement : créer un produit, lancer une promo, relancer un client." },
+  { Icon: Mic,           titre: "Mode vocal",         description: "Touche l'icône téléphone pour parler à Stella à voix haute — elle t'écoute, réfléchit et te répond, comme un vrai appel." },
+  { Icon: History,       titre: "Historique & Journal", description: "Toutes tes conversations sont sauvegardées (icône panneau à gauche). Le Journal liste chaque action que Stella a effectuée pour toi, en toute transparence." },
   { Icon: Bell,          titre: "Notifications",      description: "La cloche en haut t'alerte en temps réel dès qu'une nouvelle commande ou un événement important arrive, même depuis cet écran." },
 ];
 
@@ -42,12 +43,12 @@ const SUGGESTIONS = [
 ];
 
 const THINKING_MSGS = [
-  "AXIA réfléchit…",
-  "AXIA analyse les données…",
-  "AXIA vérifie ta boutique…",
-  "AXIA prépare sa réponse…",
-  "AXIA compare les options…",
-  "AXIA consulte le catalogue…",
+  "Stella réfléchit…",
+  "Stella analyse les données…",
+  "Stella vérifie ta boutique…",
+  "Stella prépare sa réponse…",
+  "Stella compare les options…",
+  "Stella consulte le catalogue…",
 ];
 
 const THINKING_VOICE_FILLERS = [
@@ -66,7 +67,7 @@ const PHASE_CONFIG: Record<VoicePhase, { orbGrad: string; orbShadow: string; rin
   speaking:  { orbGrad: "radial-gradient(circle at 35% 35%, #10b981, #059669)", orbShadow: "0 0 90px rgba(16,185,129,0.55)", ringColor: "#10b981" },
 };
 
-// Écran d'accueil du dashboard — AXIA est le point d'entrée principal et
+// Écran d'accueil du dashboard — Stella est le point d'entrée principal et
 // UNIQUE (plus de bulle flottante redondante ailleurs dans le dashboard) :
 // conversation texte + voix, pièces jointes, historique multi-fils.
 // Le contrôle d'accès Pro (palier0 → redirection) vit désormais en amont,
@@ -195,7 +196,7 @@ export function AxiaHomeClient() {
         if (!res.ok) throw new Error(`tts ${res.status}`);
         const blob = await res.blob();
         // Une lecture plus récente a commencé (ex. la réponse arrive avant la phrase d'attente) :
-        // on ne joue pas celle-ci, sinon deux voix se chevauchent ou AXIA parle pendant l'écoute.
+        // on ne joue pas celle-ci, sinon deux voix se chevauchent ou Stella parle pendant l'écoute.
         if (lecture !== lectureRef.current) { done?.(); return; }
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
@@ -213,7 +214,7 @@ export function AxiaHomeClient() {
 
   const speakThenListen = useCallback((text: string) => {
     setVoicePhase("speaking");
-    // Fin de lecture ignorée si une écoute a déjà repris entre-temps (bulle touchée pendant qu'AXIA parle).
+    // Fin de lecture ignorée si une écoute a déjà repris entre-temps (bulle touchée pendant que Stella parle).
     let lecture = -1; // -1 : lecture terminée tout de suite (voix coupée), rien n'a pu la remplacer
     speak(text, () => { if (voiceModeRef.current && (lecture === -1 || lectureRef.current === lecture)) setTimeout(() => startListening(), 250); });
     lecture = lectureRef.current;
@@ -279,7 +280,7 @@ export function AxiaHomeClient() {
           } else if (evt.type === "done") {
             finalActions = (evt.actions as string[]) ?? [];
           } else if (evt.type === "error") {
-            throw new Error((evt.text as string) || "Erreur Axia");
+            throw new Error((evt.text as string) || "Erreur Stella");
           }
         }
       }
@@ -293,7 +294,7 @@ export function AxiaHomeClient() {
         return next;
       });
       if (voiceModeRef.current) speakThenListen(txt);
-      // ouvrir_page : AXIA amène le marchand sur la page demandée.
+      // ouvrir_page : Stella amène le marchand sur la page demandée.
       const lien = pageAOuvrir(finalActions);
       if (lien) ouvrirPage(lien, router.push);
     } catch (err: any) {
@@ -344,7 +345,7 @@ export function AxiaHomeClient() {
 
   useEffect(() => { sendRef.current = (t) => sendMessage(t); }, [sendMessage]);
 
-  // Demandes venues de la bulle AXIA (components/dashboard/AxiaBulle.tsx) :
+  // Demandes venues de la bulle Stella (components/dashboard/AxiaBulle.tsx) :
   // événement si on est déjà ici, sinon ?axia=… dans l'URL.
   useEffect(() => {
     const demande = new URLSearchParams(window.location.search).get("axia");
@@ -485,11 +486,11 @@ export function AxiaHomeClient() {
   const isOrb = voicePhase === "listening" || voicePhase === "speaking";
 
   return (
-    <div className="h-full flex min-h-0" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="h-full flex min-h-0" style={{ fontFamily: "var(--merchant-font)" }}>
 
       <ModuleTutorial
         moduleKey="axia"
-        titre="AXIA"
+        titre="Stella"
         sousTitre={tr("Ton assistant boutique intelligent")}
         steps={AXIA_TUTORIAL_STEPS}
       />
@@ -548,7 +549,7 @@ export function AxiaHomeClient() {
                 ? <div className="w-10 h-10 rounded-full border-4 border-white/20 border-t-white animate-spin" />
                 : (
                   <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/25">
-                    <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
+                    <img src="/axia-icon.png" alt={tr("Stella")} className="w-full h-full object-cover" />
                   </div>
                 )}
               {voicePhase === "listening" && (
@@ -623,45 +624,41 @@ export function AxiaHomeClient() {
         </div>
       )}
 
-      <div className="flex-1 min-w-0 h-full flex flex-col min-h-0" style={{ background: "linear-gradient(160deg,#111111 0%,#1a1a1a 55%,#0a0a0a 100%)" }}>
+      <div className="flex-1 min-w-0 h-full flex flex-col min-h-0 axd-axia-full" style={{ background: "var(--color-bg)" }}>
         {/* Barre supérieure */}
-        <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 gap-2">
+        <div className="flex-shrink-0 flex items-center justify-between gap-2 axd-axia-full__bar">
           <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
             <button onClick={() => setSidebarOpen(v => !v)}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0"
+              className="axd-icon-btn"
               title={tr("Historique des conversations")}>
-              <PanelLeft size={14} className="text-white/60" />
+              <PanelLeft size={16} />
             </button>
             <button onClick={nouvelleConversation}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0"
+              className="axd-icon-btn"
               title={tr("Nouvelle conversation")}>
-              <Plus size={14} className="text-white/60" />
+              <Plus size={16} />
             </button>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden flex-shrink-0 ml-0.5 sm:ml-1" style={{ boxShadow: "0 0 20px rgba(245,166,35,0.25)" }}>
-              <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
-            </div>
-            <span className="hidden sm:inline text-white font-bold text-sm tracking-tight">AXIA</span>
-            <span className="hidden sm:block ml-0.5"><BoutonRevoirTutoriel moduleKey="axia" dark /></span>
+            <span style={{ marginLeft: 4 }}><AxiaMark /></span>
+            <span className="axd-axia-full__title">Stella</span>
+            <span className="hidden sm:block ml-0.5"><BoutonRevoirTutoriel moduleKey="axia" /></span>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <AxiaNotifBell />
             <button onClick={() => setTtsOn(v => !v)} title={tr("Réponses vocales")}
-              className="flex w-7 h-7 sm:w-8 sm:h-8 rounded-xl items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0">
-              {ttsOn ? <Volume2 size={13} className="text-white/60" /> : <VolumeX size={13} className="text-white/25" />}
+              className="axd-icon-btn">
+              {ttsOn ? <Volume2 size={16} /> : <VolumeX size={16} style={{ opacity: .5 }} />}
             </button>
             <button onClick={openVoiceMode} title={tr("Mode vocal")}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
-              style={{ background: "rgba(245,166,35,0.15)" }}>
-              <Phone size={12} className="text-[#F5A623]" />
+              className="axd-btn axd-btn--sm">
+              <Phone size={14} /><span className="hidden sm:inline">{tr("Mode vocal")}</span>
             </button>
             <Link href="/dashboard/axia/journal" title={tr("Journal")}
-              className="hidden sm:flex items-center gap-1.5 text-[11.5px] font-semibold text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-full px-3 py-1.5 transition-all flex-shrink-0">
-              <History size={12} />{" "}{tr("Journal")}
+              className="axd-btn axd-btn--sm axd-hide-m">
+              <History size={14} />{" "}{tr("Journal")}
             </Link>
             <Link href="/dashboard/accueil" title={tr("Tableau de bord")}
-              className="flex items-center gap-1.5 text-[11.5px] font-bold rounded-full px-2.5 sm:px-3.5 py-1.5 transition-all hover:opacity-90 flex-shrink-0"
-              style={{ background: "#F5A623", color: "#111111" }}>
-              <LayoutDashboard size={12} /> <span className="hidden sm:inline">{tr("Tableau de bord")}</span>
+              className="axd-btn axd-btn--sm axd-hide-m">
+              <LayoutDashboard size={14} /> {tr("Accueil")}
             </Link>
           </div>
         </div>
@@ -669,14 +666,11 @@ export function AxiaHomeClient() {
         {isEmpty ? (
           /* ── Écran d'accueil centré ────────────────────────────────── */
           <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-            <div className="ax-axia-mascot w-20 h-20 sm:w-24 sm:h-24 mb-5 rounded-3xl overflow-hidden"
-              style={{ boxShadow: "0 0 50px rgba(245,166,35,0.35), 0 8px 30px rgba(0,0,0,0.3)" }}>
-              <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white text-center mb-1.5">
+            <div style={{ marginBottom: 20 }}><AxiaMark size={44} /></div>
+            <h1 className="axd-axia-full__hero">
               {nomBoutique ? tr("Bonjour, {0}", nomBoutique) : tr("Bonjour")}
             </h1>
-            <p className="text-white/40 text-sm text-center mb-8">{tr("Que veux-tu faire pour ta boutique aujourd'hui ?")}</p>
+            <p className="axd-muted" style={{ textAlign: "center", margin: "0 0 28px" }}>{tr("Que veux-tu faire pour ta boutique aujourd'hui ?")}</p>
 
             <ChatInput
               input={input} setInput={setInput} loading={loading} pendingImage={pendingImage} setPendingImage={setPendingImage}
@@ -684,12 +678,10 @@ export function AxiaHomeClient() {
               autoGrow={autoGrowInput} centered
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 w-full max-w-2xl">
+            <div className="axd-chips" style={{ margin: "16px 0 0", maxWidth: 680 }}>
               {SUGGESTIONS.map(s => (
                 <button key={s} onClick={() => sendMessage(s)}
-                  className="flex items-center gap-2 text-left px-4 py-3 rounded-2xl text-[13px] text-white/70 hover:text-white transition-all"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <Sparkles size={12} className="flex-shrink-0" style={{ color: "#F5A623" }} />
+                  className="axd-chip" style={{ paddingRight: 12 }}>
                   {tr(s)}
                 </button>
               ))}
@@ -707,28 +699,27 @@ export function AxiaHomeClient() {
                 return (
                   <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden"
-                      style={m.role === "user" ? { background: "#F5A623" } : { background: "rgba(255,255,255,0.08)" }}>
+                      style={m.role === "user" ? { display: "none" } : undefined}>
                       {m.role === "assistant"
-                        ? <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
+                        ? <AxiaMark size={28} />
                         : <AvatarCompte nom={nomBoutique ?? "M"} className="w-full h-full" classeInitiales="text-[11px] font-bold text-[#111111]" />}
                     </div>
                     <div className="flex flex-col gap-1.5 min-w-0 break-words" style={{ maxWidth: "85%" }}>
                       {m.imageUrl && (
-                        <div className={`rounded-xl overflow-hidden border border-white/10 ${m.role === "user" ? "self-end" : ""}`} style={{ maxWidth: 200 }}>
+                        <div className={`overflow-hidden ${m.role === "user" ? "self-end" : ""}`} style={{ maxWidth: 200, borderRadius: "var(--radius-lg)", boxShadow: "0 0 0 1px var(--color-border)" }}>
                           <img src={m.imageUrl} alt="" className="w-full object-cover" />
                         </div>
                       )}
                       {text && (
                         <div className="relative group">
-                          <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${m.role === "user" ? "text-[#111111] font-medium" : "text-white/90"}`}
-                            style={m.role === "user" ? { background: "#F5A623" } : { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          <div className={m.role === "user" ? "axd-axia-msg axd-axia-msg--me" : "axd-axia-msg"} style={{ maxWidth: "none" }}>
                             {m.role === "assistant"
                               ? <div className="axia-md" dangerouslySetInnerHTML={{ __html: renderMarkdown(text || (m.streaming ? "" : m.content)) }} />
                               : <span className="whitespace-pre-wrap">{tr(text)}</span>}
                             {m.streaming && (
                               <span className="inline-flex gap-0.5 ml-1 align-middle">
                                 {[0, 1, 2].map(k => (
-                                  <span key={k} className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "rgba(255,255,255,0.4)", animation: `xdot 1s ${k * 0.15}s ease-in-out infinite` }} />
+                                  <span key={k} className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--color-text-subdued)", animation: `xdot 1s ${k * 0.15}s ease-in-out infinite` }} />
                                 ))}
                               </span>
                             )}
@@ -736,13 +727,13 @@ export function AxiaHomeClient() {
                           {m.role === "assistant" && text && !m.streaming && (
                             <div className="absolute -bottom-2 right-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1">
                               <button onClick={() => { navigator.clipboard.writeText(text); setCopiedIdx(i); setTimeout(() => setCopiedIdx(null), 1500); }}
-                                className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(20,20,20,0.9)", border: "1px solid rgba(255,255,255,0.1)" }} title={tr("Copier")}>
-                                {copiedIdx === i ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} className="text-white/50" />}
+                                className="axd-icon-btn" style={{ width: 24, height: 24, background: "var(--color-surface)", boxShadow: "var(--shadow-card)" }} title={tr("Copier")}>
+                                {copiedIdx === i ? <Check size={12} /> : <Copy size={12} />}
                               </button>
                               {isLast && !loading && (
                                 <button onClick={regenerateLast}
-                                  className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(20,20,20,0.9)", border: "1px solid rgba(255,255,255,0.1)" }} title={tr("Régénérer")}>
-                                  <RotateCcw size={10} className="text-white/50" />
+                                  className="axd-icon-btn" style={{ width: 24, height: 24, background: "var(--color-surface)", boxShadow: "var(--shadow-card)" }} title={tr("Régénérer")}>
+                                  <RotateCcw size={12} />
                                 </button>
                               )}
                             </div>
@@ -758,8 +749,8 @@ export function AxiaHomeClient() {
                       {m.actions && m.actions.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {m.actions.map((a, j) => (
-                            <span key={j} className="inline-flex items-center gap-1 text-[10.5px] px-2 py-0.5 rounded-lg font-medium" style={{ background: "rgba(16,185,129,0.12)", color: "#34d399", border: "1px solid rgba(16,185,129,0.25)" }}>
-                              <Sparkles size={9} /> {tr(sansMarque(a))}
+                            <span key={j} className="axd-badge axd-badge--success">
+                              {tr(sansMarque(a))}
                             </span>
                           ))}
                         </div>
@@ -771,16 +762,14 @@ export function AxiaHomeClient() {
 
               {loading && (
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-xl flex-shrink-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                    <img src="/axia-icon.png" alt={tr("Axia")} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="rounded-2xl px-4 py-3 flex items-center gap-2.5" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <AxiaMark size={28} />
+                  <div className="flex items-center gap-2.5" style={{ padding: "4px 0" }}>
                     <div className="flex gap-1 items-center">
                       {[0, 1, 2].map(j => (
-                        <div key={j} className="w-1.5 h-1.5 rounded-full" style={{ background: "#F5A623", animation: `xdot 1s ${j * 0.18}s ease-in-out infinite` }} />
+                        <div key={j} className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-text-subdued)", animation: `xdot 1s ${j * 0.18}s ease-in-out infinite` }} />
                       ))}
                     </div>
-                    <span className="text-[12px] text-white/40">{tr(THINKING_MSGS[thinkingMsgIdx])}</span>
+                    <span className="axd-muted" style={{ fontSize: 12 }}>{tr(THINKING_MSGS[thinkingMsgIdx])}</span>
                   </div>
                 </div>
               )}
@@ -798,13 +787,13 @@ export function AxiaHomeClient() {
           @keyframes xdot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}}
           .axia-md .axia-p{margin:0 0 8px}
           .axia-md .axia-p:last-child{margin-bottom:0}
-          .axia-md .axia-h1,.axia-md .axia-h2,.axia-md .axia-h3{font-weight:700;margin:10px 0 4px;color:#fff}
+          .axia-md .axia-h1,.axia-md .axia-h2,.axia-md .axia-h3{font-weight:650;margin:10px 0 4px;color:var(--color-text-strong)}
           .axia-md .axia-ul{margin:4px 0 8px;padding-left:18px}
           .axia-md .axia-li{margin:2px 0}
-          .axia-md .axia-link{color:#F5A623;text-decoration:underline}
-          .axia-md .axia-inline-code{background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:5px;font-size:0.85em}
-          .axia-md .axia-pre{background:rgba(0,0,0,0.3);border-radius:10px;padding:10px 12px;overflow-x:auto;margin:6px 0}
-          .axia-md .axia-bq{border-left:2px solid #F5A623;padding-left:10px;opacity:0.8;margin:6px 0}
+          .axia-md .axia-link{color:var(--color-link);text-decoration:underline}
+          .axia-md .axia-inline-code{background:var(--color-surface-tertiary);padding:1px 5px;border-radius:5px;font-size:0.85em}
+          .axia-md .axia-pre{background:var(--color-surface-secondary);border-radius:10px;padding:10px 12px;overflow-x:auto;margin:6px 0}
+          .axia-md .axia-bq{border-left:2px solid var(--color-border);padding-left:10px;color:var(--color-text-secondary);margin:6px 0}
         `}</style>
       </div>
     </div>
@@ -826,18 +815,17 @@ function ChatInput({
     <div className={centered ? "w-full max-w-2xl mx-auto" : "flex-shrink-0 px-4 sm:px-6 pb-4 sm:pb-6 pt-2 max-w-3xl w-full mx-auto"}>
       {pendingImage && (
         <div className="mb-2 relative inline-block">
-          <img src={pendingImage} alt="" className="h-16 rounded-xl border border-white/15" />
+          <img src={pendingImage} alt="" className="h-16" style={{ borderRadius: "var(--radius-lg)", boxShadow: "0 0 0 1px var(--color-border)" }} />
           <button onClick={() => setPendingImage(null)}
             className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center">
             <X size={10} className="text-white" />
           </button>
         </div>
       )}
-      <div className="flex items-end gap-2 rounded-2xl px-3 py-2.5 transition-colors"
-        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(10px)" }}>
+      <div className="flex items-end gap-2" style={{ background: "var(--color-surface)", borderRadius: "var(--radius-3xl)", boxShadow: "var(--shadow-ask)", padding: "12px 12px 10px" }}>
         <button onClick={() => fileRef.current?.click()}
-          className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors mb-0.5" title={tr("Joindre une image")}>
-          <Paperclip size={14} className="text-white/50" />
+          className="axd-icon-btn" title={tr("Joindre une image")} aria-label={tr("Joindre une image")}>
+          <Paperclip size={16} />
         </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
         <textarea
@@ -846,22 +834,20 @@ function ChatInput({
           rows={1}
           onChange={e => { setInput(e.target.value); autoGrow(e.target); }}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-          placeholder={tr("Demande n'importe quoi à AXIA…")}
+          placeholder={tr("Demande n'importe quoi à Stella…")}
           disabled={loading}
-          className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35 resize-none py-1 leading-relaxed min-w-0"
+          className="flex-1 bg-transparent outline-none resize-none py-1 min-w-0 axd-axia-full__input"
           style={{ maxHeight: 140 }}
         />
         {loading ? (
           <button onClick={onStop}
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5"
-            style={{ background: "linear-gradient(135deg,#ef4444,#b91c1c)" }} title={tr("Arrêter")}>
+            className="axd-btn axd-btn--critical axd-btn--sm" style={{ width: 30, padding: 0 }} title={tr("Arrêter")} aria-label={tr("Arrêter")}>
             <Square size={11} className="text-white" fill="white" />
           </button>
         ) : (
           <button onClick={onSend} disabled={!input.trim() && !pendingImage}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all disabled:opacity-40 flex-shrink-0 mb-0.5"
-            style={{ background: input.trim() || pendingImage ? "#F5A623" : "rgba(255,255,255,0.06)" }}>
-            <Send size={13} className={input.trim() || pendingImage ? "text-[#111111]" : "text-white/40"} />
+            className="axd-btn axd-btn--primary axd-btn--sm" style={{ width: 30, padding: 0 }} aria-label={tr("Envoyer")}>
+            <Send size={13} />
           </button>
         )}
       </div>

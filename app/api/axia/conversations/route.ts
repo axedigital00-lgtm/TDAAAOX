@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { accesComplet } from "@/lib/permissions-server";
 
-// Historique des discussions AXIA, façon ChatGPT — une conversation par fil,
+// Historique des discussions Stella, façon ChatGPT — une conversation par fil,
 // commutable, renommable, supprimable.
 // Les conversations n'ont pas d'auteur (pas de colonne userId) : l'historique,
 // qui contient chiffres et données clients, est réservé à l'accès complet. Un

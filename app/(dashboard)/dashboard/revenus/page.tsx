@@ -92,7 +92,7 @@ export default async function RevenusPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-[#111111] font-poppins inline-flex items-center gap-2">{t("Revenus")}{" "}<AgentActiveIndicator label={t("Agent Revenue actif")} /></h1>
+          <h1 className="text-2xl font-bold text-[#111111] font-[family-name:var(--merchant-font)] inline-flex items-center gap-2">{t("Revenus")}{" "}<AgentActiveIndicator label={t("Agent Revenue actif")} /></h1>
           <BoutonRevoirTutoriel moduleKey="revenus" />
         </div>
         <p className="text-[#717171] text-sm mt-1">{t("Analyse financière de votre boutique")}</p>
@@ -108,7 +108,7 @@ export default async function RevenusPage() {
             {t("Chiffre d'affaires · 30 jours")}
           </p>
         </div>
-        <p className="text-3xl md:text-5xl font-bold text-[#111111] font-poppins mb-2">
+        <p className="text-3xl md:text-5xl font-bold text-[#111111] font-[family-name:var(--merchant-font)] mb-2">
           {formatMontant(revenu30j, tenant.devise)}
         </p>
         <p className="text-[#717171] text-sm">
@@ -128,7 +128,7 @@ export default async function RevenusPage() {
               <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[#F4F4F4] mb-4">
                 <Icone size={16} style={{ color: m.accent }} />
               </div>
-              <p className="text-[#111111] text-xl font-bold font-poppins">{t(m.value)}</p>
+              <p className="text-[#111111] text-xl font-bold font-[family-name:var(--merchant-font)]">{t(m.value)}</p>
               <p className="text-[#717171] text-xs mt-1">{t(m.label)}</p>
               <p className="text-[#717171] text-[10px] mt-0.5">{t(m.description)}</p>
             </div>
@@ -145,7 +145,7 @@ export default async function RevenusPage() {
           </div>
           {jours.length > 0 && (
             <div className="text-right">
-              <p className="text-[#111111] font-bold font-poppins text-lg">
+              <p className="text-[#111111] font-bold font-[family-name:var(--merchant-font)] text-lg">
                 {formatMontant(jours.reduce((s, [, v]) => s + v, 0), tenant.devise)}
               </p>
               <p className="text-[#717171] text-xs">{t("sur la période")}</p>
@@ -232,7 +232,7 @@ export default async function RevenusPage() {
                   <p className="text-[#717171] text-xs">{t(ligne.description)}</p>
                 </div>
               </div>
-              <span className="font-bold text-base font-poppins" style={{ color: ligne.amountClass }}>
+              <span className="font-bold text-base font-[family-name:var(--merchant-font)]" style={{ color: ligne.amountClass }}>
                 {formatMontant(ligne.montant, tenant.devise)}
               </span>
             </div>
@@ -258,7 +258,7 @@ export default async function RevenusPage() {
             </div>
             <div className="mt-4 pt-4 border-t border-[#E8E8E8] flex items-center justify-between">
               <span className="text-[#717171] text-xs">{t("Total prélevé")}</span>
-              <span className="font-bold text-sm font-poppins text-[#7C3AED]">
+              <span className="font-bold text-sm font-[family-name:var(--merchant-font)] text-[#7C3AED]">
                 {formatMontant(totalCommissions, tenant.devise)}
               </span>
             </div>
@@ -281,7 +281,7 @@ export default async function RevenusPage() {
             </div>
             <div className="mt-4 pt-4 border-t border-[#E8E8E8] flex items-center justify-between">
               <span className="text-[#717171] text-xs">{t("Période analysée")}</span>
-              <span className="font-bold text-sm font-poppins text-[#111111]">{t("30 jours")}</span>
+              <span className="font-bold text-sm font-[family-name:var(--merchant-font)] text-[#111111]">{t("30 jours")}</span>
             </div>
           </div>
         </Link>

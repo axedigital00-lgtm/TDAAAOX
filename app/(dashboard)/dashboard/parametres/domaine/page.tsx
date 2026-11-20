@@ -64,7 +64,7 @@ export default function DomainePage() {
   return (
     <div className="space-y-5 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Domaine personnalisé")}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Domaine personnalisé")}</h1>
         <p className="text-gray-400 text-sm mt-1">{t("Servez votre boutique sur votre propre nom de domaine (ex : boutique.mondomaine.com)")}</p>
       </div>
 

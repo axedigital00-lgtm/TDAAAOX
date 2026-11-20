@@ -4,7 +4,7 @@ import { requireNiveau } from "@/lib/permissions-server";
 import { changerStatutCommande } from "@/lib/cycle-livraison";
 
 // Toute la logique (transitions, code de remise, WhatsApp, commission…) vit
-// dans lib/cycle-livraison.ts, partagée avec AXIA et les agents.
+// dans lib/cycle-livraison.ts, partagée avec Stella et les agents.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });

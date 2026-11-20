@@ -42,7 +42,7 @@ export async function chargerReel(): Promise<Dataset> {
     prisma.produit.groupBy({ by: ["tenantId"], _count: { _all: true }, _min: { createdAt: true } }),
     prisma.walletTransaction.findMany({ where: { reference: { startsWith: "SUB-" }, wallet: { tenant: { slug: PLATFORM_TENANT_SLUG } } }, select: { reference: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
     prisma.usageIA.findMany({ select: { tenantId: true, type: true, nombre: true, cout: true, updatedAt: true } }),
-    // Requêtes Axia = messages envoyés par le marchand (pas 1 par conversation).
+    // Requêtes Stella = messages envoyés par le marchand (pas 1 par conversation).
     prisma.$queryRaw<{ tenantId: string; updatedAt: Date; n: number }[]>`SELECT "tenantId", "updatedAt", (SELECT count(*)::int FROM jsonb_array_elements(CASE WHEN jsonb_typeof(messages) = 'array' THEN messages ELSE '[]'::jsonb END) m WHERE m->>'role' = 'user') AS n FROM "AxiaConversation"`,
     prisma.stockMouvement.findMany({ where: { type: { not: "vente" } }, select: { tenantId: true, createdAt: true } }),
     Promise.all([

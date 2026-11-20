@@ -175,7 +175,7 @@ export default function WalletPage() {
 
   return (
     <div className="space-y-5 max-w-5xl"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+      style={{ fontFamily: "var(--merchant-font)" }}>
       <ModuleTutorial moduleKey="wallet" titre={tr("Wallet")} sousTitre={tr("Ton solde et tes mouvements")} steps={WALLET_TUTORIAL_STEPS} />
 
       {/* ── Header ── */}

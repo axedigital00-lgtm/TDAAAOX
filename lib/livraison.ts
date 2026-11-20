@@ -112,7 +112,7 @@ export async function fraisLivraisonServeur(params: {
 
 const normaliser = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
 
-/** Texte libre (Axia, anciennes règles) → pays d'une règle : « Cameroun » → [CM],
+/** Texte libre (Stella, anciennes règles) → pays d'une règle : « Cameroun » → [CM],
  *  « UEMOA »/« CEMAC » → le groupe, « International »/« Afrique »/« Tous » → [] (tous) ;
  *  null si ce n'est pas un pays (alors c'est un quartier/une ville). */
 export function paysDepuisTexte(texte?: string | null): string[] | null {
@@ -125,7 +125,7 @@ export function paysDepuisTexte(texte?: string | null): string[] | null {
   return pays ? [pays.code] : null;
 }
 
-/** « Cameroun, Gabon · Akwa » — résumé lisible d'une règle (Axia, listes). */
+/** « Cameroun, Gabon · Akwa » — résumé lisible d'une règle (Stella, listes). */
 export function decrireRegle(r: { pays: string[]; zone: string }): string {
   const noms = r.pays.length ? r.pays.map((c) => PAYS_OPTIONS.find((p) => p.code === c)?.nom ?? c).join(", ") : "Tous les pays";
   return r.zone ? `${noms} · ${r.zone}` : noms;

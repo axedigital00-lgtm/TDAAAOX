@@ -90,10 +90,10 @@ export default function ChargesPage() {
     await modifier(fetch(`/api/pos/charges/${id}`, { method: "DELETE" }));
   }
 
-  const inp = "mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#F5A623]/60";
+  const inp = "mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-[#1a1a1a]/60";
 
   return (
-    <div className="p-5 max-w-5xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <div className="p-5 max-w-5xl mx-auto space-y-5" style={{ fontFamily: "var(--merchant-font)" }}>
       <ModuleTutorial moduleKey="pos-charges" titre={t("Charges d'exploitation")} sousTitre={t("Module Point de vente")} steps={CHARGES_TUTORIAL_STEPS} />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -103,18 +103,18 @@ export default function ChargesPage() {
           </div>
           <p className="text-[12px] text-gray-500">{t("Loyer, salaires, énergie... les coûts fixes de votre boutique physique")}</p>
         </div>
-        {!echec && <button onClick={() => setShowForm(v => !v)} className="px-4 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-bold flex items-center gap-1.5">
+        {!echec && <button onClick={() => setShowForm(v => !v)} className="px-4 py-2 bg-[#1a1a1a] text-white rounded-xl text-[12px] font-bold flex items-center gap-1.5">
           <Plus size={13} />{" "}{t("Nouvelle charge")}
         </button>}
       </div>
 
       {stats && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="min-w-0 bg-white border border-gray-100 rounded-2xl p-4">
+          <div className="min-w-0 bg-white border border-gray-100 rounded-[12px] p-4">
             <p className="text-[17px] sm:text-[20px] [overflow-wrap:anywhere] font-bold text-[#111]">{fmt(stats.total)}</p>
             <p className="text-[10.5px] text-gray-400 mt-0.5">{t("Total enregistré")}</p>
           </div>
-          <div className="min-w-0 bg-white border border-gray-100 rounded-2xl p-4">
+          <div className="min-w-0 bg-white border border-gray-100 rounded-[12px] p-4">
             <p className="text-[17px] sm:text-[20px] [overflow-wrap:anywhere] font-bold text-amber-500">{fmt(stats.enAttente)}</p>
             <p className="text-[10.5px] text-gray-400 mt-0.5">{t("En attente de paiement")}</p>
           </div>
@@ -122,40 +122,40 @@ export default function ChargesPage() {
       )}
 
       {showForm && !echec && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
+        <div className="bg-white border border-gray-100 rounded-[12px] p-5 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Catégorie")}</label>
+              <label className="text-[10px] font-bold text-gray-400">{t("Catégorie")}</label>
               <select aria-label={t("Catégorie")} value={form.categorie} onChange={e => setForm(v => ({ ...v, categorie: e.target.value }))} className={`${inp} bg-white`}>
                 {CATEGORIES.map(c => <option key={c.v} value={c.v}>{t(c.l)}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Montant")} ({devise})</label>
+              <label className="text-[10px] font-bold text-gray-400">{t("Montant")} ({devise})</label>
               <input type="number" aria-label={t("Montant")} value={form.montant} onChange={e => setForm(v => ({ ...v, montant: e.target.value }))} className={inp} />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Description")}</label>
+              <label className="text-[10px] font-bold text-gray-400">{t("Description")}</label>
               <input aria-label={t("Description")} value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} placeholder={t("Ex: Loyer boutique — Janvier")} className={inp} />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Fréquence")}</label>
+              <label className="text-[10px] font-bold text-gray-400">{t("Fréquence")}</label>
               <select aria-label={t("Fréquence")} value={form.frequence} onChange={e => setForm(v => ({ ...v, frequence: e.target.value }))} className={`${inp} bg-white`}>
                 {FREQUENCES.map(f => <option key={f.v} value={f.v}>{t(f.l)}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Statut")}</label>
+              <label className="text-[10px] font-bold text-gray-400">{t("Statut")}</label>
               <select aria-label={t("Statut")} value={form.statut} onChange={e => setForm(v => ({ ...v, statut: e.target.value }))} className={`${inp} bg-white`}>
                 {Object.entries(STATUT_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t("Fournisseur (optionnel)")}</label>
+              <label className="text-[10px] font-bold text-gray-400">{t("Fournisseur (optionnel)")}</label>
               <input aria-label={t("Fournisseur (optionnel)")} value={form.fournisseur} onChange={e => setForm(v => ({ ...v, fournisseur: e.target.value }))} className={inp} />
             </div>
           </div>
-          <button onClick={creer} disabled={saving} className="px-5 py-2.5 bg-[#F5A623] text-white rounded-xl text-[12.5px] font-bold disabled:opacity-50">
+          <button onClick={creer} disabled={saving} className="px-5 py-2.5 bg-[#1a1a1a] text-white rounded-xl text-[12.5px] font-bold disabled:opacity-50">
             {saving ? "…" : t("Enregistrer")}
           </button>
         </div>
@@ -166,7 +166,7 @@ export default function ChargesPage() {
       ) : echec ? (
         echec.interdit ? <EtatNonAutorise texte={echec.message} /> : <EtatErreur texte={echec.message} onReessayer={() => { setLoading(true); charger(); }} />
       ) : charges.length === 0 ? (
-        <div className="py-10 text-center border-2 border-dashed border-gray-200 rounded-2xl">
+        <div className="py-10 text-center border-2 border-dashed border-gray-200 rounded-[12px]">
           <Receipt size={28} className="text-gray-200 mx-auto mb-3" />
           <p className="text-[13px] font-semibold text-[#111]">{t("Aucune charge enregistrée")}</p>
         </div>
@@ -175,9 +175,9 @@ export default function ChargesPage() {
           {charges.map(c => {
             const cfg = STATUT_CFG[c.statut] ?? STATUT_CFG.payee;
             return (
-              <div key={c.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-wrap items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#F5A62312" }}>
-                  <Receipt size={14} className="text-[#F5A623]" />
+              <div key={c.id} className="bg-white border border-gray-100 rounded-[12px] p-4 flex flex-wrap items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#f1f1f1" }}>
+                  <Receipt size={14} className="text-[#1a1a1a]" />
                 </div>
                 <div className="flex-1 min-w-[10rem]">
                   <p className="text-[13px] font-semibold text-[#111] truncate">{c.description}</p>

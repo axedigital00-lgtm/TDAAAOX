@@ -76,7 +76,7 @@ export default async function LivreurDashboard() {
   return (
     <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 lg:items-start">
       {/* Hero card */}
-      <div className="relative rounded-3xl overflow-hidden lg:col-span-2">
+      <div className="relative rounded-xl overflow-hidden lg:col-span-2">
         <div className="absolute inset-0 bg-gradient-to-br from-[#F5A623]/20 via-[#F5A623]/5 to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_#F5A62320,_transparent_60%)]" />
         <div className="relative p-6">
@@ -85,7 +85,7 @@ export default async function LivreurDashboard() {
               <p className="text-gray-400 text-sm mb-1">
                 {now.toLocaleDateString(t.loc, { weekday: "long", day: "numeric", month: "long" })}
               </p>
-              <h1 className="text-2xl font-bold text-white font-playfair">
+              <h1 className="text-2xl font-semibold tracking-tight text-white">
                 {t("Bonjour,")}{" "}{t(livreur.nom.split(" ")[0])}
               </h1>
               <p className="text-gray-400 text-sm mt-1 flex items-center gap-1">
@@ -126,17 +126,17 @@ export default async function LivreurDashboard() {
 
       {/* Espèces à reverser */}
       {aReverser.length > 0 && (
-        <div className="lg:col-span-2 rounded-3xl border border-[#F5A623]/25 bg-[#F5A623]/[0.07] p-5">
+        <div className="lg:col-span-2 rounded-xl border border-[#F5A623]/25 bg-[#F5A623]/[0.07] p-5">
           <p className="text-[#F5A623] font-semibold text-sm">{t("Espèces à reverser")}</p>
           <div className="mt-3 space-y-2">
             {aReverser.map(r => (
               <div key={`${r.boutique}|${r.devise}`} className="flex items-center justify-between gap-3">
-                <span className="text-gray-300 text-sm truncate">{t(r.boutique)}{" "}<span className="text-gray-500 text-xs">· {t("{0} livraison(s)", r.nb)}</span></span>
+                <span className="text-gray-300 text-sm truncate">{t(r.boutique)}{" "}<span className="text-gray-300 text-xs">· {t("{0} livraison(s)", r.nb)}</span></span>
                 <span className="text-white font-bold whitespace-nowrap">{formatMontant(r.total, r.devise)}</span>
               </div>
             ))}
           </div>
-          <p className="text-gray-500 text-xs mt-3">{t("Le montant disparaît dès que la boutique confirme avoir reçu l'argent.")}</p>
+          <p className="text-gray-300 text-xs mt-3">{t("Le montant disparaît dès que la boutique confirme avoir reçu l'argent.")}</p>
         </div>
       )}
 
@@ -167,7 +167,7 @@ export default async function LivreurDashboard() {
 
           {/* Détails commande */}
           {/* Pas de lien dans un lien (HTML invalide → erreur d'hydratation, et Maps/WhatsApp ouvraient la fiche) */}
-          <div className="bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 hover:border-[#F5A623]/30 rounded-2xl p-4 transition-all">
+          <div className="bg-[#171817] border border-white/15 hover:border-[#F5A623]/30 rounded-2xl p-4 transition-all">
               <Link href={`/livreur/commande/${commandePrioritaire.id}`} className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <p className="text-white font-bold">{t(commandePrioritaire.clientNom)}</p>
@@ -182,7 +182,7 @@ export default async function LivreurDashboard() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-[#F5A623] font-bold text-lg">{formatMontant(commandePrioritaire.montantTotal, commandePrioritaire.devise)}</p>
-                  <p className="text-gray-500 text-xs">{commandePrioritaire.lignes.length} article{commandePrioritaire.lignes.length > 1 ? "s" : ""}</p>
+                  <p className="text-gray-300 text-xs">{commandePrioritaire.lignes.length} article{commandePrioritaire.lignes.length > 1 ? "s" : ""}</p>
                 </div>
               </Link>
 
@@ -220,13 +220,13 @@ export default async function LivreurDashboard() {
               const st = STATUT[cmd.statut] || STATUT.confirmee;
               return (
                 <Link key={cmd.id} href={`/livreur/commande/${cmd.id}`}>
-                  <div className="flex items-center gap-3 bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-2xl p-3.5 hover:border-[#F5A623]/20 transition-all">
+                  <div className="flex items-center gap-3 bg-[#171817] border border-white/15 rounded-2xl p-3.5 hover:border-[#F5A623]/20 transition-all">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: st.bg }}>
                       <Package size={16} style={{ color: st.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">{t(cmd.clientNom)}</p>
-                      <p className="text-gray-500 text-xs flex items-center gap-1 mt-0.5">
+                      <p className="text-gray-300 text-xs flex items-center gap-1 mt-0.5">
                         <MapPin size={9} />{t(cmd.ville)}
                       </p>
                     </div>
@@ -245,7 +245,7 @@ export default async function LivreurDashboard() {
 
       {/* Aucune commande */}
       {commandesActives.length === 0 && (
-        <div className="lg:col-span-2 bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-3xl p-10 text-center">
+        <div className="lg:col-span-2 bg-[#171817] border border-white/15 rounded-xl p-10 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 flex items-center justify-center mx-auto mb-4">
             <Package size={28} className="text-[#F5A623]" />
           </div>

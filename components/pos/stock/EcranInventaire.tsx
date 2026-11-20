@@ -76,10 +76,10 @@ function Nouveau({ liste, caisseId, onCree, onFermer }: { liste: Liste; caisseId
       actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={demarrer} charge={envoi}>{t("Démarrer le comptage")}</Bouton></>}>
       <div className="space-y-3">
         <fieldset>
-          <legend className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Type d'inventaire")}</legend>
+          <legend className="text-[11px] font-semibold text-[#666666]">{t("Type d'inventaire")}</legend>
           <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {Object.entries(TYPES).map(([id, x]) => (
-              <label key={id} className={cn("flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12.5px] font-semibold has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#111111]", type === id ? "border-[#F5A623] bg-[#FFF7ED] text-[#111111]" : "border-[#E8E8E8] text-[#555555]")}>
+              <label key={id} className={cn("flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12.5px] font-semibold has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#111111]", type === id ? "border-[#1a1a1a] bg-[#f1f1f1] text-[#111111]" : "border-[#E8E8E8] text-[#555555]")}>
                 <input type="radio" name="type-inventaire" value={id} checked={type === id} onChange={() => setType(id)} className="sr-only" />{t(x.libelle)}
               </label>
             ))}
@@ -89,13 +89,13 @@ function Nouveau({ liste, caisseId, onCree, onFermer }: { liste: Liste; caisseId
         {liste.lieux.length > 1 && <SelectLieu label="Lieu compté" lieux={liste.lieux} valeur={entrepotId} onChange={setEntrepotId} />}
         {avecCategories && (
           <fieldset>
-            <legend className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Catégories")}</legend>
+            <legend className="text-[11px] font-semibold text-[#666666]">{t("Catégories")}</legend>
             {dispo.charge ? <p className="mt-1 text-[12px] text-[#888888]">{t("Chargement…")}</p> : !dispo.donnees?.categories?.length ? <p className="mt-1 text-[12px] text-[#888888]">{t("Aucune catégorie n'est renseignée sur vos articles.")}</p> : (
               <div className="mt-1 flex flex-wrap gap-2">
                 {dispo.donnees.categories.map((c) => {
                   const coche = categories.includes(c.nom);
                   return (
-                    <label key={c.nom} className={cn("flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl border px-3 text-[12.5px] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#111111]", coche ? "border-[#F5A623] bg-[#FFF7ED] font-semibold" : "border-[#E8E8E8]")}>
+                    <label key={c.nom} className={cn("flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl border px-3 text-[12.5px] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#111111]", coche ? "border-[#1a1a1a] bg-[#f1f1f1] font-semibold" : "border-[#E8E8E8]")}>
                       <input type="checkbox" checked={coche} onChange={() => setCategories((l) => (coche ? l.filter((x) => x !== c.nom) : [...l, c.nom]))} className="sr-only" />
                       {c.nom} <span className="text-[#888888]">({c.articles})</span>
                     </label>
@@ -223,11 +223,11 @@ function Comptage({ id, caisseId, onRetour }: { id: string; caisseId: string | n
               <p className="text-[12px] text-[#666666]">{t("Scannez les articles l'un après l'autre : chaque scan ajoute 1 (ou le poids de l'étiquette). Sur le téléphone appairé, choisissez le mode « Inventaire ».")}</p>
               {alerte && <p role="alert" className="flex items-start gap-2 rounded-xl bg-[#FEF2F2] px-3 py-2 text-[12.5px] text-[#B91C1C]"><AlertTriangle size={15} className="mt-0.5 flex-shrink-0" aria-hidden />{t(alerte)}</p>}
               {dernier && (
-                <div className="rounded-2xl border border-[#111111] p-3" aria-live="polite">
+                <div className="rounded-[12px] border border-[#111111] p-3" aria-live="polite">
                   <div className="flex items-center gap-3">
                     <Vignette src={dernier.image} taille={48} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[#666666]">{t("Dernier article compté")}</p>
+                      <p className="text-[10.5px] font-semibold text-[#666666]">{t("Dernier article compté")}</p>
                       <p className="truncate text-[14px] font-bold text-[#111111]">{dernier.nom}{dernier.variante ? ` — ${dernier.variante}` : ""}</p>
                     </div>
                     <BoutonIcone label={t("Retirer 1 (scan en trop)")} onClick={() => compter({ produitId: dernier.produitId, varianteId: dernier.varianteId, quantite: -1 }, nouvelleCle())} disabled={dernier.quantiteComptee < 1 || dernier.uniteVente === "kg"}><Minus size={18} aria-hidden /></BoutonIcone>
@@ -257,7 +257,7 @@ function Comptage({ id, caisseId, onRetour }: { id: string; caisseId: string | n
       )}
 
       {inv.statut === "a_valider" && aRecompter > 0 && (
-        <p role="status" className="flex items-start gap-2 rounded-2xl border border-[#FCD34D] bg-[#FFFBEB] p-3 text-[12.5px] text-[#92400E]"><AlertTriangle size={16} className="mt-0.5 flex-shrink-0" aria-hidden />
+        <p role="status" className="flex items-start gap-2 rounded-[12px] border border-[#FCD34D] bg-[#FFFBEB] p-3 text-[12.5px] text-[#92400E]"><AlertTriangle size={16} className="mt-0.5 flex-shrink-0" aria-hidden />
           {t("Le stock de {0} article(s) affiché(s) a bougé après leur comptage (ventes, réceptions). L'écart reste appliqué tel quel, sans effacer ces mouvements ; rouvrez le comptage pour les recompter en cas de doute.", aRecompter)}
         </p>
       )}
@@ -268,10 +268,10 @@ function Comptage({ id, caisseId, onRetour }: { id: string; caisseId: string | n
       </div>
 
       {!lignes.length ? <EtatVide titre={charge ? "Chargement…" : "Aucune ligne"} texte={filtre === "tous" && !q ? "Scannez un premier article pour commencer le comptage." : "Aucune ligne ne correspond."} compact /> : (
-        <div className={cn("overflow-x-auto rounded-2xl border border-[#E8E8E8] bg-white transition-opacity", charge && "opacity-60")}>
+        <div className={cn("overflow-x-auto rounded-[12px] border border-[#E8E8E8] bg-white transition-opacity", charge && "opacity-60")}>
           <table className="w-full min-w-[520px] text-left text-[12.5px]">
             <caption className="sr-only">{t("Lignes de l'inventaire : théorique, compté, écart")}</caption>
-            <thead><tr className="border-b border-[#F0F0F0] text-[10.5px] uppercase tracking-wide text-[#666666]">
+            <thead><tr className="border-b border-[#F0F0F0] text-[10.5px] text-[#666666]">
               <th scope="col" className="px-3 py-2 font-semibold">{t("Article")}</th>
               {["Théorique", "Compté", "Écart"].map((c) => <th key={c} scope="col" className="px-3 py-2 text-right font-semibold">{t(c)}</th>)}
             </tr></thead>
@@ -283,14 +283,14 @@ function Comptage({ id, caisseId, onRetour }: { id: string; caisseId: string | n
                       <Vignette src={l.image} taille={32} />
                       <span className="min-w-0">
                         <span className="block truncate font-semibold text-[#111111]">{l.nom}{l.variante ? ` — ${l.variante}` : ""}</span>
-                        <span className="block truncate text-[11px] text-[#888888]">{[l.sku, l.codeBarres].filter(Boolean).join(" · ")}{l.mouvementsDepuis !== 0 && <span className="font-semibold text-[#B45309]"> · {t("stock bougé depuis : {0}", signe(l.mouvementsDepuis, l.uniteVente, t.loc))}</span>}</span>
+                        <span className="block truncate text-[11px] text-[#888888]">{[l.sku, l.codeBarres].filter(Boolean).join(" · ")}{l.mouvementsDepuis !== 0 && <span className="font-semibold text-[#5e4200]"> · {t("stock bougé depuis : {0}", signe(l.mouvementsDepuis, l.uniteVente, t.loc))}</span>}</span>
                       </span>
                     </span>
                   </th>
                   <td className="px-3 py-2 text-right tabular-nums text-[#555555]">{qte(l.quantiteTheorique, l.uniteVente, t.loc)}</td>
                   <td className="px-3 py-2 text-right font-bold tabular-nums text-[#111111]">
                     {l.quantiteComptee === null ? <span className="font-normal text-[#AAAAAA]">{t("non compté")}</span> : qte(l.quantiteComptee, l.uniteVente, t.loc)}
-                    {peutCompter && <button type="button" onClick={() => { setDernier({ ligneId: l.id, produitId: l.produitId, varianteId: l.varianteId, nom: l.nom, variante: l.variante, image: l.image, uniteVente: l.uniteVente, quantiteTheorique: l.quantiteTheorique, quantiteComptee: l.quantiteComptee ?? 0, ecart: l.ecart ?? 0, ajoute: 0 }); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={cn("ml-2 min-h-11 rounded-lg px-2 text-[11.5px] font-semibold text-[#B45309] underline", FOCUS)}>{t("Corriger")}</button>}
+                    {peutCompter && <button type="button" onClick={() => { setDernier({ ligneId: l.id, produitId: l.produitId, varianteId: l.varianteId, nom: l.nom, variante: l.variante, image: l.image, uniteVente: l.uniteVente, quantiteTheorique: l.quantiteTheorique, quantiteComptee: l.quantiteComptee ?? 0, ecart: l.ecart ?? 0, ajoute: 0 }); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={cn("ml-2 min-h-11 rounded-lg px-2 text-[11.5px] font-semibold text-[#5e4200] underline", FOCUS)}>{t("Corriger")}</button>}
                   </td>
                   <td className={cn("px-3 py-2 text-right font-bold tabular-nums", (l.ecart ?? 0) < 0 ? "text-[#B91C1C]" : (l.ecart ?? 0) > 0 ? "text-[#15803D]" : "text-[#888888]")}>{l.ecart === null ? "—" : signe(l.ecart, l.uniteVente, t.loc)}</td>
                 </tr>
@@ -351,7 +351,7 @@ export function EcranInventaire() {
           <ul className={cn("space-y-2", charge && "opacity-60")}>
             {donnees.inventaires.map((i) => (
               <li key={i.id}>
-                <button type="button" onClick={() => setOuvert(i.id)} className={cn("flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#E8E8E8] bg-white p-4 text-left hover:border-[#F5A623]", FOCUS)}>
+                <button type="button" onClick={() => setOuvert(i.id)} className={cn("flex w-full flex-wrap items-center justify-between gap-2 rounded-[12px] border border-[#E8E8E8] bg-white p-4 text-left hover:border-[#8a8a8a]", FOCUS)}>
                   <span className="min-w-0">
                     <span className="block text-[13.5px] font-bold text-[#111111]">{t(TYPES[i.type]?.libelle ?? i.type)} · {i.entrepotNom ?? t("Lieu supprimé")}</span>
                     <span className="block text-[11.5px] text-[#666666]">{jour(i.demarreAt, t.loc, true)}{i.creePar ? ` · ${i.creePar}` : ""} · {t("{0} compté(s) sur {1}", i.comptees, i.lignes)}{i.valideAt ? ` · ${t("validé le {0}", jour(i.valideAt, t.loc))}${i.validePar ? ` (${i.validePar})` : ""}` : ""}</span>

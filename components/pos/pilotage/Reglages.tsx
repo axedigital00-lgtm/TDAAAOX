@@ -99,7 +99,7 @@ export function Reglages() {
         )}</Champ>
         <p className="mt-2 text-[12.5px] leading-relaxed text-[#666666]">{t(modele.description)}</p>
         <p className="mt-1 text-[12.5px] text-[#666666]">{t("Préréglage conseillé : mode {0} ; fonctions : {1}.", t(modele.mode === "pro" ? "pro" : "simple"), modele.flags.map((f) => t(EXPLICATION_FLAGS[f].libelle)).join(", "))}</p>
-        {modele.limites && <p role="note" className="mt-2 rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#B45309]">{t(modele.limites)}</p>}
+        {modele.limites && <p role="note" className="mt-2 rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#5e4200]">{t(modele.limites)}</p>}
         {peut && (
           <div className="mt-3">
             <Bouton variante="secondaire" charge={envoi === "modele"} onClick={() => void patch("modele", { mode: modele.mode, flags: Object.fromEntries(modele.flags.map((f) => [f, true])), reglages: modele.reglages }, "Préréglage appliqué.")}>{t("Appliquer ce préréglage")}</Bouton>
@@ -112,7 +112,7 @@ export function Reglages() {
         <div role="radiogroup" aria-label={t("Mode d'utilisation")} className="grid gap-3 sm:grid-cols-2">
           {([["simple", "Simple", "Scan, panier, paiement. Le menu ne montre que l'essentiel ; ouvrir une session de caisse n'est pas exigé."], ["pro", "Pro", "Tous les écrans : inventaires, achats, finance, clients, analytics, équipe, magasins. La session de caisse est exigée pour vendre."]] as const).map(([id, nom, texte]) => (
             <button key={id} type="button" role="radio" aria-checked={donnees.mode === id} disabled={!peut || envoi === "mode"} onClick={() => donnees.mode !== id && void patch("mode", { mode: id }, "Mode enregistré. Le menu se met à jour au prochain chargement de page.")}
-              className={`min-h-11 rounded-2xl border p-4 text-left transition-colors disabled:cursor-not-allowed ${FOCUS} ${donnees.mode === id ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#111111] hover:border-[#111111]"}`}>
+              className={`min-h-11 rounded-[12px] border p-4 text-left transition-colors disabled:cursor-not-allowed ${FOCUS} ${donnees.mode === id ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#111111] hover:border-[#111111]"}`}>
               <span className="block text-[14px] font-bold">{t(nom)}</span>
               <span className={`mt-1 block text-[12.5px] leading-relaxed ${donnees.mode === id ? "text-white/80" : "text-[#666666]"}`}>{t(texte)}</span>
             </button>
@@ -193,8 +193,8 @@ export function Reglages() {
           </Carte>
         </fieldset>
         {peut && (
-          <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-[#E8E8E8] bg-white/95 p-3 shadow-lg backdrop-blur">
-            {modifie && <span className="text-[12.5px] font-semibold text-[#B45309]">{t("Modifications non enregistrées")}</span>}
+          <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-end gap-3 rounded-[12px] border border-[#E8E8E8] bg-white/95 p-3 shadow-lg backdrop-blur">
+            {modifie && <span className="text-[12.5px] font-semibold text-[#5e4200]">{t("Modifications non enregistrées")}</span>}
             <Bouton variante="secondaire" disabled={!modifie} onClick={() => setBrouillon(extraire(donnees.reglages))}>{t("Annuler")}</Bouton>
             <Bouton type="submit" charge={envoi === "reglages"} disabled={!modifie || brouillon.paiements.modes.length === 0}>{t("Enregistrer les réglages")}</Bouton>
           </div>

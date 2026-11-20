@@ -8,7 +8,7 @@ import { AVEC_CENTIMES } from "./changement-devise";
 // `taux` = Tenant.commissionRate (0,10 par défaut) ; le numérique y ajoute SUPPLEMENT_NUMERIQUE.
 // Texte public : page /legal/politique-prix.
 export const SUPPLEMENT_NUMERIQUE = 0.03;
-export const TYPES_NUMERIQUES = new Set(["digital", "fichier", "formation", "licence", "bundle", "evenement", "bootcamp"]);
+export const TYPES_NUMERIQUES = new Set(["digital", "fichier", "formation", "licence", "bundle", "evenement", "bootcamp", "service", "abonnement", "parcours"]);
 
 /** Majoration d'un produit payé en ligne, selon son type. */
 export const tauxProduit = (taux: number, typeProduit: string) => (TYPES_NUMERIQUES.has(typeProduit) ? taux + SUPPLEMENT_NUMERIQUE : taux);

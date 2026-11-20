@@ -75,7 +75,7 @@ export function JournalAudit() {
     <Page>
       <EnTete titre="Journal d'audit" sousTitre="Annulations, remboursements, remises, mouvements et fermetures de caisse, réglages : chaque opération sensible, avec son auteur. En lecture seule." />
 
-      <div role="status" className={`flex flex-wrap items-center gap-3 rounded-2xl border p-4 ${i && !i.valide ? "border-[#FECACA] bg-[#FEF2F2]" : "border-[#E8E8E8] bg-white"}`}>
+      <div role="status" className={`flex flex-wrap items-center gap-3 rounded-[12px] border p-4 ${i && !i.valide ? "border-[#FECACA] bg-[#FEF2F2]" : "border-[#E8E8E8] bg-white"}`}>
         {i && !i.valide ? <ShieldAlert size={22} className="flex-shrink-0 text-[#B91C1C]" aria-hidden /> : <ShieldCheck size={22} className={`flex-shrink-0 ${i ? "text-[#15803D]" : "text-[#AAAAAA]"}`} aria-hidden />}
         <div className="min-w-0 flex-1 basis-60 text-[12.5px] leading-relaxed">
           {integrite.erreur ? <p className="text-[#B91C1C]">{t("L'intégrité du journal n'a pas pu être vérifiée :")} {t(integrite.erreur.message)}</p>
@@ -170,7 +170,7 @@ function Detail({ e, caisse }: { e: Entree; caisse: string | null }) {
       {cles.length === 0 ? <p className="text-[#888888]">{t("Cette opération n'a pas d'état avant / après enregistré.")}</p> : (
         <div className="overflow-x-auto">
           <table className="w-full text-[12.5px]">
-            <thead><tr className="border-b border-[#E8E8E8] text-left text-[11px] uppercase tracking-wide text-[#666666]"><th className="py-2 pr-3 font-semibold">{t("Champ")}</th><th className="py-2 pr-3 font-semibold">{t("Avant")}</th><th className="py-2 font-semibold">{t("Après")}</th></tr></thead>
+            <thead><tr className="border-b border-[#E8E8E8] text-left text-[11px] text-[#666666]"><th className="py-2 pr-3 font-semibold">{t("Champ")}</th><th className="py-2 pr-3 font-semibold">{t("Avant")}</th><th className="py-2 font-semibold">{t("Après")}</th></tr></thead>
             <tbody>
               {cles.map((cle) => {
                 const change = cle in avant && cle in apres && avant[cle] !== apres[cle];

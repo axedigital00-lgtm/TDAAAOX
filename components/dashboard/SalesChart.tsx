@@ -23,7 +23,7 @@ function TooltipCustom({ active, payload, label, devise }: any) {
       borderRadius: "16px",
       padding: "12px 16px",
       boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
-      fontFamily: "'Poppins',system-ui,sans-serif",
+      fontFamily: "var(--merchant-font)",
       minWidth: "150px",
     }}>
       <p style={{ fontSize: "11px", color: "#AAA", marginBottom: "8px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{t(label)}</p>
@@ -139,14 +139,14 @@ export function SalesChart({ donnees, devise = "XOF" }: SalesChartProps) {
           <XAxis
             dataKey="date"
             stroke="transparent"
-            tick={{ fill: "#C8C8C8", fontSize: 10.5, fontFamily: "'Poppins',sans-serif", fontWeight: 500 }}
+            tick={{ fill: "#C8C8C8", fontSize: 10.5, fontFamily: "var(--merchant-font)", fontWeight: 500 }}
             tickLine={false}
             axisLine={false}
             interval={period === 7 ? 0 : period === 14 ? 1 : 4}
           />
           <YAxis
             stroke="transparent"
-            tick={{ fill: "#C8C8C8", fontSize: 10.5, fontFamily: "'Poppins',sans-serif" }}
+            tick={{ fill: "#C8C8C8", fontSize: 10.5, fontFamily: "var(--merchant-font)" }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)}

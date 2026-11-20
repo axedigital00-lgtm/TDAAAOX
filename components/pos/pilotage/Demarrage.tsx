@@ -56,13 +56,13 @@ export function Demarrage() {
         <Bouton variante="secondaire" onClick={() => setDemo(true)}>{t("Essayer la caisse en démonstration")}</Bouton>
       </EnTete>
 
-      <div className="rounded-2xl border border-[#E8E8E8] bg-white p-4">
+      <div className="rounded-[12px] border border-[#E8E8E8] bg-white p-4">
         <div className="flex items-center justify-between gap-3 text-[13px]">
           <p className="font-bold text-[#111111]">{t("{0} étape(s) sur {1}", donnees.faites, donnees.total)}</p>
           {donnees.active && <Badge ton="positif">{t("Caisse activée")}</Badge>}
         </div>
         <div role="progressbar" aria-valuemin={0} aria-valuemax={donnees.total} aria-valuenow={donnees.faites} aria-label={t("Avancement de la mise en route")} className="mt-2 h-2 overflow-hidden rounded-full bg-[#F0F0F0]">
-          <div className="h-full rounded-full bg-[#F5A623] transition-[width]" style={{ width: `${(donnees.faites / donnees.total) * 100}%` }} />
+          <div className="h-full rounded-full bg-[#1a1a1a] transition-[width]" style={{ width: `${(donnees.faites / donnees.total) * 100}%` }} />
         </div>
       </div>
 
@@ -72,7 +72,7 @@ export function Demarrage() {
         {donnees.etapes.map((e, i) => {
           const def = ETAPES[e.id];
           return (
-            <li key={e.id} className={`rounded-2xl border bg-white p-4 ${e.id === prochaine ? "border-[#111111]" : "border-[#E8E8E8]"}`}>
+            <li key={e.id} className={`rounded-[12px] border bg-white p-4 ${e.id === prochaine ? "border-[#111111]" : "border-[#E8E8E8]"}`}>
               <div className="flex items-start gap-3">
                 <span className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${e.fait ? "bg-[#ECFDF5] text-[#15803D]" : "bg-[#F5F5F5] text-[#AAAAAA]"}`} aria-hidden>{e.fait ? <Check size={16} /> : <Circle size={14} />}</span>
                 <div className="min-w-0 flex-1">
@@ -106,7 +106,7 @@ export function Demarrage() {
       <Carte titre="Écrans utiles à votre commerce">
         <p className="mb-3 text-[12.5px] text-[#666666]">{t(modele.description)}</p>
         <div className="flex flex-wrap gap-2">{modele.fonctions.map((f) => <Bouton key={f.href} href={f.href} variante="secondaire" taille="compact">{t(f.libelle)}</Bouton>)}</div>
-        {modele.limites && <p role="note" className="mt-3 rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#B45309]">{t(modele.limites)}</p>}
+        {modele.limites && <p role="note" className="mt-3 rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#5e4200]">{t(modele.limites)}</p>}
       </Carte>
 
       <VisiteDemo ouverte={demo} onFermer={() => setDemo(false)} />

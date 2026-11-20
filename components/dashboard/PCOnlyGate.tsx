@@ -35,7 +35,7 @@ export function PCOnlyGate({ label = "Cette fonctionnalité" }: Props) {
       background: "linear-gradient(160deg, #080808 0%, #111 60%, #0a0a0a 100%)",
       display: "flex", flexDirection: "column", alignItems: "center",
       justifyContent: "center", padding: "32px 24px",
-      fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif",
+      fontFamily: "var(--merchant-font)",
     }}>
       {/* Ambient glow */}
       <div style={{

@@ -163,7 +163,7 @@ export function SelecteurClient({ valeur, onChoisir, caisseId, creation = true, 
           {liste.map((c, i) => (
             <li key={c.id} id={`${idListe}-${i}`} role="option" aria-selected={i === actif}>
               <button type="button" onClick={() => choisir(c)} onMouseEnter={() => setActif(i)}
-                className={cn("flex min-h-11 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors", FOCUS, i === actif ? "border-[#F5A623] bg-[#FFF7ED]" : "border-[#F0F0F0] bg-white")}>
+                className={cn("flex min-h-11 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors", FOCUS, i === actif ? "border-[#1a1a1a] bg-[#f1f1f1]" : "border-[#F0F0F0] bg-white")}>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] font-semibold text-[#111111]">{c.nom}</span>
                   <span className="block truncate text-[12px] text-[#666666]">{c.telephone ?? c.email ?? t("Sans téléphone")}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>

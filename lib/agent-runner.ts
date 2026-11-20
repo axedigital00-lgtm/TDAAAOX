@@ -1,5 +1,5 @@
 /**
- * Agent AXIA — moteur Gemini exclusif (SDK officiel @google/genai)
+ * Agent Stella — moteur Gemini exclusif (SDK officiel @google/genai)
  *
  * Phase 1 — Tool execution : Gemini (function calling)
  * Phase 2 — Synthèse de réponse : Gemini streaming natif

@@ -48,7 +48,7 @@ export function ReglagesMagasins({ peutGerer }: { peutGerer: boolean }) {
         : (
           <ul className="space-y-3">
             {donnees.magasins.map((m) => (
-              <li key={m.id} className="rounded-2xl border border-[#E8E8E8] p-3">
+              <li key={m.id} className="rounded-[12px] border border-[#E8E8E8] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 basis-40 text-[14px] font-bold text-[#111111]">{m.nom}{m.ville && <span className="ml-2 text-[12px] font-normal text-[#666666]">{m.ville}</span>}</p>
                   {m.demo && <Badge ton="info">{t("DÉMO")}</Badge>}

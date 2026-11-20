@@ -1,4 +1,4 @@
-// Axia — voix off éphémère pour le mode vocal (pas de persistance, contrairement à /api/ai/voix-off)
+// Stella — voix off éphémère pour le mode vocal (pas de persistance, contrairement à /api/ai/voix-off)
 // TTS natif Gemini (gemini-3.1-flash-tts-preview) — pas de fournisseur tiers.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return new Response(buf, { headers: { "Content-Type": "audio/wav", "Cache-Control": "no-store" } });
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ message: "Format invalide" }, { status: 400 });
-    console.error("[AXIA/VOIX]", err);
+    console.error("[Stella/VOIX]", err);
     return NextResponse.json({ message: "Erreur TTS" }, { status: 502 });
   }
 }

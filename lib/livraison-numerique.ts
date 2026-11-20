@@ -19,6 +19,9 @@ import { envoyerConfirmationCommande, envoyerMiseAJourProduit, envoyerOffreNouve
 import { lienBoutique } from "./origine-site";
 import { accorderPlaceCommande, revoquerInscriptionsCommande, refusVenteLive } from "./live/service";
 import { cleApprenant } from "./formation/regles";
+import { accorderService } from "./numerique/service";
+import { accorderAdhesion } from "./numerique/abonnement";
+import { finAccesFormation } from "./numerique/regles";
 
 type Tx = Prisma.TransactionClient;
 
@@ -100,6 +103,13 @@ export async function revoquerAccesCommande(tx: Tx, commandeId: string) {
   await tx.livraisonDigitale.updateMany({ where: { commandeId }, data: { statut: "revoquee" } });
   // Live Academy / bootcamps : place coupée et rendue, attestation coupée.
   await revoquerInscriptionsCommande(tx, commandeId);
+  // Services : suivi annulé, séances à venir libérées. Abonnement : adhésion annulée.
+  const services = await tx.commandeService.findMany({ where: { commandeId }, select: { id: true } });
+  if (services.length) {
+    await tx.commandeService.updateMany({ where: { commandeId }, data: { statut: "annule" } });
+    await tx.seanceService.updateMany({ where: { commandeServiceId: { in: services.map((s) => s.id) }, statut: { in: ["en_attente", "confirmee"] } }, data: { statut: "annulee" } });
+  }
+  await tx.adhesion.updateMany({ where: { commandeIds: { has: commandeId }, statut: "active" }, data: { statut: "annulee" } });
   // Formations : la page d'accès exige déjà une commande payée ; on marque aussi l'accès révoqué
   // et on coupe le certificat, sauf si l'apprenant garde un autre achat payé de la même formation.
   const acces = await tx.accesFormation.findMany({ where: { commandeId, revoqueAt: null }, select: { produitId: true, clientEmail: true } });
@@ -125,33 +135,50 @@ type ProduitLivrable = {
   instructionsTelechargement: string | null;
   produitFichier: { _count: { fichiers: number } } | null;
   licenceProduit: { id: string; dureeJours: number | null } | null;
-  formation: { id: string } | null;
+  formation: { id: string; accesDureeJours: number | null; mode: string } | null;
 };
 
 const SELECT_LIVRABLE = {
   id: true, nom: true, type: true, fichierUrl: true, instructionsTelechargement: true,
   produitFichier: { select: { _count: { select: { fichiers: true } } } },
   licenceProduit: { select: { id: true, dureeJours: true } },
-  formation: { select: { id: true } },
+  formation: { select: { id: true, accesDureeJours: true, mode: true } },
 } as const;
 
 /** Droit d'un produit pour une commande, créé une seule fois. "manque" : rien à livrer (fichier absent, clés épuisées). */
-async function livrerProduit(commande: { id: string; tenantId: string; clientEmail: string | null; clientNom?: string | null }, p: ProduitLivrable): Promise<"ok" | "manque" | "ignore"> {
+async function livrerProduit(commande: { id: string; tenantId: string; clientEmail: string | null; clientNom?: string | null }, p: ProduitLivrable, opts: { expireAt?: Date | null } = {}): Promise<"ok" | "manque" | "ignore"> {
   const dejaJeton = () => prisma.telechargement.findFirst({ where: { commandeId: commande.id, produitId: p.id }, select: { id: true } });
 
   if (p.type === "digital" || p.type === "fichier") {
     const aUnFichier = p.type === "digital" ? !!p.fichierUrl : (p.produitFichier?._count.fichiers ?? 0) > 0;
     if (!aUnFichier) return "manque";
-    if (await dejaJeton()) return "ok";
+    if (await dejaJeton()) {
+      if (opts.expireAt) await prisma.telechargement.updateMany({ where: { commandeId: commande.id, produitId: p.id, revoqueAt: null, expireAt: { lt: opts.expireAt } }, data: { expireAt: opts.expireAt } });
+      return "ok";
+    }
     // Accès à vie (décision métier) ; seule une durée choisie par le marchand sur le produit le limite.
-    const expireAt = finAcces(metaDigital(p.instructionsTelechargement).expirationAcces);
+    const expireAt = opts.expireAt ?? finAcces(metaDigital(p.instructionsTelechargement).expirationAcces);
     await prisma.telechargement.create({ data: { produitId: p.id, commandeId: commande.id, token: nouveauJeton(), expireAt } });
     return "ok";
   }
 
   if (p.type === "formation") {
-    if (await prisma.accesFormation.findFirst({ where: { commandeId: commande.id, produitId: p.id }, select: { id: true } })) return "ok";
-    await prisma.accesFormation.create({ data: { produitId: p.id, commandeId: commande.id, token: nouveauJeton(), clientEmail: commande.clientEmail ?? "" } });
+    if (await prisma.accesFormation.findFirst({ where: { commandeId: commande.id, produitId: p.id }, select: { id: true } })) {
+      if (opts.expireAt) await prisma.accesFormation.updateMany({ where: { commandeId: commande.id, produitId: p.id, revoqueAt: null, expireAt: { lt: opts.expireAt } }, data: { expireAt: opts.expireAt } });
+      return "ok";
+    }
+    // Cohorte : place dans la prochaine session ouverte (prise atomique), accès borné par sa fin.
+    let session: { id: string; fin: Date | null } | null = null;
+    if (p.formation?.mode === "cohorte") {
+      const candidates = await prisma.sessionFormation.findMany({ where: { formationId: p.formation.id, statut: "ouverte", OR: [{ fin: null }, { fin: { gt: new Date() } }] }, orderBy: { debut: "asc" }, select: { id: true, fin: true, places: true } });
+      for (const c of candidates) {
+        const { count } = await prisma.sessionFormation.updateMany({ where: { id: c.id, statut: "ouverte", ...(c.places ? { inscrits: { lt: c.places } } : {}) }, data: { inscrits: { increment: 1 } } });
+        if (count) { session = c; break; }
+      }
+      if (!session) return "manque";
+    }
+    const expireAt = opts.expireAt ?? finAccesFormation({ accesDureeJours: p.formation?.accesDureeJours ?? null, finSession: session?.fin ?? null });
+    await prisma.accesFormation.create({ data: { produitId: p.id, commandeId: commande.id, token: nouveauJeton(), clientEmail: commande.clientEmail ?? "", sessionId: session?.id ?? null, expireAt } });
     return "ok";
   }
 
@@ -178,6 +205,21 @@ async function livrerProduit(commande: { id: string; tenantId: string; clientEma
   // Événement live / bootcamp : une place, prise atomiquement ; "manque" si complet (le marchand est prévenu).
   if (p.type === "evenement" || p.type === "bootcamp") return accorderPlaceCommande(commande, p.id);
 
+  // Service : suivi client (brief, réservations, livrables) créé une fois.
+  if (p.type === "service") return accorderService(commande, p.id);
+
+  // Abonnement : adhésion créée ou prolongée, puis contenus inclus livrés jusqu'à l'échéance.
+  if (p.type === "abonnement") {
+    const r = await accorderAdhesion(commande, p.id);
+    if (r.statut !== "ok") return r.statut;
+    const inclus = await prisma.produit.findMany({ where: { id: { in: r.inclus } }, select: SELECT_LIVRABLE });
+    let complet = true;
+    for (const i of inclus) {
+      if (await livrerProduit(commande, i, { expireAt: r.expireAt }) !== "ok") complet = false;
+    }
+    return complet ? "ok" : "manque";
+  }
+
   return "ignore";
 }
 
@@ -202,9 +244,14 @@ async function produitsALivrer(produitIds: string[]): Promise<ProduitLivrable[]>
     where: { produitId: { in: produits.filter((p) => p.type === "bundle").map((p) => p.id) } },
     select: { elements: { select: { produitInclus: { select: SELECT_LIVRABLE } } } },
   });
+  // Un parcours livre ses formations, comme un bundle (le certificat final vient après).
+  const parcours = await prisma.parcoursProduit.findMany({
+    where: { produitId: { in: produits.filter((p) => p.type === "parcours").map((p) => p.id) } },
+    select: { etapes: { orderBy: { ordre: "asc" }, select: { formation: { select: SELECT_LIVRABLE } } } },
+  });
   // Un bundle livre chacun de ses produits inclus, sous leur propre identifiant.
-  const inclus = bundles.flatMap((b) => b.elements.map((e) => e.produitInclus));
-  return [...new Map([...produits, ...inclus].filter((p) => p.type !== "bundle").map((p) => [p.id, p])).values()];
+  const inclus = [...bundles.flatMap((b) => b.elements.map((e) => e.produitInclus)), ...parcours.flatMap((p) => p.etapes.map((e) => e.formation))];
+  return [...new Map([...produits, ...inclus].filter((p) => p.type !== "bundle" && p.type !== "parcours").map((p) => [p.id, p])).values()];
 }
 
 const VERROU_MS = 2 * 60_000;
@@ -222,7 +269,7 @@ export async function livrerCommandeDigitale(commandeId: string, opts: { renvoye
   const commande = await prisma.commande.findUnique({
     where: { id: commandeId },
     select: {
-      id: true, tenantId: true, numero: true, clientNom: true, clientEmail: true, montantTotal: true, devise: true,
+      id: true, tenantId: true, numero: true, clientNom: true, clientEmail: true, clientTelephone: true, montantTotal: true, devise: true,
       paiementStatut: true, statut: true,
       tenant: { select: { slug: true, nomBoutique: true } },
       lignes: { select: { nom: true, quantite: true, prix: true, produitId: true } },
@@ -233,9 +280,9 @@ export async function livrerCommandeDigitale(commandeId: string, opts: { renvoye
   if (commande.paiementStatut !== PAIEMENT.PAYE || commande.statut === "annulee") return { ok: false, raison: "non_payee" };
 
   const produits = await produitsALivrer(commande.lignes.map((l) => l.produitId));
-  if (!produits.some((p) => ["digital", "fichier", "formation", "licence", "evenement", "bootcamp"].includes(p.type))) return { ok: false, raison: "sans_digital" };
+  if (!produits.some((p) => ["digital", "fichier", "formation", "licence", "evenement", "bootcamp", "service", "abonnement"].includes(p.type))) return { ok: false, raison: "sans_digital" };
 
-  await prisma.livraisonDigitale.upsert({ where: { commandeId }, create: { commandeId, tenantId: commande.tenantId }, update: {} });
+  await prisma.livraisonDigitale.createMany({ data: [{ commandeId, tenantId: commande.tenantId }], skipDuplicates: true });
   const pris = await prisma.livraisonDigitale.updateMany({
     where: { commandeId, statut: { not: "revoquee" }, OR: [{ verrouAt: null }, { verrouAt: { lt: new Date(Date.now() - VERROU_MS) } }] },
     data: { verrouAt: new Date(), tentatives: { increment: 1 } },
@@ -246,7 +293,8 @@ export async function livrerCommandeDigitale(commandeId: string, opts: { renvoye
     const manques: string[] = [];
     const erreurs: string[] = [];
     let livres = 0;
-    for (const p of produits) {
+    // Les achats directs sont livrés avant leurs éventuels doublons en abonnement.
+    for (const p of [...produits.filter(p => p.type !== "abonnement"), ...produits.filter(p => p.type === "abonnement")]) {
       try {
         const r = await livrerProduit(commande, p);
         if (r === "ok") livres++;

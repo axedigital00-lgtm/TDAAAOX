@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import {  } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 
 export function MarquerRemisButton({ commandeIds }: { commandeIds: string[] }) {
@@ -29,13 +29,7 @@ export function MarquerRemisButton({ commandeIds }: { commandeIds: string[] }) {
   }
 
   return (
-    <button
-      onClick={marquerRemis}
-      disabled={loading}
-      className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold disabled:opacity-50"
-      style={{ background: "#10b981" }}
-    >
-      {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+    <button type="button" onClick={marquerRemis} disabled={loading} className="axd-btn axd-btn--primary">
       {loading ? t("Confirmation...") : t("Marquer comme remis")}
     </button>
   );

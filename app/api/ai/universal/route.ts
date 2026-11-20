@@ -1,4 +1,4 @@
-// Agent Universel AXIA — tous les outils fusionnés + connecteurs MCP
+// Agent Universel Stella — tous les outils fusionnés + connecteurs MCP
 import { calculerOptionsLivraison, paysDepuisTexte, decrireRegle } from "@/lib/livraison";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -24,7 +24,7 @@ import { executerOutilDirect } from "@/lib/axia/tools";
 import { consigneLangue } from "@/lib/axia/style";
 import { getLangue } from "@/lib/i18n/serveur";
 
-// Livraisons : implémentation unique d'AXIA (lib/axia/tools.ts → lib/cycle-livraison.ts),
+// Livraisons : implémentation unique de Stella (lib/axia/tools.ts → lib/cycle-livraison.ts),
 // la copie locale ci-dessous ne passait ni par les contrôles ni par les notifications.
 const OUTILS_DELEGUES_AXIA = new Set(["dashboard_livraison", "assigner_livreur", "statut_commande"]);
 import { planActif } from "@/lib/abonnement";
@@ -43,7 +43,7 @@ const schema = z.object({
   stream: z.boolean().optional(),
 });
 
-const BASE_SYSTEM_PROMPT = `Tu t'appelles AXIA. Tu es l'agent IA intégré à la boutique sur Axso — une plateforme e-commerce pour l'Afrique francophone et la diaspora.
+const BASE_SYSTEM_PROMPT = `Tu t'appelles Stella. Tu es l'agent IA intégré à la boutique sur Axso — une plateforme e-commerce pour l'Afrique francophone et la diaspora.
 
 ─── IDENTITÉ ────────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ Afrique francophone (Sénégal, Côte d'Ivoire, Cameroun, etc.) + diaspora. Paie
 
 ─── EXEMPLES BONS VS MAUVAIS ────────────────────────────────────────────────
 
-❌ MAUVAIS — "Bonjour ! Je suis AXIA, votre assistant IA. Comment puis-je vous aider aujourd'hui ?"
+❌ MAUVAIS — "Bonjour ! Je suis Stella, votre assistant IA. Comment puis-je vous aider aujourd'hui ?"
 ✓ BON — "Bonjour ! Qu'est-ce que je peux faire pour toi ?"
 
 ❌ MAUVAIS — "Je vais maintenant appeler l'outil stats_globales pour récupérer vos données de ventes..."
@@ -1223,7 +1223,7 @@ const executeOutil: ToolExecutor = async (nom, args, tenantId) => {
             data: {
               tenantId,
               type: "escalade_humain",
-              titre: `[${urgenceLabel}] Escalade AXIA`,
+              titre: `[${urgenceLabel}] Escalade Stella`,
               message: `${args.raison}${args.contexte ? `\nContexte : ${args.contexte}` : ""}`,
             },
           }).catch(() => null);
@@ -1573,8 +1573,8 @@ const executeOutil: ToolExecutor = async (nom, args, tenantId) => {
   }
 };
 
-// Actions sensibles : demande d'accord dans la bulle AXIA, comme pour AXIA plein écran.
-// Une fois autorisées, elles sont exécutées par l'implémentation d'AXIA (mêmes noms d'outils).
+// Actions sensibles : demande d'accord dans la bulle Stella, comme pour Stella plein écran.
+// Une fois autorisées, elles sont exécutées par l'implémentation de Stella (mêmes noms d'outils).
 // Utilisé aussi par les sous-agents de deleguer_vers_agent : même circuit d'accord.
 const avecAccord: ToolExecutor = (nom, args, tid) =>
   estSensible(nom) ? demanderConfirmation(tid, nom, args)
@@ -1648,6 +1648,6 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ message: "Format invalide" }, { status: 400 });
     console.error("[AGENT/UNIVERSAL]", err);
-    return NextResponse.json({ message: "Erreur AXIA" }, { status: 500 });
+    return NextResponse.json({ message: "Erreur Stella" }, { status: 500 });
   }
 }

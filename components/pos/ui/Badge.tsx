@@ -8,7 +8,7 @@ import { TONS, type Ton } from "./tokens";
 
 export function Badge({ ton = "neutre", children, icone, className }: { ton?: Ton; children: React.ReactNode; icone?: React.ReactNode; className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold", className)} style={TONS[ton]}>
+    <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-[8px] px-2 py-0.5 text-[12px] font-medium", className)} style={TONS[ton]}>
       {icone}{children}
     </span>
   );
@@ -30,7 +30,7 @@ export function BadgePaiement({ statut }: { statut: "actif" | "declaratif" | "a_
 export function BadgeConnexion({ etat, enAttente }: { etat: "en_ligne" | "hors_ligne" | "synchronisation"; /** Opérations en attente d'envoi. */ enAttente?: number }) {
   const t = useT();
   if (etat === "en_ligne") {
-    return <Badge ton="positif" icone={<span className="h-1.5 w-1.5 rounded-full bg-[#15803D]" aria-hidden />}><span role="status">{t("En ligne")}</span></Badge>;
+    return <Badge ton="positif" icone={<span className="h-1.5 w-1.5 rounded-full bg-[#0c5132]" aria-hidden />}><span role="status">{t("En ligne")}</span></Badge>;
   }
   if (etat === "synchronisation") {
     return <Badge ton="info" icone={<Clock size={11} aria-hidden />}><span role="status">{t("Synchronisation…")}{enAttente ? ` (${enAttente})` : ""}</span></Badge>;

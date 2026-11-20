@@ -112,7 +112,7 @@ export default function ControleIAPage() {
   );
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-6" style={{ fontFamily: "var(--merchant-font)" }}>
       <div>
         <div className="flex items-center gap-2 mb-1">
           <Sparkles size={18} className="text-[#F5A623]" />

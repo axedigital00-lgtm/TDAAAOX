@@ -80,7 +80,7 @@ export function SelecteurClient({ caisseId, peutCreer, onChoisir, onFermer }: {
                 const disponible = c.creditPlafond != null && c.creditPlafond > 0 ? Math.max(0, c.creditPlafond - (c.creditUtilise ?? 0)) : null;
                 return (
                   <li key={c.id}>
-                    <button type="button" onClick={() => onChoisir(c)} className={cn("flex min-h-14 w-full flex-col justify-center rounded-xl border border-[#E8E8E8] bg-white px-3 py-2 text-left transition-colors hover:border-[#F5A623]", FOCUS)}>
+                    <button type="button" onClick={() => onChoisir(c)} className={cn("flex min-h-14 w-full flex-col justify-center rounded-xl border border-[#E8E8E8] bg-white px-3 py-2 text-left transition-colors hover:border-[#8a8a8a]", FOCUS)}>
                       <span className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-[#111111]">
                         {c.nom}
                         {c.niveauFidelite && c.pointsFidelite != null && <Badge ton="accent">{c.niveauFidelite} · {c.pointsFidelite} {t("points")}</Badge>}
@@ -97,7 +97,7 @@ export function SelecteurClient({ caisseId, peutCreer, onChoisir, onFermer }: {
           )}
 
         {peutCreer && !indisponible && (creation ? (
-          <form className="space-y-3 rounded-2xl border border-[#E8E8E8] p-3" onSubmit={(e) => { e.preventDefault(); creer(); }}>
+          <form className="space-y-3 rounded-[12px] border border-[#E8E8E8] p-3" onSubmit={(e) => { e.preventDefault(); creer(); }}>
             <Saisie label="Nom du client" autoFocus value={nom} onChange={(e) => setNom(e.target.value)} maxLength={120} autoComplete="off" />
             <Saisie label="Téléphone" type="tel" inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} maxLength={30} autoComplete="off" aide="Il sert à retrouver le client et à éviter les doublons." />
             {erreur && <p role="alert" className="text-[12.5px] leading-snug text-[#B91C1C]">{t(erreur)}</p>}

@@ -23,10 +23,10 @@ type EtatProps = {
 function Gabarit({ icone, ton, titre, texte, children, compact, className, role = "status" }: EtatProps & { icone: React.ReactNode; ton: Ton; role?: "status" | "alert" }) {
   const t = useT();
   return (
-    <div role={role} className={cn("flex flex-col items-center rounded-2xl border border-dashed border-[#E8E8E8] bg-white text-center", compact ? "px-4 py-6" : "px-6 py-10 sm:py-12", className)}>
+    <div role={role} className={cn("flex flex-col items-center rounded-[12px] bg-white text-center shadow-[0_0_0_1px_rgba(0,0,0,.07),0_1px_0_rgba(0,0,0,.05)]", compact ? "px-4 py-6" : "px-6 py-12 sm:py-14", className)}>
       <span className={cn("flex items-center justify-center rounded-full", compact ? "h-10 w-10" : "h-12 w-12")} style={TONS[ton]} aria-hidden>{icone}</span>
-      {titre && <p className="mt-3 text-[14px] font-bold text-[#111111]">{t(titre)}</p>}
-      {texte && <p className="mt-1.5 max-w-md text-[12.5px] leading-relaxed text-[#666666]">{t(texte)}</p>}
+      {titre && <p className="mt-3 text-[14px] font-semibold text-[#1a1a1a]">{t(titre)}</p>}
+      {texte && <p className="mt-1.5 max-w-md text-[13px] leading-5 text-[#616161]">{t(texte)}</p>}
       {children && <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{children}</div>}
     </div>
   );
@@ -41,8 +41,8 @@ export function EtatVide({ titre = "Rien à afficher pour l'instant", ...p }: Et
 export function EtatChargement({ texte = "Chargement…", compact, className }: Pick<EtatProps, "texte" | "compact" | "className">) {
   const t = useT();
   return (
-    <div role="status" aria-live="polite" className={cn("flex flex-col items-center justify-center gap-2 text-[#666666]", compact ? "py-6" : "py-16", className)}>
-      <Loader2 size={22} className="animate-spin text-[#F5A623]" aria-hidden />
+    <div role="status" aria-live="polite" className={cn("flex flex-col items-center justify-center gap-2 text-[#616161]", compact ? "py-6" : "py-16", className)}>
+      <Loader2 size={22} className="animate-spin text-[#8a8a8a]" aria-hidden />
       <span className="text-[12.5px]">{t(texte)}</span>
     </div>
   );

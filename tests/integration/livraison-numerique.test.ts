@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { GET as telecharger } from "@/app/api/telechargements/[token]/route";
 import { livrerCommandeDigitale, reprendreLivraisons, cleAccesCommande, cleAccesValide } from "@/lib/livraison-numerique";
 import { rembourserCommande } from "@/lib/remboursement";
+import { chargerParcours, marquerTerminee, parcoursOuRefus } from "@/lib/formation/parcours";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!/@localhost[/:]|host=\/var\/run/.test(url)) throw new Error("Tests d'intégration : DATABASE_URL doit pointer sur la base locale.");
@@ -76,11 +77,13 @@ before(async () => {
 
 after(async () => {
   await new Promise((r) => setTimeout(r, 500)); // événements différés (bus AXSO CONTROL)
-  // Cette boutique + les restes d'un essai interrompu (même motif de nom).
-  const boutiques = (await prisma.tenant.findMany({ where: { OR: [{ id: ids.tenant }, { slug: { startsWith: "ln" }, nomBoutique: { startsWith: "Boutique ln" }, email: { endsWith: "@exemple.test" } }] }, select: { id: true } })).map((t) => t.id);
+  if (!ids.tenant) return;
+  const boutiques = [ids.tenant];
   const commandes = (await prisma.commande.findMany({ where: { tenantId: { in: boutiques } }, select: { id: true } })).map((c) => c.id);
   await prisma.telechargement.deleteMany({ where: { commandeId: { in: commandes } } });
   await prisma.accesFormation.deleteMany({ where: { commandeId: { in: commandes } } });
+  await prisma.etapeParcours.deleteMany({ where: { parcours: { produit: { tenantId: ids.tenant } } } });
+  await prisma.contenuAbonnement.deleteMany({ where: { abonnement: { produit: { tenantId: ids.tenant } } } });
   await prisma.livraisonDigitale.deleteMany({ where: { commandeId: { in: commandes } } });
   await prisma.ligneCommande.deleteMany({ where: { commandeId: { in: commandes } } });
   await prisma.walletTransaction.deleteMany({ where: { wallet: { tenantId: { in: boutiques } } } });
@@ -118,6 +121,58 @@ test("C — commande payée → droits créés → e-mail confirmé par Resend",
   assert.equal(r.status, 200);
   assert.equal(await r.text(), "CONTENU:/guide-secret.pdf");
   assert.equal(r.headers.get("cache-control"), "private, no-store");
+});
+
+test("un lien de parcours respecte les étapes et les autres achats de la commande", async () => {
+  const formations = await Promise.all(["a", "b"].map(slug => prisma.produit.create({
+    data: { tenantId: ids.tenant, nom: slug, slug, type: "formation", prix: 1000, formation: { create: {
+      chapitres: { create: { titre: "Introduction", lecons: { create: { titre: "Découvrir" } } } },
+    } } },
+  })));
+  const [a, b] = formations;
+  const parcours = await prisma.produit.create({ data: {
+    tenantId: ids.tenant, nom: "Programme", slug: "programme", prix: 2000, type: "parcours",
+    parcoursProduit: { create: { ordreImpose: true, etapes: { create: formations.map((f, ordre) => ({ formationProduitId: f.id, ordre, obligatoire: true })) } } },
+  } });
+  const commandeId = await nouvelleCommande("programme", [parcours.id]);
+  assert.ok((await livrerCommandeDigitale(commandeId)).ok);
+  const jeton = async (id: string, produitId: string) => (await prisma.accesFormation.findFirstOrThrow({ where: { commandeId: id, produitId } })).token;
+  const second = await jeton(commandeId, b.id);
+  const premier = await chargerParcours(await jeton(commandeId, a.id));
+  assert.ok(premier);
+  assert.equal(await chargerParcours(second), null);
+  const refus = await parcoursOuRefus(new Request("http://localhost"), second);
+  assert.ok(refus instanceof Response && refus.status === 403);
+
+  const mixte = await nouvelleCommande("programme-et-formation", [parcours.id, b.id]);
+  await livrerCommandeDigitale(mixte);
+  assert.ok(await chargerParcours(await jeton(mixte, b.id)), "formation également achetée seule");
+  await marquerTerminee(premier, premier.leconIds[0]);
+  assert.ok(await chargerParcours(second), "le même lien ouvre la suite après validation");
+});
+
+test("deux abonnements dans la commande gardent leurs échéances, y compris au rejeu", async () => {
+  const commun = await prisma.produit.create({ data: { tenantId: ids.tenant, type: "formation", nom: "Atelier", slug: "atelier", prix: 1000, formation: { create: {} } } });
+  const offres = await Promise.all([7, 90].map((periodeJours, i) => prisma.produit.create({ data: {
+    tenantId: ids.tenant, nom: `Offre ${i}`, slug: `offre-${i}`, type: "abonnement", prix: 1000,
+    abonnementProduit: { create: { periodeJours, graceJours: i + 1, contenus: { create: [i ? ids.autre : ids.pdf, commun.id].map((produitInclusId, ordre) => ({ produitInclusId, ordre })) } } },
+  } })));
+  const commandeId = await nouvelleCommande("deux-abonnements", offres.map(p => p.id));
+  for (let essai = 0; essai < 2; essai++) {
+    const livraison = await livrerCommandeDigitale(commandeId);
+    assert.ok(livraison.ok && livraison.statut === "livree");
+    const fins = [];
+    for (const [i, offre] of offres.entries()) {
+      const adhesion = await prisma.adhesion.findFirstOrThrow({ where: { produitId: offre.id, commandeIds: { has: commandeId } } });
+      const fin = adhesion.fin.getTime() + (i + 1) * 86400000;
+      fins.push(fin);
+      const fichier = await prisma.telechargement.findFirstOrThrow({ where: { commandeId, produitId: i ? ids.autre : ids.pdf } });
+      assert.equal(fichier.expireAt?.getTime(), fin);
+      assert.equal(adhesion.renouvellements, 0);
+    }
+    const partage = await prisma.accesFormation.findFirstOrThrow({ where: { commandeId, produitId: commun.id } });
+    assert.equal(partage.expireAt?.getTime(), Math.max(...fins));
+  }
 });
 
 test("D — commande non payée : aucune livraison, jeton refusé (403)", async () => {

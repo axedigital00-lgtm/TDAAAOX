@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "check:cloudflare": "vinext check",
+    "build:cloudflare": "prisma generate && vite build",
+    "preview:cloudflare": "vite preview",
+    "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "test": "tsx --test tests/*.test.ts",
@@ -17,6 +21,8 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/poppins": "^5.3.0",
     "@google/genai": "^2.17.1",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.8.0",
@@ -27,6 +33,7 @@
     "@types/pg": "^8.20.0",
     "@vercel/blob": "^0.27.0",
     "@zxing/browser": "^0.2.1",
+    "@zxing/library": "0.23.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
@@ -41,8 +48,8 @@
     "pg": "^8.20.0",
     "prisma": "^7.8.0",
     "qrcode": "^1.5.4",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-hook-form": "^7.75.0",
     "recharts": "^3.8.1",
     "resend": "^6.12.3",
@@ -56,14 +63,21 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "1.70.1",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "@vitejs/plugin-react": "6.3.0",
+    "@vitejs/plugin-rsc": "0.5.39",
     "dotenv": "^17.4.2",
     "playwright": "^1.61.0",
+    "react-server-dom-webpack": "19.3.1",
     "ts-node": "^10.9.2",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "vinext": "1.4.6",
+    "vite": "8.3.0",
+    "wrangler": "4.165.0"
   }
 }

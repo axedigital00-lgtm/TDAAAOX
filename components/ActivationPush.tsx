@@ -122,16 +122,16 @@ export function ActivationPush({ espace }: { espace: Espace }) {
     : t("Reçois tes alertes sur cet appareil, comme un SMS : même l'appli fermée.");
 
   return (
-    <div role="status" className={`fixed left-4 ${DECALAGE[espace]} z-[55] w-[330px] max-w-[calc(100vw-2rem)] rounded-2xl p-4 shadow-2xl border-2`}
-      style={{ background: "#111111", borderColor: "#F5A623", color: "#FFFFFF", fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <div role="status" className={`fixed left-4 ${DECALAGE[espace]} z-[55] w-[330px] max-w-[calc(100vw-2rem)] rounded-xl p-4`}
+      style={{ background: "#1a1a1a", color: "#FFFFFF", boxShadow: "0 12px 32px rgba(0,0,0,.28)", fontFamily: "'Inter Variable',Inter,system-ui,sans-serif" }}>
       <div className="flex items-start gap-3">
-        <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#F5A623", color: "#111111" }}><BellRing size={18} /></span>
+        <span className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,.1)", color: "#fff" }}><BellRing size={18} /></span>
         <p className="flex-1 text-[13px] leading-snug">{texte}</p>
         <button onClick={etat === "actif" ? () => setInfo(null) : fermer} aria-label={t("Fermer")} className="text-white/50 hover:text-white"><X size={16} /></button>
       </div>
       {info && etat !== "actif" && <p className="text-[12px] text-red-300 mt-2">{info}</p>}
       {etat === "inactif" && (
-        <button onClick={activer} disabled={occupe} className="mt-3 w-full h-10 rounded-xl text-[13.5px] font-bold disabled:opacity-60" style={{ background: "#F5A623", color: "#111111" }}>
+        <button onClick={activer} disabled={occupe} className="mt-3 w-full h-9 rounded-lg text-[13px] font-semibold disabled:opacity-60" style={{ background: "#fff", color: "#111111" }}>
           {occupe ? t("Activation…") : t("Activer les notifications")}
         </button>
       )}

@@ -80,7 +80,7 @@ export default function ChatbotPage() {
     setNewMotsCle("");
   }
 
-  const promptPreview = `Tu es AXIA, l'assistante IA de cette boutique.
+  const promptPreview = `Tu es Stella, l'assistante IA de cette boutique.
 Style: ${PERSONNALITES.find(p => p.id === config.personnalite)?.desc}
 Langue: ${config.langue}
 ${config.instructionsSupp ? `Instructions: ${config.instructionsSupp}` : ""}
@@ -96,7 +96,7 @@ ${config.messageAccueil ? `Message d'accueil: ${config.messageAccueil}` : ""}`;
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("Chatbot WhatsApp IA")}</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{t("AXIA répond automatiquement à vos messages WhatsApp")}</p>
+          <p className="text-gray-400 text-sm mt-0.5">{t("Stella répond automatiquement à vos messages WhatsApp")}</p>
         </div>
         {/* Toggle ON/OFF */}
         <button
@@ -126,7 +126,7 @@ ${config.messageAccueil ? `Message d'accueil: ${config.messageAccueil}` : ""}`;
         </div>
         <div>
           <p className={`font-bold text-sm ${actif ? "text-green-800" : "text-gray-600"}`}>
-            {actif ? t("AXIA répond automatiquement à vos messages") : t("Chatbot désactivé — vous répondez manuellement")}
+            {actif ? t("Stella répond automatiquement à vos messages") : t("Chatbot désactivé — vous répondez manuellement")}
           </p>
           <p className={`text-xs mt-0.5 ${actif ? "text-green-600" : "text-gray-400"}`}>
             {actif ? t("Personnalité: {0} · Délai: {1}s", PERSONNALITES.find(p => p.id === config.personnalite)?.label, config.delaiReponse) : t("Activez le toggle ci-dessus pour démarrer")}
@@ -138,7 +138,7 @@ ${config.messageAccueil ? `Message d'accueil: ${config.messageAccueil}` : ""}`;
       {/* ── Personnalité ── */}
       <div className="bg-white border border-gray-100 rounded-2xl p-5">
         <h2 className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
-          <Sparkles size={15} className="text-violet-500"/>{" "}{t("Personnalité d'AXIA")}
+          <Sparkles size={15} className="text-violet-500"/>{" "}{t("Personnalité de Stella")}
         </h2>
         <div className="grid grid-cols-2 gap-2">
           {PERSONNALITES.map(p => (
@@ -163,7 +163,7 @@ ${config.messageAccueil ? `Message d'accueil: ${config.messageAccueil}` : ""}`;
         <textarea
           value={config.messageAccueil}
           onChange={e => setConfig(c => ({ ...c, messageAccueil: e.target.value }))}
-          placeholder={t("Ex: Bonjour ! Je suis AXIA, votre assistante chez [Boutique]. Comment puis-je vous aider ?")}
+          placeholder={t("Ex: Bonjour ! Je suis Stella, votre assistante chez [Boutique]. Comment puis-je vous aider ?")}
           rows={3}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#F5A623]/50 resize-none"
         />
@@ -232,13 +232,13 @@ ${config.messageAccueil ? `Message d'accueil: ${config.messageAccueil}` : ""}`;
             </div>
           </div>
         )}
-        {!config.horaires.actif && <p className="text-xs text-gray-400">{t("AXIA répondra 24h/24 — 7j/7")}</p>}
+        {!config.horaires.actif && <p className="text-xs text-gray-400">{t("Stella répondra 24h/24 — 7j/7")}</p>}
       </div>
 
       {/* ── Mots-clés exclus ── */}
       <div className="bg-white border border-gray-100 rounded-2xl p-5">
         <h2 className="font-bold text-gray-900 text-sm mb-1">{t("Mots-clés exclus")}</h2>
-        <p className="text-xs text-gray-400 mb-3">{t("AXIA ne répondra pas si le message contient ces mots (ex: STOP, désabonner)")}</p>
+        <p className="text-xs text-gray-400 mb-3">{t("Stella ne répondra pas si le message contient ces mots (ex: STOP, désabonner)")}</p>
         <div className="flex gap-2 mb-3">
           <input
             value={newMotsCle}

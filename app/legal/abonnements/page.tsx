@@ -1,6 +1,4 @@
-import { NavbarMarketing } from "@/components/marketing/NavbarMarketing";
-import { FooterMarketing } from "@/components/marketing/FooterMarketing";
-import { CreditCard } from "lucide-react";
+import { PageLegale } from "@/components/marketing/site/Blocs";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/serveur";
@@ -11,9 +9,9 @@ export const metadata: Metadata = {
 
 const SUPPORT = "Support WhatsApp (lun-ven, 8h-20h)";
 const PLANS = [
-  { nom: "Essentiel", prix: "Gratuit", engagement: "Sans engagement ni limite de durée", inclus: ["60 commandes/mois", "1 boutique", "Axia essentielle", SUPPORT], accent: "#6b7280" },
-  { nom: "Pro", prix: "6 000 FCFA / 30 jours", engagement: "Prépayé, sans renouvellement automatique", inclus: ["Commandes illimitées", "Axia avancée", "Analytics avancés", SUPPORT], accent: "#F5A623", popular: true },
-  { nom: "Illimité", prix: "20 000 FCFA / 30 jours", engagement: "Prépayé, sans renouvellement automatique", inclus: ["Tout inclus sans limite", "Axia complète", "Boutiques illimitées", SUPPORT], accent: "#7c3aed" },
+  { nom: "Essentiel", prix: "Gratuit", engagement: "Sans engagement ni limite de durée", inclus: ["60 commandes/mois", "1 boutique", "Stella essentielle", SUPPORT] },
+  { nom: "Pro", prix: "6 000 FCFA / 30 jours", engagement: "Prépayé, sans renouvellement automatique", inclus: ["Commandes illimitées", "Stella avancée", "Analytics avancés", SUPPORT], popular: true },
+  { nom: "Illimité", prix: "20 000 FCFA / 30 jours", engagement: "Prépayé, sans renouvellement automatique", inclus: ["Tout inclus sans limite", "Stella complète", "Boutiques illimitées", SUPPORT] },
 ];
 
 // Reflète lib/abonnement.ts (planActif, expirationApresPaiement) et lib/abonnement-paiement.ts (30 jours, XAF).
@@ -47,65 +45,41 @@ const SECTIONS = [
 export default async function AbonnementsPage() {
   const t = await getT();
   return (
-    <main className="bg-white text-[#111111] min-h-screen" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-      <NavbarMarketing />
-
-      <section className="pt-36 pb-24 px-6 sm:px-10 lg:px-16 xl:px-24">
-        <div className="max-w-4xl mx-auto">
-          <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] mb-5" style={{ color: "#F5A623" }}>
-            <CreditCard size={14} className="inline-block mr-1.5" />{t("Légal")}
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">{t("Conditions d'abonnement")}</h1>
-          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 2 novembre 2026")}</p>
+    <PageLegale t={t} actif="/legal/abonnements" titre={t("Conditions d'abonnement")} maj={t("Dernière mise à jour : 2 novembre 2026")}>
 
           {/* Plans recap */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
+          <div className="axm-grid axm-g3" style={{ marginBottom: 48 }}>
             {PLANS.map(p => (
-              <div key={p.nom} className="rounded-2xl border p-5"
-                style={{ background: p.popular ? `${p.accent}08` : "rgba(0,0,0,0.02)", borderColor: p.popular ? `${p.accent}25` : "rgba(0,0,0,0.07)" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: `${p.accent}15`, color: p.accent, border: `1px solid ${p.accent}25` }}>{t(p.nom)}</span>
-                  {p.popular && <span className="text-xs text-[#999999]">{t("⭐ Populaire")}</span>}
+              <div key={p.nom} className="axm-card" style={{ padding: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <h3 className="axm-h4">{t(p.nom)}</h3>
+                  {p.popular && <span className="axm-mock__tag">{t("Populaire")}</span>}
                 </div>
-                <p className="text-xl font-black mb-1" style={{ color: p.accent }}>{t(p.prix)}</p>
-                <p className="text-[#8C8C8C] text-xs mb-4">{t(p.engagement)}</p>
-                <ul className="space-y-1.5">
-                  {p.inclus.map(i => (
-                    <li key={i} className="text-xs text-[#666666] flex items-center gap-2">
-                      <span style={{ color: p.accent }}>✓</span> {t(i)}
-                    </li>
-                  ))}
+                <p style={{ fontSize: 20, fontWeight: 600, marginTop: 12 }}>{t(p.prix)}</p>
+                <p className="axm-muted" style={{ fontSize: 13, marginTop: 4 }}>{t(p.engagement)}</p>
+                <ul className="axm-checks" style={{ marginTop: 16, gap: 8 }}>
+                  {p.inclus.map(i => <li key={i} style={{ fontSize: 14 }}><span aria-hidden>✓</span><span>{t(i)}</span></li>)}
                 </ul>
               </div>
             ))}
           </div>
 
           {/* Sections légales */}
-          <div className="space-y-10">
+          <div>
             {SECTIONS.map(s => (
-              <div key={s.titre} className="pb-10 border-b" style={{ borderColor: "rgba(0,0,0,0.07)" }}>
-                <h2 className="text-lg font-bold mb-4" style={{ color: "#F5A623" }}>{t(s.titre)}</h2>
-                <p className="text-[#595959] leading-relaxed text-sm">{t(s.contenu)}</p>
+              <div key={s.titre} className="axm-legal__sec">
+                <h2>{t(s.titre)}</h2>
+                <p className="axm-legal__p">{t(s.contenu)}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-14 flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 rounded-2xl p-6 border"
-              style={{ background: "rgba(245,166,35,0.04)", borderColor: "rgba(245,166,35,0.15)" }}>
-              <p className="text-[#666666] text-sm">{t("Questions sur votre abonnement ?")}{" "}<a href="mailto:facturation@axsoafrica.com" className="font-bold" style={{ color: "#F5A623" }}>facturation@axsoafrica.com</a></p>
+          <div style={{ display: "flex", gap: 16, marginTop: 40, flexWrap: "wrap", alignItems: "stretch" }}>
+            <div className="axm-card" style={{ flex: 1 }}>
+              <p className="axm-legal__p">{t("Questions sur votre abonnement ?")}{" "}<a href="mailto:facturation@axsoafrica.com" className="axm-link">facturation@axsoafrica.com</a></p>
             </div>
-            <Link href="/#tarifs"
-              className="flex-1 rounded-2xl p-6 flex items-center justify-center font-bold text-center transition-all hover:scale-[1.02]"
-              style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", color: "#080808" }}>
-              {t("Voir les plans →")}
-            </Link>
+            <Link href="/tarifs" className="axm-btn axm-btn--primary" style={{ alignSelf: "center" }}>{t("Voir les forfaits")}</Link>
           </div>
-        </div>
-      </section>
-
-      <FooterMarketing />
-    </main>
+    </PageLegale>
   );
 }

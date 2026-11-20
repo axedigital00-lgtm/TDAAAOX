@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { exempleTelephone } from "@/lib/devise-convert";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -84,7 +84,7 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Notifications")}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Notifications")}</h1>
         <p className="text-gray-400 text-sm mt-1">{t("Configurez vos alertes en temps réel")}</p>
       </div>
 

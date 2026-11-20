@@ -1,8 +1,8 @@
-// Pages qu'AXIA peut ouvrir (outil ouvrir_page) : liste fermée des routes réelles
-// du dashboard. Sans import serveur : lu aussi par les fenêtres AXIA côté client.
+// Pages que Stella peut ouvrir (outil ouvrir_page) : liste fermée des routes réelles
+// du dashboard. Sans import serveur : lu aussi par les fenêtres Stella côté client.
 
 export const PAGES_DASHBOARD: Record<string, [chemin: string, nom: string]> = {
-  accueil: ["/dashboard", "Accueil (AXIA)"],
+  accueil: ["/dashboard", "Accueil (Stella)"],
   tableau_de_bord: ["/dashboard/accueil", "Tableau de bord"],
   produits: ["/dashboard/produits", "Produits"],
   nouveau_produit: ["/dashboard/produits/nouveau", "Nouveau produit"],
@@ -49,7 +49,7 @@ export const PAGES_DASHBOARD: Record<string, [chemin: string, nom: string]> = {
   objectifs: ["/dashboard/objectifs", "Objectifs"],
   agents: ["/dashboard/agents", "Agents"],
   chatbot: ["/dashboard/chatbot", "Chatbot"],
-  journal_axia: ["/dashboard/axia/journal", "Journal d'AXIA"],
+  journal_axia: ["/dashboard/axia/journal", "Journal de Stella"],
   connecteurs: ["/dashboard/connecteurs", "Connecteurs"],
   controle_ia: ["/dashboard/controle-ia", "Contrôle des IA"],
   parametres: ["/dashboard/parametres", "Paramètres"],
@@ -61,10 +61,10 @@ export const PAGES_DASHBOARD: Record<string, [chemin: string, nom: string]> = {
 
 const MARQUE = "OUVRIR_PAGE:";
 
-/** Résultat de l'outil : la première ligne porte l'adresse lue par les fenêtres AXIA. */
+/** Résultat de l'outil : la première ligne porte l'adresse lue par les fenêtres Stella. */
 export const resultatOuverture = (lien: string, nom: string) => `${MARQUE}${lien}\nPage « ${nom} » ouverte à l'écran du marchand.`;
 
-/** Adresse à ouvrir d'après les résultats d'outils d'une réponse AXIA (la dernière demandée), sinon null. */
+/** Adresse à ouvrir d'après les résultats d'outils d'une réponse Stella (la dernière demandée), sinon null. */
 export function pageAOuvrir(actions: string[] | undefined): string | null {
   for (const a of [...(actions ?? [])].reverse()) {
     const lien = a.startsWith(MARQUE) ? a.slice(MARQUE.length).split("\n")[0] : "";

@@ -15,6 +15,9 @@ import { FichiersLivres, NouvelleVersion, PrevenirAcheteurs } from "@/components
 import FaqManager, { type FaqItem } from "@/components/dashboard/FaqManager";
 import ChampsCommandeManager, { type ChampCommande } from "@/components/dashboard/ChampsCommandeManager";
 import PublicationAssistant from "@/components/dashboard/PublicationAssistant";
+import { PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { MappedBadge, productBadge } from "@/components/dashboard/design-system/components/Badge";
+import { ContextualSaveBar } from "@/components/dashboard/design-system/components/ContextualSaveBar";
 import { BarcodeCaptureModal } from "@/components/dashboard/BarcodeCaptureModal";
 import { useCategoriesBoutique, optionsVariantes } from "@/components/dashboard/CategoriesProduit";
 import { BarcodeLabelPreview } from "@/components/dashboard/produits/BarcodeLabelPreview";
@@ -26,6 +29,7 @@ import { envoyerImagesCarrees, dimensions, estCarre, MESSAGE_REFUS } from "@/lib
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
 import { PolitiquePrix } from "@/components/dashboard/PolitiquePrix";
+import { TYPES_NUMERIQUES } from "@/lib/pricing";
 import { urlBoutique } from "@/lib/utils";
 
 const TYPES_PRODUIT = [
@@ -48,7 +52,7 @@ type FormState = {
   metaTitle: string; metaDesc: string; ogImage: string;
   masquerVentes: boolean; visibleListage: boolean; texteBoutonAchat: string;
   faq: FaqItem[]; champsCommande: ChampCommande[];
-  type: "physique" | "digital" | "dropshipping" | "fichier" | "licence" | "bundle" | "formation";
+  type: "physique" | "digital" | "dropshipping" | "fichier" | "licence" | "bundle" | "formation" | "service" | "abonnement" | "parcours";
   fichierUrl: string; fichierNom: string; fichierTaille: number; instructionsTelechargement: string;
   prixFournisseur: string; urlFournisseur: string; nomFournisseur: string;
   affiliationActive: boolean; tauxCommissionAff: string;
@@ -77,6 +81,8 @@ export default function EditProduitPage() {
   const categoriesBoutique = useCategoriesBoutique();
   const [savingVariante, setSavingVariante] = useState(false);
   const [showPubAssistant, setShowPubAssistant] = useState(false);
+  // Barre d'enregistrement contextuelle (§7.10) : état enregistré du formulaire.
+  const [reference, setReference] = useState<string | null>(null);
   const [scanBarcodeOuvert, setScanBarcodeOuvert] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -218,9 +224,9 @@ export default function EditProduitPage() {
     ? Math.round((1 - parseFloat(form.prixFournisseur) / parseFloat(form.prix)) * 100) : null;
   const margeCout = form.cout && form.prix
     ? Math.round((1 - parseFloat(form.cout) / parseFloat(form.prix)) * 100) : null;
-  const estDigital = ["digital", "fichier", "licence", "formation", "bundle"].includes(form.type);
+  const estDigital = TYPES_NUMERIQUES.has(form.type);
   // Mêmes types que TYPES_NUMERIQUES (lib/pricing.ts) : minimum Axso de 20 % pour l'affilié (10 % en physique), lib/affiliation-regles.ts.
-  const affDigital = ["digital", "fichier", "formation", "licence", "bundle", "evenement", "bootcamp"].includes(form.type);
+  const affDigital = estDigital;
   const prixNum = parseFloat(form.prix), prixCompareNum = parseFloat(form.prixCompare);
   const promoInvalide = !!form.prixCompare && prixCompareNum > 0 && prixNum > 0 && prixCompareNum <= prixNum;
   const remisePct = prixCompareNum > prixNum && prixNum > 0 ? Math.round((1 - prixNum / prixCompareNum) * 100) : null;
@@ -351,7 +357,8 @@ export default function EditProduitPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.details?.[0] ? `${data.error} : ${data.details[0].path?.join(".")} — ${data.details[0].message}` : data.error || "Erreur");
-      toast.success(tr("Produit mis à jour !"));
+      setReference(JSON.stringify(form_));
+      toast.success(tr("Produit enregistré"));
     } catch (e: any) { toast.error(tr(e.message)); }
     finally { setSaving(false); }
   }
@@ -364,11 +371,14 @@ export default function EditProduitPage() {
     else { toast.error(tr((await res.json().catch(() => ({}))).error || "Erreur lors de la suppression")); setDeleting(false); }
   }
 
-  const inputClass = "w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 placeholder:text-[#CCCCCC] transition-all";
+  const inputClass = "axd-input";
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => { if (!loading && reference === null) setReference(JSON.stringify(form)); }, [loading, reference, form]);
+  const modifie = reference !== null && reference !== JSON.stringify(form);
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-64">
-      <Loader2 size={24} className="animate-spin text-[#F5A623]" />
+      <Loader2 size={24} className="animate-spin" />
     </div>
   );
 
@@ -381,49 +391,19 @@ export default function EditProduitPage() {
 
   return (
     <>
-    <div className="max-w-4xl space-y-6">
-
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/produits"
-            className="w-9 h-9 rounded-xl bg-white border border-[#E8E8E8] flex items-center justify-center text-[#888] hover:text-[#111] hover:border-[#CCC] transition-all">
-            <ArrowLeft size={16} />
-          </Link>
-          <div>
-            <h1 className="text-[18px] font-bold text-[#111111] tracking-tight line-clamp-1">{tr(form.nom) || tr("Éditer le produit")}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-[#AAAAAA]">{tr(stats.ventes)} ventes</span>
-              <span className="text-[#DDDDDD]">·</span>
-              <span className="text-[11px] text-[#AAAAAA]">{tr(stats.vues)} vues</span>
-              <span className="text-[#DDDDDD]">·</span>
-              <span className="text-[11px] text-[#AAAAAA]">{tr(stats.avis)} avis</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={supprimer} disabled={deleting}
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-3.5 py-2 rounded-2xl border border-[#FECACA] text-[#DC2626] hover:bg-[#FEF2F2] transition-all disabled:opacity-50">
-            {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}{" "}{tr("Supprimer")}
-          </button>
-          <button
-            onClick={() => {
-              if (!form.actif) { setShowPubAssistant(true); }
-              else { set("actif", false); }
-            }}
-            className="text-[12px] font-semibold px-3.5 py-2 rounded-2xl border transition-all"
-            style={form.actif
-              ? { background: "#F0FDF4", borderColor: "#BBF7D0", color: "#16A34A" }
-              : { background: "#F9F9F9", borderColor: "#E8E8E8", color: "#888888" }}>
-            {form.actif ? tr("✓ Actif") : tr("Publier")}
-          </button>
-          <button onClick={() => sauvegarder()} disabled={saving}
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-4 py-2 rounded-2xl text-white transition-all disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #F5A623, #D4911A)", boxShadow: "0 4px 12px rgba(245,166,35,0.25)" }}>
-            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}{" "}{tr("Enregistrer")}
-          </button>
-        </div>
-      </div>
+    <div className="axd-page axd-page--narrow space-y-4">
+      <ContextualSaveBar visible={modifie} saving={saving} onSave={() => sauvegarder()} onDiscard={() => reference && setFormState(JSON.parse(reference))} />
+      <PageHeader
+        icon="tag" backHref="/dashboard/produits"
+        title={<span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{form.nom || tr("Éditer le produit")} <MappedBadge {...productBadge(form.actif ? "active" : "draft")} /></span>}
+        titleMeta={`${stats.ventes} ventes · ${stats.vues} vues · ${stats.avis} avis`}
+        secondaryActions={[{ content: form.actif ? tr("Passer en brouillon") : tr("Publier"), onAction: () => { if (!form.actif) setShowPubAssistant(true); else set("actif", false); } }]}
+        overflowActions={[
+          ...(boutiqueUrl && form.slug ? [{ content: tr("Voir sur la boutique"), href: `${boutiqueUrl}/produits/${form.slug}`, external: true }] : []),
+          { content: tr("Supprimer le produit"), onAction: supprimer, destructive: true, disabled: deleting },
+        ]}
+        primaryAction={{ content: tr("Enregistrer"), onAction: () => sauvegarder(), loading: saving }}
+      />
 
       {/* ── Sélecteur de type ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -432,22 +412,22 @@ export default function EditProduitPage() {
           const actif = form.type === t.id;
           return (
             <button key={t.id} onClick={() => changerType(t.id)}
-              className="flex items-start gap-3 p-4 rounded-2xl border text-left transition-all"
+              className="flex items-start gap-3 p-3 text-left"
+              aria-pressed={actif}
               style={{
-                borderColor: actif ? `${t.color}50` : "#e5e7eb",
-                background: actif ? `${t.color}08` : "white",
-                boxShadow: actif ? `0 0 20px ${t.color}20` : "none",
+                borderRadius: "var(--radius-xl)", background: "var(--color-surface)",
+                boxShadow: actif ? "0 0 0 2px var(--color-border-strong)" : "var(--shadow-card)",
               }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `${t.color}15` }}>
-                <Icone size={18} style={{ color: t.color }} />
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0"
+                style={{ borderRadius: "var(--radius-md)", background: "var(--color-surface-tertiary)" }}>
+                <Icone size={16} style={{ color: "var(--color-text-strong)" }} />
               </div>
               <div>
                 <p className="font-semibold text-gray-900 text-sm">{tr(t.label)}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{tr(t.desc)}</p>
               </div>
               {actif && (
-                <div className="ml-auto w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: t.color }}>
+                <div className="ml-auto w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--color-primary)" }}>
                   <span className="text-white text-[10px] font-bold">✓</span>
                 </div>
               )}
@@ -461,7 +441,7 @@ export default function EditProduitPage() {
         <div className="min-w-0 space-y-5">
 
           {/* Infos générales */}
-          <div className="ax-card p-6 space-y-4">
+          <div className="ax-card p-4 space-y-4">
             <div className="flex items-center gap-2 mb-1">
               <Package size={15} className="text-[#F5A623]" />
               <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Informations générales")}</h2>
@@ -491,7 +471,7 @@ export default function EditProduitPage() {
           </div>
 
           {/* Prix & Stock */}
-          <div className="ax-card p-6 space-y-6">
+          <div className="ax-card p-4 space-y-6">
             <div className="flex items-center gap-2">
               <BarChart2 size={15} className="text-[#F5A623]" />
               <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Prix & Stock")}</h2>
@@ -586,7 +566,7 @@ export default function EditProduitPage() {
           </div>
 
           {/* Programme d'affiliation */}
-          <div className="ax-card p-6 space-y-4">
+          <div className="ax-card p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap size={15} className="text-[#F5A623]" />
@@ -716,7 +696,7 @@ export default function EditProduitPage() {
           )}
 
           {/* Médias */}
-          <div className="ax-card p-6 space-y-5">
+          <div className="ax-card p-4 space-y-5">
             <div className="flex items-center gap-2 mb-1">
               <ImageIcon size={15} className="text-[#F5A623]" />
               <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Images & Vidéos")}</h2>
@@ -795,7 +775,7 @@ export default function EditProduitPage() {
           </div>
 
           {/* SEO & Open Graph */}
-          <div className="ax-card p-6 space-y-4">
+          <div className="ax-card p-4 space-y-4">
             <div className="flex items-center gap-2 mb-1">
               <Globe size={15} className="text-[#F5A623]" />
               <h2 className="text-[13px] font-semibold text-[#111111]">{tr("SEO & Open Graph")}</h2>

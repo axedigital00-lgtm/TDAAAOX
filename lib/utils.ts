@@ -159,7 +159,7 @@ export const adresseSite = () => {
   const env = process.env.NEXT_PUBLIC_APP_URL;
   return env?.includes("localhost") ? env.replace(/\/$/, "") : SITE_AXSO;
 };
-export const SOUS_DOMAINES_ACTIFS = process.env.NEXT_PUBLIC_SOUS_DOMAINES === "1" && !!DOMAINE_AXSO && !DOMAINE_AXSO.endsWith(".vercel.app");
+export const SOUS_DOMAINES_ACTIFS = process.env.NEXT_PUBLIC_SOUS_DOMAINES === "1" && !!DOMAINE_AXSO && !DOMAINE_AXSO.endsWith(".vercel.app") && !DOMAINE_AXSO.endsWith(".workers.dev");
 
 /** "https://nom.axsoafrica.com" ; null quand les sous-domaines ne sont pas actifs. */
 export function adresseBoutique(slug: string): string | null {

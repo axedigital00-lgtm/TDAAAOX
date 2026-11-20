@@ -7,8 +7,8 @@ import { ShoppingBag, MessageCircle, X } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 
 // Alerte « nouvelle commande » — distincte des autres notifications (qui
-// passent par un toast + le carillon de NotificationSound) : son de commande
-// (public/son-commande.mp3), carte bien visible et notification système si la page est en
+// passent par un toast + le son de NotificationSound) : son de caisse
+// (public/sons/commande.mp3), carte bien visible et notification système si la page est en
 // arrière-plan. Montée une fois pour tout le dashboard (DashboardShell).
 const TYPES_COMMANDE = new Set(["nouvelle_commande", "commande_whatsapp"]);
 
@@ -27,7 +27,7 @@ export function ecouterNotifications(cb: (d: Donnees) => void) {
 }
 
 function sonCaisse() {
-  const son = new Audio("/son-commande.mp3");
+  const son = new Audio("/sons/commande.mp3");
   son.volume = 1; // maximum autorisé à une page (le volume de l'appareil reste celui de l'utilisateur)
   son.play().catch(() => { /* lecture bloquée ou audio indisponible */ });
 }
@@ -74,7 +74,7 @@ export function AlerteCommande() {
         const Icone = n.type === "commande_whatsapp" ? MessageCircle : ShoppingBag;
         return (
           <div key={n.id} role="alert" className="rounded-2xl p-4 shadow-2xl border-2 animate-in slide-in-from-right-8 fade-in"
-            style={{ background: "#111111", borderColor: "#F5A623", color: "#FFFFFF", fontFamily: "'Poppins',system-ui,sans-serif" }}>
+            style={{ background: "#111111", borderColor: "#F5A623", color: "#FFFFFF", fontFamily: "var(--merchant-font)" }}>
             <div className="flex items-start gap-3">
               <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#F5A623", color: "#111111" }}><Icone size={20} /></span>
               <div className="flex-1 min-w-0">

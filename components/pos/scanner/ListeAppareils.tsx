@@ -113,13 +113,13 @@ export default function ListeAppareils({ caisseId, caisseNom, portee = "caisse",
 
       {appareils === null && !erreur && <EtatChargement texte="Chargement des appareils…" compact />}
       {appareils === null && erreur && <EtatPos code={erreur.code} message={erreur.message} onReessayer={() => void charger()} compact />}
-      {appareils !== null && erreur && <p role="status" className="mb-2 text-[12px] text-[#B45309]">{t("Liste non actualisée :")} {t(erreur.message)}</p>}
+      {appareils !== null && erreur && <p role="status" className="mb-2 text-[12px] text-[#5e4200]">{t("Liste non actualisée :")} {t(erreur.message)}</p>}
       {appareils?.length === 0 && (
         <EtatVide titre="Aucun scanner connecté" texte="Reliez un téléphone à cette caisse : chaque article qu'il scanne arrive directement dans le panier." compact />
       )}
 
       {!!appareils?.length && (
-        <ul className="divide-y divide-[#F0F0F0] rounded-2xl border border-[#E8E8E8] bg-white">
+        <ul className="divide-y divide-[#F0F0F0] rounded-[12px] border border-[#E8E8E8] bg-white">
           {appareils.map((a) => {
             const Icone = a.type === "tablette" ? Tablet : a.type === "pc" ? Monitor : Smartphone;
             const enEdition = edition?.id === a.id;
@@ -156,7 +156,7 @@ export default function ListeAppareils({ caisseId, caisseNom, portee = "caisse",
       {!sansMateriel && (
         <div className="mt-5">
           <h3 className="mb-2 text-[14px] font-bold text-[#111111]">{t("Autres matériels")}</h3>
-          <ul className="divide-y divide-[#F0F0F0] rounded-2xl border border-[#E8E8E8] bg-white text-[12.5px] leading-relaxed text-[#666666]">
+          <ul className="divide-y divide-[#F0F0F0] rounded-[12px] border border-[#E8E8E8] bg-white text-[12.5px] leading-relaxed text-[#666666]">
             <li className="flex flex-wrap items-start gap-x-3 gap-y-1 px-4 py-3">
               <p className="min-w-0 flex-1"><span className="font-bold text-[#111111]">{t("Scanner USB ou Bluetooth en mode clavier")}</span><br />{t("Branchez la douchette (ou jumelez-la au poste en mode clavier) et scannez : le code arrive dans la caisse sans réglage.")}</p>
               <Badge ton="positif">{t("Pris en charge")}</Badge>

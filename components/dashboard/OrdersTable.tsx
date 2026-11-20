@@ -62,7 +62,7 @@ export function OrdersTable({ commandes }: OrdersTableProps) {
 
   return (
     <div className="ax-card overflow-hidden"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+      style={{ fontFamily: "var(--merchant-font)" }}>
 
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F3F3]">

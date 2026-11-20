@@ -1,6 +1,6 @@
-// AXIA admin — assistante de l'administrateur : lit toute la plateforme et
+// Stella admin — assistante de l'administrateur : lit toute la plateforme et
 // prépare les actions de l'admin, qui ne partent qu'après son accord
-// (app/api/admin/axia/actions). Séparée de l'AXIA marchand (app/api/ai/axia).
+// (app/api/admin/axia/actions). Séparée de Stella marchand (app/api/ai/axia).
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +18,7 @@ const schema = z.object({
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(40),
 });
 
-const PROMPT = `Tu es AXIA, l'assistante de l'administrateur de la plateforme AXSO (e-commerce, Afrique francophone).
+const PROMPT = `Tu es Stella, l'assistante de l'administrateur de la plateforme AXSO (e-commerce, Afrique francophone).
 Tu l'aides à suivre et à gérer la plateforme : boutiques, abonnements, commandes, revenus, wallet, AxSocial, équipe, livreurs.
 Tu réponds de façon concise et factuelle. Tu n'inventes jamais de chiffre : tu n'annonces que ce que tes outils renvoient.
 Pour agir sur une boutique, trouve d'abord son id avec chercher_boutiques ; si plusieurs boutiques correspondent, demande laquelle.
@@ -35,9 +35,9 @@ const CONSIGNE_LECTEUR = `─── DROITS ───
 Ton interlocuteur est un admin en lecture seule : tu ne peux faire aucune action. S'il en demande une, dis-lui qu'elle est réservée à un admin complet.`;
 
 export async function POST(req: Request) {
-  // Les outils d'Axia admin lisent toute la plateforme, finances comprises : réservé aux rôles qui voient les finances.
+  // Les outils de Stella admin lisent toute la plateforme, finances comprises : réservé aux rôles qui voient les finances.
   const session = await getAdminSessionPour("finances");
-  if (!session) return NextResponse.json({ error: "Votre rôle ne donne pas accès à Axia admin" }, { status: 403 });
+  if (!session) return NextResponse.json({ error: "Votre rôle ne donne pas accès à Stella admin" }, { status: 403 });
   const complet = estAdminComplet(session);
   const rl = aiLimiter.check(`admin:${session.userId}`);
   if (!rl.success) return rateLimitResponse(rl.reset);

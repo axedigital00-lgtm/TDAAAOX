@@ -18,7 +18,7 @@ export const PRIX_PLAN: Record<PlanId, number> = { palier0: 0, palier1: 6000, pa
 export const FONCTIONS = ["pos", "axia", "livraison", "constructeur", "marketing", "stock", "commandes", "paiements"] as const;
 export type Fonction = (typeof FONCTIONS)[number];
 export const NOM_FONCTION: Record<Fonction, string> = {
-  pos: "Caisse (POS)", axia: "Axia IA", livraison: "Suivi livraison", constructeur: "Constructeur de boutique",
+  pos: "Caisse (POS)", axia: "Stella IA", livraison: "Suivi livraison", constructeur: "Constructeur de boutique",
   marketing: "Marketing", stock: "Stock", commandes: "Commandes", paiements: "Paiements en ligne",
 };
 

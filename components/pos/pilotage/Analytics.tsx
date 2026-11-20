@@ -29,7 +29,7 @@ type Reponse = {
 };
 
 const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const NOIR = "#111111", JAUNE = "#F5A623";
+const NOIR = "#111111", JAUNE = "#2a6fdb";
 
 function Bulle({ active, payload, label, fmt }: { active?: boolean; payload?: { value: number; payload: { transactions: number } }[]; label?: string; fmt: (n: number) => string }) {
   const t = useT();
@@ -104,7 +104,7 @@ function Tableau({ lignes, voirCouts, fmt, premiere }: { lignes: Ligne[]; voirCo
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[480px] text-left text-[13px]">
-        <thead className="text-[11px] uppercase tracking-wide text-[#666666]">
+        <thead className="text-[11px] text-[#666666]">
           <tr>
             <th className="py-2 font-semibold">{t(premiere)}</th><th className="py-2 text-right font-semibold">{t("Chiffre d'affaires")}</th><th className="py-2 text-right font-semibold">{t("Ventes")}</th>
             <th className="py-2 text-right font-semibold">{t("Unités")}</th>{voirCouts && <th className="py-2 text-right font-semibold">{t("Marge")}</th>}
@@ -154,7 +154,7 @@ export function Analytics() {
               <Chiffre label="Remises" valeur={fmt(r.remises)} />
               <Chiffre label="Taux de retour" valeur={`${r.tauxRetour} %`} aide={t("{0} repris", fmt(r.retours))} />
             </div>
-            {r.lignesCoutApproche > 0 && <p role="note" className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#B45309]">{t("Marge approchée : {0} ligne(s) de vente d'avant la nouvelle caisse n'ont pas de coût figé ; le coût actuel du produit est utilisé à la place.", r.lignesCoutApproche)}</p>}
+            {r.lignesCoutApproche > 0 && <p role="note" className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#5e4200]">{t("Marge approchée : {0} ligne(s) de vente d'avant la nouvelle caisse n'ont pas de coût figé ; le coût actuel du produit est utilisé à la place.", r.lignesCoutApproche)}</p>}
 
             {r.transactions === 0 ? <EtatVide titre="Aucune vente en caisse sur cette période" texte="Changez de période ou de filtre. Les analyses se remplissent avec les ventes enregistrées à la caisse." /> : (
               <>
@@ -208,7 +208,7 @@ export function Analytics() {
                 {d.caissiers.length === 0 ? <EtatVide compact titre="Aucune activité de caissier sur cette période" /> : (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[720px] text-left text-[13px]">
-                      <thead className="text-[11px] uppercase tracking-wide text-[#666666]">
+                      <thead className="text-[11px] text-[#666666]">
                         <tr>{["Caissier", "Ventes", "Chiffre d'affaires", "Panier moyen", "Remises", "Annulations", "Remboursements", "Écarts de caisse"].map((c, i) => <th key={c} className={`py-2 font-semibold ${i ? "text-right" : ""}`}>{t(c)}</th>)}</tr>
                       </thead>
                       <tbody className="divide-y divide-[#F0F0F0]">

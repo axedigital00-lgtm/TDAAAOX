@@ -112,7 +112,7 @@ export default function PageCredit() {
   const client = ouvert ? d.clients.find((c) => c.id === ouvert.id) ?? null : null;
   const modeChoisi = d.modes.find((m) => m.id === paiement.mode);
   const caisseFermee = d.caisse.sessionObligatoire && !d.caisse.sessionOuverte;
-  const carte = "rounded-2xl border border-[#E8E8E8] bg-white p-4";
+  const carte = "rounded-[12px] border border-[#E8E8E8] bg-white p-4";
 
   // Message de relance : un texte, jamais un envoi.
   const relance = client && client.utilise > 0
@@ -131,16 +131,16 @@ export default function PageCredit() {
       </header>
 
       <dl className="grid gap-3 sm:grid-cols-3">
-        <div className={carte}><dt className="text-[11px] font-semibold uppercase tracking-wide text-[#888888]">{t("Encours total")}</dt><dd className="mt-1 text-[22px] font-bold tabular-nums">{fmt(d.encours)}</dd></div>
-        <div className={carte}><dt className="text-[11px] font-semibold uppercase tracking-wide text-[#888888]">{t("En retard")}</dt><dd className={cn("mt-1 text-[22px] font-bold tabular-nums", d.enRetard > 0 && "text-[#B91C1C]")}>{fmt(d.enRetard)}</dd></div>
-        <div className={carte}><dt className="text-[11px] font-semibold uppercase tracking-wide text-[#888888]">{t("Clients débiteurs")}</dt><dd className="mt-1 text-[22px] font-bold tabular-nums">{d.debiteurs}</dd></div>
+        <div className={carte}><dt className="text-[11px] font-semibold text-[#888888]">{t("Encours total")}</dt><dd className="mt-1 text-[22px] font-bold tabular-nums">{fmt(d.encours)}</dd></div>
+        <div className={carte}><dt className="text-[11px] font-semibold text-[#888888]">{t("En retard")}</dt><dd className={cn("mt-1 text-[22px] font-bold tabular-nums", d.enRetard > 0 && "text-[#B91C1C]")}>{fmt(d.enRetard)}</dd></div>
+        <div className={carte}><dt className="text-[11px] font-semibold text-[#888888]">{t("Clients débiteurs")}</dt><dd className="mt-1 text-[22px] font-bold tabular-nums">{d.debiteurs}</dd></div>
       </dl>
 
       <section className={carte} aria-labelledby="regles-credit">
         <h2 id="regles-credit" className="text-[14px] font-bold">{t("Règles de la boutique")}</h2>
         <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); enregistrerRegles(); }}>
           <fieldset disabled={!d.peutGerer} className="space-y-3">
-            <label className="flex min-h-11 items-center gap-2 text-[13px] font-semibold"><input type="checkbox" className="accent-[#F5A623]" checked={regles.actif} onChange={(e) => setRegles({ ...regles, actif: e.target.checked })} />{t("Autoriser la vente à crédit en caisse")}</label>
+            <label className="flex min-h-11 items-center gap-2 text-[13px] font-semibold"><input type="checkbox" className="accent-[#1a1a1a]" checked={regles.actif} onChange={(e) => setRegles({ ...regles, actif: e.target.checked })} />{t("Autoriser la vente à crédit en caisse")}</label>
             <div className="grid gap-3 sm:grid-cols-2">
               <Saisie label="Plafond d'un nouveau client" type="number" inputMode="decimal" min={0} step="any" suffixe={devise} value={regles.plafondDefaut} onChange={(e) => setRegles({ ...regles, plafondDefaut: e.target.value })} aide="0 = aucun crédit tant que vous n'avez pas fixé le plafond du client." />
               <Saisie label="Délai de paiement" type="number" inputMode="numeric" min={1} max={365} step={1} suffixe={t("jours")} value={regles.echeanceJours} onChange={(e) => setRegles({ ...regles, echeanceJours: e.target.value })} />
@@ -165,7 +165,7 @@ export default function PageCredit() {
         </div>
         {d.peutGerer && (
           <div className="mt-3">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Ouvrir le compte d'un client")}</p>
+            <p className="mb-1 text-[11px] font-semibold text-[#666666]">{t("Ouvrir le compte d'un client")}</p>
             <SelecteurClient valeur={null} onChoisir={(c) => c && ouvrir({ id: c.id, nom: c.nom, telephone: c.telephone })} />
           </div>
         )}
@@ -197,28 +197,28 @@ export default function PageCredit() {
             {confirmation && <p role="status" className="rounded-xl border border-[#BBF7D0] bg-[#ECFDF5] px-3 py-2 text-[12.5px] font-semibold text-[#15803D]">{confirmation}</p>}
             <dl className="grid gap-2 sm:grid-cols-3">
               {[["Autorisé", client?.plafond ?? 0], ["Utilisé", client?.utilise ?? 0], ["Disponible", client && !client.bloque && !client.bloqueAuto ? client.disponible : 0]].map(([l, v]) => (
-                <div key={l as string} className="rounded-xl bg-[#FAFAFA] px-3 py-2"><dt className="text-[10.5px] font-semibold uppercase tracking-wide text-[#888888]">{t(l as string)}</dt><dd className="mt-0.5 text-[15px] font-bold tabular-nums">{fmt(v as number)}</dd></div>
+                <div key={l as string} className="rounded-xl bg-[#FAFAFA] px-3 py-2"><dt className="text-[10.5px] font-semibold text-[#888888]">{t(l as string)}</dt><dd className="mt-0.5 text-[15px] font-bold tabular-nums">{fmt(v as number)}</dd></div>
               ))}
             </dl>
             {client?.bloqueAuto && <p role="alert" className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 text-[12.5px] text-[#B91C1C]">{t("Blocage automatique")} : {fmt(client.enRetard)} {t("en retard de")} {client.joursRetard} {t("jour(s)")}. {t("La vente à crédit reprendra dès que ce retard sera réglé.")}</p>}
 
             {d.peutGerer && (
-              <form className="space-y-3 rounded-2xl border border-[#F0F0F0] p-3" onSubmit={(e) => { e.preventDefault(); enregistrerCompte(); }} aria-label={t("Régler le compte")}>
+              <form className="space-y-3 rounded-[12px] border border-[#F0F0F0] p-3" onSubmit={(e) => { e.preventDefault(); enregistrerCompte(); }} aria-label={t("Régler le compte")}>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Saisie label="Plafond de crédit" type="number" inputMode="decimal" min={0} step="any" suffixe={devise} value={compte.plafond} onChange={(e) => setCompte({ ...compte, plafond: e.target.value })} />
                   <Saisie label="Délai de paiement" type="number" inputMode="numeric" min={1} max={365} step={1} suffixe={t("jours")} value={compte.echeanceJours} placeholder={String(d.regles.echeanceJours)} onChange={(e) => setCompte({ ...compte, echeanceJours: e.target.value })} aide="Vide = délai de la boutique." />
                 </div>
-                <label className="flex min-h-11 items-center gap-2"><input type="checkbox" className="accent-[#F5A623]" checked={compte.bloque} onChange={(e) => setCompte({ ...compte, bloque: e.target.checked })} />{t("Bloquer le crédit de ce client")}</label>
+                <label className="flex min-h-11 items-center gap-2"><input type="checkbox" className="accent-[#1a1a1a]" checked={compte.bloque} onChange={(e) => setCompte({ ...compte, bloque: e.target.checked })} />{t("Bloquer le crédit de ce client")}</label>
                 {envoiCompte.erreur && <p role="alert" className="text-[12.5px] text-[#B91C1C]">{t(envoiCompte.erreur)}</p>}
                 <Bouton type="submit" variante="secondaire" charge={envoiCompte.enCours}>{t("Enregistrer")}</Bouton>
               </form>
             )}
 
             {client && client.utilise > 0 && d.peutEncaisser && (
-              <form className="space-y-3 rounded-2xl border border-[#F0F0F0] p-3" onSubmit={(e) => { e.preventDefault(); encaisser(); }} aria-label={t("Encaisser un remboursement")}>
+              <form className="space-y-3 rounded-[12px] border border-[#F0F0F0] p-3" onSubmit={(e) => { e.preventDefault(); encaisser(); }} aria-label={t("Encaisser un remboursement")}>
                 <p className="text-[13px] font-bold">{t("Encaisser un remboursement")}</p>
-                {caisseFermee ? <p role="status" className="text-[12.5px] text-[#B45309]">{t("La caisse est fermée. Ouvrez-la pour encaisser : le remboursement entre dans la session de caisse.")}</p>
-                  : !d.modes.length ? <p role="status" className="text-[12.5px] text-[#B45309]">{t("Aucun moyen de paiement utilisable n'est activé dans les réglages de la caisse.")}</p> : (
+                {caisseFermee ? <p role="status" className="text-[12.5px] text-[#5e4200]">{t("La caisse est fermée. Ouvrez-la pour encaisser : le remboursement entre dans la session de caisse.")}</p>
+                  : !d.modes.length ? <p role="status" className="text-[12.5px] text-[#5e4200]">{t("Aucun moyen de paiement utilisable n'est activé dans les réglages de la caisse.")}</p> : (
                     <>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <Saisie label="Montant reçu" type="number" inputMode="decimal" min={0} max={client.utilise} step="any" suffixe={devise} value={paiement.montant} onChange={(e) => setPaiement({ ...paiement, montant: e.target.value })} aide={`${t("Dû")} : ${fmt(client.utilise)}`} />
@@ -239,13 +239,13 @@ export default function PageCredit() {
             )}
 
             {relance && (
-              <section className="space-y-2 rounded-2xl border border-[#F0F0F0] p-3" aria-label={t("Relance")}>
+              <section className="space-y-2 rounded-[12px] border border-[#F0F0F0] p-3" aria-label={t("Relance")}>
                 <p className="text-[13px] font-bold">{t("Message de relance")}</p>
                 <p className="text-[11.5px] text-[#888888]">{t("AXSO n'envoie rien : copiez ce message ou ouvrez-le dans WhatsApp pour l'envoyer vous-même.")}</p>
                 <textarea readOnly value={relance} rows={4} aria-label={t("Message de relance")} className={CLASSE_SAISIE} />
                 <div className="flex flex-wrap gap-2">
                   <Bouton variante="secondaire" icone={<Copy size={15} aria-hidden />} onClick={() => navigator.clipboard.writeText(relance).then(() => setConfirmation(t("Message copié.")), () => setConfirmation(t("Copie impossible : sélectionnez le texte à la main.")))}>{t("Copier")}</Bouton>
-                  {whatsapp.length >= 8 && <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(relance)}`} target="_blank" rel="noopener noreferrer" className={cn("inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-4 text-[13px] font-bold hover:border-[#F5A623]", FOCUS)}><MessageCircle size={15} aria-hidden />{t("Ouvrir dans WhatsApp")}</a>}
+                  {whatsapp.length >= 8 && <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(relance)}`} target="_blank" rel="noopener noreferrer" className={cn("inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-4 text-[13px] font-bold hover:border-[#8a8a8a]", FOCUS)}><MessageCircle size={15} aria-hidden />{t("Ouvrir dans WhatsApp")}</a>}
                 </div>
               </section>
             )}
@@ -253,7 +253,7 @@ export default function PageCredit() {
             {!d.detail ? <EtatChargement compact texte="Chargement du compte…" /> : (
               <>
                 <section aria-label={t("Échéances")}>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Ventes à régler")}</h3>
+                  <h3 className="text-[11px] font-semibold text-[#666666]">{t("Ventes à régler")}</h3>
                   {!d.detail.echeances.length ? <p className="mt-1 text-[12.5px] text-[#666666]">{t("Rien à régler.")}</p> : (
                     <ul className="mt-1 divide-y divide-[#F0F0F0]">
                       {d.detail.echeances.map((e) => (
@@ -266,7 +266,7 @@ export default function PageCredit() {
                   )}
                 </section>
                 <section aria-label={t("Historique")}>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Historique du compte")}</h3>
+                  <h3 className="text-[11px] font-semibold text-[#666666]">{t("Historique du compte")}</h3>
                   {!d.detail.mouvements.length ? <p className="mt-1 text-[12.5px] text-[#666666]">{t("Aucun mouvement.")}</p> : (
                     <ul className="mt-1 divide-y divide-[#F0F0F0]">
                       {d.detail.mouvements.map((m) => (

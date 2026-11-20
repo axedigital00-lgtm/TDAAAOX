@@ -12,7 +12,7 @@ export interface ConversationFull extends ConversationSummary {
   messages: any[];
 }
 
-// Gestion des conversations AXIA (façon ChatGPT) — partagée entre l'écran
+// Gestion des conversations Stella (façon ChatGPT) — partagée entre l'écran
 // plein écran (/dashboard) et la bulle flottante, pour ne jamais diverger
 // entre les deux surfaces.
 export function useAxiaConversations() {

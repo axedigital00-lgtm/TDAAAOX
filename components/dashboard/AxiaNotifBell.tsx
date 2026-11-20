@@ -15,11 +15,11 @@ interface NotifMarchand {
 }
 
 const NOTIF_ICONS: Record<string, { Icon: any; color: string }> = {
-  nouvelle_commande: { Icon: ShoppingBag,   color: "#F5A623" },
+  nouvelle_commande: { Icon: ShoppingBag,   color: "var(--color-text-secondary)" },
   commande_whatsapp: { Icon: MessageCircle, color: "#25D366" },
   escalade_humain:   { Icon: AlertTriangle, color: "#ef4444" },
   paiement:          { Icon: DollarSign,    color: "#10b981" },
-  avis:              { Icon: Star,          color: "#F5A623" },
+  avis:              { Icon: Star,          color: "var(--color-text-secondary)" },
   stock_bas:         { Icon: Package,       color: "#ef4444" },
 };
 function iconPourType(type: string) { return NOTIF_ICONS[type] ?? { Icon: Info, color: "#9CA3AF" }; }
@@ -33,10 +33,10 @@ function tempsEcoule(iso: string) {
   return `Il y a ${Math.floor(h / 24)}j`;
 }
 
-// Cloche de notifications pour l'écran AXIA plein écran — Header.tsx (le
+// Cloche de notifications pour l'écran Stella plein écran — Header.tsx (le
 // header du dashboard classique) a son propre système équivalent en thème
-// clair, jamais monté ici puisque AXIA remplace tout le chrome habituel.
-// Sans ça, un marchand qui atterrit sur AXIA (écran par défaut) n'a aucune
+// clair, jamais monté ici puisque Stella remplace tout le chrome habituel.
+// Sans ça, un marchand qui atterrit sur Stella (écran par défaut) n'a aucune
 // visibilité sur les nouvelles commandes tant qu'il ne navigue pas ailleurs.
 export function AxiaNotifBell() {
   const t = useT();
@@ -68,11 +68,11 @@ export function AxiaNotifBell() {
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(v => !v)} title={t("Notifications")}
-        className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0">
-        <Bell size={13} className="text-white/60" />
+        className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--color-surface-tertiary)] flex-shrink-0">
+        <Bell size={13} className="text-[color:var(--color-text-secondary)]" />
         {nonLues > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-[3px] rounded-full flex items-center justify-center text-[8px] font-extrabold text-white"
-            style={{ background: "#F5A623", border: "2px solid #16233f" }}>
+            style={{ background: "var(--color-notification)", border: "2px solid var(--color-surface)" }}>
             {nonLues > 9 ? "9+" : t(nonLues)}
           </span>
         )}
@@ -80,11 +80,11 @@ export function AxiaNotifBell() {
 
       {open && (
         <div className="absolute right-0 top-[42px] w-[300px] max-w-[85vw] rounded-2xl overflow-hidden z-50"
-          style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 24px 64px rgba(0,0,0,0.45)" }}>
-          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            <span className="text-[13px] font-bold text-white">{t("Notifications")}</span>
+          style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-popover)", borderRadius: "var(--radius-lg)" }}>
+          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--color-border-secondary)" }}>
+            <span className="text-[13px] font-bold text-[color:var(--color-text-strong)]">{t("Notifications")}</span>
             {nonLues > 0 && (
-              <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(245,166,35,0.15)", color: "#F5A623" }}>
+              <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--badge-neutral-bg)", color: "var(--badge-neutral-text)" }}>
                 {t(nonLues)} nouvelle{nonLues > 1 ? "s" : ""}
               </span>
             )}
@@ -93,8 +93,8 @@ export function AxiaNotifBell() {
           <div className="max-h-[340px] overflow-y-auto">
             {notifications.length === 0 && (
               <div className="py-8 text-center px-4">
-                <Bell size={20} className="mx-auto mb-2 text-white/15" />
-                <p className="text-[12px] text-white/35">{t("Aucune notification pour l'instant")}</p>
+                <Bell size={20} className="mx-auto mb-2 text-[color:var(--color-text-secondary)]" />
+                <p className="text-[12px] text-[color:var(--color-text-secondary)]">{t("Aucune notification pour l'instant")}</p>
               </div>
             )}
             {notifications.map((n, i) => {
@@ -103,16 +103,16 @@ export function AxiaNotifBell() {
                 <div
                   className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5 cursor-pointer"
                   style={{
-                    borderBottom: i < notifications.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                    background: n.lu ? "transparent" : "rgba(245,166,35,0.05)",
+                    borderBottom: i < notifications.length - 1 ? "1px solid var(--color-border-secondary)" : "none",
+                    background: n.lu ? "transparent" : "var(--color-surface-secondary)",
                   }}
                   onClick={() => { if (!n.lu) marquerLu(n.id); setOpen(false); }}
                 >
                   <Icon size={15} style={{ color, flexShrink: 0, marginTop: 2 }} />
                   <div className="min-w-0">
-                    <p className="text-[12.5px] leading-snug" style={{ color: "rgba(255,255,255,0.9)", fontWeight: n.lu ? 400 : 700 }}>{t(n.titre)}</p>
-                    <p className="text-[11.5px] mt-0.5 leading-snug text-white/45">{t(n.message)}</p>
-                    <p className="text-[10.5px] mt-1 text-white/30">{tempsEcoule(n.createdAt)}{n.autreBoutique ? ` · ${n.nomBoutique}` : ""}</p>
+                    <p className="text-[12.5px] leading-snug" style={{ color: "var(--color-text-strong)", fontWeight: n.lu ? 400 : 700 }}>{t(n.titre)}</p>
+                    <p className="text-[11.5px] mt-0.5 leading-snug text-[color:var(--color-text-secondary)]">{t(n.message)}</p>
+                    <p className="text-[10.5px] mt-1 text-[color:var(--color-text-secondary)]">{tempsEcoule(n.createdAt)}{n.autreBoutique ? ` · ${n.nomBoutique}` : ""}</p>
                   </div>
                 </div>
               );
@@ -125,8 +125,8 @@ export function AxiaNotifBell() {
           </div>
 
           {notifications.length > 0 && (
-            <div className="px-4 py-2.5" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              <button onClick={marquerToutLu} className="text-[11.5px] font-bold" style={{ color: "#F5A623" }}>
+            <div className="px-4 py-2.5" style={{ borderTop: "1px solid var(--color-border-secondary)" }}>
+              <button onClick={marquerToutLu} className="text-[11.5px] font-bold" style={{ color: "var(--color-link)" }}>
                 {t("Tout marquer comme lu")}
               </button>
             </div>

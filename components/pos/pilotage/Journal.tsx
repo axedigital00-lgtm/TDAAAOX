@@ -63,7 +63,7 @@ export function Journal() {
         <Bouton variante="secondaire" taille="compact" onClick={() => void charger(null)} charge={charge && entrees.length > 0}>{t("Actualiser")}</Bouton>
       </EnTete>
 
-      <section aria-label={t("Filtres")} className="rounded-2xl border border-[#E8E8E8] bg-white p-3 sm:p-4">
+      <section aria-label={t("Filtres")} className="rounded-[12px] border border-[#E8E8E8] bg-white p-3 sm:p-4">
         <div role="group" aria-label={t("Famille")} className="flex flex-wrap gap-2">
           {[{ id: "", libelle: "Tout" }, ...categories].map((c) => (
             <button key={c.id || "tout"} type="button" aria-pressed={filtres.categorie === c.id} onClick={() => setFiltres((f) => ({ ...f, categorie: c.id }))}

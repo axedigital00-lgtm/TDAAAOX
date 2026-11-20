@@ -98,7 +98,7 @@ export function Supervision() {
                     return (
                       <li key={c.id}>
                         <button type="button" onClick={() => setOuverte(c.id)} aria-haspopup="dialog"
-                          className={`w-full rounded-2xl border border-[#E8E8E8] bg-white p-4 text-left transition-colors hover:border-[#111111] ${FOCUS}`}>
+                          className={`w-full rounded-[12px] border border-[#E8E8E8] bg-white p-4 text-left transition-colors hover:border-[#111111] ${FOCUS}`}>
                           <span className="flex items-center gap-2">
                             <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ background: e.point }} aria-hidden />
                             <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-[#111111]">{c.nom}</span>
@@ -131,7 +131,7 @@ export function Supervision() {
                 <span className="text-[12px] text-[#666666]">{d.caisse.dernierSignalAt ? t("Dernier signal : {0}", dateHeure(d.caisse.dernierSignalAt, t.loc)) : t("Ce poste n'a jamais donné signe de vie.")}</span>
               </div>
               <section>
-                <h3 className="mb-1 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Session")}</h3>
+                <h3 className="mb-1 text-[12px] font-bold text-[#666666]">{t("Session")}</h3>
                 {d.caisse.session ? (
                   <dl className="divide-y divide-[#F0F0F0]">
                     <div className="flex justify-between py-2"><dt className="text-[#666666]">{t("Caissier")}</dt><dd className="font-semibold">{d.caisse.session.caissier}</dd></div>
@@ -142,7 +142,7 @@ export function Supervision() {
                 ) : <p className="text-[#666666]">{t("Aucune session ouverte sur cette caisse.")}</p>}
               </section>
               <section>
-                <h3 className="mb-1 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Ventes du jour")}</h3>
+                <h3 className="mb-1 text-[12px] font-bold text-[#666666]">{t("Ventes du jour")}</h3>
                 {d.ventes.length === 0 ? <p className="text-[#666666]">{t("Aucune vente aujourd'hui sur cette caisse.")}</p> : (
                   <ul className="divide-y divide-[#F0F0F0]">
                     {d.ventes.map((v) => (
@@ -155,7 +155,7 @@ export function Supervision() {
                 )}
               </section>
               <section>
-                <h3 className="mb-1 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Appareils")}</h3>
+                <h3 className="mb-1 text-[12px] font-bold text-[#666666]">{t("Appareils")}</h3>
                 {d.appareils.length === 0 ? <p className="text-[#666666]">{t("Aucun téléphone-scanner appairé à cette caisse.")}</p> : (
                   <ul className="divide-y divide-[#F0F0F0]">
                     {d.appareils.map((a) => (

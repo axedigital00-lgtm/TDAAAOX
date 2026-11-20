@@ -10,6 +10,38 @@ const HIGHFIELD_VIDEO_URL = "https://res.cloudinary.com/mn6mspfb/video/upload/v1
 const HIGHFIELD_IFRAME_URL = "";
 const HIGHFIELD_POSTER_URL = "/axso-video-poster.jpg";
 
+export function FilmBoutique() {
+  const t = useT();
+  const video = useRef<HTMLVideoElement>(null);
+  const [demarre, setDemarre] = useState(false);
+  const [erreur, setErreur] = useState(false);
+
+  async function lire() {
+    const lecteur = video.current;
+    if (!lecteur) return;
+    try {
+      await lecteur.play();
+      setDemarre(true);
+      lecteur.focus();
+    } catch {
+      setErreur(true);
+    }
+  }
+
+  return <figure id="video-demo" className="axm-film-boutique">
+    <video ref={video} poster={HIGHFIELD_POSTER_URL} src={HIGHFIELD_VIDEO_URL} preload="none"
+      controls={demarre} playsInline tabIndex={demarre ? 0 : -1}
+      aria-label={t("La création d’une boutique AXSO en trois minutes")}
+      onError={() => setErreur(true)} />
+    {!demarre && !erreur && <button type="button" onClick={lire} className="axm-film-boutique__play">
+      <Play size={19} fill="currentColor" aria-hidden="true" /> {t("Voir la présentation")} <span>3:00</span>
+    </button>}
+    {erreur && <a className="axm-film-boutique__play" href={HIGHFIELD_VIDEO_URL}>
+      {t("Ouvrir le film original")}
+    </a>}
+  </figure>;
+}
+
 const VIDEO_CARTS = [
   { size: 600, top: "5%",  duration: 20, delay: 0,  opacity: 0.05, direction: "rtl" as const },
   { size: 400, top: "60%", duration: 16, delay: 5,  opacity: 0.04, direction: "ltr" as const },
@@ -248,13 +280,13 @@ export function VideoSection() {
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-lg bg-[#F5A623]/10 flex items-center justify-center text-[#F5A623]"><Bot size={16} /></div>
                 <div>
-                  <p className="text-xs font-semibold text-gray-700">AXIA</p>
+                  <p className="text-xs font-semibold text-gray-700">Stella</p>
                   <p className="text-[10px] text-gray-400">{t("Boutique créée en 3 minutes")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] px-2.5 py-1 rounded-full bg-green-100 text-green-700 font-semibold whitespace-nowrap">{t("✓ Boutique live")}</span>
-                <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-full bg-[#F5A623]/10 text-[#F5A623] font-semibold items-center gap-1"><Zap size={10} />{" "}{t("AXIA active")}</span>
+                <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-full bg-[#F5A623]/10 text-[#F5A623] font-semibold items-center gap-1"><Zap size={10} />{" "}{t("Stella active")}</span>
               </div>
             </div>
           </div>
@@ -267,7 +299,7 @@ export function VideoSection() {
         >
           {[
             { icon: <Zap size={36} />, title: "3 min pour lancer", desc: "De ta vision à la boutique live" },
-            { icon: <Bot size={36} />, title: "AXIA bosse pour toi", desc: "Ton assistante IA, active 24h/24" },
+            { icon: <Bot size={36} />, title: "Stella bosse pour toi", desc: "Ton assistante IA, active 24h/24" },
             { icon: <Globe size={36} />, title: "Actif dans les 54 pays en Afrique", desc: "Paiements et livraisons localisés" },
           ].map((item) => (
             <div key={item.title} className="group">

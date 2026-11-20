@@ -1,8 +1,7 @@
-import { NavbarMarketing } from "@/components/marketing/NavbarMarketing";
-import { FooterMarketing } from "@/components/marketing/FooterMarketing";
-import { Newspaper } from "lucide-react";
+// Espace presse : contact et logos à télécharger.
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/serveur";
+import { PageAxm, HeroPage, Section } from "@/components/marketing/site/Blocs";
 
 export const metadata: Metadata = {
   title: "Presse",
@@ -12,41 +11,27 @@ export const metadata: Metadata = {
 export default async function PressPage() {
   const t = await getT();
   return (
-    <main className="bg-white text-[#111111] min-h-screen" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-      <NavbarMarketing />
-
-      <section className="pt-36 pb-24 px-6 sm:px-10 lg:px-16 xl:px-24 relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(ellipse, rgba(245,166,35,0.09) 0%, transparent 65%)" }} />
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-20">
-            <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] mb-5" style={{ color: "#F5A623" }}>
-              <Newspaper size={14} className="inline-block mr-1.5" />{t("Espace presse")}
-            </span>
-            <h1 className="text-4xl sm:text-5xl font-bold mb-5 leading-tight">
-              {t("Ressources pour")}<br />
-              <span style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                {t("les médias")}
-              </span>
-            </h1>
-            <p className="text-[#737373] text-xl max-w-2xl mx-auto">{t("Une demande d'interview, de logo ou d'information ? Écrivez-nous, nous vous répondrons directement.")}</p>
+    <PageAxm>
+      <HeroPage surtitre={t("Espace presse")} titre={t("Ressources pour les médias")}
+        lead={t("Une demande d'interview, de logo ou d'information ? Écrivez-nous, nous vous répondrons directement.")} />
+      <Section serre>
+        <div className="axm-grid axm-g2">
+          <div className="axm-card" style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 240 }}>
+            <h2 className="axm-h4" style={{ fontSize: 24 }}>{t("Contact presse")}</h2>
+            <p className="axm-muted" style={{ lineHeight: 1.55 }}>{t("Demandes d'interviews, citations officielles et informations complémentaires.")}</p>
+            <a href="mailto:presse@axsoafrica.com" className="axm-link" style={{ marginTop: "auto" }}>presse@axsoafrica.com →</a>
           </div>
-
-          {/* Contact presse */}
-          <div className="rounded-3xl border p-8 text-center"
-            style={{ background: "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02))", borderColor: "rgba(245,166,35,0.2)" }}>
-            <h3 className="text-xl font-bold text-[#111111] mb-2">{t("Contact presse")}</h3>
-            <p className="text-[#737373] mb-5">{t("Demandes d'interviews, citations officielles et informations complémentaires.")}</p>
-            <a href="mailto:presse@axsoafrica.com"
-              className="inline-block font-bold px-8 py-3.5 rounded-xl transition-all hover:scale-105"
-              style={{ background: "linear-gradient(135deg,#F5A623,#d4880d)", color: "#080808", boxShadow: "0 8px 25px rgba(245,166,35,0.3)" }}>
-              {t("presse@axsoafrica.com →")}
-            </a>
+          <div className="axm-card" style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 240 }}>
+            <h2 className="axm-h4" style={{ fontSize: 24 }}>{t("Logos")}</h2>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <a href="/logo-dark.png" download style={{ background: "#000", borderRadius: 14, padding: "18px 22px", boxShadow: "inset 0 0 0 1px var(--m-line)" }}><img src="/logo-dark.png" alt="AXSO" style={{ height: 30, display: "block" }} /></a>
+              <a href="/logo.png" download style={{ background: "#fff", borderRadius: 14, padding: "18px 22px" }}><img src="/logo.png" alt="AXSO" style={{ height: 30, display: "block" }} /></a>
+              <a href="/brand/axia-mark.png" download style={{ background: "#fff", borderRadius: 14, padding: 12 }}><img src="/brand/axia-mark.png" alt="Stella" style={{ height: 42, display: "block" }} /></a>
+            </div>
+            <p className="axm-muted" style={{ fontSize: 14, marginTop: "auto" }}>{t("Cliquez sur un logo pour le télécharger.")}</p>
           </div>
         </div>
-      </section>
-
-      <FooterMarketing />
-    </main>
+      </Section>
+    </PageAxm>
   );
 }

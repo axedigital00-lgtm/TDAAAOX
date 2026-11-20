@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/mots-de-passe";
 import { getAdminSession, getAdminSessionPour, estAdminComplet } from "@/lib/admin-auth";
 import { ROLES_ADMIN } from "@/lib/command-center/rbac";
 import { journaliser } from "@/lib/command-center/serveur";

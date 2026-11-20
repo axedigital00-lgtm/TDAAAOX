@@ -61,7 +61,7 @@ export function Page({ children }: { children: React.ReactNode }) {
 export function Carte({ titre, children, actions, className = "" }: { titre?: string; children: React.ReactNode; actions?: React.ReactNode; className?: string }) {
   const t = useT();
   return (
-    <section className={`rounded-2xl border border-[#E8E8E8] bg-white p-4 sm:p-5 ${className}`}>
+    <section className={`rounded-[12px] border border-[#E8E8E8] bg-white p-4 sm:p-5 ${className}`}>
       {(titre || actions) && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           {titre && <h2 className="text-[13px] font-bold text-[#111111]">{t(titre)}</h2>}
@@ -77,8 +77,8 @@ export function Carte({ titre, children, actions, className = "" }: { titre?: st
 export function Chiffre({ label, valeur, aide, fort, ton }: { label: string; valeur: string; aide?: string; fort?: boolean; ton?: "positif" | "danger" }) {
   const t = useT();
   return (
-    <div className={`min-w-0 rounded-2xl border p-4 ${fort ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#111111]"}`}>
-      <p className={`text-[10.5px] font-semibold uppercase tracking-wide ${fort ? "text-white/70" : "text-[#666666]"}`}>{t(label)}</p>
+    <div className={`min-w-0 rounded-[12px] border p-4 ${fort ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#111111]"}`}>
+      <p className={`text-[10.5px] font-semibold ${fort ? "text-white/70" : "text-[#666666]"}`}>{t(label)}</p>
       <p className={`mt-1 text-[17px] font-bold leading-tight tabular-nums [overflow-wrap:anywhere] sm:text-[20px] ${ton === "danger" ? "text-[#B91C1C]" : ton === "positif" ? "text-[#15803D]" : ""}`}>{valeur}</p>
       {aide && <p className={`mt-0.5 text-[11px] ${fort ? "text-white/70" : "text-[#888888]"}`}>{t(aide)}</p>}
     </div>

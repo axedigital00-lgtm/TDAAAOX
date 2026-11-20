@@ -1,7 +1,7 @@
 /**
- * Axia — moteur d'orchestration robuste (Gemini exclusif, @google/genai)
+ * Stella — moteur d'orchestration robuste (Gemini exclusif, @google/genai)
  *
- * Objectif : tant que l'appel API Gemini aboutit, Axia produit toujours une
+ * Objectif : tant que l'appel API Gemini aboutit, Stella produit toujours une
  * réponse de qualité — jamais de réponse vide, jamais de crash silencieux.
  *
  * Garanties :
@@ -78,7 +78,7 @@ function fallbackReponse(toolResults: string[], phase1Text: string): string {
   // Modèle indisponible (503…) : les résultats bruts partent au marchand — sans la consigne
   // interne des actions à autoriser (« Dis-lui… ne dis jamais que c'est fait »).
   if (toolResults.length > 0) return toolResults
-    .map(r => r.replace(/OUVRIR_PAGE:[^\n]*\n?/, "").replace(/^EN ATTENTE DE CONFIRMATION : « (.+?) »[\s\S]*$/, "« $1 » attend ton autorisation dans la bulle AXIA, en bas à droite."))
+    .map(r => r.replace(/OUVRIR_PAGE:[^\n]*\n?/, "").replace(/^EN ATTENTE DE CONFIRMATION : « (.+?) »[\s\S]*$/, "« $1 » attend ton autorisation dans la bulle Stella, en bas à droite."))
     .join("\n\n");
   return "Je n'ai pas pu traiter ta demande à l'instant — réessaie dans un instant.";
 }

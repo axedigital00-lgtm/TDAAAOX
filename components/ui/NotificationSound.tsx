@@ -1,33 +1,23 @@
 "use client";
+// Son des notifications de la plateforme (public/sons/notification.mp3), joué à
+// chaque toast. Les nouvelles commandes ont leur propre son (AlerteCommande,
+// public/sons/commande.mp3) et Stella le sien (AxiaBulle).
 import { useEffect } from "react";
 
-function playChime() {
+let audio: HTMLAudioElement | null = null;
+let dernier = 0;
+
+function jouerNotification() {
+  // Plusieurs toasts d'affilée : un seul son.
+  const maintenant = Date.now();
+  if (maintenant - dernier < 800) return;
+  dernier = maintenant;
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const now = ctx.currentTime;
-
-    // Soft two-note ascending chime (G5 → C6)
-    const notes = [784, 1047];
-    notes.forEach((freq, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const t = now + i * 0.13;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.9, t + 0.02); // volume maximal sans saturation
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-      osc.start(t);
-      osc.stop(t + 0.5);
-    });
-
-    // Fade-out ctx after last note to avoid memory leak
-    setTimeout(() => { try { ctx.close(); } catch {} }, 1500);
-  } catch {}
+    audio ??= new Audio("/sons/notification.mp3");
+    audio.volume = 0.7;
+    audio.currentTime = 0;
+    audio.play().catch(() => { /* lecture bloquée avant un geste de l'utilisateur */ });
+  } catch { /* audio indisponible */ }
 }
 
 export function NotificationSound() {
@@ -40,7 +30,7 @@ export function NotificationSound() {
             (node.hasAttribute("data-sonner-toast") ||
               node.querySelector("[data-sonner-toast]"))
           ) {
-            playChime();
+            jouerNotification();
             return;
           }
         }

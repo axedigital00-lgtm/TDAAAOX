@@ -1,5 +1,5 @@
 // Modification et suppression d'un produit : même logique pour le formulaire
-// du dashboard (app/api/produits/[id]) et pour AXIA (modifier_produit, supprimer_produit).
+// du dashboard (app/api/produits/[id]) et pour Stella (modifier_produit, supprimer_produit).
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";

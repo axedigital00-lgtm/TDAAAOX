@@ -2,7 +2,7 @@
 //
 // Une vente en caisse est une `Commande` (canal = "pos", statut « livree ») :
 // elle hérite ainsi du stock, des retours, des factures, des analytics et
-// d'AXIA sans rien dupliquer. Autour d'elle : PaiementVente (un ou plusieurs
+// de Stella sans rien dupliquer. Autour d'elle : PaiementVente (un ou plusieurs
 // règlements), SessionCaisse, JournalAudit, EvenementPos.
 //
 // CE QUE LE SERVEUR FAIT FOI

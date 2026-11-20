@@ -1,16 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PCOnlyGate } from "@/components/dashboard/PCOnlyGate";
 import { ApercuDesign, parametresApercu, fichierDuTheme, CONFIRMER_CHANGEMENT } from "@/components/dashboard/ApercuDesign";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
-import {
-  Plus, Palette, Trash2, Edit2, ExternalLink,
-  Sparkles, ArrowLeft,
-} from "lucide-react";
+import { Palette, Sparkles } from "lucide-react";
+import { Page, PageHeader, Card, Button, Badge } from "@/components/dashboard/design-system";
 import { useT } from "@/components/I18nProvider";
 import { urlBoutique } from "@/lib/utils";
+import { FAMILLES_THEMES, famillesTheme } from "@/lib/themes-familles";
 
 const THEMES_TUTORIAL_STEPS = [
   { Icon: Palette,  titre: "Choisissez un design AXSO", description: "15 designs prêts à l'emploi, pensés pour différents univers : mode, artisanat, beauté... En choisir un branche directement vos vrais produits." },
@@ -119,122 +118,126 @@ export default function ThemesPage() {
     }
   }
 
+  const librairie = themes.filter((t) => t.axsoDesign);
+  const custom = themes.filter((t) => !t.builtin);
+  const actif = themes.find((t) => t.id === tenant?.themeId || t.slug === tenant?.themeId);
+  const ambiances = useMemo(() => FAMILLES_THEMES.map((f) => f.nom).filter((n) => librairie.some((t) => famillesTheme(t.description).includes(n))), [librairie]);
+  const [filtre, setFiltre] = useState<string | null>(null);
+  const [recherche, setRecherche] = useState("");
+  const visibles = librairie.filter((t) =>
+    (!filtre || famillesTheme(t.description).includes(filtre)) &&
+    (!recherche.trim() || `${t.nom} ${t.description || ""}`.toLowerCase().includes(recherche.trim().toLowerCase())));
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <Page>
+        <PageHeader icon="store" title={tr("Thèmes")} />
+        <Card><p style={{ color: "var(--color-text-subdued)" }}>{tr("Chargement...")}</p></Card>
+      </Page>
     );
   }
 
-  const librairie = themes.filter((t) => t.axsoDesign);
-  const custom = themes.filter((t) => !t.builtin);
-
   return (
-    <div
-      className="h-screen flex flex-col bg-[#F5F7FA] overflow-hidden"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}
-    >
+    <Page>
       <ModuleTutorial moduleKey="themes" titre={tr("Thèmes")} sousTitre={tr("Personnalise l'apparence de ta boutique")} steps={THEMES_TUTORIAL_STEPS} />
-      <PCOnlyGate label={tr("Theme Studio")} />
+      <PCOnlyGate label={tr("Thèmes")} />
+      <PageHeader
+        icon="store"
+        title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{tr("Thèmes")}<BoutonRevoirTutoriel moduleKey="themes" /></span>}
+        backHref="/dashboard/boutique"
+        secondaryActions={tenant?.slug ? [{ content: tr("Voir la boutique"), href: urlBoutique(tenant), external: true, icon: "external" }] : []}
+        primaryAction={{ content: tr("Importer un thème"), onAction: () => router.push("/dashboard/themes/creer") }}
+      />
 
-      {/* ── Header ── */}
-      <header className="h-14 flex items-center gap-4 px-6 bg-white border-b border-gray-200 flex-shrink-0">
-        <button
-          onClick={() => router.push("/dashboard/boutique")}
-          className="flex items-center gap-2 text-gray-400 hover:text-gray-700 transition-colors"
-        >
-          <ArrowLeft size={15} />
-          <span className="text-sm font-medium">{tr("Boutique")}</span>
-        </button>
-        <div className="h-5 w-px bg-gray-200" />
-        <div className="flex items-center gap-2">
-          <Palette size={16} className="text-[#F5A623]" />
-          <h1 className="text-sm font-bold text-gray-800">{tr("Theme Studio")}</h1>
-          <BoutonRevoirTutoriel moduleKey="themes" />
-        </div>
-
-        {tenant && (
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FFF7ED] border border-[#F5A623]/20 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-[#F5A623]" />
-              <span className="text-xs font-medium text-[#92400E]">
-                {tr(themes.find((t) => t.id === tenant.themeId || t.slug === tenant.themeId)?.nom) || tr(tenant.themeId)}
-              </span>
+      <div style={{ display: "grid", gap: "var(--space-400)" }}>
+        {/* ── Thème actuel ── */}
+        <Card title={tr("Thème actuel")}>
+          <div className="axd-theme-actuel">
+            <div className="axd-theme-actuel__apercu">
+              {actif && fichierDuTheme(actif.slug)
+                ? <ApercuDesign fichier={fichierDuTheme(actif.slug)!} params={params} className="h-full" />
+                : <ThemePreview colors={couleurs(actif)} radius={actif?.config?.radius || "12px"} />}
             </div>
-            {tenant.slug && (
-              <a
-                href={urlBoutique(tenant)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:border-gray-400 hover:text-gray-700 transition-all"
-              >
-                <ExternalLink size={11} />{" "}{tr("Voir la boutique")}
-              </a>
-            )}
-            <button
-              onClick={() => router.push("/dashboard/themes/creer")}
-              className="flex items-center gap-2 bg-[#F5A623] text-white px-4 py-1.5 rounded-lg font-semibold text-xs hover:bg-[#d4820a] transition-all"
-            >
-              <Plus size={14} />{" "}{tr("Créer un thème")}
-            </button>
+            <div className="axd-theme-actuel__info">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <h3 className="axd-theme-actuel__nom">{tr(actif?.nom) || tr("Thème par défaut")}</h3>
+                <Badge tone="success">{tr("En ligne")}</Badge>
+              </div>
+              {actif?.description && <p style={{ color: "var(--color-text-subdued)", margin: "4px 0 0" }}>{tr(actif.description)}</p>}
+              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-400)", flexWrap: "wrap" }}>
+                <Button variant="primary" href="/dashboard/builder">{tr("Personnaliser")}</Button>
+                {tenant?.slug && <Button href={urlBoutique(tenant)} external icon="external">{tr("Aperçu")}</Button>}
+              </div>
+            </div>
           </div>
-        )}
-      </header>
+        </Card>
 
-      {/* ── Body ── */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-
-        {/* Bibliothèque AXSO Design */}
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={14} className="text-[#F5A623]" />
-            <h2 className="text-sm font-bold text-gray-700">{tr("Bibliothèque AXSO Design")}</h2>
-            <span className="text-[10px] bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full font-semibold">{librairie.length} designs</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {librairie.map((t) => (
-              <SimpleThemeCard
-                key={t.id}
-                theme={t}
-                actif={isLibrairieActive(t.fichier)}
-                activating={activating === t.fichier}
-                onActivate={() => activerLibrairie(t.fichier, t.nom)}
-                fichier={t.fichier}
-                params={params}
-              />
+        {/* ── Bibliothèque : thèmes déjà ajoutés à la boutique ── */}
+        {custom.filter((t) => t.id !== actif?.id).length > 0 && (
+          <Card title={tr("Bibliothèque de thèmes")} padding="none">
+            <p style={{ color: "var(--color-text-subdued)", margin: "4px var(--space-400) var(--space-200)" }}>{tr("Thèmes ajoutés à votre boutique. Publiez-en un pour remplacer le thème actuel.")}</p>
+            {custom.filter((t) => t.id !== actif?.id).map((t) => (
+              <div key={t.id} className="axd-theme-ligne">
+                <div className="axd-theme-ligne__img">
+                  {fichierDuTheme(t.slug) ? <ApercuDesign fichier={fichierDuTheme(t.slug)!} params={params} className="h-full" /> : <ThemePreview colors={couleurs(t)} radius={t.config?.radius || "12px"} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, color: "var(--color-text-strong)" }}>{tr(t.nom)}</div>
+                  {t.description && <div style={{ color: "var(--color-text-subdued)", fontSize: 13 }}>{tr(t.description)}</div>}
+                </div>
+                <Button size="sm" onClick={() => activerCustom(t.id)} loading={activating === t.id}>{tr("Publier")}</Button>
+                <Button size="sm" variant="plain" onClick={() => supprimer(t.id)} loading={deleting === t.id}>{tr("Supprimer")}</Button>
+              </div>
             ))}
-          </div>
-        </section>
-
-        {/* Thèmes perso */}
-        {custom.length > 0 && (
-          <section className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles size={14} className="text-[#F5A623]" />
-              <h2 className="text-sm font-bold text-gray-700">{tr("Mes thèmes")}</h2>
-              <span className="text-[10px] bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full font-semibold">{custom.length}</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {custom.map((t) => (
-                <SimpleThemeCard
-                  key={t.id}
-                  theme={t}
-                  actif={tenant?.themeId === t.id}
-                  activating={activating === t.id}
-                  deleting={deleting === t.id}
-                  onActivate={() => activerCustom(t.id)}
-                  onDelete={tenant?.themeId === t.id ? undefined : () => supprimer(t.id)} // jamais le thème actif : la boutique n'en aurait plus
-                  fichier={fichierDuTheme(t.slug)}
-                  params={params}
-                />
-              ))}
-            </div>
-          </section>
+          </Card>
         )}
+
+        {/* ── Store des thèmes AXSO ── */}
+        <Card>
+          <div className="axd-store-head">
+            <div>
+              <h2 className="axd-store-head__titre">{tr("Thèmes AXSO")}</h2>
+              <p style={{ color: "var(--color-text-subdued)", margin: "4px 0 0" }}>{tr("{0} thèmes prêts à vendre, inclus dans votre forfait. Vos produits s’affichent déjà dans chaque aperçu.", librairie.length)}</p>
+            </div>
+            <input className="axd-input" style={{ maxWidth: 280 }} type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={tr("Rechercher un thème")} aria-label={tr("Rechercher un thème")} />
+          </div>
+          <div className="axd-chips" role="group" aria-label={tr("Filtrer par style")}>
+            <button type="button" className="axd-chip" aria-pressed={!filtre} onClick={() => setFiltre(null)}>{tr("Tous")}</button>
+            {ambiances.map((a) => <button key={a} type="button" className="axd-chip" aria-pressed={filtre === a} onClick={() => setFiltre(filtre === a ? null : a)}>{tr(a)}</button>)}
+          </div>
+          <div className="axd-store-grille">
+            {visibles.map((t) => {
+              const estActif = isLibrairieActive(t.fichier);
+              return (
+                <article key={t.id} className="axd-store-carte">
+                  <div className="axd-store-carte__img"><ApercuDesign fichier={t.fichier} params={params} className="h-full" /></div>
+                  <div className="axd-store-carte__corps">
+                    <div style={{ minWidth: 0 }}>
+                      <h3 className="axd-store-carte__nom">{tr(t.nom)}</h3>
+                      <p className="axd-store-carte__meta">{tr("Inclus")} · {String(t.description || "").split(" · ").map((a: string) => tr(a)).join(", ")}</p>
+                    </div>
+                    {estActif
+                      ? <Badge tone="success">{tr("Thème actuel")}</Badge>
+                      : <Button size="sm" onClick={() => activerLibrairie(t.fichier, t.nom)} loading={activating === t.fichier}>{tr("Publier")}</Button>}
+                  </div>
+                </article>
+              );
+            })}
+            {visibles.length === 0 && <p style={{ color: "var(--color-text-subdued)" }}>{tr("Aucun thème ne correspond à votre recherche.")}</p>}
+          </div>
+        </Card>
       </div>
-    </div>
+    </Page>
   );
+}
+
+function couleurs(theme: any): ThemeColors {
+  return {
+    fond: theme?.config?.colors?.fond || "#f6f6f6",
+    accent: theme?.config?.colors?.accent || "#111111",
+    texte: theme?.config?.colors?.texte || "#111111",
+    surface: theme?.config?.colors?.surface || "#ffffff",
+  };
 }
 
 // ─── Preview mini d'un thème ─────────────────────────────────────────────────
@@ -243,7 +246,7 @@ function ThemePreview({ colors, radius }: { colors: ThemeColors; radius: string 
   const rSm = `${Math.min(r, 8)}px`;
   const rMd = `${Math.min(r, 12)}px`;
   return (
-    <div className="h-48 p-3 flex flex-col gap-2" style={{ backgroundColor: colors.fond }}>
+    <div className="h-full min-h-48 p-3 flex flex-col gap-2" style={{ backgroundColor: colors.fond }}>
       {/* Navbar */}
       <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg" style={{ backgroundColor: colors.surface, borderRadius: rSm }}>
         <div className="h-2 w-14 rounded" style={{ backgroundColor: colors.accent, borderRadius: "4px" }} />
@@ -271,67 +274,6 @@ function ThemePreview({ colors, radius }: { colors: ThemeColors; radius: string 
             <div className="h-1.5 w-8 rounded mx-auto my-1" style={{ backgroundColor: `${colors.texte}30` }} />
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Carte simple (thèmes custom) ────────────────────────────────────────────
-function SimpleThemeCard({
-  theme, actif, activating, deleting, onActivate, onEdit, onDelete, fichier, params,
-}: {
-  theme: any; actif: boolean; activating: boolean;
-  deleting?: boolean; onActivate: () => void; onEdit?: () => void;
-  onDelete?: () => void;
-  fichier?: string | null; params?: string; // design AXSO : vrai aperçu au lieu de la vignette schématique
-}) {
-  const tr = useT();
-  const colors: ThemeColors = {
-    fond:    theme.config?.colors?.fond    || "#fff8f0",
-    accent:  theme.config?.colors?.accent  || "#F5A623",
-    texte:   theme.config?.colors?.texte   || "#111111",
-    surface: theme.config?.colors?.surface || "#fef3e8",
-  };
-
-  return (
-    <div className={`rounded-2xl border-2 overflow-hidden transition-all ${actif ? "border-[#F5A623] shadow-lg shadow-[#F5A623]/15" : "border-gray-200 hover:border-gray-300"}`}>
-      {fichier ? <ApercuDesign fichier={fichier} fond={colors.fond} params={params} /> : <ThemePreview colors={colors} radius={theme.config?.radius || "12px"} />}
-      <div className="bg-white p-3.5">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-sm font-semibold text-gray-800">{tr(theme.nom)}</p>
-          <div className="flex gap-1">
-            {[colors.fond, colors.accent, colors.texte].map((c, i) => (
-              <div key={i} className="w-3.5 h-3.5 rounded-full border border-gray-200" style={{ backgroundColor: c }} />
-            ))}
-          </div>
-        </div>
-        {theme.description && <p className="text-gray-400 text-[11px] mb-3 leading-snug">{tr(theme.description)}</p>}
-        <div className="flex gap-2">
-          {actif ? (
-            <div className="flex-1 text-center py-2 rounded-xl text-[11px] font-semibold text-[#F5A623] bg-[#FFF7ED] border border-[#F5A623]/20">
-              {tr("Thème actif")}
-            </div>
-          ) : (
-            <button
-              onClick={onActivate}
-              disabled={activating}
-              className="flex-1 py-2 rounded-xl text-[11px] font-bold text-white disabled:opacity-50 hover:opacity-90 transition-all"
-              style={{ backgroundColor: colors.accent }}
-            >
-              {activating ? "..." : tr("Activer")}
-            </button>
-          )}
-          {onEdit && (
-            <button onClick={onEdit} className="w-8 h-8 rounded-xl flex items-center justify-center border border-gray-200 hover:border-[#F5A623]/40 text-gray-400 hover:text-[#F5A623] transition-all">
-              <Edit2 size={13} />
-            </button>
-          )}
-          {onDelete && (
-            <button onClick={onDelete} disabled={deleting} className="w-8 h-8 rounded-xl flex items-center justify-center border border-gray-200 hover:border-red-200 text-gray-400 hover:text-red-400 transition-all">
-              {deleting ? <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" /> : <Trash2 size={13} />}
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );

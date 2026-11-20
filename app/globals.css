@@ -3,6 +3,8 @@
 
 /* ── Design System Axso — Ultra Minimal ─────────────────────────────────── */
 :root {
+  --font-poppins-loaded: "Poppins";
+  --merchant-font: "Inter Variable", system-ui, sans-serif;
   --background: #ffffff;
   --foreground: #111111;
 
@@ -278,7 +280,7 @@ main > section, main > div > section {
   to   { opacity: 1; transform: perspective(800px) rotateX(0deg)  translateY(0); }
 }
 
-/* Mascotte Axia — clin d'œil/sourire idle, utilisé partout où l'icône Axia apparaît */
+/* Mascotte Stella — clin d'œil/sourire idle, utilisé partout où l'icône Stella apparaît */
 .ax-axia-mascot img {
   animation: axiaWink 4.5s ease-in-out infinite;
   transform-origin: 50% 85%;
@@ -622,3 +624,9 @@ body > .axs-store > div > * {
 body > .axs-store > div > :is(footer, :has(footer)) {
   margin-top: auto;
 }
+
+/* Logo Stella (fond transparent, coiffure bleu nuit) : toujours entier et sur fond clair, lisible partout. */
+img[src="/axia-icon.png"], img[src^="/_next/image"][src*="axia-icon.png"] { background: transparent; object-fit: contain !important; }
+
+/* Toast d'erreur (Sonner) : rouge sobre, texte blanc. */
+[data-sonner-toast].ax-toast-erreur { background: #8e1f0b !important; color: #fff !important; }

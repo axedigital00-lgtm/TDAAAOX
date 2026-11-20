@@ -1,14 +1,29 @@
 {
-  "name": "Axso Command Center",
-  "short_name": "Axso Command Center",
+  "name": "AXSO Command Center",
+  "short_name": "AXSO Admin",
   "id": "/admin",
   "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111",
+  "background_color": "#0c0c0c",
+  "theme_color": "#0c0c0c",
   "icons": [
-    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/apple-icon.png", "sizes": "180x180", "type": "image/png" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
   ]
 }

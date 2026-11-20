@@ -46,7 +46,7 @@ export function GrilleEtats({ etats, unite, compact }: { etats: Etats; unite?: s
     <dl className={cn("grid gap-1.5", compact ? "grid-cols-4 sm:grid-cols-7" : "grid-cols-2 sm:grid-cols-4")}>
       {cases.map(([libelle, valeur, fort]) => (
         <div key={libelle} className={cn("rounded-xl px-2 py-1.5", fort ? "bg-[#111111] text-white" : "bg-[#F5F5F5] text-[#111111]")}>
-          <dt className={cn("truncate text-[10px] font-semibold uppercase tracking-wide", fort ? "text-white/70" : "text-[#666666]")}>{t(libelle)}</dt>
+          <dt className={cn("truncate text-[10px] font-semibold", fort ? "text-white/70" : "text-[#666666]")}>{t(libelle)}</dt>
           <dd className={cn("font-bold tabular-nums", compact ? "text-[13px]" : "text-[15px]", !fort && valeur === 0 && "text-[#AAAAAA]")}>{qte(valeur, unite, t.loc)}</dd>
         </div>
       ))}
@@ -57,8 +57,8 @@ export function GrilleEtats({ etats, unite, compact }: { etats: Etats; unite?: s
 function Bloc({ titre, icone, children }: { titre: string; icone?: React.ReactNode; children: React.ReactNode }) {
   const t = useT();
   return (
-    <section className="rounded-2xl border border-[#E8E8E8] bg-white p-4">
-      <h3 className="mb-2.5 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{icone}{t(titre)}</h3>
+    <section className="rounded-[12px] border border-[#E8E8E8] bg-white p-4">
+      <h3 className="mb-2.5 flex items-center gap-1.5 text-[12px] font-bold text-[#666666]">{icone}{t(titre)}</h3>
       {children}
     </section>
   );
@@ -110,7 +110,7 @@ export default function FicheProduit({ code, produitId, varianteId, mode = "comp
   if (!code && !produitId) return null;
   if (erreur) {
     return erreur.code === "inconnu"
-      ? <div role="alert" className="rounded-2xl border border-dashed border-[#FCD34D] bg-[#FFFBEB] p-5 text-center"><p className="text-[14px] font-bold text-[#111111]">{t("Produit non reconnu")}</p><p className="mt-1 text-[12.5px] text-[#666666]">{t(erreur.message)}</p></div>
+      ? <div role="alert" className="rounded-[12px] border border-dashed border-[#FCD34D] bg-[#FFFBEB] p-5 text-center"><p className="text-[14px] font-bold text-[#111111]">{t("Produit non reconnu")}</p><p className="mt-1 text-[12.5px] text-[#666666]">{t(erreur.message)}</p></div>
       : <EtatPos code={erreur.code} message={erreur.message} onReessayer={() => setTour((n) => n + 1)} compact />;
   }
   if (!fiche) return <EtatChargement texte="Chargement de la fiche…" compact />;
@@ -125,11 +125,11 @@ export default function FicheProduit({ code, produitId, varianteId, mode = "comp
 
   return (
     <div className={cn("space-y-3 transition-opacity", charge && "opacity-60")} aria-busy={charge}>
-      <header className="flex items-start gap-3 rounded-2xl border border-[#E8E8E8] bg-white p-4">
+      <header className="flex items-start gap-3 rounded-[12px] border border-[#E8E8E8] bg-white p-4">
         <Vignette src={f.image} taille={64} />
         <div className="min-w-0 flex-1">
           <h2 className="text-[16px] font-bold leading-tight text-[#111111]">{f.nom}</h2>
-          {f.variante && <p className="text-[13px] font-semibold text-[#B45309]">{f.variante}</p>}
+          {f.variante && <p className="text-[13px] font-semibold text-[#5e4200]">{f.variante}</p>}
           <p className="mt-1 break-all text-[11.5px] text-[#666666]">
             {[f.sku && `${t("Réf.")} ${f.sku}`, f.codeBarres && `${t("Code-barres")} ${f.codeBarres}`, f.categorie, f.marque].filter(Boolean).join(" · ") || t("Aucune référence enregistrée")}
           </p>
@@ -142,7 +142,7 @@ export default function FicheProduit({ code, produitId, varianteId, mode = "comp
         </div>
         {voirPrix && (
           <div className="flex-shrink-0 text-right">
-            <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[#666666]">{t("Prix de vente")}</p>
+            <p className="text-[10.5px] font-semibold text-[#666666]">{t("Prix de vente")}</p>
             <p className={cn("font-bold tabular-nums text-[#111111]", mode === "prix" ? "text-[26px]" : "text-[18px]")}>{fmt(f.prix)}{suffixePrix}</p>
           </div>
         )}
@@ -174,7 +174,7 @@ export default function FicheProduit({ code, produitId, varianteId, mode = "comp
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[420px] text-left text-[12.5px]">
                 <caption className="sr-only">{t("Stock par lieu")}</caption>
-                <thead><tr className="text-[10.5px] uppercase tracking-wide text-[#666666]">
+                <thead><tr className="text-[10.5px] text-[#666666]">
                   <th scope="col" className="py-1.5 font-semibold">{t("Lieu")}</th>
                   {["Physique", "Bloqué", "Endommagé", "Disponible", "En transit"].map((c) => <th key={c} scope="col" className="py-1.5 text-right font-semibold">{t(c)}</th>)}
                 </tr></thead>
@@ -197,7 +197,7 @@ export default function FicheProduit({ code, produitId, varianteId, mode = "comp
           <dl className="grid grid-cols-3 gap-2">
             {([["Aujourd'hui", f.ventes.aujourdhui], ["7 jours", f.ventes.jours7], ["30 jours", f.ventes.jours30]] as const).map(([libelle, v]) => (
               <div key={libelle} className="rounded-xl bg-[#F5F5F5] px-2.5 py-2">
-                <dt className="text-[10.5px] font-semibold uppercase tracking-wide text-[#666666]">{t(libelle)}</dt>
+                <dt className="text-[10.5px] font-semibold text-[#666666]">{t(libelle)}</dt>
                 <dd className="text-[15px] font-bold tabular-nums text-[#111111]">{qte(v.quantite, u, t.loc)}</dd>
                 <dd className="text-[11px] tabular-nums text-[#666666]">{fmt(v.montant)}</dd>
               </div>
@@ -213,7 +213,7 @@ export default function FicheProduit({ code, produitId, varianteId, mode = "comp
             {f.variantes.map((v) => (
               <li key={v.id}>
                 <button type="button" onClick={() => (onVariante ? onVariante(v.id) : setVariante(v.id))} aria-current={v.id === f.varianteId || undefined}
-                  className={cn("flex min-h-11 w-full flex-wrap items-center justify-between gap-x-3 gap-y-0.5 rounded-lg px-2 py-2 text-left text-[12.5px] hover:bg-[#FFF7ED]", FOCUS, v.id === f.varianteId && "bg-[#FFF7ED]")}>
+                  className={cn("flex min-h-11 w-full flex-wrap items-center justify-between gap-x-3 gap-y-0.5 rounded-lg px-2 py-2 text-left text-[12.5px] hover:bg-[#f1f1f1]", FOCUS, v.id === f.varianteId && "bg-[#f1f1f1]")}>
                   <span className="min-w-0">
                     <span className="font-semibold text-[#111111]">{v.libelle}</span>{!v.actif && <span className="text-[#B91C1C]"> · {t("inactive")}</span>}
                     <span className="block break-all text-[11px] text-[#888888]">{[v.sku, v.codeBarres].filter(Boolean).join(" · ") || t("Sans code")}</span>
@@ -252,7 +252,7 @@ export default function FicheProduit({ code, produitId, varianteId, mode = "comp
       {mode !== "prix" && f.champs.series && (
         <Bloc titre="Numéros de série" icone={<ShieldCheck size={13} aria-hidden />}>
           {f.series.scanne && (
-            <div className="mb-2 rounded-xl bg-[#FFF7ED] p-3 text-[12.5px]">
+            <div className="mb-2 rounded-xl bg-[#f1f1f1] p-3 text-[12.5px]">
               <p className="font-bold text-[#111111]">{t("Numéro scanné :")} <span className="font-mono">{f.series.scanne.numero}</span> <Badge ton={STATUTS_SERIE[f.series.scanne.statut]?.ton ?? "neutre"}>{t(STATUTS_SERIE[f.series.scanne.statut]?.libelle ?? f.series.scanne.statut)}</Badge></p>
               {f.series.scanne.venduAt && <p className="mt-1 text-[#666666]">{t("Acheté le {0}", jour(f.series.scanne.venduAt, t.loc))}{f.series.scanne.client ? ` · ${f.series.scanne.client}` : ""}</p>}
               {f.series.scanne.garantieFinAt && <p className="text-[#666666]">{t("Garantie jusqu'au {0}", jour(f.series.scanne.garantieFinAt, t.loc))}{new Date(f.series.scanne.garantieFinAt) < new Date() ? ` — ${t("expirée")}` : ""}</p>}

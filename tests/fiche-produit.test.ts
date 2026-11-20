@@ -1,5 +1,5 @@
 // Fiche produit — le bouton « Commander via WhatsApp » est une option à activer (désactivée par défaut),
-// réglable à la main comme par AXIA (modifier_fiche_produit → appliquerActionFiche).
+// réglable à la main comme par Stella (modifier_fiche_produit → appliquerActionFiche).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { appliquerActionFiche, sectionsFiche, whatsappFicheActif } from "@/lib/fiche-produit";

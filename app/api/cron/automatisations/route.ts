@@ -17,26 +17,43 @@ import { traiterTaches } from "@/lib/academie/studio";
 import { synchroniserSousDomaines } from "@/lib/domaines";
 import { passeRappelsEssai } from "@/lib/essai";
 import { passeRappelsAbonnement } from "@/lib/abonnement-paiement";
+import { passeRappelsSeances } from "@/lib/numerique/service";
+import { passeAdhesions } from "@/lib/numerique/abonnement";
 
 export const maxDuration = 60;
+
+const taches = {
+  automatisations: () => passeDuCron(),
+  relances: () => passeRelances(),
+  livraisons: () => reprendreLivraisons(),
+  imports: () => reprendreImportsEchus(),
+  rappelsLive: () => passeRappelsLive(),
+  studio: () => traiterTaches({ demarrerAvant: Date.now() + 10_000, max: 2 }),
+  sousDomaines: () => synchroniserSousDomaines(),
+  rappelsEssai: () => passeRappelsEssai(),
+  rappelsAbonnement: () => passeRappelsAbonnement(),
+  rappelsSeances: () => passeRappelsSeances(),
+  adhesions: () => passeAdhesions(),
+};
+type Tache = keyof typeof taches;
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || !(req.headers.get("x-cron-secret") === secret || req.headers.get("authorization") === `Bearer ${secret}`)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  // Au même passage : relances automatiques (lib/relances.ts) et reprise des livraisons numériques
-  // incomplètes ou des e-mails de lien en échec (lib/livraison-numerique.ts).
-  const erreur = (e: any) => ({ erreur: String(e?.message ?? e) });
-  // Rappels des événements live (lib/live/service.ts) : idempotents, rattrapés au passage suivant.
-  const [automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement] = await Promise.all([passeDuCron(), passeRelances().catch(erreur), reprendreLivraisons().catch(erreur), reprendreImportsEchus().catch(erreur), passeRappelsLive().catch(erreur),
-    // File de l'AI Course Studio (lib/academie/studio.ts) : reprend les tâches dues de toutes les boutiques.
-    traiterTaches({ demarrerAvant: Date.now() + 10_000, max: 2 }).catch(erreur),
-    // Sous-domaines nom.axsoafrica.com des boutiques publiées non encore déclarés à Vercel (lib/domaines.ts).
-    synchroniserSousDomaines().catch(erreur),
-    // Essai Illimité : rappels 48 h avant la fin et à la fin (lib/essai.ts), une fois chacun.
-    passeRappelsEssai().catch(erreur),
-    // Abonnement payé : rappels 3 jours avant l'échéance et le jour même (lib/abonnement-paiement.ts), une fois chacun.
-    passeRappelsAbonnement().catch(erreur)]);
-  return NextResponse.json({ ...automatisations, relances, livraisons, imports, rappelsLive, studio, sousDomaines, rappelsEssai, rappelsAbonnement });
+  const selection = new URL(req.url).searchParams.get("tache");
+  if (selection !== null) {
+    if (!Object.hasOwn(taches, selection)) return NextResponse.json({ error: "Tâche inconnue" }, { status: 400 });
+    return NextResponse.json({ resultat: await taches[selection as Tache]() });
+  }
+  const { automatisations, ...autres } = taches;
+  const [principal, rapports] = await Promise.all([
+    automatisations(),
+    Promise.all(Object.entries(autres).map(async ([nom, executer]) => {
+      try { return [nom, await executer()] as const; }
+      catch (e) { return [nom, { erreur: e instanceof Error ? e.message : String(e) }] as const; }
+    })),
+  ]);
+  return NextResponse.json({ ...principal, ...Object.fromEntries(rapports) });
 }
 
 export const POST = GET;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import bcrypt from "@/lib/mots-de-passe";
 import { metaDigital } from "@/lib/commandes";
 import { controlerJeton, compterTelechargement, estFichierBlob } from "@/lib/livraison-numerique";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";

@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "axso-free",
+  "main": "./cloudflare/worker.mjs",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "vars": { "AXSO_RUNTIME": "workers", "AUTH_TRUST_HOST": "true" },
+  "assets": { "binding": "ASSETS" },
+  "services": [{ "binding": "SELF", "service": "axso-free" }],
+  "triggers": { "crons": ["0 4 * * *", "30 4 * * *", "0 6 * * *", "0 7 * * *"] }
+}

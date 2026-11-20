@@ -1,7 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Send, Wand2, Users, CheckCircle2, XCircle, Mail, RefreshCw, Sparkles, Eye, Gem, Moon, Flame, Crown, UserPlus } from "lucide-react";
+import { Users, Gem, Moon, UserPlus, Flame, Sparkles, Mail, Crown } from "lucide-react";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner, Card, Field } from "@/components/dashboard/design-system/components/primitives";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
 import { useT } from "@/components/I18nProvider";
+import { iconePlateforme } from "@/components/brand/LogoPlateforme";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Stats {
@@ -168,243 +173,119 @@ export default function EmailMarketingPage() {
   const nbDest = stats?.segments?.[segment as keyof typeof stats.segments] ?? "...";
 
 
-  return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{tr("Email Marketing")}</h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{tr("Envoyez des campagnes directement depuis Axso")}</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setOnglet("composer")}
-            className="px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all"
-            style={onglet === "composer"
-              ? { background: "#111111", color: "#FFFFFF", border: "1px solid #111111" }
-              : { background: "#FFFFFF", color: "#888888", border: "1px solid #E8E8E8" }}>
-            {tr("Composer")}
-          </button>
-          <button onClick={() => { setOnglet("historique"); charger(); }}
-            className="px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all"
-            style={onglet === "historique"
-              ? { background: "#111111", color: "#FFFFFF", border: "1px solid #111111" }
-              : { background: "#FFFFFF", color: "#888888", border: "1px solid #E8E8E8" }}>
-            {tr("Historique (")}{historique.length})
-          </button>
-        </div>
-      </div>
+  const fournisseurs = [
+    { key: "resend" as const, label: "Resend", Icon: iconePlateforme("resend"), actif: stats?.providers.resend, desc: "Jusqu'à 2 000 destinataires par campagne" },
+    { key: "gmail" as const, label: "Gmail", Icon: iconePlateforme("gmail"), actif: stats?.providers.gmail, desc: "Votre compte Gmail · 200 destinataires par campagne" },
+  ];
 
-      {/* Providers connectés */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {[
-          { key: "resend", label: "Resend",      Icon: Send, actif: stats?.providers.resend, desc: "Jusqu'à 2 000 destinataires par campagne" },
-          { key: "gmail",  label: "Gmail OAuth", Icon: Mail, actif: stats?.providers.gmail,  desc: "Votre compte Gmail · 200 destinataires par campagne" },
-        ].map((p) => (
-          <button
-            key={p.key}
-            onClick={() => p.actif && setProvider(p.key as "resend" | "gmail")}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${provider === p.key && p.actif ? "border-[#F5A623] bg-amber-50" : "border-gray-100 bg-white"} ${!p.actif ? "opacity-50 cursor-not-allowed" : "hover:border-[#F5A623]/40"}`}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <p.Icon size={18} className="text-gray-600 flex-shrink-0" />
-              <span className="font-semibold text-gray-900 text-sm">{tr(p.label)}</span>
-              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${p.actif ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                {p.actif ? tr("Connecté") : tr("Non connecté")}
-              </span>
-            </div>
-            <p className="text-xs text-gray-400">{tr(p.desc)}</p>
-            {!p.actif && <p className="text-xs text-[#F5A623] mt-1">{tr("→ Connecter dans Connecteurs")}</p>}
-          </button>
-        ))}
+  return (
+    <Page>
+      <PageHeader icon="mail" backHref="/dashboard/marketing" title={tr("E-mails")}
+        secondaryActions={[{ content: tr("Actualiser"), onAction: charger }]} />
+
+      <div className="axd-card" style={{ overflow: "hidden", marginBottom: "var(--space-400)" }}>
+        <div className="axd-ix-bar" style={{ borderBottom: 0 }}>
+          <div className="axd-ix-tabs" role="tablist">
+            <button type="button" role="tab" className="axd-ix-tab" aria-selected={onglet === "composer"} onClick={() => setOnglet("composer")}>{tr("Nouvelle campagne")}</button>
+            <button type="button" role="tab" className="axd-ix-tab" aria-selected={onglet === "historique"} onClick={() => { setOnglet("historique"); charger(); }}>{tr("Campagnes envoyées")} · {historique.length}</button>
+          </div>
+        </div>
       </div>
 
       {onglet === "composer" && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Panneau gauche — formulaire */}
-          <div className="space-y-5">
-            {/* Segment */}
-            <div className="ax-card p-5">
-              <label className="text-sm font-bold text-gray-700 mb-3 block">{tr("Destinataires")}</label>
-              <div className="space-y-2">
-                {SEGMENTS.map((s) => (
-                  <button
-                    key={s.value}
-                    onClick={() => setSegment(s.value)}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 text-sm transition-all ${segment === s.value ? "border-[#F5A623] bg-amber-50" : "border-gray-100 hover:border-gray-200"}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <s.Icon size={15} className={segment === s.value ? "text-[#F5A623]" : "text-gray-400"} />
-                      <span className={segment === s.value ? "font-semibold text-gray-900" : "text-gray-600"}>{tr(s.label)}</span>
-                    </span>
-                    <span className="text-xs font-bold text-gray-400">{tr(stats?.segments?.[s.value as keyof typeof stats.segments]) ?? "..."}</span>
-                  </button>
-                ))}
+        <div className="axd-layout">
+          <div className="axd-stack">
+            <Card title={tr("Contenu")} actions={<Button size="sm" onClick={genererAvecIA} loading={generating}>{tr("Rédiger avec Stella")}</Button>}>
+              <div style={{ display: "grid", gap: "var(--space-300)" }}>
+                <Field label={tr("Objet")}>{(p) => <input {...p} className="axd-input" value={sujet} onChange={(e) => setSujet(e.target.value)} placeholder={tr("Ex: Offre spéciale pour vous !")} />}</Field>
+                <Field label={tr("Message")} help={tr("Variables : {prenom} et {boutique}.")}>{(p) => (
+                  <textarea {...p} rows={10} className="axd-input" style={{ height: "auto", padding: "8px 12px" }} value={corps} onChange={(e) => setCorps(e.target.value)} placeholder={tr("Bonjour {prenom},\n\nVotre message ici...")} />
+                )}</Field>
               </div>
-            </div>
+            </Card>
 
-            {/* Templates */}
-            <div className="ax-card p-5">
-              <label className="text-sm font-bold text-gray-700 mb-3 block">{tr("Template")}</label>
-              <div className="grid grid-cols-2 gap-2">
-                {TEMPLATES.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => appliquerTemplate(t.id)}
-                    className={`p-3 rounded-xl border-2 text-left text-sm transition-all flex items-center gap-2 ${templateId === t.id ? "border-[#F5A623] bg-amber-50" : "border-gray-100 hover:border-gray-200"}`}
-                  >
-                    <t.Icon size={15} className={templateId === t.id ? "text-[#F5A623] flex-shrink-0" : "text-gray-400 flex-shrink-0"} />
-                    <span className={`font-medium ${templateId === t.id ? "text-gray-900" : "text-gray-600"}`}>{tr(t.label)}</span>
-                  </button>
-                ))}
-              </div>
-              <label className="text-xs text-gray-400 mt-3 mb-1 block">{tr("Code promo à inclure (facultatif)")}</label>
-              <select
-                value={codeId}
-                onChange={(e) => { setCodeId(e.target.value); if (TEMPLATES.find(t => t.id === templateId)?.corps.includes("{offre}")) appliquerTemplate(templateId, e.target.value); }}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white"
-              >
-                <option value="">{codes.length ? tr("Aucun code") : tr("Aucun code promo actif — créez-en un dans Codes promo")}</option>
-                {codes.map(c => <option key={c.id} value={c.id}>{c.code}{c.type === "pourcentage" ? ` (-${c.valeur}%)` : ` (-${c.valeur})`}</option>)}
-              </select>
+            {corps && (
+              <Card title={tr("Aperçu")} actions={<Button size="sm" variant="plain" onClick={() => setPreview(!preview)}>{preview ? tr("Masquer") : tr("Afficher")}</Button>}>
+                {preview && (
+                  <div style={{ borderRadius: "var(--radius-lg)", boxShadow: "inset 0 0 0 1px var(--color-border-secondary)", overflow: "hidden" }}>
+                    <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border-secondary)", fontWeight: 600 }}>{tr(sujet) || tr("(sans objet)")}</div>
+                    <div style={{ padding: 14, whiteSpace: "pre-wrap", maxHeight: 280, overflowY: "auto" }}>
+                      {corps.replace(/\{prenom\}/g, "Aminata").replace(/\{boutique\}/g, tr("Votre boutique"))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {result && <Banner tone="success" title={tr("Campagne envoyée :")}>{result.envoyes.toLocaleString(tr.loc)}/{result.total.toLocaleString(tr.loc)} {tr("e-mails via")} {tr(result.source)}</Banner>}
+            {erreur && <Banner tone="critical">{tr(erreur)}</Banner>}
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flexWrap: "wrap" }}>
+              <span className="axd-muted" style={{ fontSize: 12, flex: 1, minWidth: 220 }}>{tr("Chaque e-mail contient un lien de désinscription. Les clients désinscrits ne sont jamais comptés ni contactés.")}</span>
+              <Button variant="primary" onClick={envoyer} loading={sending} disabled={!sujet || !corps}>{tr("Envoyer ({0})", nbDest)}</Button>
             </div>
           </div>
 
-          {/* Panneau droit — éditeur */}
-          <div className="space-y-4">
-            <div className="ax-card p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-gray-700">{tr("Contenu de la campagne")}</h2>
-                <button
-                  onClick={genererAvecIA}
-                  disabled={generating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-all disabled:opacity-60"
-                >
-                  {generating ? <RefreshCw size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                  {generating ? tr("Génération IA...") : tr("Générer avec IA")}
+          <div className="axd-stack">
+            <Card title={tr("Destinataires")}>
+              <div style={{ display: "grid", gap: 6 }}>
+                {SEGMENTS.map((s) => (
+                  <button key={s.value} type="button" className="axd-choix axd-choix--ligne" aria-pressed={segment === s.value} onClick={() => setSegment(s.value)}>
+                    <b style={{ fontWeight: 500 }}>{tr(s.label)}</b><span>{stats?.segments?.[s.value as keyof typeof stats.segments]?.toLocaleString(tr.loc) ?? "…"}</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card title={tr("Modèle")}>
+              <div className="axd-chips" style={{ margin: "0 0 12px" }}>
+                {TEMPLATES.map((t) => <button key={t.id} type="button" className="axd-chip" aria-pressed={templateId === t.id} onClick={() => appliquerTemplate(t.id)}>{tr(t.label)}</button>)}
+              </div>
+              <Field label={tr("Code promo à inclure (facultatif)")}>{(p) => (
+                <select {...p} className="axd-input" value={codeId}
+                  onChange={(e) => { setCodeId(e.target.value); if (TEMPLATES.find(t => t.id === templateId)?.corps.includes("{offre}")) appliquerTemplate(templateId, e.target.value); }}>
+                  <option value="">{codes.length ? tr("Aucun code") : tr("Aucun code promo actif — créez-en un dans Codes promo")}</option>
+                  {codes.map(c => <option key={c.id} value={c.id}>{c.code}{c.type === "pourcentage" ? ` (-${c.valeur}%)` : ` (-${c.valeur})`}</option>)}
+                </select>
+              )}</Field>
+            </Card>
+
+            <Card title={tr("Envoi")} padding="none">
+              {fournisseurs.map((p) => (
+                <button key={p.key} type="button" className="axd-row" disabled={!p.actif} onClick={() => p.actif && setProvider(p.key)} aria-pressed={provider === p.key}
+                  style={{ width: "100%", opacity: p.actif ? 1 : .6, background: provider === p.key && p.actif ? "var(--color-surface-secondary)" : undefined }}>
+                  <p.Icon size={20} />
+                  <div className="axd-row__body"><div className="axd-row__title">{tr(p.label)}</div><div className="axd-row__sub">{p.actif ? tr(p.desc) : tr("À connecter dans Connecteurs")}</div></div>
+                  <Badge tone={p.actif ? "success" : "neutral"}>{p.actif ? tr("Connecté") : tr("Non connecté")}</Badge>
                 </button>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">{tr("Sujet *")}</label>
-                <input
-                  value={sujet}
-                  onChange={(e) => setSujet(e.target.value)}
-                  aria-label={tr("Sujet")}
-                  placeholder={tr("Ex: 🔥 Offre spéciale pour vous !")}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-2.5 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">{tr("Corps du message * (variables:")}{" "}{tr("{prenom}")} {tr("{boutique}")})</label>
-                <textarea
-                  value={corps}
-                  onChange={(e) => setCorps(e.target.value)}
-                  aria-label={tr("Message")}
-                  placeholder={tr("Bonjour {prenom},\n\nVotre message ici...")}
-                  rows={8}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-2.5 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all resize-none"
-                />
-              </div>
-
-              {/* Preview toggle */}
-              {corps && (
-                <button onClick={() => setPreview(!preview)} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors">
-                  <Eye size={12} />
-                  {preview ? tr("Masquer") : tr("Prévisualiser")} l'email
-                </button>
-              )}
-
-              {preview && corps && (
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 text-xs text-gray-500">
-                    {tr("Aperçu —")}{" "}{tr(sujet) || tr("(sans sujet)")}
-                  </div>
-                  <div className="p-4 bg-white max-h-60 overflow-y-auto">
-                    <div className="bg-[#F5A623] text-white px-6 py-4 rounded-t-xl font-bold text-base">{tr("Votre Boutique")}</div>
-                    <div className="px-6 py-4 text-sm text-gray-700 leading-relaxed border border-t-0 border-gray-100 rounded-b-xl" style={{ whiteSpace: "pre-wrap" }}>
-                      {corps.replace(/\{prenom\}/g, "Aminata").replace(/\{boutique\}/g, "Votre Boutique")}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Résultats */}
-            {result && (
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-green-50 border border-green-200">
-                <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-green-800">{tr("Campagne envoyée !")}</p>
-                  <p className="text-xs text-green-600">{tr(result.envoyes)}/{result.total}{" "}{tr("emails via")}{" "}{tr(result.source)}</p>
-                </div>
-              </div>
-            )}
-            {erreur && (
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-50 border border-red-200">
-                <XCircle size={18} className="text-red-500 flex-shrink-0" />
-                <p className="text-sm text-red-700">{tr(erreur)}</p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={envoyer}
-                disabled={sending || !sujet || !corps}
-                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-40"
-                style={{ background: "linear-gradient(135deg, #F5A623, #e8950f)" }}
-              >
-                {sending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
-                {sending ? tr("Envoi...") : tr("Envoyer ({0})", nbDest)}
-              </button>
-            </div>
-            <p className="text-[11.5px] text-[#AAAAAA] text-center">
-              {tr("Chaque e-mail contient un lien de désinscription. Les clients désinscrits ne sont jamais comptés ni contactés.")}
-            </p>
+              ))}
+            </Card>
           </div>
         </div>
       )}
 
       {onglet === "historique" && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-900">{tr("Campagnes envoyées")}</h2>
-            <button onClick={charger} className="p-2 rounded-xl hover:bg-gray-50 transition-all text-gray-400">
-              <RefreshCw size={16} />
-            </button>
-          </div>
+        <div className="axd-card" style={{ overflow: "hidden" }}>
           {historique.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <Mail size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">{tr("Aucune campagne envoyée")}</p>
-            </div>
+            <div className="axd-empty"><h3>{tr("Aucune campagne envoyée")}</h3><p>{tr("Vos campagnes e-mail apparaîtront ici avec le nombre de destinataires.")}</p></div>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {historique.map((c) => (
-                <div key={c.id} className="px-5 py-4 flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${c.statut === "envoye" ? "bg-green-50" : "bg-red-50"}`}>
-                    {c.statut === "envoye" ? <CheckCircle2 size={18} className="text-green-600" /> : <XCircle size={18} className="text-red-500" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{tr(c.sujet)}</p>
-                    <p className="text-xs text-gray-400">
-                      {tr(SEGMENTS.find(s => s.value === c.segment)?.label) ?? tr(c.segment)} · {tr(c.nbEnvoyes)}{" "}{tr("envoyé")}{c.nbEnvoyes > 1 ? "s" : ""} · {tr(c.source)}
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.statut === "envoye" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {c.statut === "envoye" ? tr("Envoyé") : tr("Échec")}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(c.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <table className="axd-ix">
+              <thead><tr><th>{tr("Objet")}</th><th className="axd-ix-hide-m">{tr("Destinataires")}</th><th className="axd-ix-num">{tr("Envoyés")}</th><th>{tr("Statut")}</th><th className="axd-ix-hide-m">{tr("Date")}</th></tr></thead>
+              <tbody>
+                {historique.map((c) => (
+                  <tr key={c.id}>
+                    <td className="axd-ix-primary">{tr(c.sujet)}<div className="axd-muted" style={{ fontWeight: 400, fontSize: 12 }}>{tr(c.source)}</div></td>
+                    <td className="axd-ix-hide-m">{tr(SEGMENTS.find(s => s.value === c.segment)?.label ?? c.segment)}</td>
+                    <td className="axd-ix-num">{c.nbEnvoyes.toLocaleString(tr.loc)}</td>
+                    <td><Badge tone={c.statut === "envoye" ? "success" : "critical"}>{c.statut === "envoye" ? tr("Envoyée") : tr("Échec")}</Badge></td>
+                    <td className="axd-ix-hide-m">{new Date(c.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

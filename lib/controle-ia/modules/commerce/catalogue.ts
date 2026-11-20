@@ -383,7 +383,7 @@ export const OUTILS_CATALOGUE: Outil[] = [
       const fait = (type: string, name: string) => ok(`${type} « ${name} » supprimé(e) définitivement.`, { deleted: { type, id, name } });
 
       if (cibles[0] === "product_id") {
-        // Même règle que le tableau de bord et AXIA : un produit vendu, mouvementé en stock ou encore
+        // Même règle que le tableau de bord et Stella : un produit vendu, mouvementé en stock ou encore
         // lié (avis, accès clients, affiliation…) ne se supprime pas — il s'archive.
         const r = await supprimerProduit(tenantId, id);
         if (!r.ok) return refuser(r.status === 404 ? "NOT_FOUND" : "CONFLICT", `${r.status === 404 ? "Produit introuvable dans cette boutique (déjà supprimé ?)." : r.error} ${r.status === 409 ? "Utilise archive_product pour le retirer de la vente." : ""}`.trim());

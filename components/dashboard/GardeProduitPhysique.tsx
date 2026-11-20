@@ -35,7 +35,7 @@ export function GardeProduitPhysique({ children }: { children: ReactNode }) {
   const basculer = async (id: string) => { setBascule(id); if (!(await basculerBoutique(id, PAGE_PRODUIT))) setBascule(null); };
 
   return (
-    <div className="max-w-2xl w-full mx-auto py-4 sm:py-8" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="max-w-2xl w-full mx-auto py-4 sm:py-8" style={{ fontFamily: "var(--merchant-font)" }}>
       <div className="ax-card p-5 sm:p-8">
         <span className="w-12 h-12 rounded-2xl bg-[#FFF8EC] border border-[#FDE68A]/60 flex items-center justify-center mb-4"><Package size={22} className="text-[#F5A623]" /></span>
         <h1 className="text-[19px] sm:text-[21px] font-bold text-[#111111] leading-snug">{t("Les produits physiques se vendent dans une boutique physique")}</h1>

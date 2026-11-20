@@ -101,7 +101,7 @@ export default function MagicImportPage() {
           <Wand2 size={22} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Magic Import")}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Magic Import")}</h1>
           <p className="text-gray-400 text-sm">{t("Gemini + Flux.1 génère votre catalogue complet avec images ultra HD en quelques secondes")}</p>
         </div>
         {phase === "review" && (
@@ -299,7 +299,7 @@ export default function MagicImportPage() {
           </div>
           <h2 className="text-2xl font-black text-gray-900 mb-2">{t("Catalogue importé !")}</h2>
           <p className="text-gray-400 text-sm mb-8 max-w-md">
-            {importedCount} produit{importedCount > 1 ? "s" : ""}{" "}{t("ajouté")}{importedCount > 1 ? "s" : ""}{" "}{t("à votre boutique avec des images Flux.1 haute définition. Axia peut maintenant les enrichir et les promouvoir.")}
+            {importedCount} produit{importedCount > 1 ? "s" : ""}{" "}{t("ajouté")}{importedCount > 1 ? "s" : ""}{" "}{t("à votre boutique avec des images Flux.1 haute définition. Stella peut maintenant les enrichir et les promouvoir.")}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/dashboard/produits"
@@ -308,7 +308,7 @@ export default function MagicImportPage() {
             </Link>
             <Link href="/dashboard"
               className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold text-sm hover:opacity-90 transition-all flex items-center gap-2">
-              <Sparkles size={14} />{" "}{t("Demander à Axia de promouvoir")}
+              <Sparkles size={14} />{" "}{t("Demander à Stella de promouvoir")}
             </Link>
             <button onClick={reset}
               className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-semibold text-sm hover:opacity-90 transition-all">

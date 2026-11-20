@@ -4,38 +4,22 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { formatDate } from "@/lib/utils";
-import { Star, MessageSquare, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner, Card } from "@/components/dashboard/design-system/components/primitives";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { HorizontalBars } from "@/components/dashboard/design-system/components/Charts";
+import { Icon } from "@/components/dashboard/design-system/icons/Icon";
 import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { AvisTutorial } from "@/components/dashboard/tutorials/AvisTutorial";
 import { getT } from "@/lib/i18n/serveur";
 
-const AVATAR_COLORS = [
-  ["#FFF8EC","#F5A623"],["#EFF6FF","#3B82F6"],["#F0FDF4","#16A34A"],
-  ["#FAF5FF","#7C3AED"],["#FFF1F2","#E11D48"],["#ECFEFF","#0891B2"],
-];
-
-async function Avatar({ nom }: { nom: string }) {
-  const t = await getT();
-  const hash = nom.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const [bg, text] = AVATAR_COLORS[hash % AVATAR_COLORS.length];
-  const initiales = nom.trim().split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase();
-  return (
-    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-      style={{ background: bg, color: text, border: `1px solid ${text}20` }}>
-      {t(initiales)}
-    </div>
-  );
-}
-
+// Étoiles de la note (texte lisible par les lecteurs d'écran : « 4 sur 5 »).
 function Stars({ note, size = 13 }: { note: number; size?: number }) {
   return (
-    <div className="flex items-center gap-0.5">
-      {[1,2,3,4,5].map(i => (
-        <Star key={i} size={size}
-          fill={i <= note ? "#F5A623" : "transparent"}
-          stroke={i <= note ? "#F5A623" : "#E8E8E8"} />
-      ))}
-    </div>
+    <span className="axd-etoiles" role="img" aria-label={`${note} / 5`} style={{ fontSize: size }}>
+      {[1, 2, 3, 4, 5].map((i) => <span key={i} aria-hidden data-pleine={i <= note || undefined}>★</span>)}
+    </span>
   );
 }
 
@@ -82,192 +66,75 @@ export default async function AvisPage({ searchParams }: { searchParams: Promise
     revalidatePath("/dashboard/avis");
   }
 
-  const NOTE_COLORS: Record<number, string> = { 5:"#16A34A", 4:"#F5A623", 3:"#D97706", 2:"#EA580C", 1:"#DC2626" };
 
   return (
-    <div className="space-y-5"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <Page>
       <AvisTutorial />
+      <PageHeader icon="star" backHref="/dashboard/clients"
+        title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{t("Avis clients")}<BoutonRevoirTutoriel moduleKey="avis" /></span>}
+        titleMeta={nonApprouves > 0 ? <Badge tone="attention">{nonApprouves.toLocaleString(t.loc)} {t("à modérer")}</Badge> : undefined} />
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap pt-1">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5 mb-1">
-            <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Avis clients")}</h1>
-            <BoutonRevoirTutoriel moduleKey="avis" />
-            <span className="text-[11px] font-bold bg-[#F5F5F7] text-[#888888] border border-[#E8E8E8] px-2.5 py-0.5 rounded-full">
-              {totalAvis}
-            </span>
-          </div>
-          <p className="text-[12.5px] text-[#AAAAAA]">
-            {totalAvis}{" "}{t("avis au total ·")}{" "}{t(nonApprouves)}{" "}{t("en attente de modération")}
-          </p>
-        </div>
-        {nonApprouves > 0 && (
-          <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[#B45309] bg-[#FFFBEB] border border-[#FDE68A] px-3 py-1.5 rounded-2xl">
-            <Clock size={13} /> {t(nonApprouves)}{" "}{t("à modérer")}
-          </span>
-        )}
-      </div>
-
-      {/* ── Stats : note + répartition ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Note moyenne */}
-        <div className="ax-card p-8 flex flex-col items-center justify-center text-center">
-          <span className="ax-label mb-3">{t("Note moyenne")}</span>
-          <p className="text-[40px] md:text-[52px] font-black text-[#111111] leading-none tabular-nums">
-            {noteMoyenne > 0 ? noteMoyenne.toFixed(1) : "—"}
-          </p>
-          <div className="my-3">
-            <Stars note={Math.round(noteMoyenne)} size={20} />
-          </div>
-          <p className="text-[12px] text-[#AAAAAA]">
-            {t("Basé sur")}{" "}<span className="font-semibold text-[#666]">{totalAvis}</span> avis
-          </p>
-          {totalAvis > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 pt-4 border-t border-[#F5F5F5] w-full justify-center">
-              <div className="flex items-center gap-1 text-[11.5px] text-[#16A34A]">
-                <CheckCircle2 size={11} /> {totalAvis - nonApprouves}{" "}{t("approuvés")}
-              </div>
-              <div className="flex items-center gap-1 text-[11.5px] text-[#D97706]">
-                <Clock size={11} /> {t(nonApprouves)}{" "}{t("en attente")}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Répartition */}
-        <div className="lg:col-span-2 ax-card p-6">
-          <h3 className="text-[13px] font-semibold text-[#111111] mb-4">{t("Répartition des notes")}</h3>
-          {totalAvis === 0 ? (
-            <div className="h-32 flex items-center justify-center text-[12px] text-[#AAAAAA]">
-              {t("Aucune donnée disponible")}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {repartition.map(({ note, count }) => {
-                const pct = totalAvis > 0 ? (count / totalAvis) * 100 : 0;
-                return (
-                  <div key={note} className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 w-12 flex-shrink-0">
-                      <span className="text-[13px] font-bold text-[#333]">{t(note)}</span>
-                      <Star size={11} fill="#F5A623" stroke="none" />
-                    </div>
-                    <div className="flex-1 bg-[#F5F5F7] rounded-full h-2 overflow-hidden">
-                      <div className="h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%`, background: NOTE_COLORS[note] }} />
-                    </div>
-                    <div className="w-16 text-right flex-shrink-0">
-                      <span className="text-[13px] font-bold text-[#333]">{count}</span>
-                      <span className="text-[11px] text-[#CCCCCC] ml-1">({Math.round(pct)}%)</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Bannière modération ── */}
       {nonApprouves > 0 && (
-        <div className="ax-card-flat flex items-center gap-3 p-4 border-[#FDE68A]/60"
-          style={{ background: "#FFFBEB" }}>
-          <Clock size={15} className="text-[#F5A623] flex-shrink-0" />
-          <p className="text-[12.5px] text-[#92400E]">
-            <strong>{t(nonApprouves)} avis</strong>{" "}{t("en attente de modération — approuvez-les pour qu'ils soient visibles sur votre boutique.")}
-          </p>
+        <div style={{ marginBottom: "var(--space-400)" }}>
+          <Banner tone="warning">{t("{0} avis en attente de modération : approuvez-les pour qu'ils soient visibles sur votre boutique.", nonApprouves)}</Banner>
         </div>
       )}
 
-      {/* ── Liste ── */}
-      <div className="ax-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#F3F3F3] flex items-center gap-2">
-          <MessageSquare size={15} className="text-[#AAAAAA]" />
-          <h2 className="text-[13px] font-semibold text-[#111111]">{t("Tous les avis")}</h2>
-          {totalAvis > 0 && (
-            <span className="ml-auto text-[11px] font-bold text-[#888] bg-[#F5F5F7] border border-[#EBEBEB] px-2 py-0.5 rounded-full">
-              {totalAvis}
-            </span>
-          )}
+      <div className="axd-grid axd-g21" style={{ marginBottom: "var(--space-400)" }}>
+        <Card title={t("Répartition des notes")}>
+          {totalAvis === 0
+            ? <p className="axd-muted" style={{ textAlign: "center", padding: "32px 0" }}>{t("Aucune donnée disponible")}</p>
+            : <HorizontalBars items={repartition.map(({ note, count }) => ({ label: `${"★".repeat(note)} · ${totalAvis ? Math.round((count / totalAvis) * 100) : 0} %`, value: count }))} format={(v) => v.toLocaleString(t.loc)} />}
+        </Card>
+        <div className="axd-card axd-card--pad">
+          <span className="axd-kpi__t">{t("Note moyenne")}</span>
+          <div className="axd-kpi__v axd-kpi__v--lg" style={{ marginBottom: 4 }}>{noteMoyenne > 0 ? noteMoyenne.toLocaleString(t.loc, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : "—"}</div>
+          <Stars note={Math.round(noteMoyenne)} size={18} />
+          <p className="axd-muted" style={{ fontSize: 12, margin: "8px 0 0" }}>
+            {t("{0} avis · {1} approuvés · {2} en attente", totalAvis, totalAvis - nonApprouves, nonApprouves)}
+          </p>
         </div>
+      </div>
 
+      <div className="axd-card" style={{ overflow: "hidden" }}>
+        <div className="axd-card__head" style={{ padding: "var(--space-300) var(--space-400)" }}>
+          <h2 className="axd-card__title">{t("Tous les avis")}</h2>
+        </div>
         {avis.length === 0 ? (
-          <div className="py-16 flex flex-col items-center gap-4 text-center px-6">
-            <div className="w-14 h-14 rounded-2xl bg-[#FFF8EC] flex items-center justify-center">
-              <Star size={24} className="text-[#F5A623]" fill="#F5A623" />
-            </div>
-            <div>
-              <p className="text-[14px] font-semibold text-[#111111]">{t("Aucun avis client")}</p>
-              <p className="text-[12px] text-[#AAAAAA] mt-1">
-                {t("Les avis apparaîtront ici dès que vos clients auront évalué leurs achats.")}
-              </p>
-            </div>
+          <div className="axd-empty">
+            <h3>{t("Aucun avis client")}</h3>
+            <p>{t("Les avis apparaîtront ici dès que vos clients auront évalué leurs achats.")}</p>
           </div>
-        ) : (
-          <div className="divide-y divide-[#F9F9F9]">
-            {avis.map(a => (
-              <div key={a.id} className="p-5 hover:bg-[#FAFAFA] transition-colors">
-                <div className="flex items-start gap-3">
-                  <Avatar nom={a.client.nom} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                      <span className="text-[13px] font-semibold text-[#222]">{t(a.client.nom)}</span>
-                      {a.verifie && (
-                        <span className="flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0]">
-                          <ShieldCheck size={9} />{" "}{t("Achat vérifié")}
-                        </span>
-                      )}
-                      <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-full border ${
-                        a.approuve
-                          ? "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]"
-                          : "bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]"
-                      }`}>
-                        {a.approuve ? t("Approuvé") : t("En attente")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Stars note={a.note} />
-                      <span className="text-[11px] text-[#AAAAAA]">{t(a.note)}/5</span>
-                    </div>
-                    {a.titre && (
-                      <p className="text-[13px] font-semibold text-[#333] mb-1">{t(a.titre)}</p>
-                    )}
-                    {a.commentaire && (
-                      <p className="text-[12.5px] text-[#666666] leading-relaxed break-words">{t(a.commentaire)}</p>
-                    )}
-                    <p className="text-[11px] text-[#CCCCCC] mt-2">
-                      {a.produit?.nom && (
-                        <><span className="text-[#AAAAAA]">{t(a.produit.nom)}</span> · </>
-                      )}
-                      {formatDate(a.createdAt)}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <form action={moderer}>
-                      <input type="hidden" name="id" value={a.id} />
-                      <input type="hidden" name="approuve" value={a.approuve ? "0" : "1"} />
-                      <button type="submit"
-                        className={`text-[11.5px] font-semibold border px-3 py-1.5 rounded-2xl transition-all hover:scale-[1.01] ${a.approuve
-                          ? "bg-white text-[#888] border-[#E8E8E8] hover:bg-[#F5F5F7]"
-                          : "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0] hover:bg-[#ECFDF5]"}`}>
-                        {a.approuve ? t("Masquer") : t("Approuver")}
-                      </button>
-                    </form>
-                  </div>
+        ) : avis.map((a) => (
+          <div key={a.id} className="axd-livreur">
+            <div className="axd-livreur__ligne" style={{ alignItems: "flex-start" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <b style={{ color: "var(--color-text-strong)" }}>{t(a.client.nom)}</b>
+                  <Stars note={a.note} />
+                  {a.verifie && <Badge tone="info">{t("Achat vérifié")}</Badge>}
+                  <Badge tone={a.approuve ? "success" : "attention"}>{a.approuve ? t("Approuvé") : t("En attente")}</Badge>
                 </div>
+                {a.titre && <p style={{ margin: "6px 0 0", fontWeight: 600, color: "var(--color-text-strong)" }}>{t(a.titre)}</p>}
+                {a.commentaire && <p style={{ margin: "4px 0 0", overflowWrap: "anywhere" }}>{t(a.commentaire)}</p>}
+                <p className="axd-muted" style={{ margin: "6px 0 0", fontSize: 12 }}>{a.produit?.nom ? `${t(a.produit.nom)} · ` : ""}{formatDate(a.createdAt)}</p>
               </div>
-            ))}
+              <form action={moderer}>
+                <input type="hidden" name="id" value={a.id} />
+                <input type="hidden" name="approuve" value={a.approuve ? "0" : "1"} />
+                <button type="submit" className={`axd-btn axd-btn--sm${a.approuve ? "" : " axd-btn--primary"}`}>{a.approuve ? t("Masquer") : t("Approuver")}</button>
+              </form>
+            </div>
           </div>
-        )}
+        ))}
         {nbPages > 1 && (
-          <div className="px-5 py-3 border-t border-[#F3F3F3] flex items-center justify-between text-[12px] font-semibold">
-            {page > 1 ? <a href={`/dashboard/avis?page=${page - 1}`} className="text-[#111] hover:underline">← {t("Précédent")}</a> : <span />}
-            <span className="text-[#AAAAAA]">{page} / {nbPages}</span>
-            {page < nbPages ? <a href={`/dashboard/avis?page=${page + 1}`} className="text-[#111] hover:underline">{t("Suivant")} →</a> : <span />}
+          <div className="axd-ix-pager">
+            {page > 1 ? <Link href={`/dashboard/avis?page=${page - 1}`} className="axd-ix-pager__btn" aria-label={t("Page précédente")}><Icon name="chevronLeft" /></Link> : <span className="axd-ix-pager__btn" aria-disabled><Icon name="chevronLeft" /></span>}
+            {page < nbPages ? <Link href={`/dashboard/avis?page=${page + 1}`} className="axd-ix-pager__btn" aria-label={t("Page suivante")}><Icon name="chevronRight" /></Link> : <span className="axd-ix-pager__btn" aria-disabled><Icon name="chevronRight" /></span>}
+            <span>{t("Page {0} sur {1}", page, nbPages)}</span>
           </div>
         )}
       </div>
-    </div>
+    </Page>
   );
 }

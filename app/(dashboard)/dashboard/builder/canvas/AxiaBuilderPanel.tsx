@@ -11,16 +11,16 @@ interface Msg { role: "user" | "assistant"; content: string }
 
 interface Props {
   // Flush les changements locaux non sauvegardés vers le serveur avant
-  // qu'AXIA ne lise l'arbre, puis recharge le config depuis le serveur après
-  // sa réponse (les outils AXIA écrivent directement en base, comme tout le
-  // reste du système AXIA — voir lib/axia/tools.ts) : ce garde-fou évite
-  // qu'AXIA écrase un changement en cours d'édition, ou que son résultat
+  // que Stella ne lise l'arbre, puis recharge le config depuis le serveur après
+  // sa réponse (les outils Stella écrivent directement en base, comme tout le
+  // reste du système Stella — voir lib/axia/tools.ts) : ce garde-fou évite
+  // que Stella écrase un changement en cours d'édition, ou que son résultat
   // n'apparaisse pas tant que la page n'est pas rechargée.
   onSyncWithServer: () => Promise<void>;
   defaultOpen?: boolean;
   // Décale la bulle vers la gauche quand un panneau occupe le bord droit.
   decalageDroite?: number;
-  // Où en est le marchand (page ouverte, section/élément sélectionnés) — transmis à AXIA.
+  // Où en est le marchand (page ouverte, section/élément sélectionnés) — transmis à Stella.
   contexte?: string;
 }
 
@@ -65,7 +65,7 @@ function useAxiaChat(onSyncWithServer: () => Promise<void>, contexte: string) {
       await onSyncWithServer();
       window.dispatchEvent(new Event("axia:rafraichir"));
     } catch {
-      setMessages((m) => [...m, { role: "assistant", content: "AXIA a rencontré une erreur momentanée — réessaie dans un instant." }]);
+      setMessages((m) => [...m, { role: "assistant", content: "Stella a rencontré une erreur momentanée — réessaie dans un instant." }]);
     } finally {
       setLoading(false);
     }
@@ -102,7 +102,7 @@ function ChatBody({ messages, loading, scrollRef, suggestions, onSuggestion }: {
       {loading && (
         <div className="flex justify-start">
           <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-[#F4F4F5] text-[#666666] flex items-center gap-2 text-[14px]">
-            <Loader2 size={14} className="animate-spin text-[#F5A623]" />{" "}{t("AXIA travaille sur ta page…")}
+            <Loader2 size={14} className="animate-spin text-[#F5A623]" />{" "}{t("Stella travaille sur ta page…")}
           </div>
         </div>
       )}
@@ -120,7 +120,7 @@ function ChatInput({ input, setInput, loading, onSubmit }: { input: string; setI
         onChange={(e) => setInput(e.target.value)}
         placeholder={t("Ex : ajoute un bandeau promo en haut…")}
         disabled={loading}
-        aria-label={t("Message pour AXIA")}
+        aria-label={t("Message pour Stella")}
         className="flex-1 min-w-0 h-11 px-3.5 text-[14px] rounded-xl border border-[#E0E0E0] bg-white text-[#111111] placeholder:text-[#AAAAAA] focus:border-[#F5A623] focus:ring-2 focus:ring-[#F5A623]/20 outline-none disabled:opacity-50"
       />
       <button type="submit" disabled={loading || !input.trim()} aria-label={t("Envoyer")}
@@ -136,7 +136,7 @@ function ChatInput({ input, setInput, loading, onSubmit }: { input: string; setI
 function AxiaFloatingBubble({ onSyncWithServer, defaultOpen, decalageDroite = 0, contexte = "" }: { onSyncWithServer: () => Promise<void>; defaultOpen: boolean; decalageDroite?: number; contexte?: string }) {
   const t = useT();
   const { palier, openAbonnement } = useAbonnementOverlay();
-  // Les outils de design d'AXIA (couleurs, thème, sections, textes…) sont réservés au Palier Pro.
+  // Les outils de design de Stella (couleurs, thème, sections, textes…) sont réservés au Palier Pro.
   const pro = palierAuMoins(palier, "palier1");
   const [open, setOpen] = useState(defaultOpen && pro);
   const suggestions = SUGGESTIONS_BOUTIQUE;
@@ -145,26 +145,26 @@ function AxiaFloatingBubble({ onSyncWithServer, defaultOpen, decalageDroite = 0,
   return (
     <div className="fixed bottom-5 z-30 flex flex-col items-end gap-3 transition-[right] duration-300" style={{ right: 20 + decalageDroite }}>
       {open && (
-        <div role="dialog" aria-label="AXIA" className="w-[380px] h-[520px] max-h-[calc(100vh-140px)] bg-white rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.18)] border border-[#E8E8E8] flex flex-col overflow-hidden">
+        <div role="dialog" aria-label="Stella" className="w-[380px] h-[520px] max-h-[calc(100vh-140px)] bg-white rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.18)] border border-[#E8E8E8] flex flex-col overflow-hidden">
           <div className="px-4 h-14 flex items-center justify-between flex-shrink-0 bg-[#111111]">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="w-8 h-8 rounded-lg bg-[#F5A623]/15 flex items-center justify-center flex-shrink-0"><Sparkles size={16} className="text-[#F5A623]" /></span>
               <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-white leading-tight">AXIA</p>
+                <p className="text-[14px] font-semibold text-white leading-tight">Stella</p>
                 <p className="text-[12px] text-white/55 leading-tight">{t("Personnalise ta page")}</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} aria-label={t("Fermer AXIA")} className="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10"><X size={16} /></button>
+            <button onClick={() => setOpen(false)} aria-label={t("Fermer Stella")} className="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10"><X size={16} /></button>
           </div>
           <ChatBody messages={messages} loading={loading} scrollRef={scrollRef} suggestions={suggestions} onSuggestion={envoyer} />
           <ChatInput input={input} setInput={setInput} loading={loading} onSubmit={() => envoyer(input)} />
         </div>
       )}
       <button
-        onClick={() => (pro ? setOpen((v) => !v) : openAbonnement("palier1", "Personnaliser ta boutique avec AXIA (design, textes, couleurs, idées) est disponible à partir du Palier Pro."))}
+        onClick={() => (pro ? setOpen((v) => !v) : openAbonnement("palier1", "Personnaliser ta boutique avec Stella (design, textes, couleurs, idées) est disponible à partir du Palier Pro."))}
         className="w-14 h-14 rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.22)] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 bg-[#111111]"
-        title={open ? t("Fermer AXIA") : t("Ouvrir AXIA")}
-        aria-label={open ? t("Fermer AXIA") : t("Ouvrir AXIA")}
+        title={open ? t("Fermer Stella") : t("Ouvrir Stella")}
+        aria-label={open ? t("Fermer Stella") : t("Ouvrir Stella")}
       >
         {open ? <X size={20} className="text-white" /> : <IconAxia size={44} />}
       </button>

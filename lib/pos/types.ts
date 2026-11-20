@@ -40,7 +40,7 @@ export const FLAGS_POS = [
   "scanner_v2",         // téléphone appairé + flux temps réel
   "multi_scanner",      // plusieurs scanners par caisse
   "offline_pos",        // vente hors ligne et file de synchronisation
-  "axia_pos",           // outils AXIA de la caisse
+  "axia_pos",           // outils Stella de la caisse
   "smart_promotions",   // moteur de promotions
   "advanced_inventory", // création d'inventaires et de transferts (lib/pos/flags.ts → exigerStockAvance)
 ] as const;

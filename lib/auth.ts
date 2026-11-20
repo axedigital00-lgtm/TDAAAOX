@@ -4,7 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { trouverUserParEmail } from "@/lib/unicite-email";
-import { compare } from "bcryptjs";
+import { compare } from "@/lib/mots-de-passe";
 import { z } from "zod";
 import { verifierCode } from "@/lib/two-factor";
 import { hasResend } from "@/lib/email";

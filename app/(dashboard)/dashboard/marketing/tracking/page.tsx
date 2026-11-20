@@ -3,11 +3,19 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { FORMAT_PIXEL } from "@/lib/pixels";
 import {
-  CheckCircle2, Loader2, LogOut, ChevronDown, ChevronUp,
-  Code2, Info, Target, Music2, Ghost, Blocks, Eye, EyeOff, Zap,
-  type LucideIcon,
+  CheckCircle2,
+  Loader2,
+  LogOut,
+  ChevronDown,
+  ChevronUp,
+  Code2,
+  Info,
+  Eye,
+  EyeOff,
+  Zap,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { iconePlateforme } from "@/components/brand/LogoPlateforme";
 
 interface TenantTracking {
   metaPixelId: string | null;
@@ -36,7 +44,7 @@ interface Platform {
   couleurDark: string;
   bg: string;
   border: string;
-  Icone: LucideIcon;
+  Icone: ReturnType<typeof iconePlateforme>;
   placeholder: string;
   guide: string[];
   events: string[];
@@ -51,7 +59,7 @@ const PLATFORMS: Platform[] = [
     couleurDark: "#0D5FD8",
     bg: "rgba(24,119,242,0.07)",
     border: "rgba(24,119,242,0.22)",
-    Icone: Target,
+    Icone: iconePlateforme("meta"),
     placeholder: "1234567890123456",
     guide: [
       "Ouvrez Meta Business Suite et accédez au Gestionnaire d'événements",
@@ -68,7 +76,7 @@ const PLATFORMS: Platform[] = [
     couleurDark: "#D41A42",
     bg: "rgba(254,44,85,0.06)",
     border: "rgba(254,44,85,0.2)",
-    Icone: Music2,
+    Icone: iconePlateforme("tiktok"),
     placeholder: "C4A1B2C3D4E5F6G7H8I9",
     guide: [
       "Accédez à TikTok Ads Manager → Actifs → Événements",
@@ -85,7 +93,7 @@ const PLATFORMS: Platform[] = [
     couleurDark: "#D4A800",
     bg: "rgba(255,203,5,0.07)",
     border: "rgba(255,203,5,0.35)",
-    Icone: Ghost,
+    Icone: iconePlateforme("snapchat"),
     placeholder: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     guide: [
       "Accédez à Snapchat Ads Manager → Événements",
@@ -102,7 +110,7 @@ const PLATFORMS: Platform[] = [
     couleurDark: "#1A73E8",
     bg: "rgba(66,133,244,0.07)",
     border: "rgba(66,133,244,0.22)",
-    Icone: Blocks,
+    Icone: iconePlateforme("google-tag-manager"),
     placeholder: "GTM-XXXXXXX",
     guide: [
       "Accédez à tagmanager.google.com",
@@ -222,11 +230,12 @@ function PlatformCard({
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300"
             style={{
-              background: isActif ? bg : "#F5F5F5",
+              background: "#fff",
               border: `1px solid ${isActif ? border : "#E8E8E8"}`,
+              opacity: isActif ? 1 : .55,
             }}
           >
-            <Icone size={19} style={{ color: isActif ? couleur : "#BBBBBB" }} />
+            <Icone size={24} />
           </div>
 
           {/* Name + subtitle + badge */}
@@ -585,7 +594,7 @@ export default function TrackingPage() {
             <p className="text-[10px] font-black text-[#F5A623] uppercase tracking-[0.25em] mb-1.5">
               {tr("Module marketing")}
             </p>
-            <h1 className="text-xl font-black text-white" style={{ fontFamily: "Poppins, sans-serif" }}>
+            <h1 className="text-xl font-black text-white" style={{ fontFamily: "var(--merchant-font)" }}>
               {tr("Tracking & Pixels")}
             </h1>
             <p className="text-sm text-gray-400 mt-1 leading-relaxed">
@@ -597,7 +606,7 @@ export default function TrackingPage() {
             <div
               className="text-4xl font-black"
               style={{
-                fontFamily: "Poppins, sans-serif",
+                fontFamily: "var(--merchant-font)",
                 background: actifs > 0
                   ? "linear-gradient(135deg, #F5A623, #FFCC70)"
                   : "none",

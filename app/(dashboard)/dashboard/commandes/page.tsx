@@ -1,369 +1,197 @@
+// Commandes (MASTERPROMPT §8.2) : en-tête, bande de métriques de la période,
+// vues, recherche et table d'index. Filtres, tri et page dans l'URL.
 import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import {
-  Clock, CheckCircle, Truck, TrendingUp, Package, ChevronRight, ArrowUpRight,
-} from "lucide-react";
-import { CommandesExport } from "@/components/dashboard/CommandesExport";
-import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
+import type { Prisma } from "@prisma/client";
 import { CommandesTutorial } from "@/components/dashboard/tutorials/CommandesTutorial";
-import { formatMontant, dateRelative } from "@/lib/utils";
-import { getT } from "@/lib/i18n/serveur";
+import { formatMontant } from "@/lib/utils";
 import { PAIEMENT } from "@/lib/commandes";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { MappedBadge, paiementCommande, fulfillmentBadge, deliveryBadge, canalCommande } from "@/components/dashboard/design-system/components/Badge";
+import { MetricsStrip } from "@/components/dashboard/design-system/components/MetricsStrip";
+import { IndexFilters } from "@/components/dashboard/design-system/components/IndexTable";
+import { EmptyState } from "@/components/dashboard/design-system/components/primitives";
+import { Button } from "@/components/dashboard/design-system/components/Button";
+import { OrdersIndex } from "@/components/dashboard/features/orders/OrdersIndex";
+import { dateRelativeAdmin, nombre, variation, bornesPeriode, serie, PERIODES, type Periode } from "@/components/dashboard/design-system/format";
 
-const STATUTS: Record<string, { label: string; bg: string; text: string; dot: string; border: string }> = {
-  en_attente:     { label: "En attente",     bg: "#FFFBEB", text: "#B45309", dot: "#F59E0B", border: "#FDE68A" },
-  confirmee:      { label: "Confirmée",       bg: "#EFF6FF", text: "#1D4ED8", dot: "#3B82F6", border: "#BFDBFE" },
-  en_preparation: { label: "En préparation", bg: "#FAF5FF", text: "#6D28D9", dot: "#8B5CF6", border: "#DDD6FE" },
-  expediee:       { label: "Expédiée",        bg: "#EEF2FF", text: "#4338CA", dot: "#6366F1", border: "#C7D2FE" },
-  livree:         { label: "Livrée",          bg: "#F0FDF4", text: "#15803D", dot: "#22C55E", border: "#BBF7D0" },
-  annulee:        { label: "Annulée",         bg: "#FEF2F2", text: "#DC2626", dot: "#EF4444", border: "#FECACA" },
+const PAR_PAGE = 50;
+
+const VUES = [
+  { id: "toutes", label: "Toutes" },
+  { id: "non_traitees", label: "Non traitées" },
+  { id: "non_payees", label: "Non payées" },
+  { id: "ouvertes", label: "Ouvertes" },
+  { id: "archivees", label: "Archivées" },
+];
+
+const FILTRES_VUE: Record<string, Prisma.CommandeWhereInput> = {
+  non_traitees: { statut: { in: ["en_attente", "confirmee"] } },
+  non_payees: { paiementStatut: { not: PAIEMENT.PAYE }, statut: { not: "annulee" } },
+  ouvertes: { statut: { notIn: ["livree", "annulee"] } },
+  archivees: { statut: { in: ["livree", "annulee"] } },
+};
+// Anciens liens (?statut=en_attente…) : toujours acceptés.
+const STATUTS_HISTORIQUES = ["en_attente", "confirmee", "en_preparation", "expediee", "livree", "annulee", "tentative_echouee"];
+
+const TRIS: Record<string, Prisma.CommandeOrderByWithRelationInput> = {
+  "date:desc": { createdAt: "desc" }, "date:asc": { createdAt: "asc" },
+  "total:desc": { montantTotal: "desc" }, "total:asc": { montantTotal: "asc" },
+  "commande:desc": { numero: "desc" }, "commande:asc": { numero: "asc" },
 };
 
-const AVATAR_COLORS = [
-  ["#FFF8EC","#F5A623"],["#EFF6FF","#3B82F6"],["#F0FDF4","#16A34A"],
-  ["#FAF5FF","#7C3AED"],["#FFF1F2","#E11D48"],["#ECFEFF","#0891B2"],
-];
+type Params = { view?: string; q?: string; sort?: string; page?: string; periode?: string; statut?: string };
 
-async function StatutBadge({ statut }: { statut: string }) {
-  const t = await getT();
-  const s = STATUTS[statut] ?? { label: statut, bg: "#F9FAFB", text: "#6B7280", dot: "#D1D5DB", border: "#E5E7EB" };
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap"
-      style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
-      <span className="w-[5px] h-[5px] rounded-full flex-shrink-0" style={{ background: s.dot }} />
-      {t(s.label)}
-    </span>
-  );
-}
-
-async function Avatar({ nom }: { nom: string }) {
-  const t = await getT();
-  const hash = (nom ?? "?").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const [bg, text] = AVATAR_COLORS[hash % AVATAR_COLORS.length];
-  const initiales = (nom ?? "?").split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase();
-  return (
-    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-      style={{ background: bg, color: text, border: `1px solid ${text}20` }}>
-      {t(initiales)}
-    </div>
-  );
-}
-
-const FILTER_TABS = [
-  { key: "all",            label: "Toutes"        },
-  { key: "en_attente",     label: "En attente"    },
-  { key: "confirmee",      label: "Confirmées"    },
-  { key: "en_preparation", label: "En préparation"},
-  { key: "expediee",       label: "Expédiées"     },
-  { key: "livree",         label: "Livrées"       },
-  { key: "annulee",        label: "Annulées"      },
-];
-
-export default async function CommandesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ statut?: string; page?: string }>;
-}) {
-  const t = await getT();
+export default async function CommandesPage({ searchParams }: { searchParams: Promise<Params> }) {
   const session = await auth();
   if (!session) redirect("/connexion");
   await exigerModule(session, "commandes");
-  const { statut: filtreStatut, page: pageParam } = await searchParams;
+  const sp = await searchParams;
+  const tenantId = (session.user as any)?.tenantId as string;
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } });
+  const devise = tenant?.devise || "XAF";
 
-  const tenantId = (session.user as any)?.tenantId;
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-
-  // Pagination + statistiques calculées en base (pas sur la page affichée)
-  const PAR_PAGE = 50;
-  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
-  const filtre = filtreStatut && filtreStatut !== "all" ? filtreStatut : undefined;
-
-  const now = new Date();
-  const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
-  const devise = tenant?.devise || "XOF";
-
-  const [commandes, parStatut, caMois] = await Promise.all([
-    prisma.commande.findMany({
-      where: { tenantId, ...(filtre ? { statut: filtre } : {}) },
-      include: { lignes: true, client: true },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAR_PAGE,
-      take: PAR_PAGE,
-    }),
-    prisma.commande.groupBy({ by: ["statut"], where: { tenantId }, _count: { _all: true } }),
-    prisma.commande.aggregate({
-      where: { tenantId, paiementStatut: PAIEMENT.PAYE, createdAt: { gte: debutMois } },
-      _sum: { montantTotal: true },
-    }),
-  ]);
-
-  const compte = (st: string) => parStatut.find(g => g.statut === st)?._count._all ?? 0;
-  const totalToutes = parStatut.reduce((s, g) => s + g._count._all, 0);
-  const totalFiltre = filtre ? compte(filtre) : totalToutes;
-  const nbPages = Math.max(1, Math.ceil(totalFiltre / PAR_PAGE));
-  const lienPage = (p: number) =>
-    `/dashboard/commandes?${new URLSearchParams({ ...(filtre ? { statut: filtre } : {}), page: String(p) })}`;
-
-  const stats = {
-    enAttente: compte("en_attente"),
-    livrees:   compte("livree"),
-    expediees: compte("expediee"),
-    totalCeMois: caMois._sum.montantTotal ?? 0,
+  // ── Filtres de la liste ──
+  const vue = VUES.some((v) => v.id === sp.view) ? sp.view! : "toutes";
+  const q = sp.q?.trim();
+  const sort = sp.sort && TRIS[sp.sort] ? sp.sort : "date:desc";
+  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+  const where: Prisma.CommandeWhereInput = {
+    tenantId,
+    ...(FILTRES_VUE[vue] ?? {}),
+    ...(sp.statut && STATUTS_HISTORIQUES.includes(sp.statut) ? { statut: sp.statut } : {}),
+    ...(q ? { OR: [
+      { numero: { contains: q.replace(/^#/, ""), mode: "insensitive" } },
+      { clientNom: { contains: q, mode: "insensitive" } },
+      { clientTelephone: { contains: q } },
+      { ville: { contains: q, mode: "insensitive" } },
+    ] } : {}),
   };
 
-  const statCards = [
-    {
-      label: "CA ce mois",
-      value: formatMontant(stats.totalCeMois, devise),
-      Icon: TrendingUp,
-      iconBg: "#FFF8EC", iconColor: "#F5A623",
-      accent: true,
-    },
-    {
-      label: "En attente",
-      value: stats.enAttente,
-      Icon: Clock,
-      iconBg: "#FFFBEB", iconColor: "#D97706",
-    },
-    {
-      label: "Expédiées",
-      value: stats.expediees,
-      Icon: Truck,
-      iconBg: "#EEF2FF", iconColor: "#4338CA",
-    },
-    {
-      label: "Livrées",
-      value: stats.livrees,
-      Icon: CheckCircle,
-      iconBg: "#F0FDF4", iconColor: "#16A34A",
-    },
+  // ── Période des métriques ──
+  const periode: Periode = PERIODES.some((p) => p.id === sp.periode) ? (sp.periode as Periode) : "aujourd_hui";
+  const b = bornesPeriode(periode);
+  const dansPeriode = { gte: b.debut, lt: b.fin };
+  const dansPrecedente = { gte: b.precedent.debut, lt: b.precedent.fin };
+
+  const [commandes, total, cmdPeriode, cmdPrecedente, articles, articlesPrec, retours, livrees, livreesPrec] = await Promise.all([
+    prisma.commande.findMany({
+      where, orderBy: TRIS[sort], skip: (page - 1) * PAR_PAGE, take: PAR_PAGE,
+      select: { id: true, numero: true, createdAt: true, clientNom: true, ville: true, canal: true, methodePaiement: true, paiementStatut: true, statut: true, montantTotal: true, devise: true, lignes: { select: { quantite: true } } },
+    }),
+    prisma.commande.count({ where }),
+    prisma.commande.findMany({ where: { tenantId, createdAt: dansPeriode }, select: { createdAt: true, statut: true } }),
+    prisma.commande.count({ where: { tenantId, createdAt: dansPrecedente } }),
+    prisma.ligneCommande.findMany({ where: { commande: { tenantId, createdAt: dansPeriode } }, select: { quantite: true, commande: { select: { createdAt: true } } } }),
+    prisma.ligneCommande.aggregate({ where: { commande: { tenantId, createdAt: dansPrecedente } }, _sum: { quantite: true } }),
+    prisma.retourRMA.findMany({ where: { tenantId, createdAt: dansPeriode }, select: { createdAt: true, montant: true } }).catch(() => []),
+    prisma.commande.findMany({ where: { tenantId, livreeAt: dansPeriode }, select: { livreeAt: true } }),
+    prisma.commande.count({ where: { tenantId, livreeAt: dansPrecedente } }),
+  ]);
+
+  const s = (ev: { date: Date; valeur?: number }[]) => serie(ev, b.debut, b.pas, b.points);
+  const nbArticles = articles.reduce((t, l) => t + l.quantite, 0);
+  const traitees = cmdPeriode.filter((c) => !["en_attente", "confirmee", "annulee"].includes(c.statut));
+  const montantRetours = retours.reduce((t, r) => t + (r.montant ?? 0), 0);
+
+  const lien = (maj: Partial<Params>) => {
+    const p = new URLSearchParams();
+    const tout = { view: vue === "toutes" ? undefined : vue, q, sort: sort === "date:desc" ? undefined : sort, periode: periode === "aujourd_hui" ? undefined : periode, page: undefined as string | undefined, ...maj };
+    for (const [k, v] of Object.entries(tout)) if (v) p.set(k, v);
+    const str = p.toString();
+    return `/dashboard/commandes${str ? `?${str}` : ""}`;
+  };
+  const nbPages = Math.max(1, Math.ceil(total / PAR_PAGE));
+  const debut = total ? (page - 1) * PAR_PAGE + 1 : 0;
+
+  const columns = [
+    { id: "commande", header: "Commande", sortKey: "commande", mobilePrimary: true },
+    { id: "date", header: "Date", sortKey: "date" },
+    { id: "client", header: "Client" },
+    { id: "canal", header: "Canal", hideOnMobile: true },
+    { id: "total", header: "Total", numeric: true, sortKey: "total" },
+    { id: "paiement", header: "Statut du paiement" },
+    { id: "traitement", header: "Statut du traitement" },
+    { id: "livraison", header: "Statut de la livraison", hideOnMobile: true },
+    { id: "articles", header: "Articles", hideOnMobile: true },
+    { id: "ville", header: "Ville", hideOnMobile: true },
   ];
+  const rows = commandes.map((c) => {
+    const nb = c.lignes.reduce((t, l) => t + l.quantite, 0);
+    const livraison = deliveryBadge(c.statut);
+    return {
+      id: c.id,
+      href: `/dashboard/commandes/${c.id}`,
+      cells: {
+        commande: `#${c.numero}`,
+        date: dateRelativeAdmin(c.createdAt),
+        client: c.clientNom,
+        canal: canalCommande(c),
+        total: formatMontant(c.montantTotal, c.devise),
+        paiement: <MappedBadge {...paiementCommande(c)} />,
+        traitement: <MappedBadge {...fulfillmentBadge(c.statut)} />,
+        livraison: livraison ? <MappedBadge {...livraison} /> : null,
+        articles: `${nb} article${nb > 1 ? "s" : ""}`,
+        ville: c.ville,
+      },
+    };
+  });
 
+  const recherche = !!q || vue !== "toutes" || !!sp.statut;
   return (
-    <div className="space-y-5"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <Page>
       <CommandesTutorial />
+      <PageHeader
+        icon="orders" title="Commandes"
+        secondaryActions={[{ content: "Exporter", href: `/api/commandes/export${sp.statut ? `?statut=${sp.statut}` : ""}`, external: true }]}
+        primaryAction={{ content: "Créer une commande", href: "/dashboard/pos/caisse" }}
+      />
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap pt-1">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5 mb-1">
-            <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Commandes")}</h1>
-            <BoutonRevoirTutoriel moduleKey="commandes" />
-            <span className="text-[11px] font-bold bg-[#F5F5F7] text-[#888888] border border-[#E8E8E8] px-2.5 py-0.5 rounded-full">
-              {totalToutes}
-            </span>
-            {stats.enAttente > 0 && (
-              <span className="text-[11px] font-bold bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A] px-2.5 py-0.5 rounded-full">
-                {t(stats.enAttente)}{" "}{t("en attente")}
-              </span>
-            )}
-          </div>
-          <p className="text-[12.5px] text-[#AAAAAA]">{t("Gérez et suivez toutes les commandes de votre boutique")}</p>
-        </div>
-        <CommandesExport total={totalToutes} />
-      </div>
+      <MetricsStrip
+        periode={periode}
+        periodeHref={(p) => lien({ periode: p === "aujourd_hui" ? undefined : p })}
+        metrics={[
+          { label: "Commandes", definition: "Nombre de commandes passées sur la période.", value: nombre(cmdPeriode.length), delta: variation(cmdPeriode.length, cmdPrecedente), series: s(cmdPeriode.map((c) => ({ date: c.createdAt }))) },
+          { label: "Articles commandés", definition: "Quantité totale d’articles dans les commandes de la période.", value: nombre(nbArticles), delta: variation(nbArticles, articlesPrec._sum.quantite ?? 0), series: s(articles.map((l) => ({ date: l.commande.createdAt, valeur: l.quantite }))) },
+          { label: "Retours", definition: "Montant des retours ouverts sur la période.", value: formatMontant(montantRetours, devise), series: s(retours.map((r) => ({ date: r.createdAt, valeur: r.montant ?? 0 }))) },
+          { label: "Commandes traitées", definition: "Commandes de la période passées en préparation, expédiées ou livrées.", value: nombre(traitees.length), series: s(traitees.map((c) => ({ date: c.createdAt }))) },
+          { label: "Commandes livrées", definition: "Commandes livrées au client sur la période.", value: nombre(livrees.length), delta: variation(livrees.length, livreesPrec), series: s(livrees.map((c) => ({ date: c.livreeAt! }))) },
+        ]}
+      />
 
-      {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {statCards.map((s, i) => {
-          const Icon = s.Icon;
-          return (
-            <div key={i} className={`ax-card p-4 sm:p-5 relative overflow-hidden group cursor-default ${s.accent ? "border-[#F5A623]/20" : ""}`}>
-              {s.accent && (
-                <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-[20px]"
-                  style={{ background: "linear-gradient(90deg, #F5A623, #FFD280, #F5A623)" }} />
-              )}
-              <div className="flex items-start justify-between gap-2 mb-4">
-                <span className="ax-label">{t(s.label)}</span>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-                  style={{ background: s.iconBg, border: `1px solid ${s.iconColor}20` }}>
-                  <Icon size={14} style={{ color: s.iconColor }} strokeWidth={1.8} />
-                </div>
-              </div>
-              <p className="text-[18px] sm:text-[24px] [overflow-wrap:anywhere] font-bold text-[#111111] leading-none tabular-nums tracking-tight">
-                {t(s.value)}
-              </p>
+      <div className="axd-card">
+        <IndexFilters views={VUES} searchPlaceholder="Rechercher et filtrer"
+          sortOptions={[{ key: "date", label: "Date" }, { key: "commande", label: "Numéro de commande" }, { key: "total", label: "Total" }]} />
+        <OrdersIndex
+          columns={columns}
+          rows={rows}
+          pagination={total > 0 ? {
+            label: `${nombre(debut)}-${nombre(Math.min(page * PAR_PAGE, total))}`,
+            previousHref: page > 1 ? lien({ page: String(page - 1) }) : undefined,
+            nextHref: page < nbPages ? lien({ page: String(page + 1) }) : undefined,
+          } : undefined}
+          emptyState={recherche ? (
+            <div className="axd-empty">
+              <h3>Aucune commande trouvée</h3>
+              <p>Essayez de modifier les filtres ou le terme de recherche</p>
+              <div className="axd-empty__actions"><Button href="/dashboard/commandes">Effacer les filtres</Button></div>
             </div>
-          );
-        })}
-      </div>
-
-      {/* ── Filter tabs ── */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-        {FILTER_TABS.map(tab => {
-          const isActive = (filtreStatut ?? "all") === tab.key;
-          const count = tab.key === "all" ? totalToutes : compte(tab.key);
-          return (
-            <Link
-              key={tab.key}
-              href={tab.key === "all" ? "/dashboard/commandes" : `/dashboard/commandes?statut=${tab.key}`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all flex-shrink-0"
-              style={isActive ? {
-                background: "#111111",
-                color: "#FFFFFF",
-                border: "1px solid #111111",
-              } : {
-                background: "#FFFFFF",
-                color: "#888888",
-                border: "1px solid #E8E8E8",
-              }}
-            >
-              {t(tab.label)}
-              {count > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={isActive
-                    ? { background: "rgba(255,255,255,0.15)", color: "#FFFFFF" }
-                    : { background: "#F5F5F7", color: "#AAAAAA" }}>
-                  {count}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* ── Table / Empty state ── */}
-      {commandes.length === 0 ? (
-        <div className="ax-card p-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#F5F5F7] flex items-center justify-center mx-auto mb-4">
-            <Package size={24} className="text-[#CCCCCC]" />
-          </div>
-          <p className="text-[14px] font-semibold text-[#111111] mb-1">{t("Aucune commande")}{filtreStatut ? t(" dans ce statut") : ""}</p>
-          <p className="text-[12px] text-[#AAAAAA] mb-6">
-            {filtreStatut
-              ? t("Essayez un autre filtre ou attendez de nouvelles commandes")
-              : t("Les commandes passées par vos clients apparaîtront ici en temps réel")}
-          </p>
-          <Link href="/dashboard/boutique"
-            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-4 py-2 rounded-2xl bg-[#111111] text-white hover:bg-[#2a2a2a] transition-colors">
-            {t("Voir ma boutique")}{" "}<ArrowUpRight size={13} />
-          </Link>
-        </div>
-      ) : (
-        <div className="ax-card overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#F3F3F3] flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <p className="text-[13px] font-semibold text-[#111111]">
-              {totalFiltre} commande{totalFiltre > 1 ? "s" : ""}
-              {filtreStatut && filtreStatut !== "all" && (
-                <span className="ml-2 text-[#AAAAAA] font-normal">{t("— filtrées")}</span>
-              )}
-            </p>
-            <p className="text-[11.5px] text-[#AAAAAA]">{t("Triées par date décroissante")} · {t("Page")} {page}/{nbPages}</p>
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#F3F3F3]">
-                  {[
-                    { label: "N°",          w: "w-[100px]" },
-                    { label: "Client",      w: ""          },
-                    { label: "Articles",    w: "w-[100px]" },
-                    { label: "Montant",     w: "w-[120px]" },
-                    { label: "Statut",      w: "w-[150px]" },
-                    { label: "Date",        w: "w-[120px]" },
-                    { label: "",            w: "w-[50px]"  },
-                  ].map(({ label, w }) => (
-                    <th key={label} className={`px-5 py-3 text-left ax-label ${w}`}>{t(label)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {commandes.map(c => (
-                  <tr key={c.id}
-                    className="border-b border-[#F9F9F9] hover:bg-[#FAFAFA] transition-colors group">
-                    <td className="px-5 py-4">
-                      <Link href={`/dashboard/commandes/${c.id}`}
-                        className="text-[12.5px] font-mono font-bold text-[#F5A623] hover:underline">
-                        #{c.numero?.slice(-6) ?? c.id.slice(-6).toUpperCase()}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar nom={c.clientNom ?? "?"} />
-                        <div>
-                          <p className="text-[13px] font-semibold text-[#222] leading-tight">{t(c.clientNom)}</p>
-                          {(c.ville || c.pays) && (
-                            <p className="text-[11px] text-[#AAAAAA] mt-0.5">
-                              {[c.ville, c.pays].filter(Boolean).join(", ")}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-1 text-[12px] text-[#888] font-medium bg-[#F5F5F7] border border-[#EBEBEB] px-2.5 py-1 rounded-lg">
-                        <Package size={11} className="text-[#CCC]" />
-                        {c.lignes.length} art.
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="text-[13.5px] font-bold text-[#111]" style={{ fontVariantNumeric: "tabular-nums" }}>
-                        {formatMontant(c.montantTotal, c.devise)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <StatutBadge statut={c.statut} />
-                    </td>
-                    <td className="px-5 py-4 text-[11.5px] text-[#AAAAAA] whitespace-nowrap">
-                      {dateRelative(c.createdAt)}
-                    </td>
-                    <td className="px-3 py-4">
-                      <Link href={`/dashboard/commandes/${c.id}`}
-                        className="w-7 h-7 rounded-lg border border-[#EBEBEB] flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 hover:border-[#CCC] hover:bg-[#F5F5F5] transition-all">
-                        <ChevronRight size={13} className="text-[#888]" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="sm:hidden divide-y divide-[#F5F5F5]">
-            {commandes.map(c => (
-              <Link key={c.id} href={`/dashboard/commandes/${c.id}`}
-                className="flex items-center gap-3 px-4 py-3.5 hover:bg-[#FAFAFA] transition-colors active:bg-[#F5F5F5]">
-                <Avatar nom={c.clientNom ?? "?"} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[11.5px] font-mono font-bold text-[#F5A623]">
-                      #{c.numero?.slice(-6) ?? c.id.slice(-6).toUpperCase()}
-                    </span>
-                    <StatutBadge statut={c.statut} />
-                  </div>
-                  <p className="text-[13px] font-semibold text-[#222] truncate">{t(c.clientNom)}</p>
-                  <p className="text-[11px] text-[#BBBBBB] mt-0.5">{dateRelative(c.createdAt)}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-[13.5px] font-bold text-[#111]" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {formatMontant(c.montantTotal, c.devise)}
-                  </p>
-                  <ChevronRight size={14} className="text-[#DDD] ml-auto mt-1" />
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {nbPages > 1 && (
-            <div className="px-6 py-3 border-t border-[#F3F3F3] flex items-center justify-between text-[12px] font-semibold">
-              {page > 1
-                ? <Link href={lienPage(page - 1)} className="text-[#111] hover:underline">← {t("Précédent")}</Link>
-                : <span />}
-              <span className="text-[#AAAAAA]">{page} / {nbPages}</span>
-              {page < nbPages
-                ? <Link href={lienPage(page + 1)} className="text-[#111] hover:underline">{t("Suivant")} →</Link>
-                : <span />}
+          ) : (
+            <div className="axd-empty">
+              <EmptyArtInline />
+              <h3>Vos commandes s’afficheront ici</h3>
+              <p>Les commandes passées sur votre boutique, par WhatsApp ou en caisse apparaissent ici en temps réel.</p>
+              <div className="axd-empty__actions"><Button href="/dashboard/boutique">Voir ma boutique</Button></div>
             </div>
           )}
-        </div>
-      )}
-    </div>
+        />
+      </div>
+    </Page>
   );
+}
+
+function EmptyArtInline() {
+  return <img src="/admin/commandes-vide.svg" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />;
 }

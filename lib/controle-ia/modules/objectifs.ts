@@ -2,7 +2,7 @@
 // Deux temps : axso_plan_goal propose un plan (rien n'est exécuté), axso_execute_goal le déroule.
 // Le plan vient du modèle interne mais il est validé par du code (lib/controle-ia/plan.ts) puis
 // figé ; chaque étape part par ctx.appeler, donc par les droits, la politique, l'accord du
-// marchand et le journal. axso_delegate confie une tâche à un spécialiste d'AXIA par le même circuit.
+// marchand et le journal. axso_delegate confie une tâche à un spécialiste de Stella par le même circuit.
 import { prisma } from "@/lib/prisma";
 import { completionAuto, hasDeepSeek, hasGemini } from "@/lib/llm-client";
 import { runAgent } from "@/lib/agent-runner";

@@ -1,5 +1,5 @@
 // Annulation et remboursement d'une commande — point de passage unique pour
-// l'interface marchand, les retours (RMA), AXIA et les agents.
+// l'interface marchand, les retours (RMA), Stella et les agents.
 //
 // - libererCommande : défait ce qu'une commande avait engagé (stock, code promo,
 //   commissions d'affiliation non versées). Appelée à l'annulation et au remboursement.
@@ -115,7 +115,7 @@ export async function rembourserCommande(p: {
   return { ok: true, montant: commande.montantTotal };
 }
 
-// ─── Retours (RMA) — interface, AXIA et agents ───────────────────────────────
+// ─── Retours (RMA) — interface, Stella et agents ───────────────────────────────
 
 /** Ouvre un retour sur une commande de la boutique (statut de la commande inchangé). */
 export async function creerRetour(p: {

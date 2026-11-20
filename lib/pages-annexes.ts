@@ -1,7 +1,7 @@
 // Pages À propos et Contact — SOURCE UNIQUE des blocs et de leurs opérations.
-// Le panneau du Constructeur (PanelPageSections) ET l'outil AXIA
+// Le panneau du Constructeur (PanelPageSections) ET l'outil Stella
 // `modifier_page` passent tous les deux par `appliquerActionPage` : toute
-// action faisable à la main l'est par AXIA, avec les mêmes règles (ids
+// action faisable à la main l'est par Stella, avec les mêmes règles (ids
 // uniques, types connus, ordre recalculé). Module pur : client et serveur.
 // Même principe que lib/fiche-produit.ts pour la fiche produit.
 import type { CustomSection, ThemeAboutPageConfig, ThemeContactPageConfig } from "./theme-config";
@@ -98,7 +98,7 @@ export function appliquerActionPage(page: PageAnnexe | null | undefined, cle: Cl
   }
 }
 
-/** Résumé lisible (état, ordre, ids) — pour AXIA. */
+/** Résumé lisible (état, ordre, ids) — pour Stella. */
 export function resumerPage(page: PageAnnexe | null | undefined, cle: CleePage): string {
   const s = page?.sections ?? [];
   return `Page ${cle === "aboutPage" ? "À propos" : "Contact"} : ${page?.actif ? "affichée" : "masquée"}`

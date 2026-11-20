@@ -1,4 +1,4 @@
-// Module « commerce » d'AXSO CONTROL : ce qui manquait aux outils d'AXIA (lib/axia/tools.ts,
+// Module « commerce » d'AXSO CONTROL : ce qui manquait aux outils de Stella (lib/axia/tools.ts,
 // lib/axia/pos-tools.ts) pour piloter catalogue, stock, commandes, clients, pages et analyses.
 // Les outils déjà couverts en français (prix, statut et livraison des commandes, design,
 // thème, pages À propos/Contact, publication…) ne sont pas refaits ici.

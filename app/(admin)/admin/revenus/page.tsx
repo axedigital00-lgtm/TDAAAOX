@@ -55,7 +55,7 @@ export default async function Revenus({ searchParams }: { searchParams: Promise<
     { cle: "entrees", nom: "Entrées", format: "nombre", droite: true }, { cle: "conversion", nom: "Conversion vers le plan", format: "pct", droite: true },
     { cle: "churn", nom: "Churn", format: "pct", droite: true }, { cle: "upgrades", nom: "Upgrades", format: "nombre", droite: true }, { cle: "downgrades", nom: "Downgrades", format: "nombre", droite: true },
     { cle: "commandesParMarchand", nom: "Commandes / marchand actif", format: "nombre", droite: true }, { cle: "iaParMarchand", nom: "Requêtes IA / marchand actif", format: "nombre", droite: true },
-    { cle: "adoptionPremium", nom: "Adoption Marketing ou Axia", format: "pct", droite: true },
+    { cle: "adoptionPremium", nom: "Adoption Marketing ou Stella", format: "pct", droite: true },
   ] as Colonne[]).map((x): Colonne => ({ ...x, nom: t(x.nom) }));
   const lignesPlans = plans.map((p) => ({ _id: p.plan, _href: voitMarchands ? L("/admin/marchands", { plan: p.plan }) : undefined, ...p, nom: t(p.nom) }));
 

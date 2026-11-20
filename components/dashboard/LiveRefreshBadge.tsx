@@ -11,15 +11,17 @@ export function LiveRefreshBadge({ intervalMs = 30000 }: { intervalMs?: number }
   const router = useRouter();
 
   useEffect(() => {
-    const id = setInterval(() => router.refresh(), intervalMs);
-    return () => clearInterval(id);
+    const relire = () => { if (!document.hidden) router.refresh(); };
+    const id = setInterval(relire, intervalMs);
+    document.addEventListener("visibilitychange", relire);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", relire); };
   }, [router, intervalMs]);
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+    <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
       style={{ background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.25)", color: "#16A34A" }}>
-      <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse" />
-      {t("Temps réel")}
+      <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] motion-safe:animate-pulse" />
+      {t("Actualisation automatique")} · {intervalMs / 1000} s
     </div>
   );
 }

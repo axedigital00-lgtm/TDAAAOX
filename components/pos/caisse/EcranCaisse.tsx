@@ -371,8 +371,8 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
       <CapteurClavier contexte="vente" caisseId={caisseId} actif={!fermee} />
 
       {/* Barre : AXSO | magasin | caisse | caissier | réseau */}
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl bg-[#111111] px-3 py-2 text-white sm:px-4">
-        <span className="text-[15px] font-bold tracking-wide text-[#F5A623]">AXSO</span>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] bg-[#111111] px-3 py-2 text-white sm:px-4">
+        <span className="text-[15px] font-bold tracking-wide text-[#1a1a1a]">AXSO</span>
         <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold"><Store size={14} aria-hidden className="flex-shrink-0 text-white/60" /><span className="truncate">{d.magasin?.nom ?? d.boutique.nomBoutique}</span></span>
         {caisses.length > 1 ? (
           <label className="flex items-center gap-1.5 text-[12px] text-white/70">
@@ -411,7 +411,7 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
           <Catalogue caisseId={caisseId} modeSimple={modeSimple} champRef={champ} onAjouter={ajouterArticle} version={version}
             actions={<BoutonScanner contexte="vente" caisseId={caisseId} className="min-h-12 flex-shrink-0" />} />
           {!etroit && (
-            <aside className="sticky top-0 flex max-h-[calc(100dvh-var(--pos-chrome))] min-h-[24rem] flex-col rounded-2xl border border-[#E8E8E8] bg-white p-3">
+            <aside className="sticky top-0 flex max-h-[calc(100dvh-var(--pos-chrome))] min-h-[24rem] flex-col rounded-[12px] border border-[#E8E8E8] bg-white p-3">
               {panierNoeud}
             </aside>
           )}
@@ -421,10 +421,10 @@ function Caisse({ d, caisseId, caisses, recharge, kiosque, actionsBarre, onNavig
       {/* Téléphone : le panier est un tiroir bas, résumé dans une barre toujours visible. */}
       {etroit && !fermee && (
         // Hors kiosque, la barre de navigation flottante du téléphone occupe le bas : la barre Payer passe au-dessus.
-        <div className="sticky z-10 flex items-center gap-2 rounded-2xl bg-[#111111] p-2 shadow-xl"
+        <div className="sticky z-10 flex items-center gap-2 rounded-[12px] bg-[#111111] p-2 shadow-xl"
           style={{ bottom: kiosque ? "0.5rem" : "calc(env(safe-area-inset-bottom) + 7.25rem)" }}>
           <button type="button" onClick={() => setFenetre("panier")} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 text-left text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-            <ShoppingCart size={18} aria-hidden className="flex-shrink-0 text-[#F5A623]" />
+            <ShoppingCart size={18} aria-hidden className="flex-shrink-0 text-[#1a1a1a]" />
             <span className="min-w-0">
               <span className="block text-[11px] text-white/70">{t("Panier")} · {t("{0} article(s)", panier.articles)}</span>
               <span className="block truncate text-[16px] font-bold tabular-nums">{fmt(panier.total)}</span>
@@ -525,7 +525,7 @@ function OuvertureCaisse({ d, caisseId, onOuverte }: { d: Demarrage; caisseId: s
     setEnvoi(false);
   };
   return (
-    <form onSubmit={(e) => { e.preventDefault(); ouvrir(); }} className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-[#E8E8E8] bg-white p-5">
+    <form onSubmit={(e) => { e.preventDefault(); ouvrir(); }} className="mx-auto w-full max-w-md space-y-4 rounded-[12px] border border-[#E8E8E8] bg-white p-5">
       <div>
         <h2 className="text-[17px] font-bold text-[#111111]">{t("Ouvrir la caisse")}</h2>
         <p className="mt-1 text-[12.5px] leading-relaxed text-[#666666]">{t("Comptez les espèces présentes dans le tiroir : c'est le fonds de caisse. Il sert à calculer le montant attendu à la fermeture.")}</p>

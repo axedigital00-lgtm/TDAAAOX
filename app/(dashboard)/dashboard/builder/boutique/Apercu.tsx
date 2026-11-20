@@ -222,7 +222,7 @@ function SectionApercu({ section, ctx, selectedId, survolee, onSelect, onChangeC
       <div className={`pointer-events-none absolute inset-0 transition-opacity ${visible ? "opacity-100" : "opacity-0 group-hover/section:opacity-100"}`}
         style={{ boxShadow: `inset 0 0 0 2px ${actif ? "#F5A623" : "rgba(245,166,35,0.55)"}` }}>
         <span className="absolute left-0 top-0 flex items-center gap-1.5 h-8 px-3 rounded-br-md text-[14px] font-semibold bg-[#F5A623] text-[#111111] shadow-sm"
-          style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+          style={{ fontFamily: "var(--merchant-font)" }}>
           {nomNoeud(section)}
         </span>
       </div>

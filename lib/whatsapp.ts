@@ -1,20 +1,7 @@
-// WhatsApp Business notifications — Genuka (simplifié, si configuré), sinon
-// Cloud API Meta directe (historique), sinon lien wa.me fallback.
-// Chaque boutique peut connecter son propre numéro WhatsApp via Genuka
-// (ConnecteurConfig type "whatsapp_genuka") — prioritaire sur le token
-// plateforme partagé GENUKA_PROXY_TOKEN, lui-même utilisé si la boutique n'a
-// rien connecté (comportement inchangé pour les boutiques existantes).
+// WhatsApp Business notifications : Cloud API officielle de Meta, sinon lien
+// wa.me que le marchand envoie lui-même.
 import { lienBoutique } from "./origine-site";
-import { hasGenuka, envoyerMessageGenuka } from "./genuka";
-import { lireConnexion } from "./connect";
 import { quotaCommandesAtteint } from "./abonnement";
-
-async function tokenGenukaTenant(tenantId?: string): Promise<string | null> {
-  if (!tenantId) return null;
-  const cfg = await lireConnexion(tenantId, "whatsapp_genuka").catch(() => null);
-  const token = cfg?.statut === "actif" ? (cfg.config as any)?.proxyToken : null;
-  return typeof token === "string" && token ? token : null;
-}
 
 const MESSAGES: Record<string, (params: { numero: string; boutique: string; lien: string; code?: string | null }) => string> = {
   confirmee: ({ numero, boutique, lien }) =>
@@ -51,7 +38,7 @@ export function buildWhatsAppMessage(params: {
   return template(params);
 }
 
-// Envoie via WhatsApp Business Cloud API (Meta direct — legacy)
+// Envoie via WhatsApp Business Cloud API (Meta)
 async function envoyerViaCloudAPI(telephone: string, message: string): Promise<boolean> {
   const token = process.env.WHATSAPP_TOKEN;
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -83,16 +70,8 @@ async function envoyerViaCloudAPI(telephone: string, message: string): Promise<b
   }
 }
 
-// Point d'envoi unique : token Genuka de la boutique en priorité, sinon
-// token plateforme partagé, sinon Meta direct (legacy).
-async function envoyerMessage(telephone: string, message: string, tenantId?: string): Promise<boolean> {
-  const tokenTenant = await tokenGenukaTenant(tenantId);
-  if (tokenTenant || hasGenuka()) {
-    const ok = await envoyerMessageGenuka(telephone, message, tokenTenant);
-    if (ok) return true;
-    // Si Genuka échoue (panne ponctuelle...), on retente via Meta direct s'il
-    // est configuré, plutôt que d'abandonner tout de suite sur l'auto-envoi.
-  }
+// Point d'envoi unique (le paramètre tenantId est gardé pour les appelants).
+async function envoyerMessage(telephone: string, message: string, _tenantId?: string): Promise<boolean> {
   return envoyerViaCloudAPI(telephone, message);
 }
 
@@ -129,7 +108,7 @@ export async function notifierClientWhatsApp(params: {
   const message = buildWhatsAppMessage({ statut: params.statut, numero: params.numero, boutique: params.boutique, lien, code: params.codeLivraison });
   if (!message) return { envoyeAuto: false, whatsappUrl: null };
 
-  // Tente envoi automatique (Genuka de la boutique, puis plateforme, puis Meta direct)
+  // Tente l'envoi automatique (Cloud API Meta)
   const envoyeAuto = await envoyerMessage(params.telephone, message, params.tenantId);
   if (envoyeAuto) return { envoyeAuto: true, whatsappUrl: null };
 

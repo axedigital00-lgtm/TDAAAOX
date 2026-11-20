@@ -56,7 +56,7 @@ export function SelecteurArticles({ label, aide, valeur, onChange, avecQuantite,
 
   return (
     <div>
-      <label htmlFor={id} className="block text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t(label)}</label>
+      <label htmlFor={id} className="block text-[11px] font-semibold text-[#666666]">{t(label)}</label>
       {valeur.length > 0 && (
         <ul className="mt-1 space-y-1">
           {valeur.map((a) => (
@@ -87,7 +87,7 @@ export function SelecteurArticles({ label, aide, valeur, onChange, avecQuantite,
         <ul className="mt-1 max-h-56 space-y-1 overflow-y-auto">
           {trouves.map((a) => (
             <li key={a.produitId}>
-              <button type="button" onClick={() => ajouter(a)} className={cn("flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-[#F0F0F0] bg-white px-3 text-left text-[13px] hover:border-[#F5A623]", FOCUS)}>
+              <button type="button" onClick={() => ajouter(a)} className={cn("flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-[#F0F0F0] bg-white px-3 text-left text-[13px] hover:border-[#8a8a8a]", FOCUS)}>
                 <span className="min-w-0 truncate">{a.nom}{a.categorie && <span className="ml-2 text-[#888888]">{a.categorie}</span>}</span>
                 <span className="font-semibold tabular-nums">{fmt(a.prix)}{a.uniteVente === "kg" ? "/kg" : ""}</span>
               </button>

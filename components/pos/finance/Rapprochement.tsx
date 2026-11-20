@@ -80,12 +80,12 @@ export function Rapprochement() {
   return (
     <Page>
       <EnTete titre="Rapprochement des paiements" sousTitre="Vente → paiement → prestataire → règlement → comptabilité : ce qu'AXSO sait de chaque encaissement de caisse.">
-        <a href={`/api/pos/rapprochement?${requete}&format=csv`} download className={`inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-4 text-[13px] font-bold text-[#111111] hover:border-[#F5A623] ${FOCUS}`}>
+        <a href={`/api/pos/rapprochement?${requete}&format=csv`} download className={`inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-4 text-[13px] font-bold text-[#111111] hover:border-[#8a8a8a] ${FOCUS}`}>
           <Download size={15} aria-hidden />{t("Exporter en CSV")}
         </a>
       </EnTete>
 
-      <p className="flex items-start gap-2 rounded-2xl border border-[#FCD34D] bg-[#FFFBEB] p-3 text-[12.5px] leading-relaxed text-[#92400E]">
+      <p className="flex items-start gap-2 rounded-[12px] border border-[#FCD34D] bg-[#FFFBEB] p-3 text-[12.5px] leading-relaxed text-[#92400E]">
         <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" aria-hidden />
         <span>{t("Aucun opérateur Mobile Money ni terminal de carte n'est relié à la caisse (intégration en attente). Ces paiements sont déclarés par le caissier : AXSO ne peut pas les confirmer. Pointez-les ici avec la référence lue sur votre relevé.")}</span>
       </p>
@@ -120,15 +120,15 @@ export function Rapprochement() {
         : !d ? <EtatChargement texte="Chargement des paiements…" />
         : (
           <>
-            {d.tronque && <p role="status" className="text-[12px] text-[#B45309]">{t("Cette période contient plus de paiements que ce qui est affiché. Resserrez les dates pour tout voir.")}</p>}
+            {d.tronque && <p role="status" className="text-[12px] text-[#5e4200]">{t("Cette période contient plus de paiements que ce qui est affiché. Resserrez les dates pour tout voir.")}</p>}
             {d.parMode.length > 0 && (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {d.parMode.map((m) => (
-                  <div key={m.mode} className="rounded-2xl border border-[#E8E8E8] bg-white p-4">
+                  <div key={m.mode} className="rounded-[12px] border border-[#E8E8E8] bg-white p-4">
                     <div className="flex items-center justify-between gap-2"><p className="truncate text-[13px] font-bold">{t(m.libelle)}</p><BadgePaiement statut={m.statut as "actif" | "declaratif" | "a_connecter"} /></div>
                     <p className="mt-2 text-[20px] font-bold tabular-nums">{fmt(m.encaisse - m.rembourse)}</p>
                     <p className="text-[11px] text-[#888888]">{m.nombre} {t(m.nombre > 1 ? "opérations" : "opération")}{m.rembourse > 0 ? ` · ${t("dont remboursé")} ${fmt(m.rembourse)}` : ""}</p>
-                    {m.statut === "declaratif" && <p className="mt-1 text-[11.5px] font-semibold text-[#B45309]">{t("Reste à rapprocher")} : {fmt(m.aRapprocher)}</p>}
+                    {m.statut === "declaratif" && <p className="mt-1 text-[11.5px] font-semibold text-[#5e4200]">{t("Reste à rapprocher")} : {fmt(m.aRapprocher)}</p>}
                   </div>
                 ))}
               </div>
@@ -140,7 +140,7 @@ export function Rapprochement() {
                   {d.paiements.map((p) => (
                     <li key={p.id} className="flex items-center gap-2 py-1.5">
                       {pointables.some((x) => x.id === p.id) && p.reference ? (
-                        <input type="checkbox" aria-label={t("Sélectionner le paiement de la vente {0}", p.numero)} className="h-5 w-5 flex-shrink-0 accent-[#F5A623]" checked={choisis.includes(p.id)}
+                        <input type="checkbox" aria-label={t("Sélectionner le paiement de la vente {0}", p.numero)} className="h-5 w-5 flex-shrink-0 accent-[#1a1a1a]" checked={choisis.includes(p.id)}
                           onChange={(e) => setChoisis((c) => (e.target.checked ? [...c, p.id] : c.filter((x) => x !== p.id)))} />
                       ) : <span className="w-5 flex-shrink-0" aria-hidden />}
                       <button type="button" onClick={() => setOuvert(p.id)} className={`flex min-h-11 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-1 py-1 text-left ${FOCUS}`}>
@@ -224,7 +224,7 @@ function DetailPaiement({ p, onPointe }: { p: LignePaiement; onPointe: () => voi
 
       {p.declaratif ? (
         <div className="space-y-3 border-t border-[#F0F0F0] pt-4">
-          <h3 className="text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Pointage manuel")}</h3>
+          <h3 className="text-[12px] font-bold text-[#666666]">{t("Pointage manuel")}</h3>
           <Saisie label="Référence lue sur le relevé" value={reference} onChange={(e) => setReference(e.target.value)} maxLength={120} aide="Obligatoire pour pointer le paiement comme rapproché." />
           <Bouton large onClick={() => void pointer("rapproche")} charge={envoi === "rapproche"} disabled={envoi !== null} icone={<CheckCircle2 size={15} aria-hidden />}>{t("Pointer comme rapproché")}</Bouton>
           <div className="grid gap-3 sm:grid-cols-2">

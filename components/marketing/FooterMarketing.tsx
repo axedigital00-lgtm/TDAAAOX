@@ -1,85 +1,64 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+// Pied de page du site public : quatre colonnes de liens, puis région, langue
+// et mentions légales.
+import "@fontsource-variable/inter/wght.css";
+import "./site/site.css";
 import Link from "next/link";
-import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
 import { useT } from "@/components/I18nProvider";
+import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
 
-const liens = {
-  Produit: [
-    { label: "Paliers d'empire", href: "/#tarifs" },
-    { label: "Thèmes", href: "/themes" },
-    { label: "Intégrations paiements", href: "/#paiements" },
-    { label: "Fonctionnalités", href: "/fonctionnalites" },
-    { label: "Devenir affilié", href: "/affiliation" },
-  ],
-  Ressources: [
-    { label: "Blog", href: "/blog" },
-    { label: "Documentation", href: "/docs" },
-    { label: "Tutoriels vidéo", href: "/tutorials" },
-    { label: "Communauté", href: "/community" },
-  ],
-  Entreprise: [
-    { label: "À propos", href: "/about" },
-    { label: "Carrières", href: "/jobs" },
-    { label: "Presse", href: "/press" },
-    { label: "Contact", href: "/contact" },
-  ],
-  Légal: [
-    { label: "Conditions d'utilisation", href: "/legal/cgu" },
-    { label: "Politique de confidentialité", href: "/legal/privacy" },
-    { label: "Cookies", href: "/legal/cookies" },
-    { label: "Abonnements", href: "/legal/abonnements" },
-    { label: "Politique de prix", href: "/legal/politique-prix" },
-  ],
-};
+const COLONNES: { titre: string; liens: { label: string; href: string }[] }[] = [
+  { titre: "AXSO", liens: [
+    { label: "À propos", href: "/about" }, { label: "Carrières", href: "/jobs" },
+    { label: "Presse", href: "/press" }, { label: "Témoignages", href: "/temoignages" },
+  ] },
+  { titre: "Écosystème", liens: [
+    { label: "Thèmes", href: "/themes" }, { label: "Fonctionnalités", href: "/fonctionnalites" },
+    { label: "Programme d’affiliation", href: "/affiliation" }, { label: "Documentation", href: "/docs" },
+  ] },
+  { titre: "Ressources", liens: [
+    { label: "Blog", href: "/blog" }, { label: "Tutoriels vidéo", href: "/tutorials" },
+    { label: "Tarifs", href: "/tarifs" }, { label: "Suivre un colis", href: "/suivi" },
+  ] },
+  { titre: "Assistance", liens: [
+    { label: "Contact", href: "/contact" }, { label: "Communauté", href: "/community" },
+    { label: "Se connecter", href: "/connexion" }, { label: "Créer une boutique", href: "/inscription" },
+  ] },
+];
+
+const LEGAL = [
+  { label: "Conditions d’utilisation", href: "/legal/cgu" },
+  { label: "Confidentialité", href: "/legal/privacy" },
+  { label: "Cookies", href: "/legal/cookies" },
+  { label: "Abonnements", href: "/legal/abonnements" },
+  { label: "Politique de prix", href: "/legal/politique-prix" },
+];
 
 export function FooterMarketing() {
   const t = useT();
-  const footerRef = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.1 });
-    if (footerRef.current) obs.observe(footerRef.current);
-    return () => obs.disconnect();
-  }, []);
-
   return (
-    <footer ref={footerRef} className="bg-[#111111] pt-16 pb-8"
-      style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(20px)", transition: "opacity 0.8s cubic-bezier(0.23,1,0.32,1), transform 0.8s cubic-bezier(0.23,1,0.32,1)" }}>
-      <div className="w-full px-6 sm:px-10 lg:px-16 xl:px-24">
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
-          <div className="col-span-2 lg:col-span-1">
-            <Link href="/" className="inline-block mb-4">
-              <img src="/logo-dark.png" alt="axso" style={{ height: "34px", width: "auto", objectFit: "contain" }} />
-            </Link>
-            <p className="text-gray-400 text-sm leading-relaxed mb-2">
-              {t("Vends partout. Encaisse facilement. Grandis sans limite.")}
-            </p>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              {t("AXSO est la plateforme e-commerce faite pour l'Afrique.")}
-            </p>
+    <footer className="axm axm-footer">
+      <div className="axm-wrap">
+        <div className="axm-footer__cols">
+          <div>
+            <Link href="/" aria-label="AXSO"><img src="/logo-dark.png" alt="AXSO" style={{ height: 34, width: "auto" }} /></Link>
+            <p className="axm-muted" style={{ fontSize: 15, marginTop: 16, maxWidth: 260 }}>{t("La plateforme de commerce pensée pour l’Afrique : boutique en ligne, WhatsApp, caisse et livraison au même endroit.")}</p>
           </div>
-
-          {Object.entries(liens).map(([section, items]) => (
-            <div key={section}>
-              <h4 className="text-white font-semibold mb-4 text-sm">{t(section)}</h4>
-              <ul className="space-y-2.5">
-                {items.map((lien) => (
-                  <li key={lien.label}>
-                    <Link href={lien.href} className="text-gray-400 text-sm hover:text-[#F5A623] transition-colors">
-                      {t(lien.label)}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {COLONNES.map((c) => (
+            <nav key={c.titre} aria-label={t(c.titre)}>
+              <h3>{t(c.titre)}</h3>
+              <ul>{c.liens.map((l) => <li key={l.href + l.label}><Link href={l.href}>{t(l.label)}</Link></li>)}</ul>
+            </nav>
           ))}
         </div>
-
-        <div className="border-t border-[#262626] pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-gray-500 text-sm">© {new Date().getFullYear()}{" "}{t("AXSO Technologies. Tous droits réservés.")}</p>
-          <LangueSelecteur />
+        <div className="axm-footer__bottom">
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            <span>© {new Date().getFullYear()} AXSO · {t("Afrique")}</span>
+            <LangueSelecteur ouvrirVers="haut" />
+          </div>
+          <nav className="axm-footer__legal" aria-label={t("Mentions légales")}>
+            {LEGAL.map((l) => <Link key={l.href} href={l.href}>{t(l.label)}</Link>)}
+          </nav>
         </div>
       </div>
     </footer>

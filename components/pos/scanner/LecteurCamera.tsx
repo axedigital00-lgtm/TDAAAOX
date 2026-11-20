@@ -108,11 +108,11 @@ export function LecteurCamera({ actif, onCode, antiRebondMs = 1500, muet, classN
 
   if (!actif) return null;
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl bg-black", className)}>
+    <div className={cn("relative overflow-hidden rounded-[12px] bg-black", className)}>
       <video ref={videoRef} className="h-full w-full object-cover" muted playsInline autoPlay aria-label={t("Image de la caméra")} />
       {etat === "ouverture" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" role="status">
-          <Loader2 size={26} className="animate-spin text-[#F5A623] motion-reduce:animate-none" aria-hidden />
+          <Loader2 size={26} className="animate-spin text-[#1a1a1a] motion-reduce:animate-none" aria-hidden />
           <p className="text-[12px] text-white/60">{t("Ouverture de la caméra…")}</p>
         </div>
       )}
@@ -125,7 +125,7 @@ export function LecteurCamera({ actif, onCode, antiRebondMs = 1500, muet, classN
       {etat === "pret" && (
         // Viseur : un simple cadre, le reste de l'image est assombri.
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
-          <div className="h-[38%] w-[82%] rounded-xl border-2 border-[#F5A623]" style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.35)" }} />
+          <div className="h-[38%] w-[82%] rounded-xl border-2 border-[#1a1a1a]" style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.35)" }} />
         </div>
       )}
     </div>

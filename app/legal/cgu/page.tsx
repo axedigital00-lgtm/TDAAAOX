@@ -1,5 +1,4 @@
-import { NavbarMarketing } from "@/components/marketing/NavbarMarketing";
-import { FooterMarketing } from "@/components/marketing/FooterMarketing";
+import { PageLegale } from "@/components/marketing/site/Blocs";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/serveur";
 
@@ -18,7 +17,7 @@ const SECTIONS = [
   },
   {
     titre: "3. Services proposés",
-    contenu: `AXSO propose une plateforme SaaS permettant la création et la gestion de boutiques en ligne, incluant : la gestion de catalogue produits, la prise de commandes payées à la livraison ou passées par WhatsApp, la gestion logistique et de livraison, des outils de marketing et d'analyse, une assistance par intelligence artificielle (Axia).`,
+    contenu: `AXSO propose une plateforme SaaS permettant la création et la gestion de boutiques en ligne, incluant : la gestion de catalogue produits, la prise de commandes payées à la livraison ou passées par WhatsApp, la gestion logistique et de livraison, des outils de marketing et d'analyse, une assistance par intelligence artificielle (Stella).`,
   },
   {
     titre: "4. Obligations de l'utilisateur",
@@ -45,36 +44,22 @@ const SECTIONS = [
 export default async function CguPage() {
   const t = await getT();
   return (
-    <main className="bg-white text-[#111111] min-h-screen" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-      <NavbarMarketing />
+    <PageLegale t={t} actif="/legal/cgu" titre={t("Conditions Générales d'Utilisation")} maj={t("Dernière mise à jour : 2 novembre 2026")}>
 
-      <section className="pt-36 pb-24 px-6 sm:px-10 lg:px-16 xl:px-24">
-        <div className="max-w-3xl mx-auto">
-          <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] mb-5" style={{ color: "#F5A623" }}>
-            {t("⚖️ Légal")}
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">{t("Conditions Générales d'Utilisation")}</h1>
-          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 2 novembre 2026")}</p>
-
-          <div className="space-y-10">
+          <div>
             {SECTIONS.map(s => (
-              <div key={s.titre} className="pb-10 border-b" style={{ borderColor: "rgba(0,0,0,0.07)" }}>
-                <h2 className="text-lg font-bold mb-4" style={{ color: "#F5A623" }}>{t(s.titre)}</h2>
-                <p className="text-[#595959] leading-relaxed text-sm">{t(s.contenu)}</p>
+              <div key={s.titre} className="axm-legal__sec">
+                <h2>{t(s.titre)}</h2>
+                <p className="axm-legal__p">{t(s.contenu)}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-14 rounded-2xl p-6 border"
-            style={{ background: "rgba(245,166,35,0.04)", borderColor: "rgba(245,166,35,0.15)" }}>
-            <p className="text-[#666666] text-sm">{t("Des questions sur ces conditions ? Contactez-nous à")}{" "}
-              <a href="mailto:legal@axsoafrica.com" className="font-bold hover:opacity-80" style={{ color: "#F5A623" }}>legal@axsoafrica.com</a>
+          <div className="axm-card" style={{ marginTop: 40 }}>
+            <p className="axm-legal__p">{t("Des questions sur ces conditions ? Contactez-nous à")}{" "}
+              <a href="mailto:legal@axsoafrica.com" className="axm-link">legal@axsoafrica.com</a>
             </p>
           </div>
-        </div>
-      </section>
-
-      <FooterMarketing />
-    </main>
+    </PageLegale>
   );
 }

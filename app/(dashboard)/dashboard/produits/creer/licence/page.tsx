@@ -142,7 +142,7 @@ export default function CreerLicencePage() {
           <Key size={18} className="text-[#F5A623]" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 font-poppins">{t("Clé de licence")}</h1>
+          <h1 className="text-xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Clé de licence")}</h1>
           <p className="text-xs text-gray-400">{t("Génération automatique ou stock importé")}</p>
         </div>
       </div>

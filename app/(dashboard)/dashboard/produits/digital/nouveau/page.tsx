@@ -49,6 +49,9 @@ const TYPES = [
     dispo: true,
     badge: null,
   },
+  { id: "service", href: "/dashboard/produits/creer/service", icon: Monitor, label: "Service", desc: "Coaching, consultation ou prestation : réservation de créneaux, brief, livrables et révisions.", color: "#1a1a1a", bg: "#f1f1f1", dispo: true, badge: "Nouveau" },
+  { id: "abonnement", href: "/dashboard/produits/creer/abonnement", icon: Package, label: "Abonnement", desc: "Accès prépayé renouvelable à vos formations et fichiers, avec essai, rappels et espace membre.", color: "#1a1a1a", bg: "#f1f1f1", dispo: true, badge: "Nouveau" },
+  { id: "parcours", href: "/dashboard/produits/creer/parcours", icon: BookOpen, label: "Parcours", desc: "Plusieurs formations enchaînées dans un ordre, avec un certificat final.", color: "#1a1a1a", bg: "#f1f1f1", dispo: true, badge: "Nouveau" },
 ];
 
 const LEGACY_TYPES = [
@@ -72,7 +75,7 @@ export default function NouveauProduitDigitalPage() {
       </Link>
 
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 font-poppins">{tr("Quel type de produit ?")}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{tr("Quel type de produit ?")}</h1>
         <p className="text-gray-500 text-sm mt-1">
           {tr("Choisissez le type pour accéder au wizard de création adapté.")}
         </p>

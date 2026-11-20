@@ -84,11 +84,6 @@ export async function PATCH(req: NextRequest) {
       if (!cfg.apiKey) throw new Error("Clé API manquante");
       return NextResponse.json({ connecte: true, message: "Clé API Gemini configurée" });
     }
-    if (type === "whatsapp_genuka") {
-      const cfg = config.config as any;
-      if (!cfg.proxyToken) throw new Error("Proxy token manquant");
-      return NextResponse.json({ connecte: true, message: "WhatsApp via Genuka configuré" });
-    }
     return NextResponse.json({ connecte: true, message: "Connecteur actif" });
   } catch (err: any) {
     await prisma.connecteurConfig.updateMany({ where: { tenantId, type }, data: { statut: "erreur" } });

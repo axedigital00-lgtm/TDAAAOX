@@ -28,7 +28,7 @@ export const VENTE_PLACEHOLDER: Record<TypeBoutique, string> = {
   digital: "Ex : des formations en ligne sur le trading et des ebooks business…",
 };
 
-/** Pourquoi Axia propose ce design (texte court sous la carte). */
+/** Pourquoi Stella propose ce design (texte court sous la carte). */
 export function raisonTheme(fichier: string, nomBoutique: string, vente: string): string {
   const e = MANIFESTE_LIBRAIRIE.find((x) => x.fichier === fichier);
   if (!e) return "Un design choisi pour ton marché.";

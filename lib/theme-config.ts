@@ -273,7 +273,7 @@ export type BlockNodeType =
   // Pont AXSO Design → Constructeur libre : enveloppe le HTML/CSS cloné
   // d'une boutique AXSO Design (voir lib/axso-design-library.ts) tel quel
   // dans un seul bloc, créé UNE FOIS par la conversion (BuilderCanvas —
-  // "Importer mon design actuel"), jamais par le marchand ni par AXIA :
+  // "Importer mon design actuel"), jamais par le marchand ni par Stella :
   // volontairement absent de BLOCK_CATALOG/BLOCK_LIBRARY_ITEMS, donc jamais
   // proposé à l'ajout ni éditable champ par champ — seulement déplaçable/
   // supprimable comme n'importe quel bloc.
@@ -368,7 +368,7 @@ export interface ThemeConfig {
   // dans Theme.config pour que ImportedLiteralHomePage puisse injecter des
   // surcharges précises quand le marchand modifie ses couleurs via le builder.
   axsoDesignCssVarMapping?: Record<string, string>;
-  // Les 4 designs AXSO Design proposés par AXIA à l'inscription (fichiers,
+  // Les 4 designs AXSO Design proposés par Stella à l'inscription (fichiers,
   // ex. "aube-site.html") — seuls designs proposés ensuite dans le Constructeur.
   designsOrigine?: string[];
   // Polices d'origine du design AXSO (manifeste) — pour y substituer celles

@@ -1,4 +1,4 @@
-// Orchestrateur central AXIA — coordonne tous les agents vers les objectifs
+// Orchestrateur central Stella — coordonne tous les agents vers les objectifs
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { planActif } from "@/lib/abonnement";

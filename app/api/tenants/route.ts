@@ -57,7 +57,7 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: `Identifiant ${cle} invalide : un seul pixel par plateforme.` }, { status: 400 });
       }
     }
-    // Pays changé → devise alignée d'office (vitrine, dashboard et AXIA lisent tenant.devise).
+    // Pays changé → devise alignée d'office (vitrine, dashboard et Stella lisent tenant.devise).
     if (champs.pays) champs.devise = deviseDuPays(champs.pays, champs.devise ?? body.devise ?? "XOF");
 
     const actuel = await prisma.tenant.findUnique({

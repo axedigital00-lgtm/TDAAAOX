@@ -1,4 +1,4 @@
-// Axia — surface d'outils complète (actions boutique + connecteurs MCP + délégation experte)
+// Stella — surface d'outils complète (actions boutique + connecteurs MCP + délégation experte)
 import { lienBoutique } from "@/lib/origine-site";
 import { calculerOptionsLivraison, paysDepuisTexte, decrireRegle } from "@/lib/livraison";
 import { lireReglagesLivraison, trouverZone } from "@/lib/livraison-reglages";
@@ -1112,11 +1112,11 @@ async function fixerStock(tenantId: string, produitId: string, varianteId: strin
     const actuel = varianteId
       ? (await tx.variante.findFirstOrThrow({ where: { id: varianteId, produitId }, select: { stock: true } })).stock
       : (await tx.produit.findFirstOrThrow({ where: { id: produitId, tenantId }, select: { stock: true } })).stock;
-    if (actuel !== cible) await mouvementStock(tx, { tenantId, produitId, varianteId, type: "ajustement", quantite: cible - actuel, motif: "Ajusté par AXIA à la demande du marchand" });
+    if (actuel !== cible) await mouvementStock(tx, { tenantId, produitId, varianteId, type: "ajustement", quantite: cible - actuel, motif: "Ajusté par Stella à la demande du marchand" });
   });
 }
 
-/** Œil général d'AXIA : tout ce qui demande l'attention du marchand, en une lecture. */
+/** Œil général de Stella : tout ce qui demande l'attention du marchand, en une lecture. */
 async function etatGeneral(tenantId: string): Promise<string> {
   const ilYA = (jours: number) => new Date(Date.now() - jours * 86_400_000);
   const ca = (jours: number) => prisma.commande.aggregate({ where: { tenantId, paiementStatut: PAIEMENT.PAYE, createdAt: { gte: ilYA(jours) } }, _sum: { montantTotal: true }, _count: true });
@@ -1499,7 +1499,7 @@ export const executerOutilDirect: ToolExecutor = async (nom, args, tenantId) => 
         // périmé depuis que le Constructeur (BuilderCanvas) est devenu le
         // SEUL éditeur de page d'accueil, quel que soit le thème (voir la
         // note d'architecture dans BuilderCanvas.tsx : "plus de bascule
-        // classique/libre"). Le gate bloquait AXIA sur toute boutique utilisant
+        // classique/libre"). Le gate bloquait Stella sur toute boutique utilisant
         // un thème de la bibliothèque AXSO Design — la quasi-totalité des
         // boutiques réelles — alors que le marchand pouvait éditer exactement
         // le même builderTree à la main sans restriction.
@@ -1512,7 +1512,7 @@ export const executerOutilDirect: ToolExecutor = async (nom, args, tenantId) => 
         });
         // Le HTML d'une section de design ne se réécrit jamais en bloc (l'agent n'en voit qu'un extrait) :
         // ses textes, liens, images et styles passent par modifier_design_accueil.
-        // L'en-tête (navbar) n'est jamais supprimé ni masqué par AXIA (lib/agent-actions.ts::protegerEntete).
+        // L'en-tête (navbar) n'est jamais supprimé ni masqué par Stella (lib/agent-actions.ts::protegerEntete).
         const actionsValidees = protegerEntete(arbreActuel, validerActions(actions)).filter((a) =>
           !(a.op === "updateConfig" && findNode(arbreActuel, a.nodeId)?.type === "embed-html" && ("html" in a.config || "css" in a.config)));
         if (!actionsValidees.length) {
@@ -1905,7 +1905,7 @@ export const executerOutilDirect: ToolExecutor = async (nom, args, tenantId) => 
         await notifierMarchand({
           tenantId,
           type: "escalade_humain",
-          titre: `[${urgenceLabel}] Escalade Axia`,
+          titre: `[${urgenceLabel}] Escalade Stella`,
           message: `${args.raison}${args.contexte ? `\nContexte : ${args.contexte}` : ""}`,
         });
         return { succes: true, resultat: `Escalade enregistrée (urgence: ${urgenceLabel}). L'équipe sera notifiée pour traiter : ${args.raison}` };
@@ -2210,6 +2210,6 @@ export const executerOutilDirect: ToolExecutor = async (nom, args, tenantId) => 
   }
 };
 
-/** Point d'entrée des outils AXIA : les actions sensibles attendent l'accord du marchand. */
+/** Point d'entrée des outils Stella : les actions sensibles attendent l'accord du marchand. */
 export const executeAxiaTool: ToolExecutor = async (nom, args, tenantId) =>
   estSensible(nom, args) ? demanderConfirmation(tenantId, nom, args) : executerOutilDirect(nom, args, tenantId);

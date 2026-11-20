@@ -9,7 +9,7 @@ export const NAV: EntreeNav[] = [
   { section: "revenus", href: "/admin/revenus", nom: "Revenus", icone: "Wallet", ceo: true, mots: "revenue mrr arr arpu ltv plans waterfall prévisions forecast" },
   { section: "marchands", href: "/admin/marchands", nom: "Marchands", icone: "Store", mots: "merchants boutiques table santé health" },
   { section: "commerce", href: "/admin/commerce", nom: "Commerce", icone: "ShoppingBag", mots: "commerce gmv commandes orders panier aov remboursements" },
-  { section: "ia", href: "/admin/ia", nom: "Axia IA", icone: "Sparkles", mots: "ai intelligence axia tokens coût roi" },
+  { section: "ia", href: "/admin/ia", nom: "Stella IA", icone: "Sparkles", mots: "ai intelligence axia tokens coût roi" },
   { section: "marketing", href: "/admin/marketing", nom: "Marketing", icone: "Megaphone", mots: "marketing campagnes cac roas canaux acquisition" },
   { section: "operations", href: "/admin/operations", nom: "Opérations", icone: "Truck", mots: "operations livraison fulfillment support incidents" },
   { section: "paiements", href: "/admin/paiements", nom: "Paiements", icone: "CreditCard", mots: "payments paiements échecs remboursements mobile money" },

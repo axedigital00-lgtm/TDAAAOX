@@ -1,457 +1,220 @@
+// Analyses de données (MASTERPROMPT §8.17) : période dans l'URL, 4 KPI, ventes
+// au fil du temps avec comparaison, ventilation, canaux, visites, produits,
+// moyens de paiement, refus à la livraison et entonnoir.
+// Palier sans « analytics_avance » : résumé sur 7 jours (règle existante).
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { formatMontant } from "@/lib/utils";
-import { SalesChart } from "@/components/dashboard/SalesChart";
-import {
-  BarChart3,
-  Eye,
-  ShoppingCart,
-  TrendingUp,
-  Star,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  Calendar,
-  Package,
-} from "lucide-react";
-import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
-import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
-import { LiveRefreshBadge } from "@/components/dashboard/LiveRefreshBadge";
 import { planActif } from "@/lib/abonnement";
 import { aAcces } from "@/lib/plans";
-import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { AnalyticsTutorial } from "@/components/dashboard/tutorials/AnalyticsTutorial";
-import { getT } from "@/lib/i18n/serveur";
+import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner } from "@/components/dashboard/design-system/components/primitives";
+import { Delta, Sparkline } from "@/components/dashboard/design-system/components/MetricsStrip";
+import { canalCommande } from "@/components/dashboard/design-system/components/Badge";
+import { LineChart, DonutChart, HorizontalBars, KeyValue } from "@/components/dashboard/design-system/components/Charts";
+import { Icon } from "@/components/dashboard/design-system/icons/Icon";
+import { bornesPeriode, serie, nombre, pourcentage, variation, PERIODES, type Periode } from "@/components/dashboard/design-system/format";
 
-export default async function AnalyticsPage() {
-  const t = await getT();
+const MOYENS: Record<string, string> = {
+  mtn_momo: "MTN MoMo", orange_money: "Orange Money", whatsapp_cod: "À la livraison", direct_cod: "À la livraison", cod: "À la livraison",
+  especes: "Espèces", caisse: "Espèces", carte: "Carte", wave: "Wave",
+};
+
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const session = await auth();
   if (!session) redirect("/connexion");
   await exigerModule(session, "produits");
-
-  const tenantId = (session.user as any)?.tenantId;
+  const tenantId = (session.user as any)?.tenantId as string | undefined;
   if (!tenantId) redirect("/dashboard");
 
   const { plan } = await planActif(tenantId);
   const avance = aAcces(plan, "analytics_avance");
-  const tempsReel = aAcces(plan, "analytics_temps_reel");
+  const sp = await searchParams;
+  const demandee: Periode = PERIODES.some((p) => p.id === sp.periode) ? (sp.periode as Periode) : "30j";
+  const periode: Periode = avance ? demandee : "7j";
+  const b = bornesPeriode(periode);
+  const dans = { gte: b.debut, lt: b.fin }, avant = { gte: b.precedent.debut, lt: b.precedent.fin };
 
-  const now = new Date();
-  // Palier 0 : résumé 7 jours uniquement. Palier 1+ : historique complet 30j.
-  const fenetre = avance ? 30 : 7;
-  const il30Jours = new Date(now.getTime() - fenetre * 24 * 60 * 60 * 1000);
-  const il60Jours = new Date(now.getTime() - fenetre * 2 * 24 * 60 * 60 * 1000);
-
-  const [
-    commandesPeriode,
-    commandesPrecedente,
-    analyticsParType,
-    analyticsParTypePrecedent,
-    topProduits,
-    statutDistribution,
-    derniersAvis,
-    tenant,
-    commandesParJour,
-  ] = await Promise.all([
-    prisma.commande.aggregate({
-      where: { tenantId, createdAt: { gte: il30Jours }, paiementStatut: "completed" },
-      _sum: { montantTotal: true },
-      _count: true,
-    }),
-    prisma.commande.aggregate({
-      where: { tenantId, createdAt: { gte: il60Jours, lt: il30Jours }, paiementStatut: "completed" },
-      _sum: { montantTotal: true },
-      _count: true,
-    }),
-    prisma.analytics.groupBy({
-      by: ["type"],
-      where: { tenantId, date: { gte: il30Jours } },
-      _sum: { valeur: true },
-    }),
-    prisma.analytics.groupBy({
-      by: ["type"],
-      where: { tenantId, date: { gte: il60Jours, lt: il30Jours } },
-      _sum: { valeur: true },
-    }),
-    prisma.produit.findMany({
-      where: { tenantId, actif: true },
-      orderBy: { ventes: "desc" },
-      take: 8,
-    }),
-    prisma.commande.groupBy({
-      by: ["statut"],
-      where: { tenantId },
-      _count: true,
-    }),
-    prisma.avis.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: { produit: { select: { nom: true, images: true } } },
-    }),
-    prisma.tenant.findUnique({ where: { id: tenantId } }),
-    prisma.commande.findMany({
-      where: { tenantId, createdAt: { gte: il30Jours }, paiementStatut: "completed" },
-      select: { createdAt: true, montantTotal: true },
-    }),
+  const champs = { createdAt: true, montantTotal: true, montantSousTotal: true, montantReduction: true, montantLivraison: true, statut: true, paiementStatut: true, canal: true, methodePaiement: true, ville: true, clientId: true } as const;
+  const [tenant, cmd, cmdPrec, visites, visitesPrec, evenements, lignes, avis] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } }),
+    prisma.commande.findMany({ where: { tenantId, createdAt: dans }, select: champs }),
+    prisma.commande.findMany({ where: { tenantId, createdAt: avant }, select: champs }),
+    prisma.analytics.findMany({ where: { tenantId, type: "page_view", date: dans }, select: { date: true, valeur: true } }),
+    prisma.analytics.findMany({ where: { tenantId, type: "page_view", date: avant }, select: { date: true, valeur: true } }),
+    prisma.analytics.groupBy({ by: ["type"], where: { tenantId, date: dans }, _sum: { valeur: true } }),
+    prisma.ligneCommande.findMany({ where: { commande: { tenantId, createdAt: dans, statut: { not: "annulee" } } }, select: { nom: true, prix: true, quantite: true } }),
+    prisma.avis.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 4, select: { id: true, note: true, commentaire: true, produit: { select: { nom: true } } } }).catch(() => []),
   ]);
+  const devise = tenant?.devise || "XAF";
+  const fcfa = devise === "XAF" || devise === "XOF" ? "FCFA" : devise;
 
-  // Graphique jour par jour
-  const donneesMap: Record<string, { montant: number; commandes: number }> = {};
-  for (let i = 0; i < fenetre; i++) {
-    const d = new Date(il30Jours.getTime() + i * 24 * 60 * 60 * 1000);
-    const key = d.toLocaleDateString(t.loc, { day: "2-digit", month: "2-digit" });
-    donneesMap[key] = { montant: 0, commandes: 0 };
-  }
-  for (const c of commandesParJour) {
-    const key = new Date(c.createdAt).toLocaleDateString(t.loc, { day: "2-digit", month: "2-digit" });
-    if (donneesMap[key]) {
-      donneesMap[key].montant += c.montantTotal;
-      donneesMap[key].commandes += 1;
-    }
-  }
-  const donnees30Jours = Object.entries(donneesMap).map(([date, v]) => ({ date, ...v }));
-
-  const getVal = (arr: typeof analyticsParType, type: string) =>
-    arr.find((a) => a.type === type)?._sum.valeur || 0;
-
-  const pageViews      = getVal(analyticsParType, "page_view");
-  const productViews   = getVal(analyticsParType, "product_view");
-  const addToCart      = getVal(analyticsParType, "add_to_cart");
-  const pageViewsPrev  = getVal(analyticsParTypePrecedent, "page_view");
-
-  const revenuActuel       = commandesPeriode._sum.montantTotal || 0;
-  const revenuPrecedent    = commandesPrecedente._sum.montantTotal || 0;
-  const commandesActuel    = commandesPeriode._count;
-  const commandesPrecedentCount = commandesPrecedente._count;
-
-  const delta = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return Math.round(((current - previous) / previous) * 100);
+  const valides = cmd.filter((c) => c.statut !== "annulee"), validesPrec = cmdPrec.filter((c) => c.statut !== "annulee");
+  const payees = valides.filter((c) => c.paiementStatut === "completed"), payeesPrec = validesPrec.filter((c) => c.paiementStatut === "completed");
+  const somme = <T,>(l: T[], f: (x: T) => number) => l.reduce((t, x) => t + f(x), 0);
+  const brutes = somme(valides, (c) => c.montantSousTotal), brutesPrec = somme(validesPrec, (c) => c.montantSousTotal);
+  const reductions = somme(valides, (c) => c.montantReduction), livraison = somme(valides, (c) => c.montantLivraison);
+  const totales = somme(valides, (c) => c.montantTotal), totalesPrec = somme(validesPrec, (c) => c.montantTotal);
+  const traitees = valides.filter((c) => !["en_attente", "confirmee"].includes(c.statut));
+  const traiteesPrec = validesPrec.filter((c) => !["en_attente", "confirmee"].includes(c.statut));
+  const recurrents = (l: typeof cmd) => {
+    const n = new Map<string, number>();
+    for (const c of l) if (c.clientId) n.set(c.clientId, (n.get(c.clientId) ?? 0) + 1);
+    return n.size ? ([...n.values()].filter((v) => v > 1).length / n.size) * 100 : 0;
   };
+  const tauxRecurrents = recurrents(valides), tauxRecurrentsPrec = recurrents(validesPrec);
 
-  const tauxConversion = pageViews > 0 ? ((commandesActuel / pageViews) * 100).toFixed(1) : "0";
+  const s = (ev: { date: Date; valeur?: number }[]) => serie(ev, b.debut, b.pas, b.points);
+  const sPrec = (ev: { date: Date; valeur?: number }[]) => serie(ev, b.precedent.debut, b.pas, b.points);
+  const serieVentes = s(valides.map((c) => ({ date: c.createdAt, valeur: c.montantTotal })));
+  const serieVentesPrec = sPrec(validesPrec.map((c) => ({ date: c.createdAt, valeur: c.montantTotal })));
+  const serieVisites = s(visites.map((v) => ({ date: v.date, valeur: v.valeur })));
+  const serieVisitesPrec = sPrec(visitesPrec.map((v) => ({ date: v.date, valeur: v.valeur })));
+  const nbVisites = somme(visites, (v) => v.valeur), nbVisitesPrec = somme(visitesPrec, (v) => v.valeur);
 
-  const statutStyles: Record<string, { label: string; badgeClass: string }> = {
-    en_attente:     { label: "En attente",     badgeClass: "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]" },
-    confirmee:      { label: "Confirmée",      badgeClass: "bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]" },
-    en_preparation: { label: "En préparation", badgeClass: "bg-[#EEF1F6] text-[#7C3AED] border border-[#DDD6FE]" },
-    en_livraison:   { label: "En livraison",   badgeClass: "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]" },
-    livree:         { label: "Livrée",         badgeClass: "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]" },
-    annulee:        { label: "Annulée",        badgeClass: "bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]" },
+  const libelleJour = (d: Date) => d.toLocaleDateString("fr-FR", { timeZone: "Africa/Douala", day: "numeric", month: "short" });
+  const labels = b.points === 24 ? ["00 h", "06 h", "12 h", "18 h"]
+    : [0, 0.25, 0.5, 0.75, 1].map((f) => libelleJour(new Date(b.debut.getTime() + f * (b.points - 1) * b.pas)));
+  const plage = (d: Date, f: Date) => `${libelleJour(d)} – ${libelleJour(new Date(f.getTime() - 1))}`;
+  const legendes: [string, string] = [plage(b.debut, b.fin), plage(b.precedent.debut, b.precedent.fin)];
+
+  const grouper = (l: typeof valides, cle: (c: (typeof valides)[number]) => string, val: (c: (typeof valides)[number]) => number = (c) => c.montantTotal) => {
+    const m = new Map<string, number>();
+    for (const c of l) m.set(cle(c), (m.get(cle(c)) ?? 0) + val(c));
+    return [...m.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
   };
-
-  const totalCommandes = statutDistribution.reduce((s, x) => s + x._count, 0);
-
-  const kpis = [
-    {
-      label: "Chiffre d'affaires",
-      valeur: formatMontant(revenuActuel, tenant?.devise || "XOF"),
-      delta: delta(revenuActuel, revenuPrecedent),
-      accent: "#16A34A",
-      icone: TrendingUp,
-    },
-    {
-      label: "Commandes",
-      valeur: commandesActuel.toString(),
-      delta: delta(commandesActuel, commandesPrecedentCount),
-      accent: "#2563EB",
-      icone: ShoppingCart,
-    },
-    {
-      label: "Visiteurs",
-      valeur: Math.round(pageViews).toLocaleString(t.loc),
-      delta: delta(pageViews, pageViewsPrev),
-      accent: "#F5A623",
-      icone: Eye,
-    },
-    {
-      label: "Conversion",
-      valeur: `${tauxConversion}%`,
-      delta: null as number | null,
-      accent: "#7C3AED",
-      icone: BarChart3,
-    },
+  const parCanal = grouper(valides, canalCommande);
+  const parMoyen = grouper(valides, (c) => MOYENS[c.methodePaiement] ?? "Autre");
+  const parProduit = [...lignes.reduce((m, l) => m.set(l.nom, (m.get(l.nom) ?? 0) + l.prix * l.quantite), new Map<string, number>())]
+    .map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+  const expediees = cmd.filter((c) => ["livree", "tentative_echouee"].includes(c.statut));
+  const refusParVille = grouper(expediees, (c) => c.ville || "Ville inconnue", () => 1).slice(0, 5)
+    .map((v) => ({ label: v.label, value: (expediees.filter((c) => (c.ville || "Ville inconnue") === v.label && c.statut === "tentative_echouee").length / v.value) * 100 }));
+  const ev = (t: string) => evenements.find((e) => e.type === t)?._sum.valeur ?? 0;
+  const entonnoir = [
+    { label: "Visites", value: nbVisites },
+    { label: "Produits consultés", value: ev("product_view") },
+    { label: "Ajouts au panier", value: ev("add_to_cart") },
+    { label: "Commandes", value: valides.length },
   ];
 
+  const kpis = [
+    { t: "Ventes brutes", d: "Somme des sous-totaux des commandes non annulées.", v: formatMontant(brutes, devise), delta: variation(brutes, brutesPrec), serie: s(valides.map((c) => ({ date: c.createdAt, valeur: c.montantSousTotal }))) },
+    { t: "Taux de clients récurrents", d: "Part des clients de la période ayant passé plus d’une commande.", v: pourcentage(tauxRecurrents, 2), delta: tauxRecurrentsPrec ? variation(tauxRecurrents, tauxRecurrentsPrec) : null, serie: undefined },
+    { t: "Commandes traitées", d: "Commandes passées en préparation, expédiées ou livrées.", v: nombre(traitees.length), delta: variation(traitees.length, traiteesPrec.length), serie: s(traitees.map((c) => ({ date: c.createdAt }))) },
+    { t: "Commandes", d: "Commandes non annulées passées sur la période.", v: nombre(valides.length), delta: variation(valides.length, validesPrec.length), serie: s(valides.map((c) => ({ date: c.createdAt }))) },
+  ];
+  const heure = new Date().toLocaleTimeString("fr-FR", { timeZone: "Africa/Douala", hour: "2-digit", minute: "2-digit" });
+
   return (
-    <div className="space-y-6">
+    <Page>
       <AnalyticsTutorial />
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-[#111111] font-poppins inline-flex items-center gap-2">{t("Analytics")}{" "}<AgentActiveIndicator label={t("Agent Analytics actif")} /> <BoutonRevoirTutoriel moduleKey="analytics" /></h1>
-          <p className="text-[#717171] text-sm mt-1">{t("Activité réelle de votre boutique")}</p>
+      <PageHeader icon="bars" title="Analyses de données" titleMeta={`Actualisation aujourd’hui à ${heure}`}
+        secondaryActions={[{ content: "Vue en direct", href: "/dashboard/analytics/live" }, { content: "Rapports", href: "/dashboard/rapports" }]} />
+
+      {!avance && (
+        <div style={{ marginBottom: 14 }}>
+          <Banner tone="info" action={<Link href="/dashboard/abonnement" className="axd-btn axd-btn--sm">Voir les forfaits</Link>}>
+            Votre forfait affiche un résumé sur 7 jours. L’historique complet, l’entonnoir et les analyses par produit sont inclus dans les paliers Pro et Illimité.
+          </Banner>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-white border border-[#E8E8E8] rounded-xl px-4 py-2">
-            <Calendar size={14} className="text-[#717171]" />
-            <span className="text-[#111111] text-sm font-medium">{t(fenetre)}{" "}{t("derniers jours")}</span>
-            <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
-              {t("vs J-")}{t(fenetre)}
-            </span>
-          </div>
-          {tempsReel && <LiveRefreshBadge intervalMs={30000} />}
-        </div>
+      )}
+
+      <div className="axd-filters">
+        <span className="axd-seg">
+          {PERIODES.map((p) => (
+            <Link key={p.id} href={p.id === "30j" ? "/dashboard/analytics" : `/dashboard/analytics?periode=${p.id}`} className="axd-btn axd-btn--sm"
+              aria-current={p.id === periode ? "page" : undefined} aria-disabled={!avance && p.id !== "7j" ? true : undefined}>
+              {p.id === periode && <Icon name="calendar" />}{p.label}
+            </Link>
+          ))}
+        </span>
+        <span className="axd-btn axd-btn--sm" style={{ cursor: "default" }}>{devise === "XAF" ? "FCFA XAF" : devise}</span>
       </div>
 
-      {/* 4 KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k, i) => {
-          const Icon = k.icone;
-          const d = k.delta;
-          return (
-            <div key={i} className="bg-white border border-[#E8E8E8] rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
-                  <Icon size={16} style={{ color: k.accent }} />
-                </div>
-                {d !== null && (
-                  <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${
-                    d > 0 ? "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]"
-                    : d < 0 ? "bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]"
-                    : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]"
-                  }`}>
-                    {d > 0 ? <ArrowUpRight size={12} /> : d < 0 ? <ArrowDownRight size={12} /> : <Minus size={12} />}
-                    {Math.abs(d)}%
-                  </div>
-                )}
-              </div>
-              <p className="text-2xl font-bold text-[#111111] font-poppins leading-tight">{t(k.valeur)}</p>
-              <p className="text-[#717171] text-xs mt-1">{t(k.label)}</p>
-              {d !== null && (
-                <p className="text-[#717171] text-[10px] mt-2 border-t border-[#F3F3F3] pt-2">vs. {t(fenetre)}{" "}{t("jours précédents")}</p>
-              )}
-            </div>
-          );
-        })}
+      <div className="axd-grid axd-g4">
+        {kpis.map((k) => (
+          <div key={k.t} className="axd-card axd-card--pad">
+            <span className="axd-kpi__t axd-dotted" title={k.d}>{k.t}</span>
+            <div className="axd-kpi__v">{k.v} <Delta value={k.delta} /></div>
+            {k.serie && <Sparkline data={k.serie} width={240} height={30} />}
+          </div>
+        ))}
+      </div>
+
+      <div className="axd-grid axd-g21 axd-section">
+        <div className="axd-card axd-card--pad">
+          <div className="axd-kpi__t">Ventes totales au fil du temps</div>
+          <div className="axd-kpi__v axd-kpi__v--lg">{formatMontant(totales, devise)} <Delta value={variation(totales, totalesPrec)} /></div>
+          <LineChart data={serieVentes} compare={serieVentesPrec} labels={labels} legend={legendes} summary={`Ventes totales : ${formatMontant(totales, devise)} sur la période`} />
+        </div>
+        <div className="axd-card axd-card--pad">
+          <div className="axd-kpi__t" style={{ marginBottom: 6 }}>Ventilation des ventes totales</div>
+          <KeyValue rows={[
+            { label: <Link href="/dashboard/rapports" className="axd-btn--plain" style={{ color: "var(--color-link)" }}>Ventes brutes</Link>, value: formatMontant(brutes, devise) },
+            { label: "Réductions", value: formatMontant(reductions ? -reductions : 0, devise) },
+            { label: "Ventes nettes", value: formatMontant(brutes - reductions, devise) },
+            { label: "Frais de livraison", value: formatMontant(livraison, devise) },
+            { label: "Ventes totales", value: formatMontant(totales, devise), strong: true },
+            { label: "Dont encaissées", value: formatMontant(somme(payees, (c) => c.montantTotal), devise) },
+          ]} />
+          <p className="axd-muted" style={{ fontSize: 12, margin: "8px 0 0" }}>Période précédente : {formatMontant(somme(payeesPrec, (c) => c.montantTotal), devise)} encaissés</p>
+        </div>
       </div>
 
       {avance ? (
-      <>
-      {/* Graphique des ventes */}
-      <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
-        <h2 className="text-sm font-semibold text-[#111111] mb-1">{t("Évolution du chiffre d'affaires")}</h2>
-        <p className="text-[#717171] text-xs mb-5">{t("Revenus journaliers des")}{" "}{t(fenetre)}{" "}{t("derniers jours (commandes complétées)")}</p>
-        <SalesChart donnees={donnees30Jours} devise={tenant?.devise || "XOF"} />
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Top produits */}
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
-              <TrendingUp size={15} className="text-[#F5A623]" />
+        <>
+          <div className="axd-grid axd-g3 axd-section">
+            <div className="axd-card axd-card--pad">
+              <div className="axd-kpi__t">Ventes par canal</div>
+              <DonutChart parts={parCanal.length ? parCanal : [{ label: "Aucune vente", value: 0 }]} centre={totales >= 1e3 ? `${nombre(totales / 1e3, 1)} k` : nombre(totales)} unite={fcfa} />
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#111111]">{t("Top produits")}</h3>
-              <p className="text-[#717171] text-xs">{t("Classés par nombre de ventes")}</p>
+            <div className="axd-card axd-card--pad">
+              <div className="axd-kpi__t">Visites au fil du temps</div>
+              <div className="axd-kpi__v">{nombre(nbVisites)} <Delta value={variation(nbVisites, nbVisitesPrec)} /></div>
+              <LineChart data={serieVisites} compare={serieVisitesPrec} labels={[labels[0], labels[labels.length - 1]]} width={380} height={180} summary={`${nombre(nbVisites)} visites sur la période`} />
+            </div>
+            <div className="axd-card axd-card--pad">
+              <div className="axd-kpi__t">Ventes totales par produit</div>
+              {parProduit.length ? <HorizontalBars items={parProduit} /> : <p className="axd-muted">Aucune vente sur la période.</p>}
             </div>
           </div>
-          {topProduits.length === 0 ? (
-            <div className="py-10 flex flex-col items-center gap-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-[#F4F4F4] border border-[#E8E8E8] flex items-center justify-center">
-                <Package size={20} className="text-[#717171]" />
-              </div>
-              <p className="text-[#717171] text-sm">{t("Aucune vente pour le moment")}</p>
+
+          <div className="axd-grid axd-g3 axd-section">
+            <div className="axd-card axd-card--pad">
+              <div className="axd-kpi__t">Ventes par moyen de paiement</div>
+              {parMoyen.length ? <HorizontalBars items={parMoyen} /> : <p className="axd-muted">Aucune vente sur la période.</p>}
             </div>
-          ) : (
-            <div className="space-y-4">
-              {topProduits.map((p, i) => {
-                const maxVentes = topProduits[0].ventes || 1;
-                const pct = Math.round((p.ventes / maxVentes) * 100);
-                return (
-                  <div key={p.id} className="flex items-center gap-3">
-                    <div
-                      className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold"
-                      style={
-                        i === 0 ? { backgroundColor: "#FFFBEB", color: "#D97706" }
-                        : i === 1 ? { backgroundColor: "#F4F4F4", color: "#717171" }
-                        : i === 2 ? { backgroundColor: "#FEF2F2", color: "#DC2626" }
-                        : { backgroundColor: "#F4F4F4", color: "#717171" }
-                      }
-                    >
-                      {i + 1}
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-[#F4F4F4] overflow-hidden flex-shrink-0 border border-[#E8E8E8]">
-                      {p.images[0] ? (
-                        <img src={p.images[0]} alt={p.nom} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package size={14} className="text-[#717171]" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[#111111] text-sm font-medium truncate">{t(p.nom)}</p>
-                      <div className="w-full bg-[#F4F4F4] rounded-full h-1.5 mt-1.5">
-                        <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, backgroundColor: "#F5A623" }} />
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-[#111111] text-sm font-bold font-poppins">{t(p.ventes)}</p>
-                      <p className="text-[#717171] text-[10px]">ventes</p>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="axd-card axd-card--pad">
+              <div className="axd-kpi__t">Taux de refus à la livraison par ville</div>
+              {refusParVille.length ? <HorizontalBars items={refusParVille} format={(v) => pourcentage(v, 1)} /> : <p className="axd-muted">Aucune livraison terminée sur la période.</p>}
+            </div>
+            <div className="axd-card axd-card--pad">
+              <div className="axd-kpi__t">Taux de conversion</div>
+              <div className="axd-kpi__v">{nbVisites ? pourcentage((valides.length / nbVisites) * 100, 1) : "—"}</div>
+              <HorizontalBars items={entonnoir} format={(v) => nombre(v)} />
+            </div>
+          </div>
+
+          {avis.length > 0 && (
+            <div className="axd-card axd-card--pad axd-section">
+              <div className="axd-card__head"><h2 className="axd-card__title">Derniers avis clients</h2><Link href="/dashboard/avis" className="axd-btn axd-btn--plain axd-btn--sm">Tout afficher</Link></div>
+              {avis.map((a) => (
+                <div key={a.id} className="axd-kv"><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b>{a.produit?.nom ?? "Boutique"}</b> · {a.commentaire}</span><span className="axd-muted">{a.note}/5</span></div>
+              ))}
             </div>
           )}
-        </div>
-
-        {/* Distribution statuts */}
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
-              <BarChart3 size={15} className="text-[#2563EB]" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#111111]">{t("Statuts des commandes")}</h3>
-              <p className="text-[#717171] text-xs">{t(totalCommandes)}{" "}{t("commandes au total")}</p>
-            </div>
-          </div>
-          {totalCommandes === 0 ? (
-            <div className="py-10 flex flex-col items-center gap-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-[#F4F4F4] border border-[#E8E8E8] flex items-center justify-center">
-                <BarChart3 size={20} className="text-[#717171]" />
-              </div>
-              <p className="text-[#717171] text-sm">{t("Aucune commande pour le moment")}</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {statutDistribution
-                .sort((a, b) => b._count - a._count)
-                .map((s) => {
-                  const info = statutStyles[s.statut] ?? { label: s.statut, badgeClass: "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]" };
-                  const pct = Math.round((s._count / totalCommandes) * 100);
-                  const barColor = s.statut === "livree" ? "#16A34A"
-                    : s.statut === "annulee" ? "#DC2626"
-                    : s.statut === "en_attente" ? "#D97706"
-                    : s.statut === "confirmee" ? "#2563EB"
-                    : "#717171";
-                  return (
-                    <div key={s.statut}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${info.badgeClass}`}>
-                          {t(info.label)}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[#111111] text-sm font-bold font-poppins">{t(s._count)}</span>
-                          <span className="text-[#717171] text-xs">({pct}%)</span>
-                        </div>
-                      </div>
-                      <div className="w-full bg-[#F4F4F4] rounded-full h-1.5">
-                        <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Entonnoir de conversion */}
-      <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-          <div>
-            <h3 className="text-sm font-semibold text-[#111111]">{t("Entonnoir de conversion")}</h3>
-            <p className="text-[#717171] text-xs mt-0.5">{t("30 derniers jours")}</p>
-          </div>
-          <div className="flex items-center gap-2 bg-[#F4F4F4] border border-[#E8E8E8] rounded-xl px-4 py-2">
-            <span className="text-[#717171] text-sm">{t("Taux global")}</span>
-            <span className="font-bold text-[#111111] font-poppins text-lg">{t(tauxConversion)}%</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Visites",       val: Math.round(pageViews),    color: "#F5A623" },
-            { label: "Vues produits", val: Math.round(productViews), color: "#7C3AED" },
-            { label: "Ajouts panier", val: Math.round(addToCart),    color: "#2563EB" },
-            { label: "Achats",        val: commandesActuel,          color: "#16A34A" },
-          ].map((step, i) => {
-            const heightPct = pageViews > 0 ? Math.max(8, (step.val / Math.max(pageViews, 1)) * 100) : 8;
-            const ratio = i > 0 && pageViews > 0 ? ((step.val / pageViews) * 100).toFixed(1) : null;
-            return (
-              <div key={i} className="flex flex-col items-center gap-2">
-                <div
-                  className="w-full rounded-xl flex items-end justify-center overflow-hidden border border-[#E8E8E8]"
-                  style={{ height: "72px", backgroundColor: "#F4F4F4" }}
-                >
-                  <div
-                    className="w-full rounded-b-xl"
-                    style={{ height: `${heightPct}%`, backgroundColor: step.color, opacity: 0.4 }}
-                  />
-                </div>
-                <p className="text-[#111111] font-bold font-poppins text-lg leading-tight">
-                  {step.val.toLocaleString(t.loc)}
-                </p>
-                <p className="text-[#717171] text-xs text-center">{t(step.label)}</p>
-                {ratio !== null && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]">
-                    {t(ratio)}%
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Derniers avis */}
-      {derniersAvis.length > 0 && (
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
-              <Star size={15} className="text-[#F5A623]" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#111111]">{t("Derniers avis clients")}</h3>
-              <p className="text-[#717171] text-xs">{t("Les 5 plus récents")}</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {derniersAvis.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 p-3.5 rounded-xl bg-[#F4F4F4] border border-[#E8E8E8]">
-                <div className="w-9 h-9 rounded-xl bg-white border border-[#E8E8E8] overflow-hidden flex-shrink-0">
-                  {a.produit.images[0] ? (
-                    <img src={a.produit.images[0]} alt={a.produit.nom} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package size={12} className="text-[#717171]" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[#717171] text-xs truncate mb-1">{t(a.produit.nom)}</p>
-                  <div className="flex items-center gap-0.5 mb-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        size={11}
-                        className={i < a.note ? "text-[#F5A623] fill-[#F5A623]" : "text-[#E8E8E8] fill-[#E8E8E8]"}
-                      />
-                    ))}
-                  </div>
-                  {a.commentaire && (
-                    <p className="text-[#717171] text-xs line-clamp-2">{t(a.commentaire)}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      </>
+        </>
       ) : (
-        <UpgradeGate
-          titre={t("Analytics avancés — Palier 1")}
-          description={t("Historique complet, entonnoir de conversion, top produits et avis clients sont réservés aux paliers Pro et Illimité. Le Palier 0 affiche un résumé 7 jours.")}
-          palierRequis="palier1"
-        />
+        <div className="axd-section">
+          <UpgradeGate titre="Analyses avancées" description="Historique complet, entonnoir de conversion, ventes par canal, par produit et par moyen de paiement sont inclus dans les paliers Pro et Illimité." palierRequis="palier1" />
+        </div>
       )}
-    </div>
+    </Page>
   );
 }

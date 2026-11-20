@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hash, compare } from "bcryptjs";
+import { hash, compare } from "@/lib/mots-de-passe";
 import { z } from "zod";
 import { authLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 

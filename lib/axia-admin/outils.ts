@@ -1,4 +1,4 @@
-// AXIA admin — outils de l'assistante de l'administrateur. Séparé de l'AXIA
+// Stella admin — outils de l'assistante de l'administrateur. Séparé de Stella
 // marchand (lib/axia) : autres données (toute la plateforme), autres droits.
 // Lecture libre ; toute action passe par une demande d'accord (AdminAxiaAction)
 // que seul l'admin qui l'a demandée peut autoriser (app/api/admin/axia/actions).

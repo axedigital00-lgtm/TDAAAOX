@@ -3,7 +3,7 @@
 // Tout est CALCULÉ ici, par des règles simples et lisibles — jamais par le
 // modèle de langage — et présenté comme une ESTIMATION.
 //
-// Règles (les mêmes que lib/sourcing/stocks.ts, pour qu'AXIA, la page Achats
+// Règles (les mêmes que lib/sourcing/stocks.ts, pour que Stella, la page Achats
 // et le scan disent la même chose) :
 // - rythme        = unités vendues sur 30 jours ÷ 30 (tous canaux, retours déduits) ;
 // - tendance      = 7 derniers jours comparés aux 7 jours d'avant ;

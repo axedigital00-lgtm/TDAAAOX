@@ -194,7 +194,7 @@ export default async function Croissance({ searchParams }: { searchParams: Promi
               </table>
             </div>
           )}
-          <p className="cc-faint text-[11px] mt-3">{t("Actif = au moins une commande, un usage produit ou une requête Axia dans la semaine. « — » : semaine pas encore écoulée ou cohorte de moins de 5 inscrits (non significative).")}</p>
+          <p className="cc-faint text-[11px] mt-3">{t("Actif = au moins une commande, un usage produit ou une requête Stella dans la semaine. « — » : semaine pas encore écoulée ou cohorte de moins de 5 inscrits (non significative).")}</p>
         </Carte>
       </section>
 

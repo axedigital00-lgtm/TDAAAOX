@@ -71,7 +71,7 @@ export async function traiterTachesEnAttente(tenantId: string, limitParAgent = 5
       try {
         const message = messageDepuisTache(tache.type, tache.payload as object);
         const direct = config.buildExecutor(tenantId);
-        // Tâche autonome (cron) : une action sensible devient une demande d'accord dans la bulle AXIA.
+        // Tâche autonome (cron) : une action sensible devient une demande d'accord dans la bulle Stella.
         const executor: ToolExecutor = (nom, args, tid) =>
           estSensible(nom) ? demanderConfirmation(tid, nom, args, agentId) : direct(nom, args, tid);
         const result = await runAgent(

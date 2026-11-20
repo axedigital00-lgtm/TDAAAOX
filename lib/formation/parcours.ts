@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { controlerJeton } from "@/lib/livraison-numerique";
+import { formationOuverteDansCommande, verifierCertificatsParcours } from "@/lib/numerique/abonnement";
 import {
   calculerDeblocage, cleApprenant, eligibiliteCertificat, estVisible, genererCodeCertificat,
   type Verrou,
@@ -15,12 +16,12 @@ import {
 // Jetons actuels : 64 hex ; anciens accès (prod) : UUID. Même filtre que /api/telechargements.
 export const JETON_VALIDE = /^[A-Za-z0-9-]{32,128}$/;
 
-export async function chargerParcours(token: string) {
+export async function chargerParcoursAvecVerrou(token: string) {
   if (!JETON_VALIDE.test(token)) return null;
   const acces = await prisma.accesFormation.findUnique({
     where: { token },
     select: {
-      id: true, token: true, commandeId: true, produitId: true, clientEmail: true, createdAt: true, revoqueAt: true, derniereLeconId: true,
+      id: true, token: true, commandeId: true, produitId: true, clientEmail: true, createdAt: true, revoqueAt: true, derniereLeconId: true, expireAt: true,
       produit: {
         select: {
           nom: true, tenantId: true,
@@ -49,9 +50,12 @@ export async function chargerParcours(token: string) {
   });
   if (!acces?.produit.formation) return null;
   const commande = await prisma.commande.findUnique({ where: { id: acces.commandeId }, select: { paiementStatut: true, statut: true, clientNom: true } });
-  if (controlerJeton({ dl: { expireAt: null, revoqueAt: acces.revoqueAt }, commande })) return null;
+  if (controlerJeton({ dl: { expireAt: acces.expireAt, revoqueAt: acces.revoqueAt }, commande })) return null;
 
   const apprenant = cleApprenant(acces);
+  if (!await formationOuverteDansCommande(acces.commandeId, acces.produitId, apprenant)) {
+    return { verrouParcours: true as const, slug: acces.produit.tenant.slug };
+  }
   const formation = acces.produit.formation;
   const chapitres = formation.chapitres.filter(estVisible).map((c) => ({ ...c, lecons: c.lecons.filter(estVisible) }));
   const leconIds = chapitres.flatMap((c) => c.lecons.map((l) => l.id));
@@ -83,6 +87,11 @@ export async function chargerParcours(token: string) {
   };
 }
 export type Parcours = NonNullable<Awaited<ReturnType<typeof chargerParcours>>>;
+
+export async function chargerParcours(token: string) {
+  const p = await chargerParcoursAvecVerrou(token);
+  return p?.verrouParcours ? null : p;
+}
 
 /** La leçon fait partie de CE parcours et est ouverte. */
 export function leconOuverte(p: Parcours, leconId: string): { lecon: Parcours["chapitres"][number]["lecons"][number]; verrou: Verrou } | null {
@@ -117,19 +126,25 @@ export async function marquerTerminee(p: Parcours, leconId: string) {
  * remboursement revient si l'apprenant a de nouveau un accès payé (rachat).
  */
 export async function delivrerCertificatSiEligible(p: Parcours) {
-  if (!p.formation.certif) return null;
+  if (!p.formation.certif) {
+    if (eligibilite(p).eligible) await verifierCertificatsParcours(p.acces.produitId, p.apprenant, p.nomApprenant || "Apprenant");
+    return null;
+  }
   const where = { produitId_apprenant: { produitId: p.acces.produitId, apprenant: p.apprenant } };
   const existant = await prisma.certificat.findUnique({ where });
   if (existant && (!existant.revoqueAt || existant.revoquePar !== "remboursement")) return existant;
   if (!eligibilite(p).eligible) return existant;
   if (existant) return prisma.certificat.update({ where: { id: existant.id }, data: { revoqueAt: null, revoqueMotif: null, revoquePar: null } });
   try {
-    return await prisma.certificat.create({
+    const cert = await prisma.certificat.create({
       data: {
         code: genererCodeCertificat(), produitId: p.acces.produitId, tenantId: p.tenantId, apprenant: p.apprenant,
         nom: p.nomApprenant || "Apprenant", formationTitre: p.produitNom, boutiqueNom: p.boutiqueNom,
       },
     });
+    // Parcours qui contiennent cette formation : certificat final si toutes les étapes sont validées.
+    await verifierCertificatsParcours(p.acces.produitId, p.apprenant, p.nomApprenant || "Apprenant").catch(() => {});
+    return cert;
   } catch (e) {
     // Deux événements simultanés : l'autre a créé le certificat.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return prisma.certificat.findUnique({ where });
@@ -145,7 +160,8 @@ const limiteApprenant = rateLimit({ windowMs: 60_000, max: 120, keyPrefix: "appr
 export async function parcoursOuRefus(req: Request, token: string): Promise<Parcours | NextResponse> {
   const rl = limiteApprenant.check(getClientIp(req));
   if (!rl.success) return rateLimitResponse(rl.reset);
-  const p = await chargerParcours(token);
+  const p = await chargerParcoursAvecVerrou(token);
+  if (p?.verrouParcours) return NextResponse.json({ error: "Validez d’abord les étapes obligatoires précédentes du parcours." }, { status: 403 });
   return p ?? NextResponse.json({ error: "Accès invalide, expiré ou remboursé" }, { status: 404 });
 }
 

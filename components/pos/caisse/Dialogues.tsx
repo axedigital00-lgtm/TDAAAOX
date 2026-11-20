@@ -140,7 +140,7 @@ export function PaniersSuspendus({ caisseId, panierOccupe, onReprendre, onFermer
           : (
             <ul className="space-y-2">
               {paniers.map((p) => (
-                <li key={p.id} className={cn("rounded-2xl border border-[#E8E8E8] p-3", action === p.id && "opacity-60")}>
+                <li key={p.id} className={cn("rounded-[12px] border border-[#E8E8E8] p-3", action === p.id && "opacity-60")}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-[13.5px] font-semibold text-[#111111]">{p.libelle || p.contenu?.caisse?.client?.nom || t("Panier sans repère")}</p>

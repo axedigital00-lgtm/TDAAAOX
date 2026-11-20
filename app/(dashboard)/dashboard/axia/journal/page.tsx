@@ -79,15 +79,15 @@ export default function JournalAxiaPage() {
   const groupes = grouperParJour(decisions);
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-6" style={{ fontFamily: "var(--merchant-font)" }}>
       <div>
         <div className="flex items-center gap-2 mb-1">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#1B2A4A,#2c4270)" }}>
             <Sparkles size={15} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("Journal d'activité AXIA")}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("Journal d'activité Stella")}</h1>
         </div>
-        <p className="text-gray-400 text-sm">{t("Chaque action prise par AXIA et les agents spécialisés, en un coup d'œil.")}</p>
+        <p className="text-gray-400 text-sm">{t("Chaque action prise par Stella et les agents spécialisés, en un coup d'œil.")}</p>
       </div>
 
       {/* Filtres */}
@@ -117,7 +117,7 @@ export default function JournalAxiaPage() {
       ) : groupes.length === 0 ? (
         <div className="ax-card p-10 text-center">
           <Sparkles size={32} className="mx-auto mb-3 text-gray-200" />
-          <p className="text-sm text-gray-400">{t("Aucune action enregistrée pour le moment — AXIA journalisera ici chaque décision prise pour votre boutique.")}</p>
+          <p className="text-sm text-gray-400">{t("Aucune action enregistrée pour le moment — Stella journalisera ici chaque décision prise pour votre boutique.")}</p>
         </div>
       ) : (
         <div className="space-y-8">

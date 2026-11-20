@@ -223,7 +223,7 @@ export function toggleNodeActif(tree: BlockNode[], nodeId: string): BlockNode[] 
 // ─── Zones façon Shopify : En-tête / Modèle / Pied de page ────────────────────
 // Portée par la section racine (config.zone) ; absente = "template". L'arbre
 // est toujours rendu dans l'ordre en-tête → modèle → pied de page, même si un
-// ajout (AXIA, ancien constructeur) a placé une section ailleurs.
+// ajout (Stella, ancien constructeur) a placé une section ailleurs.
 export type Zone = "header" | "template" | "footer";
 export const ZONES: Zone[] = ["header", "template", "footer"];
 

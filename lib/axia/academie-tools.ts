@@ -1,8 +1,8 @@
-// Outils AXIA de l'académie (Module L) — tous préfixés `academie_`, utilisés par les agents
+// Outils Stella de l'académie (Module L) — tous préfixés `academie_`, utilisés par les agents
 // Course Architect, Assessment, Learning Tutor et Student Success (./agents.ts).
 // LIMITES :
 // - Générer (coût IA) et publier passent par SENSIBLES (./confirmation.ts) : l'appel du modèle
-//   crée une demande dans la bulle AXIA ; rien ne part sans le clic du marchand. Même validée,
+//   crée une demande dans la bulle Stella ; rien ne part sans le clic du marchand. Même validée,
 //   une génération respecte le plafond IA du mois (lib/academie/studio.ts).
 // - Publier crée/actualise une formation INACTIVE : la mise en vente reste au marchand.
 // - Les relances d'apprenants sont RÉDIGÉES, jamais envoyées.

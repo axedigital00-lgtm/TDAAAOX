@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
 import { requireNiveau } from "../permissions-server";
-import { PAIEMENT } from "../commandes";
+import { chargerParcours } from "../formation/parcours";
 import { chargerInscription } from "./service";
 import type { RoleCommunaute } from "./regles";
 
@@ -31,11 +31,9 @@ export async function membreParJeton(produitId: string, token: string | null | u
     const pid = i.evenement?.produitId ?? i.bootcamp?.produitId;
     return pid === produitId ? { role: i.role === "mentor" ? "mentor" : "apprenant", cle: i.email, nom: i.nom, tenantId: i.tenantId, inscriptionId: i.id } : null;
   }
-  const a = await prisma.accesFormation.findUnique({ where: { token }, select: { produitId: true, commandeId: true, clientEmail: true, revoqueAt: true, produit: { select: { tenantId: true } } } });
-  if (!a || a.produitId !== produitId || a.revoqueAt || !a.clientEmail.trim()) return null;
-  const c = await prisma.commande.findUnique({ where: { id: a.commandeId }, select: { paiementStatut: true, statut: true, clientNom: true } });
-  if (c?.paiementStatut !== PAIEMENT.PAYE || c.statut === "annulee") return null;
-  return { role: "apprenant", cle: a.clientEmail.trim().toLowerCase(), nom: c.clientNom || "Apprenant", tenantId: a.produit.tenantId };
+  const p = await chargerParcours(token);
+  if (!p || p.acces.produitId !== produitId || !p.acces.clientEmail.trim()) return null;
+  return { role: "apprenant", cle: p.apprenant, nom: p.nomApprenant || "Apprenant", tenantId: p.tenantId };
 }
 
 /** Formateur si la session le permet, sinon membre par jeton ; refus 403 identique sinon. */

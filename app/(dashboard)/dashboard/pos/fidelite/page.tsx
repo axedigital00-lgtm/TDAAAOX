@@ -70,7 +70,7 @@ export default function PageFidelite() {
   if (!d) return <EtatChargement texte="Chargement du programme de fidélité…" />;
 
   const exemple = Number(form.montantParPoint) > 0 ? Math.floor(10000 / Number(form.montantParPoint)) : 0;
-  const carte = "rounded-2xl border border-[#E8E8E8] bg-white p-4";
+  const carte = "rounded-[12px] border border-[#E8E8E8] bg-white p-4";
   const titre = "text-[14px] font-bold text-[#111111]";
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-5" style={POLICE}>
@@ -86,7 +86,7 @@ export default function PageFidelite() {
         <h2 id="regles" className={titre}>{t("Règles")}</h2>
         <form className="mt-3 space-y-4" onSubmit={(e) => { e.preventDefault(); enregistrer(); }}>
           <fieldset disabled={!d.peutGerer} className="space-y-4">
-            <label className="flex min-h-11 items-center gap-2 text-[13px] font-semibold"><input type="checkbox" className="accent-[#F5A623]" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />{t("Donner des points à chaque vente")}</label>
+            <label className="flex min-h-11 items-center gap-2 text-[13px] font-semibold"><input type="checkbox" className="accent-[#1a1a1a]" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />{t("Donner des points à chaque vente")}</label>
             <div className="grid gap-3 sm:grid-cols-2">
               <Saisie label="Montant d'achat pour 1 point" type="number" inputMode="decimal" min={1} step="any" suffixe={devise} value={form.montantParPoint} onChange={(e) => setForm({ ...form, montantParPoint: e.target.value })}
                 aide={`${fmt(10000)} ${t("d'achat")} = ${exemple} ${t("point(s)")}`} />
@@ -102,7 +102,7 @@ export default function PageFidelite() {
           {Number(form.valeurPoint) > 0 && (
             <div className="rounded-xl bg-[#FAFAFA] px-3 py-2 text-[12.5px] leading-relaxed text-[#444444]">
               <p><strong>{t("Utiliser ses points à la caisse")}</strong> — {t("depuis la fiche du client, le caissier change des points en avoir (points × valeur du point). L'avoir se dépense ensuite comme moyen de paiement « Avoir », en une ou plusieurs fois.")}</p>
-              {!d.modeAvoirActif && <p role="alert" className="mt-1 font-semibold text-[#B45309]">{t("Le moyen de paiement « Avoir » n'est pas proposé à la caisse : ajoutez-le dans les réglages de la caisse, sinon ces avoirs ne pourront pas être dépensés.")}</p>}
+              {!d.modeAvoirActif && <p role="alert" className="mt-1 font-semibold text-[#5e4200]">{t("Le moyen de paiement « Avoir » n'est pas proposé à la caisse : ajoutez-le dans les réglages de la caisse, sinon ces avoirs ne pourront pas être dépensés.")}</p>}
             </div>
           )}
           {envoi.erreur && <p role="alert" className="text-[12.5px] text-[#B91C1C]">{t(envoi.erreur)}</p>}
@@ -118,7 +118,7 @@ export default function PageFidelite() {
           <Bouton variante="secondaire" taille="compact" href="/dashboard/pos/promotions">{t("Gérer dans Promotions")}</Bouton>
         </div>
         <p className="mt-1 text-[12.5px] leading-relaxed text-[#666666]">{t("L'avantage d'un niveau est une promotion de type « Prix membre » : une remise automatique selon le niveau du client.")}</p>
-        {!d.moteurPromotions && <p role="status" className="mt-2 text-[12.5px] font-semibold text-[#B45309]">{t("Le moteur de promotions est éteint : ces avantages ne s'appliquent pas encore en caisse.")}</p>}
+        {!d.moteurPromotions && <p role="status" className="mt-2 text-[12.5px] font-semibold text-[#5e4200]">{t("Le moteur de promotions est éteint : ces avantages ne s'appliquent pas encore en caisse.")}</p>}
         {!d.avantages.length ? <p className="mt-2 text-[12.5px] text-[#888888]">{t("Aucun avantage défini pour l'instant.")}</p> : (
           <ul className="mt-2 space-y-1.5">
             {d.avantages.map((a) => (

@@ -1,7 +1,8 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Download, Loader2, Upload, X } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 
 type Resultat = { importes: number; erreurs: { ligne: number; message: string }[] };
@@ -37,12 +38,12 @@ export function ImportProduitsExcel() {
 
   return (
     <>
-      <button type="button" onClick={() => setOuvert(true)}
-        className="flex items-center justify-center gap-1.5 text-[12.5px] sm:text-[12px] font-semibold bg-white text-[#111111] border border-[#E8E8E8] rounded-2xl px-4 py-3 sm:py-2 hover:bg-[#F5F5F7] transition-all whitespace-nowrap w-full sm:w-auto flex-shrink-0">
-        <FileSpreadsheet size={14} />{" "}{t("Importer (Excel)")}
+      <button type="button" onClick={() => setOuvert(true)} className="axd-btn" title={t("Importer (Excel)")}>
+        {t("Importer")}
       </button>
 
-      {ouvert && (
+      {/* Portail : l'en-tête collant (flou d'arrière-plan) rognerait une modale fixe. */}
+      {ouvert && createPortal(
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={fermer}>
           <div role="dialog" aria-modal="true" aria-labelledby="titre-import" onClick={(e) => e.stopPropagation()}
             className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -87,7 +88,7 @@ export function ImportProduitsExcel() {
             )}
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }

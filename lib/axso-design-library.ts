@@ -168,7 +168,7 @@ export function fichierDepuisSlugTheme(slug: string): string | null {
 }
 
 /**
- * Les 4 designs proposés par AXIA à l'inscription (les 18 restent tous
+ * Les 4 designs proposés par Stella à l'inscription (les 18 restent tous
  * applicables ensuite). Enregistrés dans themeConfig.designsOrigine à l'inscription ; pour
  * les boutiques plus anciennes, recalculés une fois comme à l'inscription
  * (1er design provisionné en tête) puis enregistrés.

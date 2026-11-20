@@ -57,7 +57,7 @@ export default function VisiteDemo({ ouverte, onFermer, tauxTVA = 0 }: { ouverte
       </ol>
 
       {paye ? (
-        <div className="mx-auto max-w-sm rounded-2xl border border-dashed border-[#AAAAAA] bg-white p-4 text-[13px]">
+        <div className="mx-auto max-w-sm rounded-[12px] border border-dashed border-[#AAAAAA] bg-white p-4 text-[13px]">
           <p className="text-center text-[11px] font-bold tracking-widest text-[#1D4ED8]">{t("REÇU DE DÉMONSTRATION — SANS VALEUR")}</p>
           <ul className="mt-3 divide-y divide-[#F0F0F0]">
             {panier.lignes.map((l) => <li key={l.produitId} className="flex justify-between gap-3 py-1.5"><span className="min-w-0 truncate">{libelleQuantite(l.quantite, l.uniteVente)} × {l.nom}</span><span className="tabular-nums">{fmt(l.total)}</span></li>)}
@@ -69,11 +69,11 @@ export default function VisiteDemo({ ouverte, onFermer, tauxTVA = 0 }: { ouverte
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <h3 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Articles de démonstration")}</h3>
+            <h3 className="mb-2 text-[12px] font-bold text-[#666666]">{t("Articles de démonstration")}</h3>
             <ul className="grid grid-cols-2 gap-2">
               {ARTICLES_DEMO.map((a) => (
                 <li key={a.produitId}>
-                  <button type="button" onClick={() => ajouter(a)} className={`min-h-16 w-full rounded-xl border border-[#E8E8E8] bg-white p-2.5 text-left transition-colors hover:border-[#F5A623] ${FOCUS}`}>
+                  <button type="button" onClick={() => ajouter(a)} className={`min-h-16 w-full rounded-xl border border-[#E8E8E8] bg-white p-2.5 text-left transition-colors hover:border-[#8a8a8a] ${FOCUS}`}>
                     <span className="block text-[12.5px] font-semibold leading-snug text-[#111111]">{a.nom}</span>
                     <span className="block text-[12px] tabular-nums text-[#666666]">{fmt(a.prixUnitaire)}{a.uniteVente === "kg" ? ` / kg` : ""}</span>
                   </button>
@@ -82,7 +82,7 @@ export default function VisiteDemo({ ouverte, onFermer, tauxTVA = 0 }: { ouverte
             </ul>
           </div>
           <div>
-            <h3 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Panier")}</h3>
+            <h3 className="mb-2 text-[12px] font-bold text-[#666666]">{t("Panier")}</h3>
             {panier.lignes.length === 0 ? <EtatVide compact titre="Panier vide" texte="Touchez un article pour l'ajouter." /> : (
               <>
                 <ul className="divide-y divide-[#F0F0F0]">

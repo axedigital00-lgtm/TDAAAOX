@@ -1,7 +1,7 @@
 // Confine le CSS d'un design importé (AXSO Design) à son conteneur via
 // @scope natif : sans ça ses règles globales (`header{background:…}`,
 // `*{margin:0;padding:0}`, `button{background:none}`…) s'appliquaient à TOUTE
-// la page — barre du Constructeur, panneau AXIA, widgets de la vitrine.
+// la page — barre du Constructeur, panneau Stella, widgets de la vitrine.
 // `:root`/`html`/`body` deviennent `:scope` (variables et fond du design
 // portés par le conteneur). Les at-rules qui n'ont pas leur place dans
 // @scope (@import, @font-face, @keyframes…) restent au niveau global.

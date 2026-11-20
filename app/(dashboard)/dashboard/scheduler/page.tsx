@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Calendar, Plus, Clock, Trash2, CheckCircle2, XCircle, Loader2, Sparkles, X, Edit3, Zap, Camera, ThumbsUp, Music4, MessageCircle, Bird } from "lucide-react";
+import { Calendar, Plus, Clock, Trash2, CheckCircle2, XCircle, Loader2, Sparkles, X, Edit3, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { iconePlateforme } from "@/components/brand/LogoPlateforme";
 
 type Statut = "planifie" | "publie" | "annule";
 
@@ -19,11 +20,11 @@ interface Post {
 }
 
 const PLATEFORMES = [
-  { id: "instagram", label: "Instagram", color: "#E1306C", Icon: Camera },
-  { id: "facebook",  label: "Facebook",  color: "#1877F2", Icon: ThumbsUp },
-  { id: "tiktok",    label: "TikTok",    color: "#010101", Icon: Music4 },
-  { id: "whatsapp",  label: "WhatsApp",  color: "#25D366", Icon: MessageCircle },
-  { id: "twitter",   label: "X/Twitter", color: "#1DA1F2", Icon: Bird },
+  { id: "instagram", label: "Instagram", color: "#E1306C", Icon: iconePlateforme("instagram") },
+  { id: "facebook",  label: "Facebook",  color: "#1877F2", Icon: iconePlateforme("facebook") },
+  { id: "tiktok",    label: "TikTok",    color: "#010101", Icon: iconePlateforme("tiktok") },
+  { id: "whatsapp",  label: "WhatsApp",  color: "#25D366", Icon: iconePlateforme("whatsapp") },
+  { id: "twitter",   label: "X", color: "#000000", Icon: iconePlateforme("x") },
 ];
 
 const STATUT_BADGES: Record<Statut, { label: string; color: string; bg: string; icon: any }> = {
@@ -246,9 +247,9 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
             const plat = PLATEFORMES.find(x => x.id === p);
             return (
               <button key={p} onClick={() => setFilterPlateforme(p)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${filterPlateforme === p ? "text-white border-transparent" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                style={filterPlateforme === p ? { background: plat?.color || "#6b7280" } : {}}>
-                {p === "tous" ? t("Tous") : <span className="flex items-center gap-1">{plat?.Icon && <plat.Icon size={11} />} {t(plat?.label)}</span>}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${filterPlateforme === p ? "border-2" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                style={filterPlateforme === p ? { borderColor: "#111111", background: "#fff", color: "#111111" } : {}}>
+                {p === "tous" ? t("Tous") : <span className="flex items-center gap-1">{plat?.Icon && <plat.Icon size={14} />} {t(plat?.label)}</span>}
               </button>
             );
           })}
@@ -314,9 +315,9 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
                 <div className="flex gap-2 flex-wrap">
                   {PLATEFORMES.map(p => (
                     <button key={p.id} onClick={() => setForm(f => ({ ...f, plateforme: p.id }))}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${form.plateforme === p.id ? "text-white border-transparent" : "bg-white border-gray-200 text-gray-600"}`}
-                      style={form.plateforme === p.id ? { background: p.color } : {}}>
-                      <p.Icon size={13} /> {t(p.label)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${form.plateforme === p.id ? "border-2" : "bg-white border-gray-200 text-gray-600"}`}
+                      style={form.plateforme === p.id ? { borderColor: "#111111", background: "#fff", color: "#111111" } : {}}>
+                      <p.Icon size={15} /> {t(p.label)}
                     </button>
                   ))}
                 </div>

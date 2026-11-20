@@ -48,7 +48,7 @@ export function CompteurPromoLanding({ finLe, maintenant, onFin }: { finLe: stri
   useEffect(() => { if (reste === 0) onFin(); }, [reste, onFin]);
   if (reste === 0) return null;
   return (
-    <div className="max-w-3xl mx-auto mb-12 rounded-3xl p-5 sm:p-7 text-center text-white" style={{ background: "linear-gradient(135deg,#111 0%,#262626 100%)", boxShadow: "0 20px 60px rgba(245,166,35,0.25)" }}>
+    <div className="mb-12 rounded-[28px] p-6 sm:p-10 text-center text-white" style={{ background: "#161616", boxShadow: "inset 0 0 0 1px rgba(255,255,255,.12)" }}>
       <p className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.14em] text-[#F5A623] mb-2"><Gift size={15} />{t("Promo de lancement")}</p>
       <p className="text-[18px] sm:text-[22px] font-extrabold mb-1">{t("Tout l'Illimité offert : inscris-toi gratuitement")}</p>
       <p className="text-[13px] text-white/60 mb-5">{t("Pendant la promo, le plan gratuit débloque toutes les fonctionnalités. Les packs payants rouvrent à la fin du compteur.")}</p>
@@ -58,21 +58,37 @@ export function CompteurPromoLanding({ finLe, maintenant, onFin }: { finLe: stri
 }
 
 /** Bandeau du tableau de bord : bien visible, en haut de chaque page. */
-export function CompteurPromoDashboard({ finLe, maintenant, compact }: { finLe: string; maintenant: number; compact?: boolean }) {
+export function CompteurPromoDashboard({ finLe, maintenant, compact, banniere }: { finLe: string; maintenant: number; compact?: boolean; banniere?: boolean }) {
   const t = useT();
   const router = useRouter();
   const reste = useReste(finLe, maintenant, true);
   // Fin du compteur : le serveur recalcule le plan (retour aux droits payés).
   useEffect(() => { if (reste === 0) router.refresh(); }, [reste, router]);
   if (reste === 0) return null;
-  if (compact) {
-    // Écran d'accueil AXIA (plein écran) : une ligne, sans voler la place de la discussion.
+  if (banniere) {
+    // Admin refondu : bannière d'information sobre (MASTERPROMPT §7.11).
     const [j, h, m, sec] = decouper(reste).map((v) => String(v).padStart(2, "0"));
     return (
-      <Link href="/dashboard/abonnement" className="flex items-center justify-center gap-2 px-3 py-2 text-white text-[12px] md:text-[13px] flex-shrink-0" style={{ background: "linear-gradient(90deg,#111,#2a2a2a)", borderBottom: "1px solid rgba(245,166,35,0.4)" }}>
-        <Gift size={14} className="text-[#F5A623] flex-shrink-0" />
-        <span className="font-bold truncate">{t("Promo : tout l'Illimité offert")}</span>
-        <span className="font-black tabular-nums text-[#F5A623] whitespace-nowrap">{j}{t("j")} {h}:{m}:{sec}</span>
+      <div className="axd-banner" role="status" style={{ maxWidth: "calc(var(--page-narrow) - 2 * var(--page-gutter))", margin: "var(--space-300) auto 0", width: "calc(100% - 2 * var(--page-gutter))" }}>
+        <Gift size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+        <div className="axd-banner__body">
+          <b>{t("Promo de lancement : tout l'Illimité est offert")}</b>{" "}
+          {t("Toutes les fonctionnalités sont débloquées jusqu'à la fin du compteur.")}{" "}
+          <span className="axd-tabular" style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{j} {t("j")} {h}:{m}:{sec}</span>
+        </div>
+        <Link href="/dashboard/abonnement" className="axd-btn axd-btn--sm">{t("Voir les forfaits")}</Link>
+      </div>
+    );
+  }
+  if (compact) {
+    // Écran d'accueil Stella (plein écran) : une ligne, sans voler la place de la discussion.
+    const [j, h, m, sec] = decouper(reste).map((v) => String(v).padStart(2, "0"));
+    return (
+      <Link href="/dashboard/abonnement" className="flex items-center justify-center gap-2 px-3 flex-shrink-0"
+        style={{ height: 36, background: "var(--banner-info-bg)", color: "var(--banner-info-text)", fontSize: 13, borderBottom: "1px solid var(--color-border-secondary)" }}>
+        <Gift size={14} className="flex-shrink-0" />
+        <span className="font-semibold truncate">{t("Promo : tout l'Illimité offert")}</span>
+        <span className="tabular-nums whitespace-nowrap" style={{ fontWeight: 600 }}>{j} {t("j")} {h}:{m}:{sec}</span>
       </Link>
     );
   }

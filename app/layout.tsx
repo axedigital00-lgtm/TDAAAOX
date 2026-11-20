@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import "@fontsource/poppins/latin-300.css";
+import "@fontsource/poppins/latin-400.css";
+import "@fontsource/poppins/latin-500.css";
+import "@fontsource/poppins/latin-600.css";
+import "@fontsource/poppins/latin-700.css";
+import "@fontsource/poppins/latin-800.css";
 import { Toaster } from "@/components/ui/sonner";
 import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
 import { I18nProvider } from "@/components/I18nProvider";
 import { getLangue, dico } from "@/lib/i18n/serveur";
 import "./globals.css";
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-poppins-loaded",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://axsoafrica.com"),
@@ -52,19 +51,20 @@ export default async function RootLayout({
   return (
     // data-scroll-behavior : globals.css met scroll-behavior:smooth sur <html> ; Next le désactive
     // pendant les changements de page (sinon avertissement à chaque chargement).
-    <html lang={langue} className={poppins.variable} data-scroll-behavior="smooth">
+    <html lang={langue} data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&family=Playfair+Display:wght@400;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
       <body className="min-h-full antialiased">
         <I18nProvider langue={langue} dico={await dico("commun")}>
           {children}
-          <Toaster position="top-right" richColors />
+          {/* Toasts : sombres et sobres, comme l'admin (erreurs en rouge). */}
+          <Toaster position="bottom-center" toastOptions={{ style: { background: "#1a1a1a", color: "#fff", border: "0", borderRadius: 12, fontFamily: "'Inter Variable', Inter, system-ui, sans-serif", fontSize: 13 }, classNames: { error: "ax-toast-erreur" } }} />
           <LangueSelecteur flottant />
         </I18nProvider>
       </body>

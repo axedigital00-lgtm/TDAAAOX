@@ -184,7 +184,7 @@ function OrchestratorPanel({ onClose }: { onClose: () => void }) {
         </div>
         <div>
           <p className="font-bold text-[#111111]">{tr("Mode Autonome")}</p>
-          <p className="text-xs text-purple-600">{tr("AXIA coordonne tous les agents en arrière-plan")}</p>
+          <p className="text-xs text-purple-600">{tr("Stella coordonne tous les agents en arrière-plan")}</p>
         </div>
         <button onClick={onClose} className="ml-auto text-xs text-gray-400 hover:text-gray-700 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-all">
           <X size={14}/>
@@ -281,7 +281,7 @@ export default function AgentsPage() {
   const meta = AGENT_META["axia"];
   const [messages, setMessages] = useState<Msg[]>([{
     role: "assistant",
-    content: "Bonjour 👋 Je suis **AXIA**, votre agent IA tout-en-un.\n\nJe peux gérer votre boutique de A à Z : analytics, marketing, stocks, clients, livraisons, revenus — dites-moi simplement ce que vous voulez faire.",
+    content: "Bonjour 👋 Je suis **Stella**, votre agent IA tout-en-un.\n\nJe peux gérer votre boutique de A à Z : analytics, marketing, stocks, clients, livraisons, revenus — dites-moi simplement ce que vous voulez faire.",
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -432,7 +432,7 @@ export default function AgentsPage() {
         </div>
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-[18px] font-bold text-[#111111]">AXIA</h1>
+            <h1 className="text-[18px] font-bold text-[#111111]">Stella</h1>
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full text-white" style={{ background: `linear-gradient(135deg, ${meta.color}, ${meta.color}bb)` }}>
               {tr("Agent IA")}
             </span>
@@ -565,7 +565,7 @@ export default function AgentsPage() {
                 </div>
                 <div className="bg-white border rounded-2xl px-4 py-3 flex items-center gap-2 shadow-sm" style={{ borderColor: meta.color + "25" }}>
                   <Loader2 size={13} className="animate-spin" style={{ color: meta.color }}/>
-                  <span className="text-sm text-gray-400">{tr("AXIA réfléchit…")}</span>
+                  <span className="text-sm text-gray-400">{tr("Stella réfléchit…")}</span>
                 </div>
               </div>
             )}
@@ -610,7 +610,7 @@ export default function AgentsPage() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); }}}
-                placeholder={tr("Parlez à AXIA… (Entrée pour envoyer)")}
+                placeholder={tr("Parlez à Stella… (Entrée pour envoyer)")}
                 rows={1}
                 disabled={loading}
                 className="flex-1 bg-transparent text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none resize-none min-w-0"
@@ -626,7 +626,7 @@ export default function AgentsPage() {
               <button
                 onClick={toggleVoice}
                 className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mb-0.5 transition-all ${listening ? "bg-red-100" : "hover:bg-gray-100"}`}
-                title={listening ? tr("Arrêter l'écoute") : tr("Parler à AXIA")}
+                title={listening ? tr("Arrêter l'écoute") : tr("Parler à Stella")}
               >
                 {listening ? <MicOff size={14} className="text-red-500 animate-pulse"/> : <Mic size={14} className="text-gray-400"/>}
               </button>
@@ -646,7 +646,7 @@ export default function AgentsPage() {
             </div>
 
             <p className="text-center text-[10px] text-gray-300 mt-2">
-              {tr("AXIA crée des produits, envoie des campagnes, publie sur les réseaux, analyse vos ventes et bien plus.")}
+              {tr("Stella crée des produits, envoie des campagnes, publie sur les réseaux, analyse vos ventes et bien plus.")}
             </p>
           </div>
         </div>

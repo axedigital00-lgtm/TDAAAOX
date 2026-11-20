@@ -48,7 +48,7 @@ export type FicheClientCaisseProps = {
 function Chiffre({ libelle, valeur, alerte }: { libelle: string; valeur: string; alerte?: boolean }) {
   return (
     <div className="min-w-0 rounded-xl bg-[#FAFAFA] px-3 py-2">
-      <dt className="text-[10.5px] font-semibold uppercase tracking-wide text-[#888888]">{libelle}</dt>
+      <dt className="text-[10.5px] font-semibold text-[#888888]">{libelle}</dt>
       <dd className={`mt-0.5 text-[15px] font-bold tabular-nums [overflow-wrap:anywhere] ${alerte ? "text-[#B91C1C]" : "text-[#111111]"}`}>{valeur}</dd>
     </div>
   );
@@ -119,7 +119,7 @@ export function FicheClientCaisse({ clientId, caisseId, onAvoirCree, onUtiliserA
       </section>
 
       <section aria-label={t("Fidélité")}>
-        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Fidélité")}</h4>
+        <h4 className="text-[11px] font-semibold text-[#666666]">{t("Fidélité")}</h4>
         {!f.active ? <p className="mt-1 text-[12.5px] text-[#666666]">{t("Le programme de fidélité n'est pas activé dans cette boutique.")}</p> : (
           <>
             <dl className="mt-1.5 grid grid-cols-3 gap-2">
@@ -128,7 +128,7 @@ export function FicheClientCaisse({ clientId, caisseId, onAvoirCree, onUtiliserA
               <Chiffre libelle={t("Valeur des points")} valeur={f.valeurPoint > 0 ? fmt(c.valeurPoints) : "—"} />
             </dl>
             {conversion.fait && <p role="status" className="mt-2 rounded-xl border border-[#BBF7D0] bg-[#ECFDF5] px-3 py-2 text-[12.5px] font-semibold text-[#15803D]">{conversion.fait}</p>}
-            {conversion.avertissement && <p role="alert" className="mt-2 text-[12.5px] font-semibold text-[#B45309]">{conversion.avertissement}</p>}
+            {conversion.avertissement && <p role="alert" className="mt-2 text-[12.5px] font-semibold text-[#5e4200]">{conversion.avertissement}</p>}
             {pointsUtilisables && (
               <form className="mt-2 flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); convertir(); }}>
                 <Saisie className="min-w-0 flex-1" label="Points à utiliser" type="number" inputMode="numeric" min={1} max={c.points} step={1} value={points}
@@ -143,7 +143,7 @@ export function FicheClientCaisse({ clientId, caisseId, onAvoirCree, onUtiliserA
 
       {fiche.avoirs.length > 0 && (
         <section aria-label={t("Avoirs")}>
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Avoirs disponibles")}</h4>
+          <h4 className="text-[11px] font-semibold text-[#666666]">{t("Avoirs disponibles")}</h4>
           <ul className="mt-1.5 space-y-1">
             {fiche.avoirs.map((a) => (
               <li key={a.id} className="flex items-center gap-2 rounded-xl border border-[#F0F0F0] px-3 py-2">
@@ -158,7 +158,7 @@ export function FicheClientCaisse({ clientId, caisseId, onAvoirCree, onUtiliserA
 
       {(fiche.creditActif || c.credit.utilise > 0) && (
         <section aria-label={t("Crédit")}>
-          <h4 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">
+          <h4 className="flex items-center gap-2 text-[11px] font-semibold text-[#666666]">
             {t("Crédit")}
             {c.credit.bloque && <Badge ton="danger">{t("Bloqué")}</Badge>}
             {fiche.enRetard > 0 && <Badge ton="danger" icone={<AlertTriangle size={11} aria-hidden />}>{t("En retard")}</Badge>}
@@ -184,7 +184,7 @@ export function FicheClientCaisse({ clientId, caisseId, onAvoirCree, onUtiliserA
 
       {!compact && (
         <section aria-label={t("Derniers achats")}>
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Derniers achats")}</h4>
+          <h4 className="text-[11px] font-semibold text-[#666666]">{t("Derniers achats")}</h4>
           {!fiche.achats.length ? <p className="mt-1 text-[12.5px] text-[#666666]">{t("Aucun achat enregistré.")}</p> : (
             <ul className="mt-1.5 divide-y divide-[#F0F0F0]">
               {fiche.achats.map((a) => (

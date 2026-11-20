@@ -43,7 +43,7 @@ export interface PlanBoutique {
 export { PAYS_DEVISES, PAYS_AFRICAINS, PAYS_OPTIONS, deviseDuPays } from "./devise-convert";
 import { PAYS_DEVISES } from "./devise-convert";
 
-const PROMPT_ANALYSTE = `Tu es AXIA, l'agent IA d'Axso — la plateforme e-commerce africaine propulsée par l'IA.
+const PROMPT_ANALYSTE = `Tu es Stella, l'agent IA d'Axso — la plateforme e-commerce africaine propulsée par l'IA.
 Tu aides les entrepreneurs d'Afrique et de la diaspora à lancer leur boutique en ligne.
 Analyse la description du business et génère un plan de boutique complet en JSON.
 

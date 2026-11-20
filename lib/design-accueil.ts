@@ -1,4 +1,4 @@
-// Page d'accueil (config.builderTree) vue et modifiée par AXIA, avec les mêmes
+// Page d'accueil (config.builderTree) vue et modifiée par Stella, avec les mêmes
 // gestes que le Constructeur à la main : sections du design (bloc embed-html)
 // à masquer/déplacer/supprimer/dupliquer, et leurs éléments (titre, texte,
 // bouton, lien, image) à réécrire ou styler — identifiés par `data-axs-el`
@@ -19,7 +19,7 @@ const analyseurServeur: Analyseur = (html) => parse(html).children as unknown as
 /**
  * Découpe le design en sections s'il ne l'est pas encore (sinon la vitrine,
  * qui préfère builderTree à builderHtml, perdrait tout le design dès le
- * premier bloc ajouté par AXIA sans que le Constructeur ait été ouvert).
+ * premier bloc ajouté par Stella sans que le Constructeur ait été ouvert).
  */
 export function assurerSections(config: ThemeConfig): ThemeConfig {
   return convertirDesignEnSections(config, analyseurServeur);
@@ -62,7 +62,7 @@ function mapEmbeds(tree: BlockNode[], f: (embed: BlockNode) => BlockNode): Block
   });
 }
 
-/** Résumé lisible de la page pour AXIA (identifiants posés si besoin, d'où le nouvel arbre renvoyé). */
+/** Résumé lisible de la page pour Stella (identifiants posés si besoin, d'où le nouvel arbre renvoyé). */
 export function decrireAccueil(tree: BlockNode[]): { tree: BlockNode[]; resume: string } {
   const nouvel = mapEmbeds(tree, (embed) => {
     const { html, change } = identifier(embed.config?.html || "");

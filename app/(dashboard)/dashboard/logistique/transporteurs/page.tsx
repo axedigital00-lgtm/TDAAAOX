@@ -5,6 +5,10 @@ import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/Mod
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Field, Toggle } from "@/components/dashboard/design-system/components/primitives";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
 const TRANSPORTEURS_TUTORIAL_STEPS = [
   { Icon: Truck,        titre: "Tes partenaires de livraison", description: "Chaque transporteur est listé avec ses zones de couverture et son logo." },
   { Icon: ToggleRight,  titre: "Active un transporteur",       description: "Bascule l'interrupteur pour le rendre disponible lors de la création d'une livraison." },
@@ -46,66 +50,52 @@ export default function TransporteursPage() {
     setListe(d.transporteurs ?? []);
   }
 
-  if (loading) return <div className="p-8 text-center text-sm text-gray-400">{tr("Chargement…")}</div>;
+  const entete = (
+    <PageHeader icon="truck" backHref="/dashboard/logistique"
+      title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{tr("Transporteurs")}<BoutonRevoirTutoriel moduleKey="transporteurs" /></span>} />
+  );
+  if (loading) return <Page width="narrow">{entete}<div className="axd-card"><p className="axd-fichiers__etat">{tr("Chargement…")}</p></div></Page>;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <Page width="narrow">
       <ModuleTutorial moduleKey="transporteurs" titre={tr("Transporteurs")} sousTitre={tr("Partenaires de livraison")} steps={TRANSPORTEURS_TUTORIAL_STEPS} />
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-[18px] font-bold text-[#111]">{tr("Transporteurs")}</h1>
-          <BoutonRevoirTutoriel moduleKey="transporteurs" />
+      {entete}
+      <div className="axd-card" style={{ overflow: "hidden" }}>
+        <div className="axd-card__head" style={{ padding: "var(--space-300) var(--space-400)" }}>
+          <div>
+            <h2 className="axd-card__title">{tr("Partenaires de livraison")}</h2>
+            <p className="axd-muted" style={{ margin: "2px 0 0", fontSize: 12 }}>{tr("Les transporteurs actifs sont proposés à la création d’une livraison.")}</p>
+          </div>
         </div>
-        <p className="text-[12px] text-gray-500">{tr("Activez et configurez vos partenaires de livraison")}</p>
-      </div>
-
-      <div className="space-y-3">
         {liste.map(t => (
-          <div key={t.code} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{tr(t.logo)}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[13px] font-semibold text-[#111]">{tr(t.nom)}</span>
-                  <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{t.zones.join(", ")}</span>
+          <div key={t.code} className="axd-livreur">
+            <div className="axd-livreur__ligne">
+              <span className="axd-thumb" aria-hidden style={{ fontSize: 18 }}>{t.logo}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <b style={{ color: "var(--color-text-strong)" }}>{tr(t.nom)}</b>
+                  {t.actif && <Badge tone="success">{tr("Actif")}</Badge>}
                 </div>
-                {t.tarif && <p className="text-[11px] text-gray-400">{tr("Tarif fixe:")}{" "}{tr(t.tarif)} XAF</p>}
+                <div className="axd-muted" style={{ fontSize: 12 }}>
+                  {t.zones.join(", ")}{t.tarif ? ` · ${tr("Tarif fixe :")} ${t.tarif.toLocaleString(tr.loc)} ${devise === "XAF" ? "FCFA" : devise}` : ""}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { setEditing(t.code); setApiKey(""); setTarif(t.tarif?.toString() ?? ""); }}
-                  className="text-[11px] text-gray-400 hover:text-[#F5A623] px-2 py-1 rounded-lg border border-gray-100 hover:border-[#F5A623]/30 transition-all">
-                  {tr("Config")}
-                </button>
-                <button onClick={() => toggle(t.code, t.actif)} disabled={saving}
-                  className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${t.actif ? "bg-[#F5A623]" : "bg-gray-200"}`}>
-                  <span className={`inline-block h-4 w-4 m-0.5 rounded-full bg-white shadow transition-transform ${t.actif ? "translate-x-4" : ""}`} />
-                </button>
-              </div>
+              <Button size="sm" variant="plain" onClick={() => { setEditing(editing === t.code ? null : t.code); setApiKey(""); setTarif(t.tarif?.toString() ?? ""); }}>{tr("Configurer")}</Button>
+              <Toggle checked={t.actif} onChange={() => toggle(t.code, t.actif)} disabled={saving} label={tr("Activer {0}", t.nom)} />
             </div>
-
             {editing === t.code && (
-              <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-[#F5A623]/50"
-                  placeholder={tr("Clé API (laisser vide pour ne pas changer)")}
-                  value={apiKey} onChange={e => setApiKey(e.target.value)} type="password" />
-                <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-[#F5A623]/50"
-                  placeholder={tr("Tarif fixe {0} (optionnel)", devise)} type="number"
-                  value={tarif} onChange={e => setTarif(e.target.value)} />
-                <div className="flex gap-2">
-                  <button onClick={() => saveConfig(t.code)} disabled={saving}
-                    className="flex-1 py-2 bg-[#F5A623] text-white rounded-xl text-[12px] font-semibold hover:bg-[#e09520] transition-all disabled:opacity-50">
-                    {tr("Enregistrer")}
-                  </button>
-                  <button onClick={() => setEditing(null)}
-                    className="px-4 py-2 border border-gray-200 rounded-xl text-[12px] text-gray-500 hover:bg-gray-50">
-                    {tr("Annuler")}
-                  </button>
+              <div className="axd-grid axd-g2" style={{ gap: "var(--space-300)", alignItems: "end" }}>
+                <Field label={tr("Clé API")} help={tr("Laisser vide pour ne pas changer")}>{(p) => <input {...p} className="axd-input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} />}</Field>
+                <Field label={tr("Tarif fixe {0} (optionnel)", devise === "XAF" ? "FCFA" : devise)}>{(p) => <input {...p} className="axd-input" type="number" value={tarif} onChange={e => setTarif(e.target.value)} />}</Field>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button size="sm" variant="primary" onClick={() => saveConfig(t.code)} loading={saving}>{tr("Enregistrer")}</Button>
+                  <Button size="sm" onClick={() => setEditing(null)}>{tr("Annuler")}</Button>
                 </div>
               </div>
             )}
           </div>
         ))}
       </div>
-    </div>
+    </Page>
   );
 }

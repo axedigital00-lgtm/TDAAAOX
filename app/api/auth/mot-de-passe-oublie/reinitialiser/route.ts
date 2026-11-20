@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { trouverUserParEmail } from "@/lib/unicite-email";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/mots-de-passe";
 import { z } from "zod";
 import { authLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { verifierCode } from "@/lib/two-factor";

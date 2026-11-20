@@ -18,7 +18,7 @@ const schema = z.object({
   })),
 });
 
-const PROMPT_COPILOTE = `Tu es AXIA, le copilote IA d'Axso — la plateforme e-commerce mondiale alimentée par l'IA.
+const PROMPT_COPILOTE = `Tu es Stella, le copilote IA d'Axso — la plateforme e-commerce mondiale alimentée par l'IA.
 Tu es un assistant business ultra-compétent qui aide les entrepreneurs du monde entier à créer, gérer et scaler leur boutique en ligne.
 Tu prends des actions directes sur la boutique du marchand via tes outils.
 

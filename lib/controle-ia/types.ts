@@ -36,7 +36,7 @@ export interface CtxOutil {
   mode: Mode;
   limites: Limites;
   /**
-   * Appelle un autre outil (AXIA ou module) par le MÊME circuit que l'IA : droits, politique,
+   * Appelle un autre outil (Stella ou module) par le MÊME circuit que l'IA : droits, politique,
    * accord du marchand, journal. Les orchestrations (objectifs, automatisations) n'ont pas
    * d'autre moyen d'agir : un contenu piégé ne peut donc pas leur faire dépasser les droits.
    */

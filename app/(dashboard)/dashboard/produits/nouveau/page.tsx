@@ -307,7 +307,7 @@ function FormulaireProduit() {
             <ArrowLeft size={16} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 font-poppins">{tr("Nouveau produit")}</h1>
+            <h1 className="text-xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{tr("Nouveau produit")}</h1>
             <p className="text-gray-400 text-xs">{tr("Physique, digital ou dropshipping")}</p>
           </div>
         </div>

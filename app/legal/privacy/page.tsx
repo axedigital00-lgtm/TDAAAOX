@@ -1,6 +1,4 @@
-import { NavbarMarketing } from "@/components/marketing/NavbarMarketing";
-import { FooterMarketing } from "@/components/marketing/FooterMarketing";
-import { Lock } from "lucide-react";
+import { PageLegale } from "@/components/marketing/site/Blocs";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/serveur";
 
@@ -19,7 +17,7 @@ const SECTIONS = [
   },
   {
     titre: "3. Finalités du traitement",
-    contenu: `Vos données sont utilisées pour : la fourniture et l'amélioration de nos services, la gestion de votre compte et de votre boutique, l'envoi de communications transactionnelles (confirmations, factures), l'envoi de communications marketing (avec consentement), la prévention de la fraude et la sécurité de la plateforme, l'amélioration de notre IA Axia.`,
+    contenu: `Vos données sont utilisées pour : la fourniture et l'amélioration de nos services, la gestion de votre compte et de votre boutique, l'envoi de communications transactionnelles (confirmations, factures), l'envoi de communications marketing (avec consentement), la prévention de la fraude et la sécurité de la plateforme, l'amélioration de notre IA Stella.`,
   },
   {
     titre: "4. Base légale du traitement",
@@ -46,36 +44,22 @@ const SECTIONS = [
 export default async function PrivacyPage() {
   const t = await getT();
   return (
-    <main className="bg-white text-[#111111] min-h-screen" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
-      <NavbarMarketing />
+    <PageLegale t={t} actif="/legal/privacy" titre={t("Politique de Confidentialité")} maj={t("Dernière mise à jour : 2 novembre 2026")}>
 
-      <section className="pt-36 pb-24 px-6 sm:px-10 lg:px-16 xl:px-24">
-        <div className="max-w-3xl mx-auto">
-          <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] mb-5" style={{ color: "#F5A623" }}>
-            <Lock size={14} className="inline-block mr-1.5" />{t("Légal")}
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">{t("Politique de Confidentialité")}</h1>
-          <p className="text-[#8C8C8C] text-sm mb-14">{t("Dernière mise à jour : 2 novembre 2026")}</p>
-
-          <div className="space-y-10">
+          <div>
             {SECTIONS.map(s => (
-              <div key={s.titre} className="pb-10 border-b" style={{ borderColor: "rgba(0,0,0,0.07)" }}>
-                <h2 className="text-lg font-bold mb-4" style={{ color: "#F5A623" }}>{t(s.titre)}</h2>
-                <p className="text-[#595959] leading-relaxed text-sm">{t(s.contenu)}</p>
+              <div key={s.titre} className="axm-legal__sec">
+                <h2>{t(s.titre)}</h2>
+                <p className="axm-legal__p">{t(s.contenu)}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-14 rounded-2xl p-6 border"
-            style={{ background: "rgba(245,166,35,0.04)", borderColor: "rgba(245,166,35,0.15)" }}>
-            <p className="text-[#666666] text-sm">{t("Pour toute question relative à vos données personnelles :")}{" "}
-              <a href="mailto:privacy@axsoafrica.com" className="font-bold hover:opacity-80" style={{ color: "#F5A623" }}>privacy@axsoafrica.com</a>
+          <div className="axm-card" style={{ marginTop: 40 }}>
+            <p className="axm-legal__p">{t("Pour toute question relative à vos données personnelles :")}{" "}
+              <a href="mailto:privacy@axsoafrica.com" className="axm-link">privacy@axsoafrica.com</a>
             </p>
           </div>
-        </div>
-      </section>
-
-      <FooterMarketing />
-    </main>
+    </PageLegale>
   );
 }

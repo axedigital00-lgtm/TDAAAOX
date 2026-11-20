@@ -103,7 +103,7 @@ export function Retours() {
                       return (
                         <li key={v.id}>
                           <button type="button" onClick={() => setVenteId(v.id)} aria-pressed={venteId === v.id}
-                            className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#111111] ${venteId === v.id ? "bg-[#FFF7ED]" : ""}`}>
+                            className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#111111] ${venteId === v.id ? "bg-[#f1f1f1]" : ""}`}>
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[13px] font-semibold">#{v.numero} · {v.clientNom}</span>
                               <span className="block truncate text-[11px] text-[#888888]">{new Date(v.createdAt).toLocaleString(t.loc, { dateStyle: "medium", timeStyle: "short" })} · {v.lignes.length} {t(v.lignes.length > 1 ? "articles" : "article")}</span>
@@ -244,7 +244,7 @@ function FormulaireRetour({ vente, politique, demarrage, caisseId, onFait }: {
             <>
               <div role="group" aria-label={t("Moyen de remboursement")} className="grid gap-2 sm:grid-cols-2">
                 {([["origine", "Moyen de paiement d'origine"], ["especes", "En espèces"]] as const).map(([id, label]) => (
-                  <button key={id} type="button" aria-pressed={mode === id} onClick={() => setMode(id)} className={`${BOUTON_CHOIX} ${mode === id ? "border-[#F5A623] bg-[#FFF7ED]" : "border-[#E8E8E8] bg-white"}`}>{t(label)}</button>
+                  <button key={id} type="button" aria-pressed={mode === id} onClick={() => setMode(id)} className={`${BOUTON_CHOIX} ${mode === id ? "border-[#1a1a1a] bg-[#f1f1f1]" : "border-[#E8E8E8] bg-white"}`}>{t(label)}</button>
                 ))}
               </div>
               {mode === "origine" && vente.paiements.some((p) => p.nonVerifie && p.montant > 0) && (
@@ -265,7 +265,7 @@ function FormulaireRetour({ vente, politique, demarrage, caisseId, onFait }: {
           </div>
           {politique.sansRecu ? (
             <label className="flex min-h-11 items-center gap-2 text-[13px]">
-              <input type="checkbox" className="h-5 w-5 accent-[#F5A623]" checked={sansRecu} onChange={(e) => setSansRecu(e.target.checked)} />
+              <input type="checkbox" className="h-5 w-5 accent-[#1a1a1a]" checked={sansRecu} onChange={(e) => setSansRecu(e.target.checked)} />
               {t("Le client n'a pas son reçu (noté dans le journal d'audit)")}
             </label>
           ) : <p className="text-[11.5px] text-[#888888]">{t("Retour sans reçu : non accepté par les réglages de la caisse. Le reçu ou la vente retrouvée ici en tient lieu.")}</p>}
@@ -405,9 +405,9 @@ function Resultat({ fait, onNouveau }: { fait: { retour: ResultatEchange; messag
           </ul>
         )}
         {r.avoir && (
-          <div className="rounded-xl border border-[#FDE68A] bg-[#FFF7ED] p-4">
+          <div className="rounded-xl border border-[#e3e3e3] bg-[#f1f1f1] p-4">
             <div ref={bon}>
-              <h2 className="text-[12px] font-bold uppercase tracking-wide text-[#B45309]">{t("Avoir client")}</h2>
+              <h2 className="text-[12px] font-bold text-[#5e4200]">{t("Avoir client")}</h2>
               <p className="mt-1 font-mono text-[22px] font-bold tracking-wider">{r.avoir.code}</p>
               <p className="text-[13px]">{t("Montant")} : <strong>{fmt(r.avoir.montant)}</strong></p>
               <p className="text-[12px] text-[#666666]">{t("Émis le")} {new Date().toLocaleDateString(t.loc)} — {t("vente d'origine")} #{r.numero}. {t("À présenter en caisse pour payer avec cet avoir.")}</p>
@@ -417,7 +417,7 @@ function Resultat({ fait, onNouveau }: { fait: { retour: ResultatEchange; messag
         )}
         {r.vente && <p className="text-[13px]">{t("Nouvelle vente enregistrée : #{0}, total {1}.", r.vente.numero, fmt(r.vente.total))}{r.vente.monnaie > 0 ? ` ${t("Monnaie à rendre : {0}", fmt(r.vente.monnaie))}.` : ""}</p>}
         {r.erreurVente && (
-          <p role="alert" className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] leading-relaxed text-[#B45309]">
+          <p role="alert" className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] leading-relaxed text-[#5e4200]">
             {t("Le retour est fait, mais la nouvelle vente n'a pas été enregistrée :")} {t(r.erreurVente.message)} {t("Le client garde son avoir : utilisez-le comme moyen de paiement à la caisse.")}
           </p>
         )}

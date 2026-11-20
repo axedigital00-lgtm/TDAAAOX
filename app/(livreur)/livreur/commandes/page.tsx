@@ -43,21 +43,21 @@ export default async function HistoriquePage() {
     <div className="space-y-5">
       <div>
         <Link href="/livreur" className="text-gray-400 text-sm hover:text-white">{t("← Retour")}</Link>
-        <h1 className="text-xl font-bold text-white font-playfair mt-2">{t("Mes livraisons")}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-white mt-2">{t("Mes livraisons")}</h1>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-xl p-3 text-center">
+        <div className="bg-[#171817] border border-white/15 rounded-xl p-3 text-center">
           <p className="text-lg font-bold text-white">{stats.total}</p>
-          <p className="text-gray-500 text-xs">{t("Total")}</p>
+          <p className="text-gray-300 text-xs">{t("Total")}</p>
         </div>
-        <div className="bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-xl p-3 text-center">
+        <div className="bg-[#171817] border border-white/15 rounded-xl p-3 text-center">
           <p className="text-lg font-bold text-[#F5A623]">{t(stats.enCours)}</p>
-          <p className="text-gray-500 text-xs">{t("En cours")}</p>
+          <p className="text-gray-300 text-xs">{t("En cours")}</p>
         </div>
-        <div className="bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-xl p-3 text-center">
+        <div className="bg-[#171817] border border-white/15 rounded-xl p-3 text-center">
           <p className="text-lg font-bold text-green-400">{t(stats.livrees)}</p>
-          <p className="text-gray-500 text-xs">{t("Livrées")}</p>
+          <p className="text-gray-300 text-xs">{t("Livrées")}</p>
         </div>
       </div>
 
@@ -70,24 +70,24 @@ export default async function HistoriquePage() {
             <Link
               key={cmd.id}
               href={`/livreur/commande/${cmd.id}`}
-              className="flex items-center gap-4 bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-2xl p-4 hover:border-[#F5A623]/20 transition-all"
+              className="flex items-center gap-4 bg-[#171817] border border-white/15 rounded-2xl p-4 hover:border-[#F5A623]/20 transition-all"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ color: st.color, backgroundColor: st.bg }}>
                     {t(st.label)}
                   </span>
-                  <span className="text-gray-500 text-xs font-mono">{cmd.numero}</span>
+                  <span className="text-gray-300 text-xs font-mono">{cmd.numero}</span>
                 </div>
                 <p className="text-white text-sm font-medium">{t(cmd.clientNom)}</p>
-                <p className="text-gray-500 text-xs flex items-center gap-1 mt-0.5">
+                <p className="text-gray-300 text-xs flex items-center gap-1 mt-0.5">
                   <MapPin size={10} />
                   {t(cmd.ville)}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 <p className="text-[#F5A623] text-sm font-bold">{formatMontant(cmd.montantTotal, cmd.devise)}</p>
-                <p className="text-gray-500 text-xs">{formatDate(cmd.updatedAt)}</p>
+                <p className="text-gray-300 text-xs">{formatDate(cmd.updatedAt)}</p>
               </div>
               <ChevronRight size={14} className="text-gray-500 flex-shrink-0" />
             </Link>

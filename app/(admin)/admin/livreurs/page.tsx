@@ -1,3 +1,4 @@
+import { LiveRefreshBadge } from "@/components/dashboard/LiveRefreshBadge";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { formatDate, dateRelative } from "@/lib/utils";
@@ -15,7 +16,7 @@ async function basculerActif(formData: FormData) {
   const id = String(formData.get("id"));
   const livreur = await prisma.livreur.findUnique({ where: { id }, select: { actif: true } });
   if (!livreur) return;
-  await changerActivationLivreur(id, !livreur.actif); // partagé avec AXIA admin
+  await changerActivationLivreur(id, !livreur.actif); // partagé avec Stella admin
   revalidatePath("/admin/livreurs");
   revalidatePath("/admin");
 }
@@ -35,15 +36,9 @@ const LIVRAISON_LONGUE_MS = 60 * 60_000;
 
 // Palette alignée sur la charte Axso (accent unique + sémantiques officiels).
 const C = {
-  accent: "#F5A623",
-  success: "#16A34A",
-  error: "#DC2626",
-  warning: "#D97706",
-  text1: "#FFFFFF",
-  text2: "#AAAAAA",
-  text3: "#666666",
-  carte: "#1A1A1A",
-  bordure: "rgba(255,255,255,0.08)",
+  accent: "var(--cc-accent-text)", success: "var(--cc-good)", error: "var(--cc-bad)", warning: "var(--cc-warn)",
+  text1: "var(--cc-text)", text2: "var(--cc-text-2)", text3: "var(--cc-text-3)",
+  carte: "var(--cc-surface)", bordure: "var(--cc-border)",
 };
 
 export default async function AdminLivreursPage() {
@@ -100,7 +95,7 @@ export default async function AdminLivreursPage() {
   const boutonActif = (id: string, actif: boolean) => peutModifier && (
     <form action={basculerActif}>
       <input type="hidden" name="id" value={id} />
-      <button type="submit" className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+      <button type="submit" className="text-xs font-semibold px-2 py-0.5 rounded-full"
         style={actif
           ? { background: "rgba(220,38,38,0.1)", color: C.error, border: "1px solid rgba(220,38,38,0.25)" }
           : { background: "rgba(22,163,74,0.12)", color: C.success, border: "1px solid rgba(22,163,74,0.3)" }}>
@@ -155,7 +150,7 @@ export default async function AdminLivreursPage() {
       <div className="rounded-2xl overflow-hidden border" style={{ background: C.carte, borderColor: C.bordure }}>
         <div className="px-6 py-4 border-b flex items-center gap-2" style={{ borderColor: C.bordure }}>
           <Navigation size={15} style={{ color: C.accent }} />
-          <h2 className="font-semibold" style={{ color: C.text1 }}>{t("Livraisons en cours")}</h2>
+          <h2 className="font-semibold" style={{ color: C.text1 }}>{t("Livraisons en cours")}</h2><div className="ml-auto"><LiveRefreshBadge /></div>
         </div>
         {enCours.length === 0 ? (
           <p className="px-6 py-8 text-sm text-center" style={{ color: C.text3 }}>{t("Aucune livraison en route pour le moment")}</p>
@@ -187,7 +182,7 @@ export default async function AdminLivreursPage() {
                         {c.livreur?.telephone && <a href={`tel:${c.livreur.telephone}`} className="font-mono text-[11px]" style={{ color: C.text3 }}>{c.livreur.telephone}</a>}
                       </td>
                       <td className="px-5 py-3">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
                           style={c.statut === "expediee"
                             ? { background: "rgba(245,166,35,0.12)", color: C.accent }
                             : { background: "rgba(220,38,38,0.12)", color: C.error }}>
@@ -290,7 +285,7 @@ export default async function AdminLivreursPage() {
                     <td className="px-5 py-4 text-center" style={{ color: C.text1 }}>{t(nbLivrees.get(l.id) ?? 0)}</td>
                     <td className="px-5 py-4 text-center" style={{ color: nbEchec ? C.error : C.text3 }}>{t(nbEchec)}</td>
                     <td className="px-5 py-4">
-                      {l.latitude && l.longitude && l.positionAt ? (
+                      {l.latitude != null && l.longitude != null && l.positionAt ? (
                         <a href={`https://www.google.com/maps/search/?api=1&query=${l.latitude},${l.longitude}`} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1 text-xs" style={{ color: fraiche ? C.success : C.warning }}>
                           <MapPin size={11} />
@@ -306,7 +301,7 @@ export default async function AdminLivreursPage() {
                           {l.actif
                             ? <CheckCircle size={11} style={{ color: C.success }} />
                             : <XCircle size={11} style={{ color: C.error }} />}
-                          <span className="text-[10px]" style={{ color: l.actif ? C.success : C.error }}>
+                          <span className="text-xs" style={{ color: l.actif ? C.success : C.error }}>
                             {l.actif ? t("Actif") : l.valideAt ? t("Suspendu") : t("En attente")}
                           </span>
                         </div>
@@ -314,7 +309,7 @@ export default async function AdminLivreursPage() {
                         <div className="flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full"
                             style={{ background: l.disponible ? C.success : C.text3 }} />
-                          <span className="text-[10px]" style={{ color: l.disponible ? C.success : C.text3 }}>
+                          <span className="text-xs" style={{ color: l.disponible ? C.success : C.text3 }}>
                             {l.disponible ? t("Dispo") : t("Occupé")}
                           </span>
                         </div>

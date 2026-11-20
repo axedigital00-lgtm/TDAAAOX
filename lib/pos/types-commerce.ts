@@ -108,7 +108,7 @@ export const EXPLICATION_FLAGS: Record<FlagPos, { libelle: string; explication: 
   scanner_v2: { libelle: "Téléphone-scanner", explication: "Permet d'appairer un téléphone à une caisse par QR code : ce qu'il scanne arrive aussitôt sur le poste." },
   multi_scanner: { libelle: "Plusieurs scanners par caisse", explication: "Autorise plusieurs téléphones actifs sur la même caisse. Éteint : un seul à la fois." },
   offline_pos: { libelle: "Vente hors ligne", explication: "Garde les ventes sur le poste pendant une coupure et les envoie au retour du réseau." },
-  axia_pos: { libelle: "AXIA dans la caisse", explication: "Donne à AXIA les chiffres du magasin et lui laisse préparer des actions, que vous validez toujours vous-même." },
+  axia_pos: { libelle: "Stella dans la caisse", explication: "Donne à Stella les chiffres du magasin et lui laisse préparer des actions, que vous validez toujours vous-même." },
   smart_promotions: { libelle: "Moteur de promotions", explication: "Applique automatiquement les promotions (2+1, lots, seuils de panier, prix membre…) au panier." },
   advanced_inventory: { libelle: "Stock avancé", explication: "Permet de démarrer des inventaires et de créer des transferts entre magasins. Éteint : ceux en cours se terminent, on ne peut plus en créer. Lots, numéros de série et corrections de stock restent toujours disponibles." },
 };

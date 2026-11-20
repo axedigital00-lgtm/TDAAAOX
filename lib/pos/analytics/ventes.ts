@@ -1,4 +1,4 @@
-// Chiffres de vente du magasin — pilotage, analytics, alertes, AXIA. SERVEUR uniquement.
+// Chiffres de vente du magasin — pilotage, analytics, alertes, Stella. SERVEUR uniquement.
 //
 // UNE SEULE définition des chiffres, agrégée par la base (aucune vente n'est
 // chargée en mémoire) :

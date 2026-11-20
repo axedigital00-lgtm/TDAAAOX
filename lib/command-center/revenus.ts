@@ -82,7 +82,7 @@ export function recommandationsPlans(v: Vue, stats: Map<string, StatsMarchand>, 
   if (pro.length >= 10) {
     const sans = pro.filter((s) => !s.fonctions30.has("marketing") && !s.fonctions30.has("axia") && s.ia30 === 0).length;
     const part = sans / pro.length;
-    if (part >= 0.2) out.push({ plan: "palier1", texte: t("{0} % des marchands Pro payants ({1}/{2}) n'ont utilisé ni Marketing ni Axia sur 30 jours : risque de churn, à accompagner sur ces fonctions.", Math.round(part * 100), sans, pro.length) });
+    if (part >= 0.2) out.push({ plan: "palier1", texte: t("{0} % des marchands Pro payants ({1}/{2}) n'ont utilisé ni Marketing ni Stella sur 30 jours : risque de churn, à accompagner sur ces fonctions.", Math.round(part * 100), sans, pro.length) });
   }
   const ess = parPlan("palier0").filter((s) => s.commandes30 >= 40);
   if (ess.length) out.push({ plan: "palier0", texte: t(ess.length > 1 ? "{0} marchands Essentiel dépassent 40 commandes sur 30 jours (limite du plan : 60/mois) : candidats au Pro (+{1} de MRR potentiel)." : "{0} marchand Essentiel dépasse 40 commandes sur 30 jours (limite du plan : 60/mois) : candidat au Pro (+{1} de MRR potentiel).", ess.length, formatValeur(ess.length * PRIX_PLAN.palier1, "xaf")) });

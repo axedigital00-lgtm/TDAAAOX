@@ -1,6 +1,6 @@
-// Actions sensibles d'AXIA : jamais exécutées directement. L'outil crée une
+// Actions sensibles de Stella : jamais exécutées directement. L'outil crée une
 // demande de confirmation (AxiaProposition "confirmation") affichée dans la
-// bulle AXIA ; l'action ne part qu'au clic « Autoriser » du marchand
+// bulle Stella ; l'action ne part qu'au clic « Autoriser » du marchand
 // (app/api/axia/propositions). Le blocage est côté serveur : le modèle ne
 // peut pas le contourner, même par délégation à un agent ou via le cron.
 import { randomUUID, createHash } from "crypto";
@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 // Argent, prix, envois aux clients, publication, retours, livraison.
 const SENSIBLES: Record<string, string> = {
-  // Outils AXIA (lib/axia/tools.ts)
+  // Outils Stella (lib/axia/tools.ts)
   mettre_a_jour_prix: "Changer un prix",
   supprimer_produit: "Supprimer définitivement un produit",
   payer_commission_affilie: "Payer une commission",
@@ -57,7 +57,7 @@ const LECTURE = /(^|_)(lister|lire|stats|statut)(_|$)/;
 
 /** Consigne à ajouter au prompt de tout assistant qui passe par demanderConfirmation. */
 export const CONSIGNE_ACCORD = `─── ACTIONS SENSIBLES : ACCORD DU MARCHAND ───
-Prix (y compris via modifier_produit), suppression d'un produit, codes promo, synchronisation fournisseurs, popups, générations Higgsfield (crédits payants), envois aux clients (email, WhatsApp, SMS, réseaux sociaux), paiements, publication, retours, livraisons (assigner un livreur, changer le statut d'une commande, confirmer une remise d'espèces) : quand tu appelles un de ces outils, l'action n'est PAS exécutée tout de suite. Le marchand reçoit une demande d'autorisation dans la bulle AXIA en bas à droite. Dis-lui en une phrase ce que tu t'apprêtes à faire et que tu attends son feu vert — ne dis jamais que c'est fait.
+Prix (y compris via modifier_produit), suppression d'un produit, codes promo, synchronisation fournisseurs, popups, générations Higgsfield (crédits payants), envois aux clients (email, WhatsApp, SMS, réseaux sociaux), paiements, publication, retours, livraisons (assigner un livreur, changer le statut d'une commande, confirmer une remise d'espèces) : quand tu appelles un de ces outils, l'action n'est PAS exécutée tout de suite. Le marchand reçoit une demande d'autorisation dans la bulle Stella en bas à droite. Dis-lui en une phrase ce que tu t'apprêtes à faire et que tu attends son feu vert — ne dis jamais que c'est fait.
 - Quand le marchand te demande explicitement une de ces actions (« assigne… », « passe la commande en… », « envoie… »), appelle l'outil tout de suite : la bulle EST la demande d'accord. Ne lui redemande pas « tu valides ? » dans le texte, sinon il doit dire oui deux fois.
 - Si c'est toi qui as l'idée (il ne l'a pas demandée), propose-la d'abord en une phrase et attends sa réponse avant d'appeler l'outil.
 - Ne parle JAMAIS de la bulle ni d'une validation en attente si tu n'as pas appelé l'outil dans cette réponse et reçu « EN ATTENTE DE CONFIRMATION ».`;
@@ -129,6 +129,6 @@ export async function demanderConfirmation(tenantId: string, outil: string, args
   });
   return {
     succes: true,
-    resultat: `EN ATTENTE DE CONFIRMATION : « ${libelle} » n'est PAS encore fait. Le marchand doit l'autoriser dans la bulle AXIA en bas à droite. Dis-lui en une phrase ce que tu t'apprêtes à faire et que tu attends son feu vert ; ne dis jamais que c'est fait.`,
+    resultat: `EN ATTENTE DE CONFIRMATION : « ${libelle} » n'est PAS encore fait. Le marchand doit l'autoriser dans la bulle Stella en bas à droite. Dis-lui en une phrase ce que tu t'apprêtes à faire et que tu attends son feu vert ; ne dis jamais que c'est fait.`,
   };
 }

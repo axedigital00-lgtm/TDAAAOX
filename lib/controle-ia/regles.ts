@@ -50,7 +50,7 @@ export function normaliserScopes(scopes: string[]): string[] {
   return [...new Set(scopes.flatMap((s) => RENOMMES[s] ?? [s]))];
 }
 
-/** Droit fin exigé par un outil, en plus de son domaine (outils AXIA et modules : une seule table). */
+/** Droit fin exigé par un outil, en plus de son domaine (outils Stella et modules : une seule table). */
 const SCOPES_OUTILS: Record<string, string> = {
   // prix et remises
   mettre_a_jour_prix: "axso:pricing:write", creer_code_promo: "axso:pricing:write",
@@ -153,7 +153,7 @@ export function risqueOutil(nom: string, sensible: boolean): Risque {
 }
 
 /**
- * Assistant : toute modification attend l'accord. Copilote : comme AXIA, seules les actions
+ * Assistant : toute modification attend l'accord. Copilote : comme Stella, seules les actions
  * sensibles attendent. Autopilote : les actions sensibles partent seules, sauf risque élevé.
  */
 export function decider(mode: Mode, risque: Risque, ecriture: boolean): "executer" | "accord" {

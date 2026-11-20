@@ -11,7 +11,7 @@ export const AGENT_META: Record<AgentId, {
   nom: string; role: string; color: string; colorAlt: string; glow: string;
 }> = {
   orion: { nom: "ORION", role: "Onboarding",  color: "#1B4FD8", colorAlt: "#7B9EFF", glow: "rgba(27,79,216,0.5)" },
-  axia:  { nom: "AXIA",  role: "Copilote IA", color: "#1B2A4A", colorAlt: "#FFD280", glow: "rgba(124,58,237,0.5)" },
+  axia:  { nom: "Stella",  role: "Copilote IA", color: "#1B2A4A", colorAlt: "#FFD280", glow: "rgba(124,58,237,0.5)" },
   nova:  { nom: "NOVA",  role: "Marketing",   color: "#f472b6", colorAlt: "#fb7185", glow: "rgba(244,114,182,0.5)" },
   kira:  { nom: "KIRA",  role: "Produits",    color: "#34d399", colorAlt: "#6ee7b7", glow: "rgba(52,211,153,0.5)" },
   zeta:  { nom: "ZETA",  role: "Clients",     color: "#22d3ee", colorAlt: "#67e8f9", glow: "rgba(34,211,238,0.5)" },
@@ -68,7 +68,7 @@ export function AgentAvatar3D({ agentId, size = 52, pulse = false }: Props) {
       </>
     ),
 
-    // AXIA — sphère neurale violette
+    // Stella — sphère neurale violette
     axia: (
       <>
         <defs>

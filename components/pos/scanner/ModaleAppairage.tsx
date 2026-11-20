@@ -102,7 +102,7 @@ export default function ModaleAppairage({ ouverte, onFermer, caisseId, caisseNom
       {phase.nom === "erreur" && <EtatPos code={phase.code} message={phase.message} onReessayer={phase.code === "non_autorise" || phase.code === "fonction_desactivee" ? undefined : () => void demander()} compact />}
 
       {phase.nom === "expire" && (
-        <div role="status" className="rounded-2xl border border-dashed border-[#E8E8E8] px-5 py-8 text-center">
+        <div role="status" className="rounded-[12px] border border-dashed border-[#E8E8E8] px-5 py-8 text-center">
           <p className="text-[14px] font-bold">{t("Ce code a expiré")}</p>
           <p className="mt-1.5 text-[12.5px] text-[#666666]">{t("Un code d'appairage n'est valable que 5 minutes. Affichez-en un nouveau.")}</p>
         </div>
@@ -110,7 +110,7 @@ export default function ModaleAppairage({ ouverte, onFermer, caisseId, caisseNom
 
       {phase.nom === "attente" && (
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-          <div className="h-52 w-52 shrink-0 rounded-2xl border border-[#E8E8E8] bg-white p-3" role="img" aria-label={t("QR code d'appairage")} dangerouslySetInnerHTML={{ __html: phase.appairage.qr }} />
+          <div className="h-52 w-52 shrink-0 rounded-[12px] border border-[#E8E8E8] bg-white p-3" role="img" aria-label={t("QR code d'appairage")} dangerouslySetInnerHTML={{ __html: phase.appairage.qr }} />
           <div className="min-w-0 flex-1 text-[13px] leading-relaxed text-[#111111]">
             <ol className="list-decimal space-y-1.5 pl-5">
               <li>{t("Ouvrez l'appareil photo du téléphone.")}</li>

@@ -146,7 +146,7 @@ export function BoutiqueBuilder(p: Props) {
 
   // Design importé → sections éditables une à une (voir decoupage.ts). Une
   // vraie modification (enregistrée automatiquement), pas une conversion en
-  // mémoire : sinon AXIA, qui écrit l'arbre en base, repartirait d'un arbre
+  // mémoire : sinon Stella, qui écrit l'arbre en base, repartirait d'un arbre
   // vide et ferait disparaître le design. Idempotent (setter fonctionnel).
   const aConvertir = (!config.builderTree?.length && !!config.builderHtml)
     || !!config.builderTree?.some((n) => n.children?.[0]?.children?.[0]?.children?.[0]?.config?.css);
@@ -269,7 +269,7 @@ export function BoutiqueBuilder(p: Props) {
   const reglage = p.reglages.find((r) => r.id === reglageOuvert);
 
   return (
-    <div className="ax-constructeur fixed inset-0 z-[9999] flex flex-col bg-[#F1F2F4] text-[#111111] overflow-hidden" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="ax-constructeur fixed inset-0 z-[9999] flex flex-col bg-[#F1F2F4] text-[#111111] overflow-hidden" style={{ fontFamily: "var(--merchant-font)" }}>
       <StyleCss css={CSS_MENUS_DEROULANTS} />
       <PCOnlyGate label={tr("Le Constructeur de boutique")} />
 

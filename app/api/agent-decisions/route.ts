@@ -3,7 +3,7 @@ import { refusAgentIA } from "@/lib/permissions-server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// Historique des actions prises par les agents Axso (AXIA + agents
+// Historique des actions prises par les agents Axso (Stella + agents
 // spécialisés) — la donnée existait déjà (AgentDecision, écrite par chaque
 // executeOutil au moment de l'action), mais aucune interface ne l'exposait
 // au marchand jusqu'ici.

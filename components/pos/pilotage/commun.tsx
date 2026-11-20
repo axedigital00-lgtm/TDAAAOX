@@ -70,7 +70,7 @@ function FiltreProduit({ valeur, nom, onChoisir }: { valeur: string; nom: string
     return (
       <div>
         <p className="mb-1 text-[12px] font-semibold text-[#111111]">{t("Produit")}</p>
-        <button type="button" onClick={() => onChoisir("", "")} className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-[#FDE68A] bg-[#FFF7ED] px-3 text-left text-[13px] font-semibold text-[#111111] ${FOCUS}`}>
+        <button type="button" onClick={() => onChoisir("", "")} className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-[#e3e3e3] bg-[#f1f1f1] px-3 text-left text-[13px] font-semibold text-[#111111] ${FOCUS}`}>
           <span className="truncate">{nom}</span><X size={15} aria-hidden /><span className="sr-only">{t("Retirer ce filtre")}</span>
         </button>
       </div>
@@ -104,7 +104,7 @@ export function BarreFiltres({ filtres, onChange, listes, sans = [] }: { filtres
   const caisses = magasins.filter((m) => !filtres.magasinId || m.id === filtres.magasinId).flatMap((m) => m.caisses.map((c) => ({ id: c.id, nom: magasins.length > 1 ? `${c.nom} — ${m.nom}` : c.nom })));
   const incomplete = filtres.preset === "periode" && !bornes(filtres);
   return (
-    <section aria-label={t("Filtres")} className="rounded-2xl border border-[#E8E8E8] bg-white p-3 sm:p-4">
+    <section aria-label={t("Filtres")} className="rounded-[12px] border border-[#E8E8E8] bg-white p-3 sm:p-4">
       <div role="group" aria-label={t("Période")} className="flex flex-wrap gap-2">
         {PRESETS.map(([id, libelle]) => (
           <button key={id} type="button" aria-pressed={filtres.preset === id} onClick={() => regler({ preset: id })}

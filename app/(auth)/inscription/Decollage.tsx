@@ -68,7 +68,7 @@ export function Decollage({ nom, pret, onFini }: { nom: string; pret: boolean; o
       </div>
 
       <div className="mt-4 w-full max-w-[340px] text-left space-y-2.5">
-        <p className="text-[15px] font-bold text-[#111111] text-center mb-3">{tr("Axia lance {0}…", nom)}</p>
+        <p className="text-[15px] font-bold text-[#111111] text-center mb-3">{tr("Stella lance {0}…", nom)}</p>
         {ETAPES.map((e, i) => {
           const fait = i < etapesVues && (pret || i < ETAPES.length - 1);
           return (

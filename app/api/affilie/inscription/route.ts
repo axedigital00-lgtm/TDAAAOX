@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/mots-de-passe";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { annoncerInscription } from "@/lib/push";

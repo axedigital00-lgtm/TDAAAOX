@@ -142,7 +142,7 @@ export function Panier({ panier, etatCalcul, erreurCalcul, paiementDemande, mode
           {(!modeSimple || panier.frais > 0) && <Total libelle={t("Frais")} valeur={fmt(panier.frais)} />}
         </dl>
         <div className="mt-2 flex items-end justify-between gap-3">
-          <span className="text-[13px] font-bold uppercase tracking-wide text-[#111111]">{t("Total")}</span>
+          <span className="text-[13px] font-bold text-[#111111]">{t("Total")}</span>
           <span className="text-[26px] font-bold leading-none tabular-nums text-[#111111]" aria-live="polite">{fmt(panier.total)}</span>
         </div>
         <p className="mt-1 min-h-4 text-right text-[11px] text-[#888888]" role="status">
@@ -155,7 +155,7 @@ export function Panier({ panier, etatCalcul, erreurCalcul, paiementDemande, mode
         )}
         {erreurCalcul && !vide && <Bouton variante="secondaire" taille="compact" large onClick={a.onReverifier} className="mt-1">{t("Vérifier de nouveau le total")}</Bouton>}
         {panier.alertes.map((x, i) => (
-          <p key={i} role="alert" className={cn("mt-1 rounded-xl border px-3 py-2 text-[12.5px] leading-snug", x.bloquant ? "border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" : "border-[#FCD34D] bg-[#FFFBEB] text-[#B45309]")}>{t(x.message)}</p>
+          <p key={i} role="alert" className={cn("mt-1 rounded-xl border px-3 py-2 text-[12.5px] leading-snug", x.bloquant ? "border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" : "border-[#FCD34D] bg-[#FFFBEB] text-[#5e4200]")}>{t(x.message)}</p>
         ))}
 
         <Bouton taille="grand" large onClick={a.onPayer} disabled={!peutPayer} charge={paiementDemande && peutPayer} raccourci="F5" className="mt-3">{t("Payer")}</Bouton>
@@ -219,8 +219,8 @@ function Suggestions({ caisseId, onAjouter }: { caisseId: string | null; onAjout
   const visibles = articles.filter((x) => !ignores.includes(x.produitId) && !ids.split(",").includes(x.produitId)).slice(0, 2);
   if (eteint || visibles.length === 0) return null;
   return (
-    <aside aria-label={t("Suggestions")} className="mt-2 space-y-1.5 rounded-xl border border-dashed border-[#FDE68A] bg-[#FFFBEB] p-2.5">
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#B45309]"><Lightbulb size={13} aria-hidden />{t("Souvent achetés ensemble")}<span className="font-normal normal-case tracking-normal text-[#888888]">· {t("estimation d'après vos ventes")}</span></p>
+    <aside aria-label={t("Suggestions")} className="mt-2 space-y-1.5 rounded-xl border border-dashed border-[#e3e3e3] bg-[#FFFBEB] p-2.5">
+      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5e4200]"><Lightbulb size={13} aria-hidden />{t("Souvent achetés ensemble")}<span className="font-normal normal-case tracking-normal text-[#888888]">· {t("estimation d'après vos ventes")}</span></p>
       {visibles.map((x) => {
         const stock = x.stock;
         return (

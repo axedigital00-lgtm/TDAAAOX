@@ -161,7 +161,7 @@ export function Receptions() {
       {!d.peutRecevoir ? <EtatNonAutorise texte="Votre compte peut consulter les réceptions, mais pas en enregistrer. Demandez le droit « réception » à un responsable." compact /> : (
         <>
           {resultat && (
-            <section role="status" className="rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-[12.5px] text-[#14532D]">
+            <section role="status" className="rounded-[12px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-[12.5px] text-[#14532D]">
               <p className="flex items-center gap-2 text-[13.5px] font-bold"><CheckCircle2 size={16} aria-hidden />
                 {resultat.rejoue ? t("Cette réception a déjà été enregistrée. Aucun doublon n'a été créé.") : t("Réception enregistrée : {0} ligne(s), le stock est à jour.", resultat.lignes)}
               </p>
@@ -212,7 +212,7 @@ export function Receptions() {
             <p className="mt-1 text-[11.5px] text-[#888888]">{t("Douchette, caméra ou téléphone appairé (contexte « Réception ») : chaque scan ajoute une unité à la ligne du produit.")}</p>
 
             {serie && (
-              <p role="status" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#F5A623] bg-[#FFF7ED] p-3 text-[12.5px] text-[#92400E]">
+              <p role="status" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#1a1a1a] bg-[#f1f1f1] p-3 text-[12.5px] text-[#92400E]">
                 <span className="flex items-center gap-2"><ScanLine size={15} aria-hidden />{t("Scannez les numéros de série de « {0} » : chaque code lu est un numéro.", lignes.find((l) => l.cle === serie)?.nom ?? "")}</span>
                 <Bouton taille="compact" variante="secondaire" onClick={() => setSerie(null)}>{t("Terminer la saisie des numéros")}</Bouton>
               </p>

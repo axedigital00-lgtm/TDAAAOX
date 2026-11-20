@@ -1,3 +1,7 @@
+import "@fontsource-variable/inter/wght.css";
+import "@/components/dashboard/design-system/tokens/tokens.css";
+import "@/components/dashboard/design-system/ds.css";
+import "@/components/dashboard/design-system/legacy.css";
 import { auth } from "@/lib/auth";
 import { ActivationPush } from "@/components/ActivationPush";
 import { MenusDeroulants } from "@/components/ui/MenusDeroulants";
@@ -52,11 +56,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const modePos = tenantId
     ? await prisma.reglagesPos.findUnique({ where: { tenantId }, select: { mode: true } }).then((r) => (r?.mode === "pro" ? "pro" as const : "simple" as const), () => "simple" as const)
     : "simple" as const;
+  // Compteur de l'item « Commandes » de la sidebar : commandes pas encore traitées.
+  const commandesATraiter = tenantId
+    ? await prisma.commande.count({ where: { tenantId, statut: { in: ["en_attente", "confirmee"] } } }).catch(() => 0)
+    : 0;
 
   return (
     <I18nProvider langue={await getLangue()} dico={await dico("dashboard", "boutique")}>
     <AbonnementOverlayProvider palier={palier}>
-      <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo}>
+      <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo} commandesATraiter={commandesATraiter}>
         <DeviseProvider devise={boutique?.devise || "XAF"}>{children}</DeviseProvider>
       </DashboardShell>
       {/* Son audio sur chaque notification toast */}
@@ -66,7 +74,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Notifications push : alertes sur l'appareil, même appli fermée. */}
       <ActivationPush espace="dashboard" />
       {essai && <EssaiIllimite phase={essai.phase} finLe={essai.finLe?.toISOString() ?? null} proposer={essai.proposer} montrerFin={essai.montrerFin} />}
-      {/* AXIA prend la parole : constats, rappels, demandes d'accord. */}
+      {/* Stella prend la parole : constats, rappels, demandes d'accord. */}
       <AxiaBulle />
       {/* Liste ouverte des menus déroulants, la même dans tous les navigateurs. */}
       <MenusDeroulants />

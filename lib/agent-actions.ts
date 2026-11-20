@@ -1,4 +1,4 @@
-// Actions que l'agent AXIA (lib/gemini.ts::agentConstructeurLibre) peut
+// Actions que l'agent Stella (lib/gemini.ts::agentConstructeurLibre) peut
 // appliquer à l'arbre du constructeur libre — un sous-ensemble volontaire
 // des primitives de lib/block-tree.ts, jamais de mutation libre de l'arbre.
 // Fichier pur, partagé par le client (BuilderCanvas, applique réellement les

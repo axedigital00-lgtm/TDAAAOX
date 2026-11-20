@@ -8,7 +8,7 @@ import { SECTION, SURTITRE, TITRE, INTRO, BOUTON_NOIR } from "./charte";
 
 // Conversation jouée message par message quand la section arrive à l'écran.
 const CONVERSATION: { de: "marchand" | "axia"; texte: string }[] = [
-  { de: "marchand", texte: "Salut Axia, comment s'est passée ma semaine ?" },
+  { de: "marchand", texte: "Salut Stella, comment s'est passée ma semaine ?" },
   { de: "axia",     texte: "Très bonne semaine : 47 commandes et 1 284 000 FCFA de ventes, soit +18 % par rapport à la semaine dernière. Tes sneakers sont ton best-seller." },
   { de: "marchand", texte: "Il m'en reste combien ?" },
   { de: "axia",     texte: "Plus que 6 paires en 42 et 3 en 43. À ce rythme, tu seras en rupture d'ici jeudi. Tu veux que je prépare une commande fournisseur ?" },
@@ -31,7 +31,7 @@ export function AxiaSection() {
     }), RYTHME_MS);
     return () => clearInterval(iv);
   }, [visible]);
-  // Axia « écrit… » pendant l'attente de sa prochaine réponse.
+  // Stella « écrit… » pendant l'attente de sa prochaine réponse.
   const axiaEcrit = visible && affiches < CONVERSATION.length && CONVERSATION[affiches].de === "axia";
 
   useEffect(() => {
@@ -49,10 +49,10 @@ export function AxiaSection() {
             <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-5 sm:p-6 max-w-lg">
               <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-gray-100">
                 <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: "#111111" }}>
-                  <img src="/axia-icon.png" alt={t("Axia")} className="w-full h-full object-cover" />
+                  <img src="/brand/axia-mark-dark.png" alt={t("Stella")} className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-[#111111]">{t("Axia")}</p>
+                  <p className="font-bold text-sm text-[#111111]">{t("Stella")}</p>
                   <p className="text-[11px] text-gray-400">{t("Ton assistante IA")}</p>
                 </div>
                 <Mic size={16} className="ml-auto text-gray-300" />
@@ -78,7 +78,7 @@ export function AxiaSection() {
                 )}
               </div>
               <div className="mt-4 flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 pl-4 pr-1.5 py-1.5" aria-hidden>
-                <span className="flex-1 text-[13px] text-gray-400">{t("Écris à Axia…")}</span>
+                <span className="flex-1 text-[13px] text-gray-400">{t("Écris à Stella…")}</span>
                 <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#111111" }}>
                   <Mic size={14} style={{ color: "#F5A623" }} />
                 </span>
@@ -88,11 +88,11 @@ export function AxiaSection() {
 
           <div className="order-1 lg:order-2" style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateX(24px)", transition: "all 0.8s 0.1s cubic-bezier(0.23,1,0.32,1)" }}>
             <div className="w-full h-[280px] sm:h-[340px] lg:h-[380px] mb-2 -mt-4">
-              <Image src="/axia-icon.png" alt={t("Axia")} width={380} height={380} className="w-full h-full object-contain" />
+              <Image src="/axia-icon.png" alt={t("Stella")} width={380} height={380} className="w-full h-full object-contain" />
             </div>
             <span className={SURTITRE}>{t("Assistante IA")}</span>
             <h2 className={`${TITRE} mb-5`}>
-              {t("Rencontre Axia, ta copilote au quotidien")}
+              {t("Rencontre Stella, ta copilote au quotidien")}
             </h2>
             <p className={`${INTRO} mb-8 max-w-lg`}>
               {t("Parle-lui à l'écrit ou à la voix : elle configure ta boutique, répond à tes clients, lance des promotions et t'alerte sur ce qui compte — 24h/24.")}
@@ -101,7 +101,7 @@ export function AxiaSection() {
               <Zap size={14} style={{ color: "#F5A623" }} />{" "}{t("Comprend le français, disponible en interface vocale")}
             </div>
             <Link href="/inscription" className={BOUTON_NOIR}>
-              {t("Parler à Axia →")}
+              {t("Parler à Stella →")}
             </Link>
           </div>
         </div>

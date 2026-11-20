@@ -178,7 +178,7 @@ export function BarcodeScanner({ open, onClose, onProduitScanne }: Props) {
           background: "linear-gradient(160deg,#1a1a1a 0%,#111111 100%)",
           border: "1px solid rgba(255,255,255,0.1)",
           boxShadow: "0 40px 100px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,166,35,0.08)",
-          fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif",
+          fontFamily: "var(--merchant-font)",
           animation: "axsPopIn 0.4s cubic-bezier(0.34,1.56,0.64,1)",
         }}
       >

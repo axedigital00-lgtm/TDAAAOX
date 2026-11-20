@@ -209,7 +209,7 @@ export function selectionnerGabaritLibrairie(categorie: string): EntreeLibrairie
   return general || MANIFESTE_LIBRAIRIE[0];
 }
 
-// ─── Les 4 designs proposés par AXIA à l'inscription ─────────────────────────
+// ─── Les 4 designs proposés par Stella à l'inscription ─────────────────────────
 // Utilisé à l'inscription (app/(auth)/inscription) ; le Constructeur et la page
 // Thèmes proposent ensuite les 18 designs (voir ThemeConfig.designsOrigine).
 export function detecterCategorie(vente: string): string {

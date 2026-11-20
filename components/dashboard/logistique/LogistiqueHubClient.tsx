@@ -1,10 +1,9 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
-import {
-  LayoutGrid, Truck, Bike, RotateCcw, FileText, ShoppingCart,
-  Warehouse, Bus, Wallet, ChevronRight,
-} from "lucide-react";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner, Card, SettingsRow } from "@/components/dashboard/design-system/components/primitives";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
 import { LivraisonPanel } from "./LivraisonPanel";
 import { LivreursPanel } from "./LivreursPanel";
 import { RetoursPanel } from "./RetoursPanel";
@@ -21,108 +20,75 @@ interface Stats {
   facturesEnAttente: number;
 }
 
+// Onglets synchronisés avec ?tab= (les sous-items de la barre latérale y mènent directement).
 const TABS = [
-  { id: "apercu",    label: "Vue d'ensemble", Icon: LayoutGrid   },
-  { id: "livraison", label: "Livraison",      Icon: Truck        },
-  { id: "livreurs",  label: "Livreurs",       Icon: Bike         },
-  { id: "retours",   label: "Retours",        Icon: RotateCcw    },
-  { id: "factures",  label: "Factures",       Icon: FileText     },
-  { id: "pos",       label: "Caisse POS",     Icon: ShoppingCart },
+  { id: "apercu",    label: "Vue d'ensemble", titre: "Livraisons" },
+  { id: "livraison", label: "Livraison",      titre: "Livraisons" },
+  { id: "livreurs",  label: "Livreurs",       titre: "Livreurs" },
+  { id: "retours",   label: "Retours",        titre: "Retours" },
+  { id: "factures",  label: "Factures",       titre: "Factures" },
+  { id: "pos",       label: "Caisse",         titre: "Caisse" },
 ];
 
 export function LogistiqueHubClient({ initialTab, stats, caisseV2 = false }: { initialTab?: string; stats: Stats; caisseV2?: boolean }) {
   const tr = useT();
-  const [onglet, setOnglet] = useState(TABS.some((t) => t.id === initialTab) ? initialTab! : "apercu");
+  const [onglet, setOngletEtat] = useState(TABS.some((t) => t.id === initialTab) ? initialTab! : "apercu");
+  const setOnglet = (id: string) => {
+    setOngletEtat(id);
+    const url = new URL(window.location.href);
+    if (id === "apercu") url.searchParams.delete("tab"); else url.searchParams.set("tab", id);
+    window.history.replaceState(null, "", url.toString());
+  };
+  const courant = TABS.find((t) => t.id === onglet)!;
 
   const cartes = [
-    { tab: "livraison", label: "Livraison", desc: "Suivi des commandes en cours", Icon: Truck, valeur: stats.enCours, accent: "#3b82f6" },
-    { tab: "livreurs",  label: "Livreurs",  desc: "Flotte & disponibilité",       Icon: Bike,  valeur: stats.livreursActifs, accent: "#F5A623" },
-    { tab: "retours",   label: "Retours",   desc: "Demandes de retour / RMA",     Icon: RotateCcw, valeur: stats.retoursOuverts, accent: "#ef4444" },
-    { tab: "factures",  label: "Factures",  desc: "Factures en attente",          Icon: FileText, valeur: stats.facturesEnAttente, accent: "#F5A623" },
-  ];
-
-  const liensExternes = [
-    { href: "/dashboard/logistique/encaissements", label: "Encaissements COD", desc: "Cash à réconcilier avec vos livreurs", Icon: Wallet, valeur: stats.codEnAttente, accent: "#10b981" },
-    { href: "/dashboard/logistique/entrepots", label: "Entrepôts", desc: "Stock par emplacement", Icon: Warehouse, valeur: null, accent: "#8b5cf6" },
-    { href: "/dashboard/logistique/transporteurs", label: "Transporteurs", desc: "Agences & partenaires", Icon: Bus, valeur: null, accent: "#10b981" },
+    { tab: "livraison", label: "Commandes en livraison", desc: "Confirmées, en préparation ou expédiées", valeur: stats.enCours },
+    { tab: "livreurs",  label: "Livreurs disponibles",  desc: "Actifs et disponibles maintenant",        valeur: stats.livreursActifs },
+    { tab: "retours",   label: "Retours ouverts",       desc: "Demandes de retour à traiter",            valeur: stats.retoursOuverts },
+    { tab: "factures",  label: "Factures émises",       desc: "En attente de règlement",                 valeur: stats.facturesEnAttente },
   ];
 
   return (
-    <div className="space-y-5 max-w-6xl">
-      <div>
-        <h1 className="text-xl font-bold text-[#111111]">{tr("Logistique")}</h1>
-        <p className="text-sm text-gray-400 mt-0.5">{tr("Livraison, livreurs, retours, factures et caisse — tout en un seul endroit")}</p>
-      </div>
+    <Page>
+      <PageHeader icon="truck" title={tr(courant.titre)}
+        secondaryActions={[{ content: tr("Encaissements à la livraison"), href: "/dashboard/logistique/encaissements" }]}
+        overflowActions={[{ content: tr("Entrepôts"), href: "/dashboard/logistique/entrepots" }, { content: tr("Transporteurs"), href: "/dashboard/logistique/transporteurs" }]}
+      />
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 overflow-x-auto">
-        {TABS.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setOnglet(id)}
-            className={`flex-1 py-2 px-3 rounded-xl text-[12px] font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${onglet === id ? "bg-white shadow-sm text-[#111]" : "text-gray-500 hover:text-gray-700"}`}>
-            <Icon size={13} />
-            {tr(label)}
-          </button>
-        ))}
+      <div className="axd-card" style={{ overflow: "hidden", marginBottom: "var(--space-400)" }}>
+        <div className="axd-ix-bar" style={{ borderBottom: 0 }}>
+          <div className="axd-ix-tabs" role="tablist">
+            {TABS.map(({ id, label }) => (
+              <button key={id} type="button" role="tab" aria-selected={onglet === id} className="axd-ix-tab" onClick={() => setOnglet(id)}>{tr(label)}</button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {onglet === "apercu" && (
-        <div className="space-y-5">
+        <div className="axd-stack">
           {stats.echecs > 0 && (
-            <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
-              <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                <Truck size={15} className="text-red-500" />
-              </div>
-              <p className="text-sm text-red-700">
-                <span className="font-bold">{stats.echecs}</span>{" "}{tr(stats.echecs > 1 ? "livraisons ont échoué et attendent une replanification" : "livraison a échoué et attend une replanification")}
-              </p>
-            </div>
+            <Banner tone="critical" action={<Button size="sm" onClick={() => setOnglet("livraison")}>{tr("Voir les livraisons")}</Button>}>
+              {stats.echecs}{" "}{tr(stats.echecs > 1 ? "livraisons ont échoué et attendent une replanification" : "livraison a échoué et attend une replanification")}
+            </Banner>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="axd-grid axd-g4">
             {cartes.map((c) => (
-              <button
-                key={c.tab}
-                onClick={() => setOnglet(c.tab)}
-                className="group flex items-start gap-3 bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${c.accent}15` }}>
-                  <c.Icon size={18} style={{ color: c.accent }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-[#111111]">{tr(c.label)}</p>
-                    <span className="text-lg font-bold" style={{ color: c.accent }}>{tr(c.valeur)}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{tr(c.desc)}</p>
-                </div>
+              <button key={c.tab} type="button" onClick={() => setOnglet(c.tab)} className="axd-card axd-card--pad axd-carte-lien">
+                <span className="axd-kpi__t">{tr(c.label)}</span>
+                <span className="axd-kpi__v" style={{ marginBottom: 2 }}>{c.valeur.toLocaleString(tr.loc)}</span>
+                <span className="axd-muted" style={{ fontSize: 12 }}>{tr(c.desc)}</span>
               </button>
             ))}
           </div>
 
-          <div>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">{tr("Autres modules")}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {liensExternes.map((c) => (
-                <Link
-                  key={c.href}
-                  href={c.href}
-                  className="group flex items-start gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${c.accent}15` }}>
-                    <c.Icon size={16} style={{ color: c.accent }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[13px] font-bold text-[#111111]">{tr(c.label)}</p>
-                      {c.valeur !== null && <span className="text-[13px] font-bold" style={{ color: c.accent }}>{tr(c.valeur)}</span>}
-                    </div>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{tr(c.desc)}</p>
-                  </div>
-                  <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors flex-shrink-0 mt-1" />
-                </Link>
-              ))}
-            </div>
-          </div>
+          <Card title={tr("Autres outils")} padding="none">
+            <SettingsRow icon="money" title={tr("Encaissements à la livraison")} subtitle={tr("Argent à récupérer auprès de vos livreurs")}
+              href="/dashboard/logistique/encaissements" right={stats.codEnAttente > 0 ? <Badge tone="attention">{stats.codEnAttente.toLocaleString(tr.loc)}</Badge> : undefined} />
+            <SettingsRow icon="box" title={tr("Entrepôts")} subtitle={tr("Stock par emplacement")} href="/dashboard/logistique/entrepots" />
+            <SettingsRow icon="truck" title={tr("Transporteurs")} subtitle={tr("Agences et partenaires de livraison")} href="/dashboard/logistique/transporteurs" />
+          </Card>
         </div>
       )}
 
@@ -131,13 +97,11 @@ export function LogistiqueHubClient({ initialTab, stats, caisseV2 = false }: { i
       {onglet === "retours"   && <RetoursPanel />}
       {onglet === "factures"  && <FacturesPanel />}
       {onglet === "pos"       && (caisseV2 ? (
-        <div className="rounded-2xl border border-[#E8E8E8] bg-white p-6 text-center">
-          <p className="text-[13px] text-[#555555]">{tr("La nouvelle caisse est activée pour cette boutique : les ventes s'encaissent désormais depuis l'écran Caisse.")}</p>
-          <Link href="/dashboard/pos/caisse" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#111111] px-4 text-[13px] font-semibold text-white">
-            <ShoppingCart size={15} aria-hidden />{tr("Ouvrir la caisse")}
-          </Link>
-        </div>
+        <Card>
+          <p style={{ margin: 0 }}>{tr("La nouvelle caisse est activée pour cette boutique : les ventes s'encaissent désormais depuis l'écran Caisse.")}</p>
+          <div style={{ marginTop: 12 }}><Button variant="primary" href="/dashboard/pos/caisse">{tr("Ouvrir la caisse")}</Button></div>
+        </Card>
       ) : <POSPanel />)}
-    </div>
+    </Page>
   );
 }

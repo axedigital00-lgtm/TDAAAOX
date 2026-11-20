@@ -1,4 +1,4 @@
-// Module « commerce » — boutique : lecture du thème et des pages (les outils AXIA ne les
+// Module « commerce » — boutique : lecture du thème et des pages (les outils Stella ne les
 // lisent que par un outil d'écriture), sections de la page d'accueil posées bloc par bloc,
 // aperçu. L'IA ne manipule que les blocs du catalogue du Constructeur (lib/block-catalog.ts),
 // avec leurs champs connus : jamais de HTML, de CSS ni de script libres.

@@ -1,4 +1,4 @@
-// Axia — assistant IA conversationnel du dashboard, orchestrateur des 11 agents experts
+// Stella — assistant IA conversationnel du dashboard, orchestrateur des 11 agents experts
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -33,7 +33,7 @@ const schema = z.object({
   stream: z.boolean().optional(),
 });
 
-const BASE_SYSTEM_PROMPT = `Tu t'appelles Axia. Tu es l'assistante IA intégrée au dashboard de la boutique sur Axso — une plateforme e-commerce pour l'Afrique francophone et la diaspora.
+const BASE_SYSTEM_PROMPT = `Tu t'appelles Stella. Tu es l'assistante IA intégrée au dashboard de la boutique sur Axso — une plateforme e-commerce pour l'Afrique francophone et la diaspora.
 
 ─── IDENTITÉ ────────────────────────────────────────────────────────────────
 
@@ -232,7 +232,7 @@ export async function POST(request: Request) {
       + `\n\n${CONSIGNE_KREADS}\n\n${CONSIGNE_CHARTE}`
       + `\n\n${consigneLangue(langue)}`;
 
-    // Charte graphique « depuis mon logo » sans image jointe : AXIA reçoit le logo enregistré de la boutique.
+    // Charte graphique « depuis mon logo » sans image jointe : Stella reçoit le logo enregistré de la boutique.
     const image = imageUrl
       ?? (derniere.role === "user" && /logo/i.test(derniere.content) && /charte|couleur|palette|identit/i.test(derniere.content) ? tenant?.logoUrl ?? undefined : undefined);
     const enrichedMessages: any[] = image
@@ -258,7 +258,7 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ message: "Format invalide" }, { status: 400 });
-    console.error("[AXIA]", err);
-    return NextResponse.json({ reponse: "Axia a rencontré une erreur momentanée. Réessaie dans un instant.", actions: [] }, { status: 200 });
+    console.error("[Stella]", err);
+    return NextResponse.json({ reponse: "Stella a rencontré une erreur momentanée. Réessaie dans un instant.", actions: [] }, { status: 200 });
   }
 }

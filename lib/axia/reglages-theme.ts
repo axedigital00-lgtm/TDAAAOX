@@ -1,4 +1,4 @@
-// Réglages globaux du thème modifiables par AXIA (outil modifier_theme) : les
+// Réglages globaux du thème modifiables par Stella (outil modifier_theme) : les
 // mêmes valeurs que les menus du Constructeur (app/(dashboard)/dashboard/builder/panels.tsx),
 // rien d'autre — une valeur hors liste est refusée, jamais enregistrée.
 import { FONTS } from "@/lib/theme-fonts";

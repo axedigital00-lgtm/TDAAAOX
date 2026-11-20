@@ -96,7 +96,7 @@ function NouveauLot({ lieux, caisseId, onFait, onFermer }: { lieux: Lieux | null
       actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={creer} charge={envoi}>{t("Enregistrer le lot")}</Bouton></>}>
       <div className="space-y-3">
         {article
-          ? <p className="flex items-center justify-between gap-2 rounded-xl bg-[#FFF7ED] px-3 py-2 text-[13px] font-semibold text-[#111111]">{article.nom}{article.variante ? ` — ${article.variante}` : ""}<button type="button" onClick={() => setArticle(null)} className={cn("min-h-11 px-2 text-[12px] text-[#B45309] underline", FOCUS)}>{t("Changer")}</button></p>
+          ? <p className="flex items-center justify-between gap-2 rounded-xl bg-[#f1f1f1] px-3 py-2 text-[13px] font-semibold text-[#111111]">{article.nom}{article.variante ? ` — ${article.variante}` : ""}<button type="button" onClick={() => setArticle(null)} className={cn("min-h-11 px-2 text-[12px] text-[#5e4200] underline", FOCUS)}>{t("Changer")}</button></p>
           : <ChoixArticle label="Article reçu" caisseId={caisseId} onChoisir={setArticle} />}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Saisie label="Code du lot" placeholder="LOT-2026-001" maxLength={80} {...champ("codeLot")} />
@@ -171,13 +171,13 @@ function VueLots({ lieux, caisseId }: { lieux: Lieux | null; caisseId: string | 
         : (
           <ul className={cn("space-y-2", charge && "opacity-60")}>
             {lots.map((l) => (
-              <li key={l.id} className="rounded-2xl border border-[#E8E8E8] bg-white p-4">
+              <li key={l.id} className="rounded-[12px] border border-[#E8E8E8] bg-white p-4">
                 <div className="flex items-start gap-3">
                   <Vignette src={l.produit.images[0]} />
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-bold text-[#111111]">{l.produit.nom}<Badge ton={ETATS_LOT[l.etat]?.ton ?? "neutre"}>{t(ETATS_LOT[l.etat]?.libelle ?? l.etat)}</Badge></p>
                     <p className="mt-0.5 text-[12px] text-[#666666]">
-                      {t("Lot")} <span className="font-mono font-bold text-[#B45309]">{l.codeLot}</span> · {t("reste {0} sur {1}", qte(l.quantiteRestante, l.produit.uniteVente, t.loc), qte(l.quantiteInitiale, l.produit.uniteVente, t.loc))}
+                      {t("Lot")} <span className="font-mono font-bold text-[#5e4200]">{l.codeLot}</span> · {t("reste {0} sur {1}", qte(l.quantiteRestante, l.produit.uniteVente, t.loc), qte(l.quantiteInitiale, l.produit.uniteVente, t.loc))}
                       {l.dateExpiration ? ` · ${t("expire le {0}", jour(l.dateExpiration, t.loc))}${l.joursRestants !== null && l.statut === "actif" ? ` (${l.joursRestants >= 0 ? t("dans {0} j", l.joursRestants) : t("depuis {0} j", -l.joursRestants)})` : ""}` : ""}
                     </p>
                     <p className="text-[11.5px] text-[#888888]">{[t("reçu le {0}", jour(l.dateReception, t.loc)), l.fournisseurNom, l.entrepotNom, l.cout !== null && t("coût {0}", fmt(l.cout)), l.certification].filter(Boolean).join(" · ")}</p>
@@ -239,7 +239,7 @@ function NouvellesSeries({ lieux, caisseId, onFait, onFermer }: { lieux: Lieux |
       actions={<><Bouton variante="secondaire" onClick={onFermer} disabled={envoi}>{t("Annuler")}</Bouton><Bouton onClick={enregistrer} charge={envoi}>{t("Enregistrer {0} numéro(s)", liste.length)}</Bouton></>}>
       <div className="space-y-3">
         {article
-          ? <p className="flex items-center justify-between gap-2 rounded-xl bg-[#FFF7ED] px-3 py-2 text-[13px] font-semibold text-[#111111]">{article.nom}{article.variante ? ` — ${article.variante}` : ""}<button type="button" onClick={() => setArticle(null)} className={cn("min-h-11 px-2 text-[12px] text-[#B45309] underline", FOCUS)}>{t("Changer")}</button></p>
+          ? <p className="flex items-center justify-between gap-2 rounded-xl bg-[#f1f1f1] px-3 py-2 text-[13px] font-semibold text-[#111111]">{article.nom}{article.variante ? ` — ${article.variante}` : ""}<button type="button" onClick={() => setArticle(null)} className={cn("min-h-11 px-2 text-[12px] text-[#5e4200] underline", FOCUS)}>{t("Changer")}</button></p>
           : <ChoixArticle label="Article" caisseId={caisseId} onChoisir={(a) => { setArticle(a); setActiver(false); }} />}
         {article && !article.suiviSerie && (
           <label className="flex min-h-11 cursor-pointer items-start gap-2 rounded-xl border border-[#FCD34D] bg-[#FFFBEB] p-3 text-[12.5px] text-[#92400E]">
@@ -307,7 +307,7 @@ function DetailSerie({ id, lieux, caisseId, onFermer, onChange }: { id: string; 
           <Carte titre="Historique">
             <ol className="space-y-2">
               {donnees!.historique.map((h, i) => (
-                <li key={i} className="border-l-2 border-[#F5A623] pl-3 text-[12.5px]">
+                <li key={i} className="border-l-2 border-[#1a1a1a] pl-3 text-[12.5px]">
                   <p className="font-semibold text-[#111111]">{t(h.libelle)}</p>
                   <p className="text-[11.5px] text-[#666666]">{[jour(h.date, t.loc, true), h.auteur, h.detail].filter(Boolean).join(" · ")}</p>
                 </li>
@@ -356,10 +356,10 @@ function VueSeries({ lieux, caisseId }: { lieux: Lieux | null; caisseId: string 
         : !donnees ? <EtatChargement texte="Chargement des numéros…" />
         : !series.length ? <EtatVide titre="Aucun numéro" texte={q ? "Aucun numéro de série ne correspond. Un numéro inconnu est créé automatiquement à sa première vente." : "Aucun numéro de série n'est encore enregistré."} />
         : (
-          <ul className={cn("divide-y divide-[#F0F0F0] rounded-2xl border border-[#E8E8E8] bg-white", charge && "opacity-60")}>
+          <ul className={cn("divide-y divide-[#F0F0F0] rounded-[12px] border border-[#E8E8E8] bg-white", charge && "opacity-60")}>
             {series.map((s) => (
               <li key={s.id}>
-                <button type="button" onClick={() => setDetail(s.id)} className={cn("flex min-h-11 w-full flex-wrap items-center justify-between gap-2 p-3 text-left hover:bg-[#FFF7ED]", FOCUS)}>
+                <button type="button" onClick={() => setDetail(s.id)} className={cn("flex min-h-11 w-full flex-wrap items-center justify-between gap-2 p-3 text-left hover:bg-[#f1f1f1]", FOCUS)}>
                   <span className="min-w-0">
                     <span className="block break-all font-mono text-[13px] font-bold text-[#111111]">{s.numero}</span>
                     <span className="block text-[11.5px] text-[#666666]">{[`${s.produitNom}${s.variante ? ` — ${s.variante}` : ""}`, s.client?.nom, s.venduAt && t("acheté le {0}", jour(s.venduAt, t.loc)), s.garantie !== "aucune" && `${t("garantie")} ${t(s.garantie === "en_cours" ? "en cours" : "expirée")}`].filter(Boolean).join(" · ")}</span>

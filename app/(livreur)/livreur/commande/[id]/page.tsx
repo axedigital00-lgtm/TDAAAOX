@@ -11,6 +11,7 @@ const MapLivraison = dynamic(() => import("@/components/livreur/MapLivraison").t
 
 type Commande = {
   id: string; numero: string; clientNom: string; clientTelephone: string;
+  latitudeClient: number | null; longitudeClient: number | null;
   adresseLivraison: string; ville: string; pays: string;
   montantTotal: number; montantLivraison: number; devise: string;
   statut: string; noteClient: string | null; aCodeLivraison?: boolean;
@@ -45,15 +46,22 @@ export default function CommandeLivreurPage() {
   const [code, setCode] = useState("");
 
   useEffect(() => {
-    fetch(`/api/commandes/${id}`).then(r => r.json()).then(d => { setCommande(d.commande); setLoading(false); });
+    let courant = true;
+    setLoading(true);
+    fetch(`/api/commandes/${id}`).then(r => r.json()).then(d => {
+      if (courant) setCommande(d.commande ?? null);
+    }).catch(() => { if (courant) setCommande(null); }).finally(() => { if (courant) setLoading(false); });
+    const position = (event: Event) => setLivreurPos((event as CustomEvent<{lat: number; lng: number}>).detail);
+    window.addEventListener("axso:position-livreur", position);
 
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        ({ coords }) => setLivreurPos({ lat: coords.latitude, lng: coords.longitude }),
+        ({ coords }) => { if (courant) setLivreurPos({ lat: coords.latitude, lng: coords.longitude }); },
         () => {},
         { enableHighAccuracy: true }
       );
     }
+    return () => { courant = false; window.removeEventListener("axso:position-livreur", position); };
   }, [id]);
 
   function changerStatut(statut: "expediee" | "livree" | "tentative_echouee", echecRaison?: string) {
@@ -110,15 +118,15 @@ export default function CommandeLivreurPage() {
       </button>
 
       {/* Header */}
-      <div className="lg:col-span-2 bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-white/5 rounded-3xl p-5">
+      <div className="lg:col-span-2 bg-[#171817] border border-white/15 rounded-xl p-5">
         <div className="flex items-start justify-between mb-1">
           <div>
-            <p className="text-gray-500 text-xs font-mono">{commande.numero}</p>
+            <p className="text-gray-300 text-xs font-mono">{commande.numero}</p>
             <h1 className="text-xl font-bold text-white mt-1">{t(commande.clientNom)}</h1>
           </div>
           <div className="text-right">
             <p className="text-[#F5A623] font-bold text-xl">{formatMontant(commande.montantTotal, commande.devise)}</p>
-            <p className="text-gray-500 text-xs mt-0.5">{t("Livraison :")}{" "}{formatMontant(commande.montantLivraison, commande.devise)}</p>
+            <p className="text-gray-300 text-xs mt-0.5">{t("Livraison :")}{" "}{formatMontant(commande.montantLivraison, commande.devise)}</p>
           </div>
         </div>
 
@@ -139,12 +147,14 @@ export default function CommandeLivreurPage() {
       <MapLivraison
         adresse={commande.adresseLivraison}
         ville={commande.ville}
+        latitude={commande.latitudeClient}
+        longitude={commande.longitudeClient}
         livreurLat={livreurPos?.lat}
         livreurLng={livreurPos?.lng}
       />
 
       {/* Adresse + Contact */}
-      <div className="bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-3xl p-5 space-y-4">
+      <div className="bg-[#171817] border border-white/15 rounded-xl p-5 space-y-4">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#F5A623]/10 flex items-center justify-center flex-shrink-0">
             <MapPin size={16} className="text-[#F5A623]" />
@@ -175,7 +185,7 @@ export default function CommandeLivreurPage() {
       </div>
 
       {/* Articles */}
-      <div className="lg:col-span-2 bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-white/5 rounded-3xl p-5">
+      <div className="lg:col-span-2 bg-[#171817] border border-white/15 rounded-xl p-5">
         <h2 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
           <Package size={14} className="text-[#F5A623]" />{" "}{t("Articles")}
         </h2>
@@ -191,7 +201,7 @@ export default function CommandeLivreurPage() {
               )}
               <div className="flex-1">
                 <p className="text-white text-sm font-medium">{t(ligne.nom)}</p>
-                <p className="text-gray-500 text-xs">{t("Qté :")}{" "}{ligne.quantite}</p>
+                <p className="text-gray-300 text-xs">{t("Qté :")}{" "}{ligne.quantite}</p>
               </div>
               <p className="text-[#F5A623] text-sm font-bold">{formatMontant(ligne.prix * ligne.quantite, commande.devise)}</p>
             </div>
@@ -199,7 +209,7 @@ export default function CommandeLivreurPage() {
         </div>
         {commande.noteClient && (
           <div className="mt-4 pt-4 border-t border-white/5">
-            <p className="text-gray-500 text-xs mb-1">{t("Note du client")}</p>
+            <p className="text-gray-300 text-xs mb-1">{t("Note du client")}</p>
             <p className="text-gray-500 text-sm italic">"{t(commande.noteClient)}"</p>
           </div>
         )}
@@ -253,7 +263,7 @@ export default function CommandeLivreurPage() {
               </button>
             ))}
             {peutDemarrer && (
-              <p className="text-center text-gray-500 text-xs mt-2">{t("Le client sera prévenu et pourra suivre votre position")}</p>
+              <p className="text-center text-gray-300 text-xs mt-2">{t("Le client sera prévenu et pourra suivre votre position")}</p>
             )}
           </div>
         </div>

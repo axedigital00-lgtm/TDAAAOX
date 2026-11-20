@@ -105,8 +105,8 @@ export function Paiement({ total, modes, creditActif, droitCredit, client, caiss
         <Bouton taille="grand" onClick={encaisser} disabled={!pret} charge={envoi}>{t("Encaisser")} {fmt(total)}</Bouton>
       </>}>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); encaisser(); }}>
-        <div className="flex items-end justify-between gap-3 rounded-2xl bg-[#111111] px-4 py-3 text-white">
-          <span className="text-[12px] font-semibold uppercase tracking-wide text-white/70">{t("Total à payer")}</span>
+        <div className="flex items-end justify-between gap-3 rounded-[12px] bg-[#111111] px-4 py-3 text-white">
+          <span className="text-[12px] font-semibold text-white/70">{t("Total à payer")}</span>
           <span className="text-[28px] font-bold leading-none tabular-nums">{fmt(total)}</span>
         </div>
 
@@ -116,7 +116,7 @@ export function Paiement({ total, modes, creditActif, droitCredit, client, caiss
             const d = definition(l.mode);
             if (!d) return null;
             return (
-              <li key={l.id} className="rounded-2xl border border-[#E8E8E8] p-3">
+              <li key={l.id} className="rounded-[12px] border border-[#E8E8E8] p-3">
                 <div className="flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-[#111111]">{t(d.libelle)}</span>
                   <BadgePaiement statut={d.statut} />
@@ -143,7 +143,7 @@ export function Paiement({ total, modes, creditActif, droitCredit, client, caiss
         </ul>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{lignes.length ? t("Ajouter un autre moyen de paiement") : t("Moyen de paiement")}</p>
+          <p className="text-[11px] font-semibold text-[#666666]">{lignes.length ? t("Ajouter un autre moyen de paiement") : t("Moyen de paiement")}</p>
           <div className="mt-1 flex flex-wrap gap-2">
             {modes.map((m) => {
               const bloque = m.statut === "a_connecter" || exigeServeur(m.id) || (m.id === "credit" && !!blocageCredit);
@@ -173,8 +173,8 @@ export function Paiement({ total, modes, creditActif, droitCredit, client, caiss
         </div>
 
         {partCredit > 0 && client && (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-2xl border border-[#FDE68A] bg-[#FFFBEB] p-3 text-[12.5px] text-[#555555]">
-            <dt className="col-span-2 text-[11px] font-semibold uppercase tracking-wide text-[#B45309]">{t("Crédit de {0}", client.nom)}</dt>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-[12px] border border-[#e3e3e3] bg-[#FFFBEB] p-3 text-[12.5px] text-[#555555]">
+            <dt className="col-span-2 text-[11px] font-semibold text-[#5e4200]">{t("Crédit de {0}", client.nom)}</dt>
             {plafondConnu ? (
               <>
                 <dt>{t("Plafond autorisé")}</dt><dd className="text-right font-semibold tabular-nums text-[#111111]">{fmt(client.creditPlafond as number)}</dd>
@@ -191,7 +191,7 @@ export function Paiement({ total, modes, creditActif, droitCredit, client, caiss
           </dl>
         )}
 
-        <dl className="space-y-1 rounded-2xl bg-[#FAFAFA] p-3 text-[13px] text-[#555555]" aria-live="polite">
+        <dl className="space-y-1 rounded-[12px] bg-[#FAFAFA] p-3 text-[13px] text-[#555555]" aria-live="polite">
           <div className="flex justify-between"><dt>{t("Encaissé")}</dt><dd className="font-semibold tabular-nums text-[#111111]">{fmt(repartition?.paye ?? 0)}</dd></div>
           {partCredit > 0 && <div className="flex justify-between"><dt>{t("Porté à crédit")}</dt><dd className="font-semibold tabular-nums text-[#111111]">{fmt(partCredit)}</dd></div>}
           {reste > 0

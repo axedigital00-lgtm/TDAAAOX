@@ -17,7 +17,7 @@ import { SelectPays, Drapeau } from "@/components/ui/SelectPays";
 import { MANIFESTE_LIBRAIRIE, choisir4Themes } from "@/lib/axso-design-manifest";
 import { demanderCodeConnexion } from "@/components/auth/BoutonRenvoyerCode";
 import { EcranCode } from "@/components/auth/EcranCode";
-import { HeroFond } from "@/components/marketing/HeroSection";
+import "@fontsource-variable/inter/wght.css";
 import { adresseBoutique } from "@/lib/utils";
 import {
   CLE_PROGRESSION, emailValide, lireParametresInscription, lireProgression, poussee, signatureReponses,
@@ -28,7 +28,7 @@ import { suivre, suivreEtape, surveillerAbandon } from "@/lib/inscription-suivi"
 import { PAYS_LIST, VENTE_EXEMPLES, VENTE_PLACEHOLDER, raisonTheme, urlApercu, miniatureTheme, type TypeBoutique } from "./donnees";
 import { ApercuBoutique } from "./ApercuBoutique";
 import { Decollage } from "./Decollage";
-import { AMBRE, Axia, BoutonNoir, BoutonSon, Carte, CSS, Erreur, Jauge, Question, Retour } from "./ui";
+import { Stella, BoutonNoir, BoutonSon, Carte, CSS, Erreur, Jauge, Question, Retour } from "./ui";
 
 type Plan = PlanBoutique & { messageIA?: string };
 
@@ -168,7 +168,7 @@ export default function InscriptionPage() {
     if (!c) activerAudio();
   };
 
-  // ─── Analyse par Axia (plan + 4 designs) ───
+  // ─── Analyse par Stella (plan + 4 designs) ───
   useEffect(() => {
     if (p.etape !== "analyse") return;
     const sig = signatureReponses(p);
@@ -321,7 +321,7 @@ export default function InscriptionPage() {
     switch (p.etape) {
       case "type": return (
         <>
-          <Axia>{repris ? tr("On reprend là où tu t'étais arrêté.") : tr("C'est parti. Première question :")}</Axia>
+          <Stella>{repris ? tr("On reprend là où tu t'étais arrêté.") : tr("C'est parti. Première question :")}</Stella>
           <Question id="q-type">{tr("Tu vas vendre quel type de produits ?")}</Question>
           <div className="grid gap-3">
             {([
@@ -334,7 +334,7 @@ export default function InscriptionPage() {
           </div>
           <div className="inline-flex flex-wrap items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
             <span className="text-[14px] font-bold text-[#111111]">{tr("Tu es livreur ?")}</span>
-            <Link href="/inscription/livreur" className="inline-flex items-center h-[44px] px-4 rounded-full text-[14px] font-bold text-[#111111] bg-[#F5A623]">
+            <Link href="/inscription/livreur" className="inline-flex items-center h-[44px] px-4 rounded-full text-[14px] font-semibold text-white bg-[#111111]">
               {tr("Rejoindre la plateforme →")}
             </Link>
           </div>
@@ -345,7 +345,7 @@ export default function InscriptionPage() {
         const type = (p.typeBoutique || "physique") as TypeBoutique;
         return (
           <>
-            <Axia>{tr("Plus tu es précis, plus ta boutique sera juste.")}</Axia>
+            <Stella>{tr("Plus tu es précis, plus ta boutique sera juste.")}</Stella>
             <Question id="q-vente">{tr("Qu'est-ce que tu vends ?")}</Question>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {VENTE_EXEMPLES[type].map((ex) => (
@@ -368,7 +368,7 @@ export default function InscriptionPage() {
 
       case "nom": return (
         <>
-          <Axia>{tr("Bien noté. Maintenant, le plus important :")}</Axia>
+          <Stella>{tr("Bien noté. Maintenant, le plus important :")}</Stella>
           <Question id="q-nom">{tr("Comment s'appelle ta boutique ?")}</Question>
           <form onSubmit={(e) => { e.preventDefault(); validerNom(); }} className="space-y-4">
             {champ("nom", "Nom de ta boutique", {
@@ -382,7 +382,7 @@ export default function InscriptionPage() {
 
       case "pays": return (
         <>
-          <Axia>{tr("J'adapte la devise, la livraison et le design à ton marché.")}</Axia>
+          <Stella>{tr("J'adapte la devise, la livraison et le design à ton marché.")}</Stella>
           <Question id="q-pays">{tr("Où es-tu basé ?")}</Question>
           {erreurGlobale && (
             <p role="alert" className="text-[14px] font-medium text-[#B91C1C]">{tr(erreurGlobale)}{" "}{tr("— choisis à nouveau ton pays pour relancer l'analyse.")}</p>
@@ -407,12 +407,12 @@ export default function InscriptionPage() {
 
       case "analyse": return (
         <>
-          <Axia>{tr("Parfait. Laisse-moi quelques secondes.")}</Axia>
-          <Question id="q-analyse">{tr("Axia prépare {0}", p.nom)}</Question>
+          <Stella>{tr("Parfait. Laisse-moi quelques secondes.")}</Stella>
+          <Question id="q-analyse">{tr("Stella prépare {0}", p.nom)}</Question>
           <div aria-live="polite" className="space-y-3">
             {ETAPES_ANALYSE.map((e, i) => (
               <div key={e} className="flex items-center gap-3 text-[15px]" style={{ opacity: i <= indexAnalyse ? 1 : 0.3, transition: "opacity .5s" }}>
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: i < indexAnalyse ? "#111111" : AMBRE, animation: i === indexAnalyse && !leger ? "inscFondu 1s ease-in-out infinite alternate" : undefined }} />
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: i < indexAnalyse ? "#111111" : "#c4c4c4", animation: i === indexAnalyse && !leger ? "inscFondu 1s ease-in-out infinite alternate" : undefined }} />
                 <span className="text-gray-700">{tr(e)}</span>
               </div>
             ))}
@@ -425,7 +425,7 @@ export default function InscriptionPage() {
         if (!p.plan) return null;
         return (
           <>
-            <Axia><span className="line-clamp-3">{p.messageIA ? tr(p.messageIA) : tr("Voici ce que j'ai préparé pour toi.")}</span></Axia>
+            <Stella><span className="line-clamp-3">{p.messageIA ? tr(p.messageIA) : tr("Voici ce que j'ai préparé pour toi.")}</span></Stella>
             <Question id="q-design">{tr("Choisis le design de {0}", p.nom)}</Question>
             <div className="flex sm:grid sm:grid-cols-2 gap-3 overflow-x-auto sm:overflow-visible snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0 pb-2">
               {p.themeIds.map((id, i) => {
@@ -441,10 +441,10 @@ export default function InscriptionPage() {
                       <ApercuDesign id={id} url={leger ? "" : urlApercu(id, p.nom, p.plan!.devise, p.plan!.produits, p.typeBoutique === "digital")} nom={e.nom} />
                       {i === 0 && (
                         <span className="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-[#111111] text-white text-[11px] font-bold px-2.5 py-1">
-                          <Star size={10} fill={AMBRE} color={AMBRE} /> {tr("Recommandé")}
+                          <Star size={10} fill="#111111" color="#111111" /> {tr("Recommandé")}
                         </span>
                       )}
-                      {sel && <span className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-[#F5A623] flex items-center justify-center"><Check size={15} color="#111111" strokeWidth={3} /></span>}
+                      {sel && <span className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-[#111111] flex items-center justify-center"><Check size={15} color="#fff" strokeWidth={3} /></span>}
                     </div>
                     <div className="px-4 py-3">
                       <p className={`text-[14px] font-extrabold ${sel ? "text-white" : "text-[#111111]"}`}>{tr(e.nom)}</p>
@@ -461,7 +461,7 @@ export default function InscriptionPage() {
 
       case "identite": return (
         <>
-          <Axia>{tr("Excellent choix. Plus que deux petites étapes avant le décollage.")}</Axia>
+          <Stella>{tr("Excellent choix. Plus que deux petites étapes avant le décollage.")}</Stella>
           <Question id="q-identite">{tr("Faisons connaissance")}</Question>
           <form onSubmit={(e) => { e.preventDefault(); validerIdentite(); }} className="space-y-4">
             {champ("prenom", "Ton prénom", { value: p.prenom, autoComplete: "given-name", placeholder: "Aminata", onChange: (e) => setP((x) => ({ ...x, prenom: e.target.value })) })}
@@ -474,10 +474,10 @@ export default function InscriptionPage() {
       case "acces": return (
         <>
           {/* Essai Illimité (lib/essai.ts) : annoncé ici, proposé à l'arrivée sur la plateforme. */}
-          <Axia>
+          <Stella>
             {tr("Ton compte démarre en")}{" "}<strong className="text-[#111111]">{tr("Essentiel (gratuit)")}</strong>.{" "}
             {tr("En bonus, je te proposerai d'essayer")}{" "}<strong className="text-[#111111]">{tr("Illimité")}</strong>{" "}{tr("pendant 7 jours, sans payer et sans carte.")}
-          </Axia>
+          </Stella>
           <Question id="q-acces">{tr("Crée tes accès")}</Question>
           <form onSubmit={(e) => { e.preventDefault(); validerAcces(); }} className="space-y-4">
             {champ("email", "Adresse email", { value: p.email, type: "email", inputMode: "email", autoComplete: "email", placeholder: "aminata@exemple.com", onChange: (e) => setP((x) => ({ ...x, email: e.target.value })) })}
@@ -529,14 +529,13 @@ export default function InscriptionPage() {
   return (
     <div className={`insc relative min-h-[100dvh] bg-white text-[#111111] overflow-x-clip ${leger ? "insc-leger" : ""}`}>
       <style>{CSS}</style>
-      <div className="fixed inset-0 pointer-events-none"><HeroFond /></div>
 
       <header className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-8 pt-4 flex items-center justify-between gap-3">
-        <Link href="/" aria-label={tr("Accueil Axso")}><img src="/logo.png" alt="Axso" className="h-10 sm:h-12 w-auto" /></Link>
+        <Link href="/" aria-label={tr("Accueil Axso")}><img src="/logo.png" alt="Axso" className="h-8 sm:h-9 w-auto" /></Link>
         <div className="flex items-center gap-2 sm:gap-3">
           {!SANS_RETOUR.includes(p.etape) && (
             <Link href="/connexion" className="inline-flex items-center min-h-[44px] text-[13px] sm:text-[14px] text-gray-600 font-medium text-right leading-tight px-1">
-              {tr("Déjà un compte ?")}{" "}<span className="font-bold text-[#111111] underline decoration-[#F5A623] decoration-2 underline-offset-4">{tr("Connexion")}</span>
+              {tr("Déjà un compte ?")}{" "}<span className="font-semibold text-[#111111] underline decoration-1 underline-offset-4">{tr("Connexion")}</span>
             </Link>
           )}
           <BoutonSon coupe={coupe} onClick={basculerSon} />
@@ -592,12 +591,12 @@ function Revelation({ nom, slug, leger, themeId, copie, onCopier }: {
   const lien = adresseBoutique(slug) ?? `${origine}/${slug}`;
   return (
     <>
-      <Axia>{tr("Décollage réussi. Voici ta boutique.")}</Axia>
+      <Stella>{tr("Décollage réussi. Voici ta boutique.")}</Stella>
       <Question id="q-revelation">
-        <span style={{ color: AMBRE }}>{nom}</span>{" "}{tr("est en ligne… presque.")}
+        <span>{nom}</span>{" "}{tr("est en ligne… presque.")}
       </Question>
       <p className="text-[16px] sm:text-[18px] text-gray-500 leading-relaxed">
-        {tr("Elle reste privée tant que tu ne la publies pas. Vérifie tes produits proposés par Axia (prix, photos, stock), personnalise ton design, puis publie-la.")}
+        {tr("Elle reste privée tant que tu ne la publies pas. Vérifie tes produits proposés par Stella (prix, photos, stock), personnalise ton design, puis publie-la.")}
       </p>
       <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-[28px] overflow-hidden border border-gray-200 bg-gray-50 shadow-[0_40px_80px_-30px_rgba(17,17,17,0.45)]">
         {themeId && <img src={miniatureTheme(themeId)} alt="" className="absolute inset-0 w-full h-full object-cover object-top" />}
@@ -615,7 +614,7 @@ function Revelation({ nom, slug, leger, themeId, copie, onCopier }: {
       <div className="flex flex-col sm:flex-row gap-3">
         <BoutonNoir onClick={() => { window.location.href = "/dashboard/builder?bienvenue=1"; }}>{tr("Personnaliser ma boutique")}</BoutonNoir>
         <a href={`/${slug}`} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-full px-7 h-14 text-[15px] font-bold text-[#111111] border border-gray-200 bg-white hover:border-[#F5A623] transition-colors">
+          className="inline-flex items-center justify-center gap-2 rounded-full px-7 h-14 text-[15px] font-bold text-[#111111] border border-gray-200 bg-white hover:border-[#111111] transition-colors">
           <ExternalLink size={16} /> {tr("Voir ma boutique")}
         </a>
       </div>

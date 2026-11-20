@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { FileText, Download, Plus, Search } from "lucide-react";
 import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
+import { Icon } from "@/components/dashboard/design-system/icons/Icon";
 
 const FACTURES_TUTORIAL_STEPS = [
   { Icon: Plus,     titre: "Génère une facture",  description: "Saisis l'ID d'une commande et clique sur Générer pour créer automatiquement la facture HT/TVA/TTC." },
@@ -27,11 +30,13 @@ interface Facture {
   emiseAt: string;
 }
 
-const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
-  emise: { label: "Émise", color: "#f59e0b" },
-  payee: { label: "Payée", color: "#10b981" },
-  annulee: { label: "Annulée", color: "#ef4444" },
+// `color` : badge du document HTML téléchargé (hors admin) ; `tone` : badge de l'admin.
+const STATUT_CONFIG: Record<string, { label: string; color: string; tone: "attention" | "success" | "critical" }> = {
+  emise: { label: "Émise", color: "#8a6116", tone: "attention" },
+  payee: { label: "Payée", color: "#0c5132", tone: "success" },
+  annulee: { label: "Annulée", color: "#8e1f0b", tone: "critical" },
 };
+const devise = (d: string) => (d === "XAF" ? "FCFA" : d);
 
 function FacturePDF({ facture }: { facture: Facture }) {
   const t = useT();
@@ -75,9 +80,7 @@ function FacturePDF({ facture }: { facture: Facture }) {
   }
 
   return (
-    <button onClick={download} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-[#666] border border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors">
-      <Download size={12} />{" "}{t("Télécharger")}
-    </button>
+    <Button size="sm" variant="plain" onClick={download}>{t("Télécharger")}</Button>
   );
 }
 
@@ -121,101 +124,67 @@ export function FacturesPanel() {
 
   const totalTTC = factures.filter((f) => f.statut === "payee").reduce((s, f) => s + f.montantTTC, 0);
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (loading) return <div className="axd-card"><p className="axd-fichiers__etat">{t("Chargement…")}</p></div>;
 
   return (
-    <div className="space-y-5">
+    <div className="axd-stack">
       <ModuleTutorial moduleKey="logistique-factures" titre={t("Factures")} sousTitre={t("Suivi de facturation")} steps={FACTURES_TUTORIAL_STEPS} />
-      <div className="flex items-center justify-end gap-2">
-        <input
-          className="border border-[#E5E5E5] rounded-lg px-3 py-2 text-[12px] min-w-0 flex-1 sm:flex-none sm:w-48"
-          placeholder={t("ID commande...")}
-          value={genId}
-          onChange={(e) => setGenId(e.target.value)}
-        />
-        <button
-          onClick={genFacture}
-          disabled={generating || !genId.trim()}
-          className="flex shrink-0 items-center gap-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold disabled:opacity-50"
-          style={{ background: "#F5A623" }}
-        >
-          <Plus size={14} /> {generating ? t("Génération...") : t("Générer")}
-        </button>
+
+      <div className="axd-grid axd-g3">
+        {[
+          { l: "Factures", v: factures.length.toLocaleString(t.loc) },
+          { l: "Factures payées", v: factures.filter((f) => f.statut === "payee").length.toLocaleString(t.loc) },
+          { l: "Total encaissé", v: `${totalTTC.toLocaleString(t.loc)} ${devise(factures[0]?.devise ?? "XAF")}` },
+        ].map((k) => (
+          <div key={k.l} className="axd-card axd-card--pad">
+            <div className="axd-kpi__t">{t(k.l)}</div>
+            <div className="axd-kpi__v" style={{ marginBottom: 0 }}>{k.v}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-          <p className="text-[11px] text-[#888] mb-1">{t("Total factures")}</p>
-          <p className="text-2xl font-bold text-[#111]">{factures.length}</p>
+      <div className="axd-card" style={{ overflow: "hidden" }}>
+        <div className="axd-card__head" style={{ padding: "var(--space-300) var(--space-400)", gap: 8, flexWrap: "wrap" }}>
+          <h2 className="axd-card__title">{t("Factures")}</h2>
+          <form style={{ display: "flex", gap: 8 }} onSubmit={(e) => { e.preventDefault(); genFacture(); }}>
+            <input className="axd-input" style={{ width: 200 }} placeholder={t("ID de la commande")} aria-label={t("ID de la commande")} value={genId} onChange={(e) => setGenId(e.target.value)} />
+            <Button size="sm" type="submit" loading={generating} disabled={!genId.trim()}>{t("Générer la facture")}</Button>
+          </form>
         </div>
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-          <p className="text-[11px] text-[#888] mb-1">{t("Factures payées")}</p>
-          <p className="text-2xl font-bold" style={{ color: "#10b981" }}>{factures.filter((f) => f.statut === "payee").length}</p>
+        <div className="axd-ix-bar">
+          <label className="axd-ix-search">
+            <Icon name="search" />
+            <input type="search" placeholder={t("Rechercher par client ou numéro")} aria-label={t("Rechercher par client ou numéro")} value={q} onChange={(e) => setQ(e.target.value)} />
+          </label>
         </div>
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-4 col-span-2 sm:col-span-1">
-          <p className="text-[11px] text-[#888] mb-1">{t("Total facturé")}</p>
-          <p className="text-2xl font-bold" style={{ color: "#F5A623" }}>{totalTTC.toLocaleString()}</p>
-        </div>
+        {filtered.length === 0 ? (
+          <div className="axd-empty">
+            <h3>{q ? t("Aucune facture ne correspond") : t("Aucune facture pour l’instant")}</h3>
+            <p>{t("Générez une facture à partir de l’ID d’une commande : montants HT, TVA et TTC sont calculés automatiquement.")}</p>
+          </div>
+        ) : (
+          <div className="axd-ix-wrap">
+            <table className="axd-ix">
+              <thead><tr><th>{t("Facture")}</th><th>{t("Client")}</th><th>{t("Statut")}</th><th className="axd-ix-num">{t("Total TTC")}</th><th className="axd-ix-hide-m">{t("Date")}</th><th /></tr></thead>
+              <tbody>
+                {filtered.map((f) => {
+                  const sc = STATUT_CONFIG[f.statut] ?? { label: f.statut, color: "#616161", tone: "attention" as const };
+                  return (
+                    <tr key={f.id}>
+                      <td className="axd-ix-primary">{f.numero}</td>
+                      <td>{t(f.clientNom)}<div className="axd-muted" style={{ fontSize: 12 }}>{f.clientEmail}</div></td>
+                      <td><Badge tone={sc.tone}>{t(sc.label)}</Badge></td>
+                      <td className="axd-ix-num">{f.montantTTC.toLocaleString(t.loc)} {devise(f.devise)}</td>
+                      <td className="axd-ix-hide-m">{new Date(f.emiseAt).toLocaleDateString(t.loc, { day: "numeric", month: "short", year: "numeric" })}</td>
+                      <td style={{ textAlign: "right" }}><FacturePDF facture={f} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-
-      {/* Recherche */}
-      <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AAA]" />
-        <input
-          className="w-full border border-[#E5E5E5] rounded-xl pl-9 pr-4 py-2.5 text-[13px]"
-          placeholder={t("Rechercher par client ou numéro...")}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </div>
-
-      {/* Liste */}
-      {filtered.length === 0 ? (
-        <div className="bg-white border border-dashed border-[#E5E5E5] rounded-xl p-10 text-center">
-          <FileText size={32} className="mx-auto mb-3 text-[#DDD]" />
-          <p className="text-[13px] text-[#888]">{t("Aucune facture. Génère-en une à partir d'un ID de commande.")}</p>
-        </div>
-      ) : (
-        <div className="bg-white border border-[#F0F0F0] rounded-xl overflow-hidden">
-          <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-[12.5px]">
-            <thead>
-              <tr className="border-b border-[#F0F0F0]">
-                <th className="text-left px-4 py-3 font-semibold text-[#888]">{t("N° Facture")}</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#888]">{t("Client")}</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#888]">{t("Montant TTC")}</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#888]">{t("Statut")}</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#888]">{t("Date")}</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#888]"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((f) => {
-                const sc = STATUT_CONFIG[f.statut] ?? { label: f.statut, color: "#888" };
-                return (
-                  <tr key={f.id} className="border-b border-[#F8F8F8] hover:bg-[#FAFAFA]">
-                    <td className="px-4 py-3 font-mono text-[#111] font-semibold">{f.numero}</td>
-                    <td className="px-4 py-3 text-[#444]">
-                      <p>{t(f.clientNom)}</p>
-                      <p className="text-[10px] text-[#AAA]">{t(f.clientEmail)}</p>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-[#111]">{f.montantTTC.toLocaleString()} {t(f.devise)}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background: sc.color }}>{t(sc.label)}</span>
-                    </td>
-                    <td className="px-4 py-3 text-[#888]">{new Date(f.emiseAt).toLocaleDateString("fr")}</td>
-                    <td className="px-4 py-3"><FacturePDF facture={f} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table></div>
-        </div>
-      )}
     </div>
   );
 }

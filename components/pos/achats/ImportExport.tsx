@@ -23,7 +23,7 @@ type Verification = { total: number; valides: number; erreurs: ErreurLigne[]; aC
 type Bilan = { termine: boolean; paquets: number; paquetsFaits: number; dejaAppliques: number; total: number; valides: number; erreurs: ErreurLigne[]; crees: number; modifies: number; inchanges: number };
 type Refus = { code: string; message: string };
 
-const LIEN = `inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-3 text-[12px] font-bold text-[#111111] hover:border-[#F5A623] ${FOCUS}`;
+const LIEN = `inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-3 text-[12px] font-bold text-[#111111] hover:border-[#8a8a8a] ${FOCUS}`;
 /** Appels de reprise au plus : 5 000 lignes tiennent largement dedans, et l'écran ne boucle jamais sans fin. */
 const REPRISES_MAX = 30;
 
@@ -149,7 +149,7 @@ export function ImportExport() {
           <a className={LIEN} href={`/api/pos/import?modele=${entite.id}&format=csv`} download><FileSpreadsheet size={14} aria-hidden />{t("Modèle CSV")}</a>
         </div>
         <details className="mt-2">
-          <summary className="flex min-h-11 cursor-pointer items-center text-[12px] font-semibold text-[#B45309]">{t("Colonnes attendues")}</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center text-[12px] font-semibold text-[#5e4200]">{t("Colonnes attendues")}</summary>
           <ul className="space-y-1 pb-2 text-[12px] text-[#444444]">
             {entite.colonnes.map((c) => <li key={c.titre}><span className="font-semibold text-[#111111]">{c.titre}</span>{c.requis ? ` (${t("obligatoire")})` : ""}{c.aide ? ` : ${t(c.aide)}` : ""}</li>)}
           </ul>
@@ -169,7 +169,7 @@ export function ImportExport() {
             : <p role="alert" className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-3 text-[12.5px] text-[#B91C1C]">{t(refus.message)}</p>)}
 
           {verification && (
-            <section className="rounded-2xl border border-[#E8E8E8] bg-[#FAFAFA] p-4">
+            <section className="rounded-[12px] border border-[#E8E8E8] bg-[#FAFAFA] p-4">
               <p className="text-[15px] font-bold text-[#111111]">
                 {t("{0} lignes, {1} valides, {2} erreurs", nombre(verification.total), nombre(verification.valides), nombre(verification.erreurs.length))}
               </p>
@@ -190,7 +190,7 @@ export function ImportExport() {
           )}
 
           {bilan && (
-            <section role="status" className="rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-[12.5px] text-[#14532D]">
+            <section role="status" className="rounded-[12px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-[12.5px] text-[#14532D]">
               <p className="flex items-center gap-2 text-[14px] font-bold"><CheckCircle2 size={16} aria-hidden />{t("Import terminé : {0} créée(s), {1} mise(s) à jour.", nombre(bilan.crees), nombre(bilan.modifies))}</p>
               {bilan.inchanges > 0 && <p className="mt-1">{t("{0} ligne(s) déjà à jour : aucun mouvement de stock écrit pour elles.", nombre(bilan.inchanges))}</p>}
               {bilan.dejaAppliques > 0 && <p className="mt-1">{t("{0} paquet(s) avaient déjà été importés : ils n'ont pas été rejoués, aucun doublon n'a été créé.", bilan.dejaAppliques)}</p>}

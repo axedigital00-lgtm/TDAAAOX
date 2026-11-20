@@ -12,7 +12,7 @@ interface IconProps {
 // ─── Squircle helper (clip-path interne) ─────────────────────────────────────
 // On utilise rx/ry élevés sur rect pour simuler le squircle Apple
 
-// ─── AXIA ──────────────────────────────────────────────────────────────────────
+// ─── Stella ──────────────────────────────────────────────────────────────────────
 export function IconAxia({ size = 32 }: IconProps) {
   const t = useT();
   return (
@@ -23,7 +23,7 @@ export function IconAxia({ size = 32 }: IconProps) {
         flexShrink: 0,
       }}
     >
-      <img src="/axia-icon.png" alt={t("Axia")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <img src="/axia-icon.png" alt={t("Stella")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
     </div>
   );
 }

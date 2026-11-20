@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "@/components/I18nProvider";
 
 interface LivreurPosition {
@@ -14,6 +15,7 @@ interface LivreurPosition {
 
 export function LiveFleetMapInner({ livreurs }: { livreurs: LivreurPosition[] }) {
   const t = useT();
+  const [ready, setReady] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -26,7 +28,7 @@ export function LiveFleetMapInner({ livreurs }: { livreurs: LivreurPosition[] })
 
     import("leaflet").then((L) => {
       if (annule || !mapRef.current) return;
-      (L.Icon.Default.prototype as any)._getIconUrl = undefined;
+
 
       // Sur mobile, le drag capture le geste de scroll de la page — on le
       // désactive tactile, le zoom +/- reste utilisable (voir MapLivraison.tsx).
@@ -38,6 +40,7 @@ export function LiveFleetMapInner({ livreurs }: { livreurs: LivreurPosition[] })
         attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
         maxZoom: 19,
       }).addTo(mapInstance.current);
+      setReady(true);
     });
 
     return () => {
@@ -51,7 +54,7 @@ export function LiveFleetMapInner({ livreurs }: { livreurs: LivreurPosition[] })
 
   // Mettre à jour uniquement les marqueurs quand les positions changent
   useEffect(() => {
-    if (!mapInstance.current) return;
+    if (!ready || !mapInstance.current) return;
     let annule = false;
 
     import("leaflet").then((L) => {
@@ -61,7 +64,7 @@ export function LiveFleetMapInner({ livreurs }: { livreurs: LivreurPosition[] })
       markersRef.current.forEach((m) => map.removeLayer(m));
       markersRef.current = [];
 
-      const positionnes = livreurs.filter((l) => l.latitude && l.longitude);
+      const positionnes = livreurs.filter((l) => l.latitude != null && l.longitude != null);
 
       positionnes.forEach((l) => {
         const couleur = l.disponible ? "#22c55e" : "#6b7280";
@@ -71,9 +74,14 @@ export function LiveFleetMapInner({ livreurs }: { livreurs: LivreurPosition[] })
           iconSize: [34, 34],
           iconAnchor: [17, 17],
         });
+        const popup = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = l.nom;
+        popup.append(title, document.createElement("br"), t(l.disponible ? "Disponible" : "Hors service"));
+        if (l.positionAt) popup.append(document.createElement("br"), t("Dernière position") + " · " + new Date(l.positionAt).toLocaleString(t.loc));
         const marker = L.marker([l.latitude!, l.longitude!], { icon })
           .addTo(map)
-          .bindPopup(`<b>${l.nom}</b><br/>${t(l.disponible ? "Disponible" : "Hors service")}${l.positionAt ? `<br/><small>${t("Mis à jour")} ${new Date(l.positionAt).toLocaleTimeString(t.loc)}</small>` : ""}`);
+          .bindPopup(popup);
         markersRef.current.push(marker);
       });
 
@@ -91,12 +99,12 @@ export function LiveFleetMapInner({ livreurs }: { livreurs: LivreurPosition[] })
 
     return () => { annule = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(livreurs.map((l) => [l.id, l.latitude, l.longitude, l.disponible]))]);
+  }, [ready, livreurs, t]);
 
   return (
     <>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <div ref={mapRef} className="w-full rounded-2xl overflow-hidden border border-gray-100" style={{ height: "360px", background: "#f5f5f5" }} />
+
+      <div ref={mapRef} className="w-full rounded-xl isolate overflow-hidden border border-gray-100" style={{ height: "360px", background: "#f5f5f5" }} />
     </>
   );
 }

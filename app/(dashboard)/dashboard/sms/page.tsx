@@ -1,6 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Loader2, X, Sparkles, Send, Users, CheckCircle2, Zap, Smartphone, Crown, Moon, ShoppingCart, UserPlus } from "lucide-react";
+import { Users, Crown, Moon, UserPlus, Zap, ShoppingCart, Sparkles } from "lucide-react";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner, Field } from "@/components/dashboard/design-system/components/primitives";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
+import { Modal } from "@/components/dashboard/design-system/components/Modal";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
 
@@ -111,164 +116,82 @@ Réponds UNIQUEMENT avec le SMS, rien d'autre. Style africain, engageant, avec 1
 
   const charCount = form.message.length;
 
+  const stats = [
+    { label: "Base clients", val: nbClients },
+    { label: "Campagnes envoyées", val: histoCampagnes.filter(c => c.statut === "envoye").length },
+    { label: "SMS envoyés", val: histoCampagnes.reduce((s: number, c: any) => s + (c.nbEnvoyes || 0), 0) },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{tr("SMS & WhatsApp")}</h1>
-          <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{tr("Envoyez des campagnes SMS à vos clients")}</p>
-        </div>
-        <button onClick={() => setShowModal(true)} disabled={!disponible}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", boxShadow: "0 4px 20px rgba(34,197,94,0.3)" }}>
-          <Plus size={16} />{" "}{tr(disponible ? "Nouvelle campagne" : "Bientôt disponible")}
-        </button>
-      </div>
+    <Page>
+      <PageHeader icon="mail" backHref="/dashboard/marketing" title={tr("SMS")}
+        primaryAction={{ content: disponible ? tr("Créer une campagne") : tr("Bientôt disponible"), onAction: () => setShowModal(true), disabled: !disponible }} />
 
       {!disponible && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-start gap-3">
-          <Smartphone size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-green-800">{tr("Les campagnes SMS seront bientôt disponibles")}</p>
-            <p className="text-xs text-green-700 mt-1">{tr("L'envoi de SMS n'est pas encore activé sur Axso. En attendant, vous pouvez écrire à vos clients par WhatsApp ou par e-mail.")}</p>
-          </div>
+        <div style={{ marginBottom: "var(--space-400)" }}>
+          <Banner title={tr("Les campagnes SMS seront bientôt disponibles.")}>{tr("L'envoi de SMS n'est pas encore activé sur Axso. En attendant, vous pouvez écrire à vos clients par WhatsApp ou par e-mail.")}</Banner>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: "Base clients", val: nbClients, icon: Users, color: "#818cf8" },
-          { label: "Campagnes envoyées", val: histoCampagnes.filter(c => c.statut === "envoye").length, icon: CheckCircle2, color: "#34d399" },
-          { label: "SMS envoyés total", val: histoCampagnes.reduce((s: number, c: any) => s + (c.nbEnvoyes || 0), 0), icon: Send, color: "#F5A623" },
-        ].map(s => {
-          const Icone = s.icon;
-          return (
-            <div key={s.label} className="ax-card p-5">
-              <div className="flex items-center gap-3 mb-1">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: s.color + "15", border: `1px solid ${s.color}25` }}>
-                  <Icone size={16} style={{ color: s.color }} />
-                </div>
-                <p className="text-[20px] font-bold text-[#111111] tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>{s.val}</p>
-              </div>
-              <p className="text-[12px] text-[#AAAAAA]">{tr(s.label)}</p>
-            </div>
-          );
-        })}
+      <div className="axd-grid axd-g3" style={{ marginBottom: "var(--space-400)" }}>
+        {stats.map(s => (
+          <div key={s.label} className="axd-card axd-card--pad">
+            <div className="axd-kpi__t">{tr(s.label)}</div>
+            <div className="axd-kpi__v" style={{ marginBottom: 0 }}>{s.val.toLocaleString(tr.loc)}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Historique */}
-      {histoCampagnes.length > 0 && (
-        <div className="ax-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#F3F3F3]">
-            <h2 className="text-[13px] font-semibold text-[#111111]">{tr("Campagnes récentes")}</h2>
-          </div>
-          <div className="divide-y divide-[#F9F9F9]">
-            {histoCampagnes.slice(0, 5).map((c: any) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-[#FAFAFA] transition-colors">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-[#222] truncate">{c.nom}</p>
-                  <p className="text-[11.5px] text-[#AAAAAA]">{tr(c.segment)} · {new Date(c.createdAt).toLocaleDateString(tr.loc)}</p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs text-gray-500">{c.nbEnvoyes}{" "}{tr("envoyés")}</span>
-                  <span className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full border ${c.statut === "envoye" ? "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]" : "bg-[#F5F5F7] text-[#888] border-[#EBEBEB]"}`}>
-                    {c.statut === "envoye" ? tr("✓ Envoyé") : tr("Brouillon")}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="axd-card" style={{ overflow: "hidden" }}>
+        <div className="axd-card__head" style={{ padding: "var(--space-300) var(--space-400)" }}><h2 className="axd-card__title">{tr("Campagnes récentes")}</h2></div>
+        {histoCampagnes.length === 0 ? (
+          <div className="axd-empty"><h3>{tr("Aucune campagne SMS")}</h3><p>{tr("Envoyez une promotion ou une nouveauté à tous vos clients, aux meilleurs ou à ceux qui ne sont pas revenus.")}</p></div>
+        ) : (
+          <table className="axd-ix">
+            <thead><tr><th>{tr("Campagne")}</th><th className="axd-ix-hide-m">{tr("Destinataires")}</th><th className="axd-ix-num">{tr("Envoyés")}</th><th>{tr("Statut")}</th></tr></thead>
+            <tbody>
+              {histoCampagnes.slice(0, 20).map((c: any) => (
+                <tr key={c.id}>
+                  <td className="axd-ix-primary">{c.nom}<div className="axd-muted" style={{ fontWeight: 400, fontSize: 12 }}>{new Date(c.createdAt).toLocaleDateString(tr.loc, { day: "numeric", month: "short", year: "numeric" })}</div></td>
+                  <td className="axd-ix-hide-m">{tr(SEGMENTS.find(x => x.id === c.segment)?.label ?? c.segment)}</td>
+                  <td className="axd-ix-num">{(c.nbEnvoyes ?? 0).toLocaleString(tr.loc)}</td>
+                  <td><Badge tone={c.statut === "envoye" ? "success" : "neutral"}>{c.statut === "envoye" ? tr("Envoyée") : tr("Brouillon")}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-[#F3F3F3]">
-              <h2 className="text-[15px] font-bold text-[#111111]">{tr("Nouvelle campagne SMS")}</h2>
-              <button onClick={() => setShowModal(false)} aria-label={tr("Fermer")} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
-            </div>
-            <div className="p-6 space-y-5">
-              {/* Segment */}
-              <div>
-                <label className="text-[12px] font-semibold text-[#555] block mb-2">{tr("Destinataires")}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SEGMENTS.map(s => (
-                    <button key={s.id} onClick={() => setForm(f => ({ ...f, segment: s.id }))}
-                      className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${form.segment === s.id ? "border-green-400 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
-                      <s.Icon size={18} className={form.segment === s.id ? "text-green-600 flex-shrink-0 mt-0.5" : "text-gray-400 flex-shrink-0 mt-0.5"} />
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">{tr(s.label)}</p>
-                        <p className="text-[10px] text-gray-400">{tr(s.desc)}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Nom */}
-              <div>
-                <label className="ax-label block mb-1.5">{tr("Nom de la campagne *")}</label>
-                <input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-                  placeholder={tr("Ex: Promo Tabaski 2024")}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all placeholder:text-[#CCCCCC]" />
-              </div>
-
-              {/* Templates */}
-              <div>
-                <label className="text-[12px] font-semibold text-[#555] block mb-2">{tr("Templates")}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {TEMPLATES.map(t => (
-                    <button key={t.label} onClick={() => setForm(f => ({ ...f, message: t.template }))}
-                      className="flex items-center gap-2 p-2.5 rounded-xl border border-gray-200 text-left hover:border-green-400 hover:bg-green-50 transition-all text-xs text-gray-600">
-                      <t.Icon size={14} className="text-gray-400 flex-shrink-0" /> {tr(t.label)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Générer avec IA */}
-              <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
-                <label className="text-xs font-semibold text-green-700 flex items-center gap-1.5">
-                  <Sparkles size={12} />{" "}{tr("Générer avec l'IA")}
-                </label>
-                <input value={form.promptIA} onChange={e => setForm(f => ({ ...f, promptIA: e.target.value }))}
-                  placeholder={tr("Ex: Promo -25% pour la fête des mères, boutique de mode...")}
-                  className="w-full bg-white border border-green-200 rounded-xl px-3 py-2.5 text-gray-900 text-sm focus:outline-none" />
-                <button onClick={genererMessage} disabled={generating || !form.promptIA}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
-                  style={{ background: "#22c55e" }}>
-                  {generating ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}{" "}{tr("Générer")}
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={tr("Nouvelle campagne SMS")}
+        footer={<><Button onClick={() => setShowModal(false)}>{tr("Annuler")}</Button><Button variant="primary" onClick={envoyer} loading={sending} disabled={!form.message || !form.nom}>{tr("Envoyer la campagne")}</Button></>}>
+        <div style={{ display: "grid", gap: "var(--space-300)", padding: "var(--space-400)" }}>
+          <div>
+            <p className="axd-field__label" style={{ margin: "0 0 6px" }}>{tr("Destinataires")}</p>
+            <div className="axd-grid axd-g2" style={{ gap: 6 }}>
+              {SEGMENTS.map(s => (
+                <button key={s.id} type="button" className="axd-choix axd-choix--ligne" aria-pressed={form.segment === s.id} onClick={() => setForm(f => ({ ...f, segment: s.id }))} style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+                  <b>{tr(s.label)}</b><span>{tr(s.desc)}</span>
                 </button>
-              </div>
-
-              {/* Message */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-gray-500 text-xs font-medium">{tr("Message SMS *")}</label>
-                  <span className={`text-xs font-medium ${charCount > 160 ? "text-red-500" : charCount > 130 ? "text-[#D4911A]" : "text-gray-400"}`}>
-                    {charCount}/160
-                  </span>
-                </div>
-                <textarea value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-                  rows={4} maxLength={160} placeholder={tr("Votre message SMS... ({{nom}} sera remplacé par le prénom du client)")}
-                  className="w-full bg-white border border-[#E8E8E8] rounded-2xl px-4 py-3 text-[#111111] text-[13px] outline-none focus:border-[#F5A623]/50 focus:ring-2 focus:ring-[#F5A623]/8 transition-all placeholder:text-[#CCCCCC] resize-none" />
-                <p className="text-[11px] text-gray-400 mt-1">{tr("Utilisez")}{" "}<code className="bg-gray-100 px-1 rounded">{tr("{{nom}}")}</code>{" "}{tr("pour personnaliser · 1 SMS = 160 caractères")}</p>
-              </div>
-
-              <button onClick={envoyer} disabled={sending || !form.message || !form.nom}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
-                {sending ? <><Loader2 size={16} className="animate-spin" />{" "}{tr("Envoi en cours…")}</> : <><Send size={16} />{" "}{tr("Envoyer la campagne")}</>}
-              </button>
+              ))}
             </div>
           </div>
+          <Field label={tr("Nom de la campagne")}>{(p) => <input {...p} className="axd-input" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} placeholder={tr("Ex: Promo Tabaski 2024")} />}</Field>
+          <div>
+            <p className="axd-field__label" style={{ margin: "0 0 6px" }}>{tr("Modèles")}</p>
+            <div className="axd-chips" style={{ margin: 0 }}>
+              {TEMPLATES.map(t => <button key={t.label} type="button" className="axd-chip" onClick={() => setForm(f => ({ ...f, message: t.template }))}>{tr(t.label)}</button>)}
+            </div>
+          </div>
+          <div className="axd-card axd-card--pad" style={{ background: "var(--color-surface-secondary)", boxShadow: "none", display: "grid", gap: 8 }}>
+            <Field label={tr("Rédiger avec Stella")}>{(p) => <input {...p} className="axd-input" value={form.promptIA} onChange={e => setForm(f => ({ ...f, promptIA: e.target.value }))} placeholder={tr("Ex: Promo -25% pour la fête des mères, boutique de mode...")} />}</Field>
+            <div><Button size="sm" onClick={genererMessage} loading={generating} disabled={!form.promptIA}>{tr("Générer le message")}</Button></div>
+          </div>
+          <Field label={`${tr("Message")} · ${charCount}/160`} help={tr("{{nom}} est remplacé par le prénom du client · 1 SMS = 160 caractères")} error={charCount > 160 ? tr("Le message dépasse 160 caractères.") : undefined}>
+            {(p) => <textarea {...p} rows={4} maxLength={160} className="axd-input" style={{ height: "auto", padding: "8px 12px" }} value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} />}
+          </Field>
         </div>
-      )}
-    </div>
+      </Modal>
+    </Page>
   );
 }

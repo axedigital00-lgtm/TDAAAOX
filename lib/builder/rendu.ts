@@ -66,8 +66,12 @@ const SCRIPT = `(() => {
 
 /** Playwright et Chromium sont-ils là ? (non en production). */
 export async function chargerPlaywright(): Promise<typeof import("playwright") | null> {
+  // Cloudflare Workers : pas de navigateur possible. Nom du module opaque pour Vite (vinext)
+  // comme pour Webpack, afin que le paquet ne soit jamais embarqué dans le serveur.
+  if (process.env.AXSO_RUNTIME === "workers") return null;
   try {
-    const pw: typeof import("playwright") = await import(/* webpackIgnore: true */ "playwright");
+    const nom = "playwright";
+    const pw: typeof import("playwright") = await import(/* webpackIgnore: true */ /* @vite-ignore */ nom);
     return pw?.chromium ? pw : null;
   } catch { return null; }
 }

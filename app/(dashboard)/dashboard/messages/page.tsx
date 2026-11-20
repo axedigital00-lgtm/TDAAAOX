@@ -1,17 +1,49 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Heart, MessageCircle, Share2, Bookmark, BarChart2, Sparkles,
-  Send, Zap, Globe2, Star, Users, Plus, ChevronDown,
-  Play, X, Camera, Loader2, RefreshCw, Award, Flame, Eye,
-  Maximize2, Minimize2, Search, ShoppingBag, Trophy, Video,
-  Image, ArrowLeft, MoreHorizontal, Repeat2, TrendingUp,
-  ChevronLeft, ChevronRight, Bell, Hash, AtSign, Smile,
-  FileText, Music4, User, Globe, BarChart3,
+  Heart,
+  MessageCircle,
+  Share2,
+  Bookmark,
+  BarChart2,
+  Sparkles,
+  Send,
+  Zap,
+  Globe2,
+  Star,
+  Plus,
+  ChevronDown,
+  Play,
+  X,
+  Loader2,
+  RefreshCw,
+  Award,
+  Flame,
+  Eye,
+  Maximize2,
+  Minimize2,
+  Search,
+  ShoppingBag,
+  Trophy,
+  Video,
+  Image,
+  MoreHorizontal,
+  Repeat2,
+  TrendingUp,
+  ChevronLeft,
+  ChevronRight,
+  Bell,
+  Hash,
+  AtSign,
+  Smile,
+  FileText,
+  Globe,
+  BarChart3,
 } from "lucide-react";
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
+import { iconePlateforme } from "@/components/brand/LogoPlateforme";
 // ─── Brand ────────────────────────────────────────────────────────────────────
 const C = {
   orange:     "#F5A623",
@@ -184,13 +216,13 @@ function ShareModal({ post, onClose }: { post: PostSocial; onClose: () => void }
         <p style={{ fontWeight: 800, fontSize: 16, margin: "0 0 16px", color: C.gray900 }}>{tr("Partager ce post")}</p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {[
-            { label: "WhatsApp",  color: "#25D366", Icon: MessageCircle },
-            { label: "Instagram", color: "#E1306C", Icon: Camera },
-            { label: "Facebook",  color: "#1877F2", Icon: User },
-            { label: "TikTok",    color: "#000",    Icon: Music4 },
+            { label: "WhatsApp",  color: "#25D366", Icon: iconePlateforme("whatsapp") },
+            { label: "Instagram", color: "#E1306C", Icon: iconePlateforme("instagram") },
+            { label: "Facebook",  color: "#1877F2", Icon: iconePlateforme("facebook") },
+            { label: "TikTok",    color: "#000",    Icon: iconePlateforme("tiktok") },
           ].map(s => (
             <button key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", minWidth: 64 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}><s.Icon size={22} color="#fff" /></div>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: "#fff", border: "1px solid #E8E8E8", display: "flex", alignItems: "center", justifyContent: "center" }}><s.Icon size={28} /></div>
               <span style={{ fontSize: 11, fontWeight: 700, color: C.gray600 }}>{tr(s.label)}</span>
             </button>
           ))}
@@ -614,7 +646,7 @@ function PostCreator({ myNom, myLogo, onPost }: { myNom: string; myLogo?: string
           </svg>
         )}
         <button onClick={handleAxia} disabled={axiaLoading || !contenu.trim()} style={{ display: "flex", alignItems: "center", gap: 5, borderRadius: 999, padding: "8px 15px", fontSize: 12, fontWeight: 800, border: `1.5px solid ${C.orangeLight}`, background: axiaLoading ? C.gray50 : C.orangeSoft, color: C.orangeDark, cursor: "pointer", letterSpacing: "0.3px" }}>
-          {axiaLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={12} />} AXIA
+          {axiaLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={12} />} Stella
         </button>
         <button onClick={handleSubmit} disabled={submitting || charCount > MAX} style={{ display: "flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "8px 22px", fontSize: 13, fontWeight: 900, border: "none", background: C.orange, color: C.white, cursor: "pointer", boxShadow: `0 3px 12px rgba(245,166,35,0.42)`, letterSpacing: "0.2px" }}>
           {submitting ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={13} />}{" "}{tr("Publier")}
@@ -690,7 +722,7 @@ function TrendingWidget() {
   );
 }
 
-// ─── AXIA Boost ───────────────────────────────────────────────────────────────
+// ─── Stella Boost ───────────────────────────────────────────────────────────────
 function AxiaPanel({ myNom }: { myNom: string }) {
   const tr = useT();
   const tips = [
@@ -705,7 +737,7 @@ function AxiaPanel({ myNom }: { myNom: string }) {
         <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Sparkles size={13} color="#fff" />
         </div>
-        <span style={{ fontWeight: 900, fontSize: 13, color: "#fff" }}>{tr("AXIA Boost")}</span>
+        <span style={{ fontWeight: 900, fontSize: 13, color: "#fff" }}>{tr("Stella Boost")}</span>
       </div>
       <p style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginBottom: 10, lineHeight: 1.5 }}>{tr("Idées pour")}{" "}{tr(myNom)}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>

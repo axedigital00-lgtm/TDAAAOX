@@ -79,7 +79,7 @@ export function EssaiIllimite({ phase, finLe, proposer, montrerFin }: EssaiProps
       {/* ── Proposition (première arrivée, ou tant qu'il n'a pas répondu) ── */}
       {proposition && (
         <div className="fixed inset-0 z-[10001] bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal>
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 text-[#111111]" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 text-[#111111]" style={{ fontFamily: "var(--merchant-font)" }}>
             <div className="w-12 h-12 rounded-xl bg-[#FFF1D6] flex items-center justify-center mb-4"><Gift size={24} className="text-[#C77C0A]" /></div>
             <h2 className="text-[20px] font-bold">{t("{0} jours d'Illimité offerts", String(DUREE_ESSAI_JOURS))}</h2>
             <p className="mt-1.5 text-[14px] text-[#555555]">{t("Essaie gratuitement tout ce qu'offre le plan Illimité. Sans carte, sans engagement : à la fin, tu choisis un plan ou tu continues en Essentiel (gratuit).")}</p>

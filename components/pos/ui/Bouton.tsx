@@ -10,12 +10,14 @@ import { FOCUS } from "./tokens";
 export type VarianteBouton = "primaire" | "sombre" | "secondaire" | "discret" | "danger";
 export type TailleBouton = "normal" | "grand" | "compact";
 
+// Variantes alignées sur les boutons de l'admin : principal noir, secondaire blanc
+// à contour, discret gris clair, danger rouge sobre.
 const VARIANTES: Record<VarianteBouton, string> = {
-  primaire: "bg-[#F5A623] text-[#111111] hover:bg-[#D4911A] shadow-sm",
-  sombre: "bg-[#111111] text-white hover:bg-[#333333] shadow-sm",
-  secondaire: "bg-white text-[#111111] border border-[#E8E8E8] hover:border-[#F5A623]",
-  discret: "bg-[#FFF7ED] text-[#B45309] hover:bg-[#FDE68A]/60",
-  danger: "bg-white text-[#B91C1C] border border-[#FECACA] hover:bg-[#FEF2F2]",
+  primaire: "bg-[#1a1a1a] text-white hover:bg-[#2b2b2b] shadow-[inset_0_-1px_0_#000,0_1px_0_rgba(0,0,0,.2)]",
+  sombre: "bg-[#1a1a1a] text-white hover:bg-[#2b2b2b] shadow-[inset_0_-1px_0_#000,0_1px_0_rgba(0,0,0,.2)]",
+  secondaire: "bg-white text-[#1a1a1a] shadow-[inset_0_0_0_1px_#dcdcdc,inset_0_-1px_0_#d4d4d4] hover:bg-[#f7f7f7]",
+  discret: "bg-[#f1f1f1] text-[#1a1a1a] hover:bg-[#e3e3e3]",
+  danger: "bg-white text-[#8e0b21] shadow-[inset_0_0_0_1px_#fedad9] hover:bg-[#fff4f4]",
 };
 // « compact » reste à 44 px de haut : seule la largeur et le texte se resserrent.
 const TAILLES: Record<TailleBouton, string> = {
@@ -46,7 +48,7 @@ export type BoutonProps = {
 
 export function Bouton({ children, onClick, href, variante = "primaire", taille = "normal", type = "button", disabled, charge, large, icone, raccourci, className, ...aria }: BoutonProps) {
   const classes = cn(
-    "inline-flex items-center justify-center gap-2 rounded-xl font-bold transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed",
     VARIANTES[variante], TAILLES[taille], large && "w-full", FOCUS, className,
   );
   const contenu = (
@@ -70,7 +72,7 @@ export function BoutonIcone({ label, children, onClick, variante = "secondaire",
 }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label}
-      className={cn("inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed", VARIANTES[variante], FOCUS, className)}>
+      className={cn("inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed", VARIANTES[variante], FOCUS, className)}>
       {children}
     </button>
   );

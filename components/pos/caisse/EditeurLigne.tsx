@@ -97,7 +97,7 @@ export function EditeurLigne({ ligne, nouveau, droits, plafondRemisePct, modeSim
       )}
       {droits.produit_offert && (
         <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-[#E8E8E8] px-3 text-[13px] font-semibold">
-          <input type="checkbox" checked={offert} onChange={(e) => setOffert(e.target.checked)} className="h-5 w-5 accent-[#F5A623]" />
+          <input type="checkbox" checked={offert} onChange={(e) => setOffert(e.target.checked)} className="h-5 w-5 accent-[#1a1a1a]" />
           {t("Offrir cet article (montant à zéro)")}
         </label>
       )}
@@ -115,13 +115,13 @@ export function EditeurLigne({ ligne, nouveau, droits, plafondRemisePct, modeSim
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); valider(); }}>
         {ligne.variantes.length > 0 && (
           <fieldset>
-            <legend className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t("Variante")}</legend>
+            <legend className="text-[11px] font-semibold text-[#666666]">{t("Variante")}</legend>
             <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {ligne.variantes.map((v) => {
                 const stock = v.stockMagasin ?? v.stock;
                 return (
                   <button key={v.id} type="button" aria-pressed={varianteId === v.id} onClick={() => setVarianteId(v.id)}
-                    className={cn("min-h-14 rounded-xl border px-3 py-2 text-left transition-colors", FOCUS, varianteId === v.id ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white hover:border-[#F5A623]")}>
+                    className={cn("min-h-14 rounded-xl border px-3 py-2 text-left transition-colors", FOCUS, varianteId === v.id ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white hover:border-[#8a8a8a]")}>
                     <span className="block text-[13px] font-bold leading-tight">{v.valeur}</span>
                     <span className="block text-[11px] opacity-80">{fmt(v.prix)} · {stock > 0 ? `${t("Stock")} ${libelleQuantite(stock, ligne.uniteVente)}` : t("Rupture")}</span>
                   </button>

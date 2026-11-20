@@ -72,7 +72,7 @@ export function ReglagesEquipe() {
             {refus && <EtatPos compact code={refus.code} message={refus.message} />}
             {donnees.magasins.length > 1 && (
               <fieldset>
-                <legend className="mb-1 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Magasins autorisés")}</legend>
+                <legend className="mb-1 text-[12px] font-bold text-[#666666]">{t("Magasins autorisés")}</legend>
                 <p className="mb-2 text-[12px] text-[#666666]">{t("Aucune case cochée = tous les magasins.")}</p>
                 {donnees.magasins.map((g) => (
                   <label key={g.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-2 hover:bg-[#FAFAFA]">
@@ -83,7 +83,7 @@ export function ReglagesEquipe() {
               </fieldset>
             )}
             <fieldset>
-              <legend className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[#666666]">{t("Ce que ce membre peut faire")}</legend>
+              <legend className="mb-2 text-[12px] font-bold text-[#666666]">{t("Ce que ce membre peut faire")}</legend>
               <ul className="divide-y divide-[#F0F0F0]">
                 {donnees.actions.map((a) => (
                   <li key={a.id} className="flex flex-wrap items-center gap-2 py-1.5">

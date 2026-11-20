@@ -1,4 +1,4 @@
-﻿import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -35,7 +35,7 @@ export default async function CommissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Commissions")}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Commissions")}</h1>
         <p className="text-gray-400 text-sm mt-1">
           {t("Payé en ligne : +10 % (produit physique) ou +13 % (produit numérique), ajoutés au prix payé par le client, jamais retirés de votre prix. Paiement à la livraison : rien.")}
         </p>

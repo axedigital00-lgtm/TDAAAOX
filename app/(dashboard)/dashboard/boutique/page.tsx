@@ -5,11 +5,34 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Store, Palette, Globe, Link2, Truck, Save, Loader2,
-  ExternalLink, Copy, Check, Camera, Users, Music, MessageCircle,
-  Mail, Phone, MapPin, CheckCircle2, Plus, X, Sparkles,
-  Sliders, Power, Pause, ArrowUpRight, Package, ShoppingBag, Calendar, Share2,
-  Layers, Lock,
+  Store,
+  Palette,
+  Globe,
+  Link2,
+  Truck,
+  Save,
+  Loader2,
+  ExternalLink,
+  Copy,
+  Check,
+  Users,
+  Mail,
+  Phone,
+  MapPin,
+  CheckCircle2,
+  Plus,
+  X,
+  Sparkles,
+  Sliders,
+  Power,
+  Pause,
+  ArrowUpRight,
+  Package,
+  ShoppingBag,
+  Calendar,
+  Share2,
+  Layers,
+  Lock,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { PlanBadge } from "@/components/dashboard/PlanBadge";
@@ -19,6 +42,7 @@ import { urlBoutique } from "@/lib/utils";
 import { PAYS_DEVISES } from "@/lib/ai-agent";
 import { SelectPays } from "@/components/ui/SelectPays";
 import { aAcces, NOMS_PALIERS, type Palier } from "@/lib/plans";
+import { iconePlateforme } from "@/components/brand/LogoPlateforme";
 import { useT } from "@/components/I18nProvider";
 import { lireReglagesLivraison, normaliserZone, type ZoneLivraison } from "@/lib/livraison-reglages";
 import { BannierePub } from "@/components/dashboard/BannierePub";
@@ -64,16 +88,16 @@ function palierDe(planType: string): Palier {
 const CHAMPS_INFOS = [
   { key: "nomBoutique", label: "Nom de la boutique *", placeholder: "Mode Aminata",           Icon: Store },
   { key: "email",       label: "Email professionnel",  placeholder: "contact@maboutique.com", type: "email", Icon: Mail },
-  { key: "whatsapp",    label: "WhatsApp Business",    placeholder: "",      Icon: MessageCircle },
+  { key: "whatsapp",    label: "WhatsApp Business",    placeholder: "",      Icon: iconePlateforme("whatsapp") },
   { key: "telephone",   label: "Téléphone",            placeholder: "",      Icon: Phone },
   { key: "adresse",     label: "Adresse physique",     placeholder: "Rue 10, Dakar",           Icon: MapPin },
 ];
 
 const CHAMPS_RESEAUX = [
-  { key: "instagram", label: "Instagram",   placeholder: "https://instagram.com/votre_boutique", Icon: Camera,        color: "#E1306C" },
-  { key: "facebook",  label: "Facebook",    placeholder: "https://facebook.com/votre_boutique",  Icon: Users,         color: "#111111" },
-  { key: "tiktok",    label: "TikTok",      placeholder: "https://tiktok.com/@votre_boutique",   Icon: Music,         color: "#111111" },
-  { key: "twitter",   label: "X / Twitter", placeholder: "https://twitter.com/votre_boutique",   Icon: MessageCircle, color: "#0F1419" },
+  { key: "instagram", label: "Instagram",   placeholder: "https://instagram.com/votre_boutique", Icon: iconePlateforme("instagram"), color: "#E1306C" },
+  { key: "facebook",  label: "Facebook",    placeholder: "https://facebook.com/votre_boutique",  Icon: iconePlateforme("facebook"), color: "#111111" },
+  { key: "tiktok",    label: "TikTok",      placeholder: "https://tiktok.com/@votre_boutique",   Icon: iconePlateforme("tiktok"), color: "#111111" },
+  { key: "twitter",   label: "X", placeholder: "https://x.com/votre_boutique",   Icon: iconePlateforme("x"), color: "#0F1419" },
 ];
 
 export default function BoutiquePage() {
@@ -253,7 +277,7 @@ export default function BoutiquePage() {
   const peutCreerBoutique = autresBoutiques.some(b => aAcces(palierDe(b.planType), "multi_boutique"));
 
   return (
-    <div className="space-y-5 pb-24" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-5 pb-24" style={{ fontFamily: "var(--merchant-font)" }}>
       <ModuleTutorial moduleKey="boutique" titre={tr("Ma boutique")} sousTitre={tr("Vue d'ensemble du module Boutique")} steps={BOUTIQUE_TUTORIAL_STEPS} />
 
       {/* ── Hero identité ── */}
@@ -503,8 +527,8 @@ export default function BoutiquePage() {
                     <div key={s.key} className="flex items-center gap-3 p-2.5 rounded-2xl border transition-all"
                       style={filled ? { borderColor: `${s.color}30`, background: `${s.color}06` } : { borderColor: "#F0F0F0" }}>
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: filled ? `${s.color}14` : "#F5F5F5" }}>
-                        <s.Icon size={14} style={{ color: filled ? s.color : "#AAAAAA" }} />
+                        style={{ background: "#fff", border: "1px solid #EEEEEE", opacity: filled ? 1 : .6 }}>
+                        <s.Icon size={20} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <input value={(form as any)[s.key]} onChange={e => set(s.key, e.target.value)}

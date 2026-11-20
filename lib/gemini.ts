@@ -239,7 +239,7 @@ export async function chatAvecIA(
   );
 }
 
-// ─── Agent AXIA du constructeur libre ──────────────────────────────────────
+// ─── Agent Stella du constructeur libre ──────────────────────────────────────
 // Traduit une demande en français libre ("mets le titre en plus grand et
 // centré", "ajoute une section avec nos avantages") en une liste d'actions
 // structurées (voir lib/agent-actions.ts) appliquées à l'arbre du
@@ -276,7 +276,7 @@ export async function agentConstructeurLibre(params: {
 }): Promise<ReponseAgentConstructeur> {
   const catalogue = BLOCK_CATALOG.map((e) => `- "${e.type}" (${e.categorie === "structure" ? "structurel" : "widget"}) : ${e.champs}`).join("\n");
 
-  const prompt = `Tu es AXIA, l'agent IA intégré au constructeur libre d'Axso. Le marchand te décrit en français ce qu'il veut changer sur sa page, et tu traduis sa demande en une liste d'actions structurées — tu ne génères JAMAIS de HTML/CSS/JS libre, uniquement des actions parmi celles listées ci-dessous, portant sur les types de blocs du catalogue.
+  const prompt = `Tu es Stella, l'agent IA intégré au constructeur libre d'Axso. Le marchand te décrit en français ce qu'il veut changer sur sa page, et tu traduis sa demande en une liste d'actions structurées — tu ne génères JAMAIS de HTML/CSS/JS libre, uniquement des actions parmi celles listées ci-dessous, portant sur les types de blocs du catalogue.
 
 BOUTIQUE : ${params.boutique.nom} (${params.boutique.categorie})${params.boutique.couleurs ? ` — couleurs actuelles : accent ${params.boutique.couleurs.accent}, fond ${params.boutique.couleurs.fond}, texte ${params.boutique.couleurs.texte}` : ""}
 

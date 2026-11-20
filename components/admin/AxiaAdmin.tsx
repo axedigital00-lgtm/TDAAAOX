@@ -10,7 +10,7 @@ type Message = { role: "user" | "assistant"; content: string; confirmations?: Co
 
 const ACCENT = "#F5A623";
 
-/** AXIA, assistante de l'administrateur — bulle fixe en bas à droite de toute l'administration. */
+/** Stella, assistante de l'administrateur — bulle fixe en bas à droite de toute l'administration. */
 export function AxiaAdmin() {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -75,7 +75,7 @@ export function AxiaAdmin() {
         onClick={() => setOpen(true)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
         style={{ background: ACCENT }}
-        aria-label={t("Ouvrir AXIA")}
+        aria-label={t("Ouvrir Stella")}
       >
         <IconAxia size={48} />
       </button>
@@ -91,7 +91,7 @@ export function AxiaAdmin() {
         <div className="flex items-center gap-2">
           <IconAxia size={20} />
           <div>
-            <p className="text-[13px] font-semibold leading-tight">AXIA</p>
+            <p className="text-[13px] font-semibold leading-tight">Stella</p>
             <p className="text-[10px] text-white/80 leading-tight">{t("Assistante de l'administrateur")}</p>
           </div>
         </div>
@@ -103,7 +103,7 @@ export function AxiaAdmin() {
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-[13px]">
         {messages.length === 0 && (
           <p className="text-[#888] leading-relaxed">
-            {t("Bonjour ! Je suis AXIA. Demande-moi les chiffres de la plateforme, ou ce que tu veux faire : suspendre une boutique, changer un plan, publier sur AxSocial… Je te demande toujours ton accord avant d'agir.")}
+            {t("Bonjour ! Je suis Stella. Demande-moi les chiffres de la plateforme, ou ce que tu veux faire : suspendre une boutique, changer un plan, publier sur AxSocial… Je te demande toujours ton accord avant d'agir.")}
           </p>
         )}
         {messages.map((msg, i) => (
@@ -138,7 +138,7 @@ export function AxiaAdmin() {
             </div>
           </div>
         ))}
-        {loading && <p className="text-[11px] text-[#888]">{t("AXIA réfléchit…")}</p>}
+        {loading && <p className="text-[11px] text-[#888]">{t("Stella réfléchit…")}</p>}
         <div ref={bottomRef} />
       </div>
 

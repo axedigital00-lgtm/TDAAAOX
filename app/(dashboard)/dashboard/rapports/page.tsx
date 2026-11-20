@@ -4,10 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { PAIEMENT } from "@/lib/commandes";
 import { redirect } from "next/navigation";
 import { formatMontant } from "@/lib/utils";
-import {
-  FileBarChart, TrendingUp, TrendingDown, Minus, ShoppingCart, Wallet,
-  Users, XCircle,
-} from "lucide-react";
+import Link from "next/link";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Card } from "@/components/dashboard/design-system/components/primitives";
+import { Delta } from "@/components/dashboard/design-system/components/MetricsStrip";
+import { HorizontalBars } from "@/components/dashboard/design-system/components/Charts";
+import { Icon } from "@/components/dashboard/design-system/icons/Icon";
 import { PrintButton } from "@/components/dashboard/PrintButton";
 import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { RapportsTutorial } from "@/components/dashboard/tutorials/RapportsTutorial";
@@ -24,20 +26,10 @@ const STATUT_LABELS: Record<string, string> = {
   expediee: "Expédiée", livree: "Livrée", tentative_echouee: "Tentative échouée", annulee: "Annulée",
 };
 
-function variation(actuel: number, precedent: number): { pct: number; sens: "hausse" | "baisse" | "stable" } {
-  if (precedent === 0) return actuel > 0 ? { pct: 100, sens: "hausse" } : { pct: 0, sens: "stable" };
-  const pct = Math.round(((actuel - precedent) / precedent) * 1000) / 10;
-  return { pct: Math.abs(pct), sens: pct > 0.5 ? "hausse" : pct < -0.5 ? "baisse" : "stable" };
-}
-
-function VariationBadge({ v }: { v: { pct: number; sens: "hausse" | "baisse" | "stable" } }) {
-  const Icon = v.sens === "hausse" ? TrendingUp : v.sens === "baisse" ? TrendingDown : Minus;
-  const couleur = v.sens === "hausse" ? "#10b981" : v.sens === "baisse" ? "#ef4444" : "#9ca3af";
-  return (
-    <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: couleur }}>
-      <Icon size={11} /> {v.sens !== "stable" ? `${v.pct}%` : "stable"}
-    </span>
-  );
+// Évolution relative par rapport à la période précédente (0,12 = +12 %), null si incalculable.
+function variation(actuel: number, precedent: number): number | null {
+  if (precedent === 0) return actuel > 0 ? 1 : null;
+  return (actuel - precedent) / precedent;
 }
 
 export default async function RapportsPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
@@ -106,112 +98,77 @@ export default async function RapportsPage({ searchParams }: { searchParams: Pro
   const topProduits = [...parProduit.values()].sort((a, b) => b.revenu - a.revenu).slice(0, 5);
 
   const KPIS = [
-    { label: "Revenus générés", valeur: formatMontant(revenus, devise), v: variation(revenus, revenusPrecedents), Icon: Wallet, couleur: "#F5A623" },
-    { label: "Commandes traitées", valeur: commandes.toLocaleString(t.loc), v: variation(commandes, commandesPrecedentes), Icon: ShoppingCart, couleur: "#3b82f6" },
-    { label: "Panier moyen", valeur: formatMontant(panierMoyen, devise), v: variation(panierMoyen, panierMoyenPrecedent), Icon: TrendingUp, couleur: "#10b981" },
-    { label: "Nouveaux clients", valeur: nouveauxClients.toLocaleString(t.loc), v: variation(nouveauxClients, nouveauxClientsPrecedents), Icon: Users, couleur: "#8b5cf6" },
+    { label: "Revenus générés", valeur: formatMontant(revenus, devise), v: variation(revenus, revenusPrecedents), d: "Total des commandes payées sur la période." },
+    { label: "Commandes payées", valeur: commandes.toLocaleString(t.loc), v: variation(commandes, commandesPrecedentes), d: "Nombre de commandes payées sur la période." },
+    { label: "Panier moyen", valeur: formatMontant(panierMoyen, devise), v: variation(panierMoyen, panierMoyenPrecedent), d: "Revenus divisés par le nombre de commandes payées." },
+    { label: "Nouveaux clients", valeur: nouveauxClients.toLocaleString(t.loc), v: variation(nouveauxClients, nouveauxClientsPrecedents), d: "Clients enregistrés pour la première fois sur la période." },
   ];
+  const statuts = [...statutDistribution].sort((a, b) => b._count - a._count);
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <Page>
       <RapportsTutorial />
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:block">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <FileBarChart size={18} className="text-[#F5A623]" />
-            <h1 className="text-2xl font-bold text-gray-900">{t("Rapport de productivité")}</h1>
-            <span className="print:hidden"><BoutonRevoirTutoriel moduleKey="rapports" /></span>
-          </div>
-          <p className="text-gray-400 text-sm">{t(tenant?.nomBoutique)} · {t(jours)}{" "}{t("derniers jours · comparé aux")}{" "}{t(jours)}{" "}{t("jours précédents")}</p>
-        </div>
-        <div className="flex items-center gap-2 print:hidden">
-          <div className="flex items-center bg-gray-100 rounded-xl p-1">
-            {PERIODES.map(p => (
-              <a key={p.v} href={`/dashboard/rapports?periode=${p.v}`}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={jours === Number(p.v) ? { background: "white", color: "#111", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" } : { color: "#9ca3af" }}>
-                {t(p.l)}
-              </a>
-            ))}
-          </div>
-          <PrintButton />
-        </div>
+      <PageHeader
+        icon="bars"
+        title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{t("Rapports")}<span className="print:hidden"><BoutonRevoirTutoriel moduleKey="rapports" /></span></span>}
+        extraActions={<span className="print:hidden"><PrintButton /></span>}
+      />
+
+      <div className="axd-filters print:hidden">
+        <span className="axd-seg">
+          {PERIODES.map((p) => (
+            <Link key={p.v} href={`/dashboard/rapports?periode=${p.v}`} className="axd-btn axd-btn--sm" aria-current={jours === Number(p.v) ? "page" : undefined}>
+              {jours === Number(p.v) && <Icon name="calendar" />}{t(p.l)}
+            </Link>
+          ))}
+        </span>
+        <span className="axd-muted" style={{ fontSize: 12 }}>{t("Comparé aux {0} jours précédents", jours)}</span>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {KPIS.map(k => (
-          <div key={k.label} className="ax-card p-4">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${k.couleur}15` }}>
-                <k.Icon size={14} style={{ color: k.couleur }} />
-              </div>
-              <VariationBadge v={k.v} />
-            </div>
-            <p className="text-xl font-black text-gray-900">{t(k.valeur)}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">{t(k.label)}</p>
+      <div className="axd-grid axd-g4">
+        {KPIS.map((k) => (
+          <div key={k.label} className="axd-card axd-card--pad">
+            <span className="axd-kpi__t axd-dotted" title={t(k.d)}>{t(k.label)}</span>
+            <div className="axd-kpi__v" style={{ marginBottom: 0 }}>{k.valeur} <Delta value={k.v} /></div>
           </div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        {/* Répartition par statut */}
-        <div className="ax-card p-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-4">{t("Commandes par statut")}</h2>
-          {statutDistribution.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">{t("Aucune commande sur cette période.")}</p>
+      <div className="axd-grid axd-g2 axd-section">
+        <Card title={t("Commandes par statut")}>
+          {statuts.length === 0 ? (
+            <p className="axd-muted" style={{ textAlign: "center", padding: "32px 0" }}>{t("Aucune commande sur cette période.")}</p>
           ) : (
-            <div className="space-y-2.5">
-              {statutDistribution.sort((a, b) => b._count - a._count).map(s => {
-                const pct = totalStatuts > 0 ? Math.round((s._count / totalStatuts) * 100) : 0;
-                return (
-                  <div key={s.statut}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-600">{t(STATUT_LABELS[s.statut]) ?? t(s.statut)}</span>
-                      <span className="text-xs font-bold text-gray-800">{t(s._count)} · {pct}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: s.statut === "annulee" ? "#ef4444" : "#F5A623" }} />
-                    </div>
-                  </div>
-                );
-              })}
-              {annulees > 0 && (
-                <p className="flex items-center gap-1.5 text-[11px] text-red-500 pt-2">
-                  <XCircle size={11} />{" "}{t("Taux d'annulation :")}{" "}{t(tauxAnnulation)}%
-                </p>
-              )}
-            </div>
+            <>
+              <HorizontalBars items={statuts.map((s) => ({ label: `${t(STATUT_LABELS[s.statut] ?? s.statut)} · ${totalStatuts ? Math.round((s._count / totalStatuts) * 100) : 0} %`, value: s._count }))} format={(v) => v.toLocaleString(t.loc)} />
+              {annulees > 0 && <p className="axd-muted" style={{ fontSize: 12, marginTop: 8 }}>{t("Taux d'annulation :")} {tauxAnnulation.toLocaleString(t.loc)} %</p>}
+            </>
           )}
-        </div>
+        </Card>
 
-        {/* Top produits */}
-        <div className="ax-card p-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-4">{t("Top produits vendus")}</h2>
+        <Card title={t("Produits les plus vendus")} padding="none">
           {topProduits.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">{t("Aucune vente sur cette période.")}</p>
+            <p className="axd-muted" style={{ textAlign: "center", padding: "32px 16px" }}>{t("Aucune vente sur cette période.")}</p>
           ) : (
-            <div className="space-y-3">
-              {topProduits.map((p, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-gray-500">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{t(p.nom)}</p>
-                    <p className="text-[10.5px] text-gray-400">{p.quantite} vendu{p.quantite > 1 ? "s" : ""}</p>
-                  </div>
-                  <p className="text-xs font-bold text-gray-900 flex-shrink-0">{formatMontant(p.revenu, devise)}</p>
-                </div>
-              ))}
-            </div>
+            <table className="axd-ix" style={{ marginTop: 8 }}>
+              <thead><tr><th>{t("Produit")}</th><th className="axd-ix-num">{t("Quantité")}</th><th className="axd-ix-num">{t("Ventes")}</th></tr></thead>
+              <tbody>
+                {topProduits.map((p, i) => (
+                  <tr key={i}>
+                    <td className="axd-ix-primary">{t(p.nom)}</td>
+                    <td className="axd-ix-num">{p.quantite.toLocaleString(t.loc)}</td>
+                    <td className="axd-ix-num">{formatMontant(p.revenu, devise)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </div>
+        </Card>
       </div>
 
-      <p className="text-[10.5px] text-gray-300 text-center print:block hidden">
-        {t("Généré le")}{" "}{new Date().toLocaleDateString(t.loc, { day: "2-digit", month: "long", year: "numeric" })}{" "}{t("· Axso")}
+      <p className="axd-muted print:block hidden" style={{ fontSize: 11, textAlign: "center", marginTop: 16 }}>
+        {t(tenant?.nomBoutique)} · {t("Généré le")}{" "}{new Date().toLocaleDateString(t.loc, { day: "2-digit", month: "long", year: "numeric" })}
       </p>
-    </div>
+    </Page>
   );
 }

@@ -25,7 +25,7 @@ export function useSurvol(racine: RefObject<HTMLElement | null>, trouver: (t: Ev
     <div ref={cadre} aria-hidden className="pointer-events-none absolute z-30 rounded-[2px]"
       style={{ display: "none", outline: "1.5px dashed #F5A623", outlineOffset: 1 }}>
       <span className="absolute -top-6 left-0 whitespace-nowrap px-1.5 py-0.5 rounded text-[11.5px] font-semibold bg-[#111111] text-white"
-        style={{ fontFamily: "'Poppins',system-ui,sans-serif" }} />
+        style={{ fontFamily: "var(--merchant-font)" }} />
     </div>
   );
   return { survol, onMouseMove: suivre, onMouseLeave: cacher, montrer };

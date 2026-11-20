@@ -177,16 +177,16 @@ function Fiche({ id, caisseId, onRetour }: { id: string; caisseId: string | null
       )}
 
       {ecarts.length > 0 && (
-        <div role="status" className="rounded-2xl border border-[#FCD34D] bg-[#FFFBEB] p-3 text-[12.5px] text-[#92400E]">
+        <div role="status" className="rounded-[12px] border border-[#FCD34D] bg-[#FFFBEB] p-3 text-[12.5px] text-[#92400E]">
           <p className="flex items-center gap-1.5 font-bold"><AlertTriangle size={15} aria-hidden />{t("Écart entre l'expédié et le reçu")}</p>
           <ul className="mt-1 list-inside list-disc">{ecarts.map((l) => <li key={l.id}>{l.nom}{l.variante ? ` — ${l.variante}` : ""} : {t("{0} expédié(s), {1} reçu(s)", qte(l.quantiteExpediee, l.uniteVente, t.loc), qte(l.quantiteRecue, l.uniteVente, t.loc))}</li>)}</ul>
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-[#E8E8E8] bg-white">
+      <div className="overflow-x-auto rounded-[12px] border border-[#E8E8E8] bg-white">
         <table className="w-full min-w-[560px] text-left text-[12.5px]">
           <caption className="sr-only">{t("Articles du transfert")}</caption>
-          <thead><tr className="border-b border-[#F0F0F0] text-[10.5px] uppercase tracking-wide text-[#666666]">
+          <thead><tr className="border-b border-[#F0F0F0] text-[10.5px] text-[#666666]">
             <th scope="col" className="px-3 py-2 font-semibold">{t("Article")}</th>
             {["Demandé", prepare ? "Préparé" : "Expédié", "Reçu", ...(recoit ? ["Reçu maintenant"] : []), ...(["brouillon", "demande", "approuve", "en_preparation"].includes(tr.statut) ? ["Stock au départ"] : [])].map((c) => <th key={c} scope="col" className="px-3 py-2 text-right font-semibold">{t(c)}</th>)}
           </tr></thead>
@@ -271,7 +271,7 @@ export function EcranTransferts() {
           <ul className={cn("space-y-2", charge && "opacity-60")}>
             {donnees.transferts.map((x) => (
               <li key={x.id}>
-                <button type="button" onClick={() => setOuvert(x.id)} className={cn("flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#E8E8E8] bg-white p-4 text-left hover:border-[#F5A623]", FOCUS)}>
+                <button type="button" onClick={() => setOuvert(x.id)} className={cn("flex w-full flex-wrap items-center justify-between gap-2 rounded-[12px] border border-[#E8E8E8] bg-white p-4 text-left hover:border-[#8a8a8a]", FOCUS)}>
                   <span className="min-w-0">
                     <span className="block text-[13.5px] font-bold text-[#111111]">{x.numero} · {x.source} → {x.destination}</span>
                     <span className="block text-[11.5px] text-[#666666]">{jour(x.createdAt, t.loc)} · {t("{0} article(s)", x.lignes)} · {t("demandé {0}, expédié {1}, reçu {2}", x.demande, x.expedie, x.recu)}</span>

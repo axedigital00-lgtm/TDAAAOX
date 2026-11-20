@@ -1,410 +1,238 @@
+// Fiche commande (MASTERPROMPT §8.3) : en-tête avec badges et navigation entre
+// commandes, colonne principale (traitement, paiement, livraison numérique,
+// chronologie) et colonne latérale (notes, client, adresse, livreur, suivi).
+import Link from "next/link";
+import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { STATUTS_COURSE_ACTIVE } from "@/lib/commandes";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
-import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, MapPin, Phone, Mail, Package, Clock, CheckCircle, Truck, XCircle, User, CreditCard, FileText, Map, Share2 } from "lucide-react";
-import { formatMontant, dateRelative } from "@/lib/utils";
-import { StatutCommandeSelector } from "@/components/dashboard/StatutCommandeSelector";
-import { AssignerLivreur } from "@/components/dashboard/AssignerLivreur";
-import { getT } from "@/lib/i18n/serveur";
+import { formatMontant } from "@/lib/utils";
 import { qrSvg } from "@/lib/qr";
 import { lienBoutique } from "@/lib/origine-site";
 import { lienAccesCommande } from "@/lib/livraison-numerique";
+import { StatutCommandeSelector } from "@/components/dashboard/StatutCommandeSelector";
+import { AssignerLivreur } from "@/components/dashboard/AssignerLivreur";
 import { RenvoyerLienDigital } from "@/components/dashboard/RenvoyerLienDigital";
+import { Page, PageHeader, Layout } from "@/components/dashboard/design-system/components/PageHeader";
+import { Badge, MappedBadge, paiementCommande, fulfillmentBadge, deliveryBadge, canalCommande } from "@/components/dashboard/design-system/components/Badge";
+import { Card, Divider } from "@/components/dashboard/design-system/components/primitives";
+import { KeyValue } from "@/components/dashboard/design-system/components/Charts";
+import { IconButton } from "@/components/dashboard/design-system/components/Button";
+import { Icon } from "@/components/dashboard/design-system/icons/Icon";
+import { dateRelativeAdmin, nombre } from "@/components/dashboard/design-system/format";
 
-const STATUT_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string }> = {
-  en_attente:    { label: "En attente",      icon: Clock,        color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-  confirmee:     { label: "Confirmée",       icon: CheckCircle,  color: "#60a5fa", bg: "rgba(96,165,250,0.1)" },
-  en_preparation:{ label: "En préparation",  icon: Package,      color: "#FFD280", bg: "rgba(167,139,250,0.1)" },
-  expediee:      { label: "Expédiée",        icon: Truck,        color: "#38bdf8", bg: "rgba(56,189,248,0.1)" },
-  livree:        { label: "Livrée",          icon: CheckCircle,  color: "#34d399", bg: "rgba(52,211,153,0.1)" },
-  annulee:       { label: "Annulée",         icon: XCircle,      color: "#f87171", bg: "rgba(248,113,113,0.1)" },
+const METHODES: Record<string, string> = {
+  whatsapp_cod: "Paiement à la livraison (WhatsApp)", direct_cod: "Paiement à la livraison", cod: "Paiement à la livraison",
+  notchpay: "Payé en ligne", en_attente: "En ligne, non finalisé", mtn_momo: "MTN Mobile Money", orange_money: "Orange Money",
+  especes: "Espèces", caisse: "Espèces (caisse)", carte: "Carte bancaire", wave: "Wave",
 };
 
 export default async function CommandeDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const t = await getT();
   const session = await auth();
   if (!session) redirect("/connexion");
   await exigerModule(session, "commandes");
-
-  const tenantId = (session.user as any)?.tenantId;
+  const tenantId = (session.user as any)?.tenantId as string;
   const { id } = await params;
 
   const [commande, livreurs] = await Promise.all([
     prisma.commande.findFirst({
       where: { id, tenantId },
       include: {
-        lignes: { include: { produit: { select: { slug: true } } } },
+        lignes: true,
         client: true,
-        livreur: { include: { user: { select: { email: true } } } },
+        livreur: true,
         commission: true,
         codePromo: true,
-        tenant: { select: { slug: true, nomBoutique: true, logoUrl: true } },
+        tenant: { select: { slug: true, nomBoutique: true } },
       },
     }),
     prisma.livreur.findMany({
       where: { actif: true, OR: [{ tenantId }, { tenantId: null }] },
-      include: {
-        user: { select: { email: true } },
-        _count: { select: { commandes: { where: { statut: { in: STATUTS_COURSE_ACTIVE } } } } },
-      },
+      include: { _count: { select: { commandes: { where: { statut: { in: STATUTS_COURSE_ACTIVE } } } } } },
       orderBy: { disponible: "desc" },
     }),
   ]);
-
   if (!commande) notFound();
 
-  // Livraison numérique : journal + droits délivrés (jamais l'adresse du fichier).
-  const [journalDigital, jetons, nbFormations, nbCles] = await Promise.all([
+  const [journalDigital, jetons, nbFormations, nbCles, precedente, suivante] = await Promise.all([
     prisma.livraisonDigitale.findUnique({ where: { commandeId: id } }),
-    prisma.telechargement.findMany({ where: { commandeId: id }, select: { id: true, nbTelechargements: true, revoqueAt: true, dernierTelechargementAt: true, produit: { select: { nom: true } } } }),
+    prisma.telechargement.findMany({ where: { commandeId: id }, select: { id: true, nbTelechargements: true, revoqueAt: true, produit: { select: { nom: true } } } }),
     prisma.accesFormation.count({ where: { commandeId: id } }),
     prisma.cleLicence.count({ where: { commandeId: id } }),
+    // Navigation dans l'ordre de la liste (plus récente en haut).
+    prisma.commande.findFirst({ where: { tenantId, createdAt: { gt: commande.createdAt } }, orderBy: { createdAt: "asc" }, select: { id: true } }),
+    prisma.commande.findFirst({ where: { tenantId, createdAt: { lt: commande.createdAt } }, orderBy: { createdAt: "desc" }, select: { id: true } }),
   ]);
-  const lienAccesDigital = journalDigital ? await lienAccesCommande(commande.tenant.slug, id) : null;
+  const slug = commande.tenant.slug;
+  const lienAccesDigital = journalDigital ? await lienAccesCommande(slug, id) : null;
+  const lienLivreur = commande.livreurToken ? await lienBoutique(slug, `/livreur/${commande.livreurToken}`) : null;
+  const courseActive = STATUTS_COURSE_ACTIVE.includes(commande.statut);
+  const qrLivreur = lienLivreur && courseActive ? await qrSvg(lienLivreur) : null;
+  const lienFacture = commande.trackingToken ? await lienBoutique(slug, `/facture/${commande.trackingToken}`) : null;
+  const lienSuivi = commande.trackingToken ? await lienBoutique(slug, `/tracking/${commande.trackingToken}`) : null;
 
-  const statutInfo = STATUT_CONFIG[commande.statut] || STATUT_CONFIG.en_attente;
-  const StatutIcon = statutInfo.icon;
+  const devise = commande.devise;
+  const nbArticles = commande.lignes.reduce((t, l) => t + l.quantite, 0);
+  const paiement = paiementCommande(commande);
+  const livraison = deliveryBadge(commande.statut);
+  const payee = commande.paiementStatut === "completed";
+  const telWa = commande.clientTelephone.replace(/[^\d]/g, "");
 
+  // Chronologie reconstruite à partir des dates enregistrées sur la commande.
+  const evenements = [
+    { at: commande.createdAt, texte: `Commande passée par ${commande.clientNom} via ${canalCommande(commande)}.` },
+    commande.expedieeAt && { at: commande.expedieeAt, texte: commande.livreurNom ? `Commande confiée à ${commande.livreurNom} pour la livraison.` : "Commande expédiée." },
+    commande.statut === "tentative_echouee" && { at: commande.updatedAt, texte: `Livraison échouée${commande.echecRaison ? ` : ${commande.echecRaison}` : ""}.` },
+    commande.livreeAt && { at: commande.livreeAt, texte: "Commande livrée au client." },
+    commande.codRemisAt && { at: commande.codRemisAt, texte: "Encaissement remis par le livreur." },
+    commande.statut === "annulee" && { at: commande.updatedAt, texte: "Commande annulée." },
+  ].filter(Boolean).sort((a: any, b: any) => b.at.getTime() - a.at.getTime()) as { at: Date; texte: string }[];
 
-  // Lien livreur : QR affiché à l'écran du marchand pendant la course seulement,
-  // à scanner par le livreur au départ (jamais imprimé ni glissé dans le colis).
-  const lienLivreur = (commande as any).livreurToken ? await lienBoutique((commande as any).tenant?.slug ?? "", `/livreur/${(commande as any).livreurToken}`) : null;
-  const qrLivreur = lienLivreur && STATUTS_COURSE_ACTIVE.includes(commande.statut) ? await qrSvg(lienLivreur) : null;
   return (
-    <div className="max-w-4xl space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/dashboard/commandes" className="w-9 h-9 flex-shrink-0 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#F5A623] hover:border-[#F5A623]/30 transition-all">
-            <ArrowLeft size={16} />
-          </Link>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="text-xl font-bold text-[#111111] font-mono break-all">{commande.numero}</h1>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium"
-                style={{ color: statutInfo.color, backgroundColor: statutInfo.bg }}>
-                <StatutIcon size={11} />
-                {t(statutInfo.label)}
-              </div>
-            </div>
-            <p className="text-gray-500 text-xs mt-0.5">{dateRelative(commande.createdAt)}</p>
-          </div>
-        </div>
-        <StatutCommandeSelector commandeId={commande.id} statutActuel={commande.statut} payeeEnLigne={commande.methodePaiement === "notchpay" && commande.paiementStatut === "completed"} />
-      </div>
+    <Page width="narrow">
+      <PageHeader
+        icon="orders"
+        backHref="/dashboard/commandes"
+        title={<span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>#{commande.numero} <MappedBadge {...paiement} /> <MappedBadge {...fulfillmentBadge(commande.statut)} /></span>}
+        secondaryActions={[
+          ...(lienFacture ? [{ content: "Imprimer la facture", href: lienFacture, external: true }] : []),
+          ...(lienSuivi ? [{ content: "Page de suivi", href: lienSuivi, external: true }] : []),
+        ]}
+        extraActions={<>
+          {precedente ? <IconButton icon="chevronLeft" href={`/dashboard/commandes/${precedente.id}`} aria-label="Commande précédente" /> : null}
+          {suivante ? <IconButton icon="chevronRight" href={`/dashboard/commandes/${suivante.id}`} aria-label="Commande suivante" /> : null}
+        </>}
+      />
+      <p className="axd-muted" style={{ margin: "-4px 0 14px" }}>{dateRelativeAdmin(commande.createdAt)} · {canalCommande(commande)}</p>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Colonne principale */}
-        <div className="lg:col-span-2 space-y-5">
-          {/* Articles commandés */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-6">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <Package size={14} className="text-[#F5A623]" />
-              {t("Articles (")}{commande.lignes.length})
-            </h2>
-            <div className="space-y-4">
-              {commande.lignes.map((ligne) => (
-                <div key={ligne.id} className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-gray-50 border border-gray-200 overflow-hidden flex-shrink-0">
-                    {ligne.imageUrl ? (
-                      <img src={ligne.imageUrl} alt={ligne.nom} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><Package size={24} className="text-gray-300" /></div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[#111111] font-medium text-sm truncate">{t(ligne.nom)}</p>
-                    {ligne.variante && <p className="text-gray-500 text-xs">{t(ligne.variante)}</p>}
-                    <p className="text-gray-400 text-xs mt-0.5">{t("Qté :")}{" "}{ligne.quantite}{" "}{t("×")}{" "}{formatMontant(ligne.prix, commande.devise)}</p>
-                  </div>
-                  <p className="text-[#F5A623] font-bold text-sm flex-shrink-0">
-                    {formatMontant(ligne.prix * ligne.quantite, commande.devise)}
-                  </p>
+      <Layout
+        main={<>
+          <Card>
+            <div className="axd-card__head" style={{ gap: 8 }}>
+              <MappedBadge {...fulfillmentBadge(commande.statut)} />
+              {livraison && <MappedBadge {...livraison} />}
+              <span className="axd-muted">{commande.ville}</span>
+            </div>
+            {commande.lignes.map((l) => (
+              <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
+                <span className="axd-thumb">{l.imageUrl ? <img src={l.imageUrl} alt="" /> : <Icon name="image" />}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Link href={`/dashboard/produits/${l.produitId}`} style={{ color: "var(--color-link)" }}>{l.nom}</Link>
+                  {l.variante && <div className="axd-muted" style={{ fontSize: 12 }}>{l.variante}</div>}
+                </div>
+                <span className="axd-tabular axd-muted" style={{ whiteSpace: "nowrap" }}>{formatMontant(l.prix, devise)} × {l.quantite}</span>
+                <span className="axd-tabular" style={{ width: 110, textAlign: "right", fontWeight: 600, color: "var(--color-text-strong)" }}>{formatMontant(l.prix * l.quantite, devise)}</span>
+              </div>
+            ))}
+            <Divider />
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <StatutCommandeSelector commandeId={commande.id} statutActuel={commande.statut} payeeEnLigne={commande.methodePaiement === "notchpay" && payee} />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="axd-card__head"><MappedBadge {...paiement} /></div>
+            <KeyValue rows={[
+              { label: `Sous-total · ${nombre(nbArticles)} article${nbArticles > 1 ? "s" : ""}`, value: formatMontant(commande.montantSousTotal, devise) },
+              ...(commande.montantReduction > 0 ? [{ label: `Réduction${commande.codePromo ? ` · ${commande.codePromo.code}` : ""}`, value: formatMontant(-commande.montantReduction, devise) }] : []),
+              { label: "Livraison", value: formatMontant(commande.montantLivraison, devise) },
+              { label: "Total", value: formatMontant(commande.montantTotal, devise), strong: true },
+            ]} />
+            <Divider />
+            <KeyValue rows={[
+              { label: payee ? "Payé par le client" : "Montant à encaisser", value: formatMontant(commande.montantTotal, devise), strong: true },
+              { label: "Moyen de paiement", value: METHODES[commande.methodePaiement] ?? commande.methodePaiement },
+              ...(commande.flutterwaveRef || commande.paiementReference ? [{ label: "Référence", value: <span style={{ fontFamily: "monospace", fontSize: 12 }}>{commande.paiementReference ?? commande.flutterwaveRef}</span> }] : []),
+              ...(commande.commission ? [
+                { label: "Commission AXSO", value: formatMontant(commande.commission.montantCommission, devise) },
+                { label: "Votre part", value: formatMontant(commande.commission.montantMarchand, devise) },
+              ] : []),
+            ]} />
+          </Card>
+
+          {journalDigital && (
+            <Card title="Livraison numérique">
+              <KeyValue rows={[
+                { label: "Accès", value: <Badge tone={journalDigital.statut === "livree" ? "success" : journalDigital.statut === "revoquee" ? "neutral" : "critical"}>{({ livree: "Livrés", partielle: "Incomplets", echec: "Échec", en_cours: "En cours", revoquee: "Révoqués" } as Record<string, string>)[journalDigital.statut] ?? journalDigital.statut}</Badge> },
+                { label: "E-mail au client", value: ({ envoye: "Envoyé", echec: "Échec d’envoi", sans_email: "Pas d’e-mail", en_attente: "Pas encore envoyé" } as Record<string, string>)[journalDigital.emailStatut] ?? journalDigital.emailStatut },
+                { label: "Tentatives", value: `${journalDigital.tentatives} livraison(s) · ${journalDigital.emailTentatives} e-mail(s)` },
+                ...jetons.map((j) => ({ label: j.produit.nom, value: j.revoqueAt ? "Révoqué" : `${j.nbTelechargements} téléchargement(s)` })),
+                ...(nbFormations || nbCles ? [{ label: "Droits délivrés", value: [nbFormations && `${nbFormations} accès formation`, nbCles && `${nbCles} clé(s) de licence`].filter(Boolean).join(" · ") }] : []),
+              ]} />
+              {journalDigital.derniereErreur && journalDigital.statut !== "revoquee" && <p className="axd-critical-text" style={{ fontSize: 12 }}>{journalDigital.derniereErreur}</p>}
+              {journalDigital.statut !== "revoquee" && payee && lienAccesDigital && <div style={{ marginTop: 8 }}><RenvoyerLienDigital commandeId={commande.id} lienAcces={lienAccesDigital} /></div>}
+            </Card>
+          )}
+
+          <Card title="Chronologie">
+            <div className="axd-timeline">
+              {evenements.map((e, i) => (
+                <div key={i} className="axd-timeline__ev">
+                  <i className={i === 0 ? "axd-timeline__dot axd-timeline__dot--last" : "axd-timeline__dot"} />
+                  <span style={{ flex: 1 }}>{e.texte}</span>
+                  <span className="axd-muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{dateRelativeAdmin(e.at)}</span>
                 </div>
               ))}
             </div>
+          </Card>
+        </>}
+        aside={<>
+          <Card title="Notes">
+            <p className={commande.noteClient ? undefined : "axd-muted"} style={{ margin: 0 }}>{commande.noteClient ?? "Aucune note du client"}</p>
+          </Card>
 
-            {/* Totaux */}
-            <div className="border-t border-gray-100 mt-5 pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">{t("Sous-total")}</span>
-                <span className="text-[#111111]">{formatMontant(commande.montantSousTotal, commande.devise)}</span>
-              </div>
-              {commande.montantLivraison > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">{t("Livraison")}</span>
-                  <span className="text-[#111111]">{formatMontant(commande.montantLivraison, commande.devise)}</span>
-                </div>
-              )}
-              {commande.montantReduction > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">{t("Réduction")}{" "}{commande.codePromo && `(${commande.codePromo.code})`}</span>
-                  <span className="text-green-400">−{formatMontant(commande.montantReduction, commande.devise)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-100">
-                <span className="text-[#111111]">{t("Total")}</span>
-                <span className="text-[#F5A623]">{formatMontant(commande.montantTotal, commande.devise)}</span>
-              </div>
-            </div>
-          </div>
+          <Card title="Client">
+            <Link href={`/dashboard/clients?q=${encodeURIComponent(commande.clientTelephone || commande.clientNom)}`} style={{ color: "var(--color-link)" }}>{commande.clientNom}</Link>
+            {commande.client && <div className="axd-muted" style={{ fontSize: 12 }}>{nombre(commande.client.totalCommandes)} commande{commande.client.totalCommandes > 1 ? "s" : ""}</div>}
+            <Divider />
+            <div className="axd-card__title" style={{ fontSize: 12 }}>Coordonnées</div>
+            <a href={`tel:${commande.clientTelephone}`} style={{ display: "block", color: "var(--color-link)" }}>{commande.clientTelephone}</a>
+            {commande.clientEmail && <a href={`mailto:${commande.clientEmail}`} style={{ display: "block", color: "var(--color-link)", overflowWrap: "anywhere" }}>{commande.clientEmail}</a>}
+            {telWa && <a href={`https://wa.me/${telWa}`} target="_blank" rel="noopener noreferrer" className="axd-btn axd-btn--sm" style={{ marginTop: 8 }}><Icon name="whatsapp" />Écrire sur WhatsApp</a>}
+            <Divider />
+            <div className="axd-card__title" style={{ fontSize: 12 }}>Adresse de livraison</div>
+            <p style={{ margin: "4px 0 0" }}>{commande.clientNom}<br />{commande.adresseExacte || commande.adresseLivraison}<br />{commande.ville}, {commande.pays}</p>
+            <a href={commande.mapsLienClient || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${commande.adresseLivraison}, ${commande.ville}`)}`}
+              target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, color: "var(--color-link)" }}>Voir sur la carte</a>
+          </Card>
 
-          {/* Paiement */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <CreditCard size={14} className="text-[#F5A623]" />
-              {t("Paiement")}
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">{t("Méthode")}</span>
-                <span className="text-[#111111]">{t(({ whatsapp_cod: "À la livraison (WhatsApp)", direct_cod: "À la livraison", notchpay: "Payé en ligne", en_attente: "En ligne — non finalisé" } as Record<string, string>)[commande.methodePaiement] ?? commande.methodePaiement)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">{t("Statut paiement")}</span>
-                <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                  commande.paiementStatut === "completed" ? "bg-green-500/20 text-green-400" :
-                  commande.paiementStatut === "pending" ? "bg-yellow-500/20 text-yellow-400" :
-                  "bg-red-500/20 text-red-400"
-                }`}>
-                  {t(({ completed: "Payé", pending: "En attente", failed: "Échoué", refunded: "Remboursé", refunding: "Remboursement en cours" } as Record<string, string>)[commande.paiementStatut] ?? commande.paiementStatut)}
-                </span>
-              </div>
-              {commande.flutterwaveRef && (
-                <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-gray-400">{t("Référence")}</span>
-                  <span className="text-[#111111] font-mono text-xs break-all text-right">{commande.flutterwaveRef}</span>
-                </div>
-              )}
-
-
-              {commande.commission && (
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5 text-xs">
-                  <p className="text-gray-400 font-medium">{t("Commission Axso")}</p>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t("Commission brute")}</span>
-                    <span className="text-[#111111]">{formatMontant(commande.commission.montantCommission, commande.devise)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t("Votre part")}</span>
-                    <span className="text-green-400">{formatMontant(commande.commission.montantMarchand, commande.devise)}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Livraison numérique */}
-          {journalDigital && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-                <Share2 size={14} className="text-[#F5A623]" />
-                {t("Livraison numérique")}
-              </h2>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t("Accès")}</span>
-                  <span className={`text-xs px-2 py-1 rounded-lg font-medium ${journalDigital.statut === "livree" ? "bg-green-500/20 text-green-600" : journalDigital.statut === "revoquee" ? "bg-gray-200 text-gray-600" : "bg-red-500/20 text-red-500"}`}>
-                    {t(({ livree: "Livrés", partielle: "Incomplets", echec: "Échec", en_cours: "En cours", revoquee: "Révoqués" } as Record<string, string>)[journalDigital.statut] ?? journalDigital.statut)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t("E-mail au client")}</span>
-                  <span className="text-[#111111] text-xs">
-                    {t(({ envoye: "Envoyé", echec: "Échec d'envoi", sans_email: "Pas d'e-mail", en_attente: "Pas encore envoyé" } as Record<string, string>)[journalDigital.emailStatut] ?? journalDigital.emailStatut)}
-                    {journalDigital.emailEnvoyeAt ? ` · ${dateRelative(journalDigital.emailEnvoyeAt)}` : ""}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t("Tentatives")}</span>
-                  <span className="text-[#111111] text-xs">{journalDigital.tentatives}{" "}{t("livraison(s)")}{" · "}{journalDigital.emailTentatives}{" "}{t("e-mail(s)")}</span>
-                </div>
-                {jetons.map((j) => (
-                  <div key={j.id} className="flex justify-between text-xs">
-                    <span className="text-gray-500 truncate">{t(j.produit.nom)}</span>
-                    <span className="text-[#111111]">{j.revoqueAt ? t("Révoqué") : `${j.nbTelechargements} ${t("téléchargement(s)")}`}</span>
-                  </div>
-                ))}
-                {(nbFormations > 0 || nbCles > 0) && (
-                  <p className="text-xs text-gray-500">{nbFormations > 0 ? `${nbFormations} ${t("accès formation")}` : ""}{nbFormations > 0 && nbCles > 0 ? " · " : ""}{nbCles > 0 ? `${nbCles} ${t("clé(s) de licence")}` : ""}</p>
-                )}
-                {journalDigital.derniereErreur && journalDigital.statut !== "revoquee" && (
-                  <p className="text-xs text-red-500">{t(journalDigital.derniereErreur)}</p>
-                )}
-                {journalDigital.statut !== "revoquee" && commande.paiementStatut === "completed" && lienAccesDigital && (
-                  <RenvoyerLienDigital commandeId={commande.id} lienAcces={lienAccesDigital} />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Note client */}
-          {commande.noteClient && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <p className="text-gray-400 text-xs mb-2">{t("Note du client")}</p>
-              <p className="text-gray-600 text-sm italic">"{t(commande.noteClient)}"</p>
-            </div>
-          )}
-        </div>
-
-        {/* Colonne latérale */}
-        <div className="space-y-5">
-          {/* Client */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <User size={14} className="text-[#F5A623]" />
-              {t("Client")}
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-[#111111] font-medium">{t(commande.clientNom)}</p>
-                {commande.client && <p className="text-gray-500 text-xs mt-0.5">{t(commande.client.totalCommandes)} commande(s)</p>}
-              </div>
-              <a href={`mailto:${commande.clientEmail}`} className="flex items-center gap-2 min-w-0 break-all text-gray-400 hover:text-[#F5A623] text-sm transition-colors">
-                <Mail size={13} className="text-gray-500 flex-shrink-0" />
-                {t(commande.clientEmail)}
-              </a>
-              <a href={`tel:${commande.clientTelephone}`} className="flex items-center gap-2 text-gray-400 hover:text-[#F5A623] text-sm transition-colors">
-                <Phone size={13} className="text-gray-500" />
-                {t(commande.clientTelephone)}
-              </a>
-            </div>
-          </div>
-
-          {/* Livraison */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <MapPin size={14} className="text-[#F5A623]" />
-              {t("Adresse de livraison")}
-            </h2>
-            <div className="space-y-1.5 text-sm">
-              <p className="text-[#111111]">{t(commande.adresseLivraison)}</p>
-              <p className="text-gray-400">{t(commande.ville)}, {t(commande.pays)}</p>
-            </div>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${commande.adresseLivraison}, ${commande.ville}`)}`}
-              target="_blank" rel="noopener noreferrer"
-              className="mt-3 flex items-center gap-2 bg-[#3b82f6]/10 border border-[#3b82f6]/20 text-[#60a5fa] py-2.5 rounded-xl text-xs justify-center hover:bg-[#3b82f6]/20 transition-all"
-            >
-              <MapPin size={12} />{" "}{t("Voir sur Maps")}
-            </a>
-          </div>
-
-          {/* Livreur assigné */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <h2 className="text-[#111111] font-semibold text-sm mb-4 flex items-center gap-2">
-              <Truck size={14} className="text-[#F5A623]" />
-              {t("Livreur")}
-            </h2>
+          <Card title="Livreur">
             {commande.livreur ? (
-              <div className="space-y-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${commande.livreur.disponible ? "bg-green-400" : "bg-gray-500"}`} />
-                  <p className="text-[#111111] font-medium text-sm">{t(commande.livreur.nom)}</p>
-                </div>
-                <p className="text-gray-400 text-xs">{commande.livreur.telephone}</p>
-                <a href={`tel:${commande.livreur.telephone}`} className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-600 py-2 px-3 rounded-xl text-xs hover:border-[#F5A623]/30 transition-all">
-                  <Phone size={11} />{" "}{t("Appeler le livreur")}
-                </a>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-xs mb-3">{t("Aucun livreur assigné")}</p>
-            )}
+              <p style={{ margin: "0 0 8px" }}>{commande.livreur.nom} · <a href={`tel:${commande.livreur.telephone}`} style={{ color: "var(--color-link)" }}>{commande.livreur.telephone}</a></p>
+            ) : <p className="axd-muted" style={{ margin: "0 0 8px" }}>Aucun livreur assigné</p>}
             <AssignerLivreur
               commandeId={commande.id}
               livreurActuelId={commande.livreurId || null}
               villeCommande={commande.ville}
-              livreurs={livreurs.map(l => ({
-                id: l.id,
-                nom: l.nom,
-                vehicule: l.vehicule,
-                zone: l.zone,
-                disponible: l.disponible,
-                coursesEnCours: l._count.commandes,
-              }))}
+              livreurs={livreurs.map((l) => ({ id: l.id, nom: l.nom, vehicule: l.vehicule, zone: l.zone, disponible: l.disponible, coursesEnCours: l._count.commandes }))}
             />
-          </div>
-
-          {/* Suivi */}
-          {(commande.numeroSuivi || commande.transporteur) && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <h2 className="text-[#111111] font-semibold text-sm mb-3">{t("Suivi colis")}</h2>
-              {commande.transporteur && <p className="text-gray-400 text-xs">{t(commande.transporteur)}</p>}
-              {commande.numeroSuivi && <p className="text-[#111111] font-mono text-sm mt-1">{t(commande.numeroSuivi)}</p>}
-            </div>
-          )}
-
-          {/* ─── Tracking temps réel & Livraison ─── */}
-          {(commande as any).trackingToken && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
-              <h2 className="text-[#111111] font-semibold text-sm flex items-center gap-2">
-                <Truck size={14} className="text-[#F5A623]" />
-                {t("Tracking & Livraison")}
-              </h2>
-
-              {/* Localisation client */}
-              {((commande as any).latitudeClient || (commande as any).adresseExacte) && (
-                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{t("Position client GPS")}</p>
-                  {(commande as any).adresseExacte && <p className="text-sm text-[#111111]">{t((commande as any).adresseExacte)}</p>}
-                  {(commande as any).latitudeClient && (
-                    <p className="text-xs text-gray-500 font-mono">{(commande as any).latitudeClient?.toFixed(5)}, {(commande as any).longitudeClient?.toFixed(5)}</p>
-                  )}
-                  {(commande as any).mapsLienClient && (
-                    <a href={(commande as any).mapsLienClient} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[#60a5fa] text-xs hover:underline">
-                      <MapPin size={11} />{" "}{t("Ouvrir Google Maps")}
-                    </a>
-                  )}
+            {qrLivreur && (
+              <>
+                <Divider />
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div style={{ width: 96, height: 96, flex: "none" }} dangerouslySetInnerHTML={{ __html: qrLivreur }} />
+                  <p className="axd-muted" style={{ fontSize: 12, margin: 0 }}>À faire scanner par le livreur depuis cet écran, au départ. Ne l’imprimez pas et ne le mettez pas dans le colis.</p>
                 </div>
-              )}
+              </>
+            )}
+            {lienLivreur && courseActive && (
+              <a className="axd-btn axd-btn--sm" style={{ marginTop: 8 }} target="_blank" rel="noopener noreferrer"
+                href={`https://wa.me/?text=${encodeURIComponent(`Livraison — ${commande.tenant.nomBoutique}\n\nCommande #${commande.numero}\nClient : ${commande.clientNom}\nTél : ${commande.clientTelephone}\nAdresse : ${commande.adresseExacte || commande.adresseLivraison}, ${commande.ville}\n${commande.mapsLienClient ? `Carte : ${commande.mapsLienClient}\n` : ""}\nVotre lien de course : ${lienLivreur}`)}`}>
+                <Icon name="whatsapp" />Envoyer la course au livreur
+              </a>
+            )}
+          </Card>
 
-              {/* Liens marchand */}
-              <div className="space-y-2">
-                {/* Facture */}
-                <a href={await lienBoutique((commande as any).tenant?.slug ?? "", `/facture/${(commande as any).trackingToken}`)}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 w-full py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-[#F5A623]/30 hover:text-[#F5A623] transition-all">
-                  <FileText size={14} />{" "}{t("Voir la facture client")}
-                </a>
-
-                {/* Tracking client */}
-                <a href={await lienBoutique((commande as any).tenant?.slug ?? "", `/tracking/${(commande as any).trackingToken}`)}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 w-full py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-[#F5A623]/30 hover:text-[#F5A623] transition-all">
-                  <Map size={14} />{" "}{t("Page de suivi (vue client)")}
-                </a>
-
-                {/* Lien livreur */}
-                {qrLivreur && (
-                  <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white">
-                    <div className="w-24 h-24 flex-shrink-0" dangerouslySetInnerHTML={{ __html: qrLivreur }} />
-                    <div className="text-[12px] text-gray-500 leading-relaxed">
-                      <p className="font-semibold text-[#111111] text-[13px] mb-1">{t("QR du livreur")}</p>
-                      {t("À faire scanner par le livreur depuis cet écran, au départ : il démarre la course, partage sa position et confirme la livraison avec le code du client. Ne l'imprime pas et ne le mets pas dans le colis. Le lien s'arrête quand la commande est livrée ou annulée, et change si tu changes de livreur.")}
-                    </div>
-                  </div>
-                )}
-                {lienLivreur && STATUTS_COURSE_ACTIVE.includes(commande.statut) && (() => {
-                  const livreurUrl = lienLivreur;
-                  const msg = encodeURIComponent(`🚚 *Livraison — ${(commande as any).tenant?.nomBoutique}*\n\nBonjour ! Vous êtes assigné à la livraison de la commande #${commande.numero}.\n\n👤 Client : ${commande.clientNom}\n📞 Tél : ${commande.clientTelephone}\n📍 Adresse : ${(commande as any).adresseExacte || commande.adresseLivraison}, ${commande.ville}\n${(commande as any).mapsLienClient ? `\n🗺️ Google Maps : ${(commande as any).mapsLienClient}\n` : ""}\n📡 Votre lien de course (démarrer, suivi GPS, confirmer avec le code du client) :\n${livreurUrl}\n\nMerci !`);
-                  return (
-                    <a href={`https://wa.me/?text=${msg}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 w-full py-2.5 px-4 rounded-xl text-sm font-semibold transition-all text-[#111111]"
-                      style={{ background:"rgba(37,211,102,0.15)", border:"1px solid rgba(37,211,102,0.25)", color:"#25D366" }}>
-                      <Share2 size={14} />{" "}{t("Partager avec le livreur (WhatsApp)")}
-                    </a>
-                  );
-                })()}
-              </div>
-            </div>
+          {(lienSuivi || commande.numeroSuivi || commande.transporteur) && (
+            <Card title="Suivi du colis">
+              {lienSuivi && <a href={lienSuivi} target="_blank" rel="noreferrer" className="axd-btn axd-btn--sm" style={{ marginBottom: 8 }}>Ouvrir le suivi client</a>}
+              {commande.transporteur && <div className="axd-muted">{commande.transporteur}</div>}
+              {commande.numeroSuivi && <div style={{ fontFamily: "monospace" }}>{commande.numeroSuivi}</div>}
+            </Card>
           )}
-        </div>
-      </div>
-    </div>
+        </>}
+      />
+    </Page>
   );
 }

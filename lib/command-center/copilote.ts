@@ -158,13 +158,13 @@ export function repondre(c0: ContexteCC, question: string, t: T = T_FR): Reponse
     });
   }
 
-  // 8. Axia IA
+  // 8. Stella IA
   if (a(q, "axia", " ia", "ai ", "intelligence", "ai usage")) {
     const r = refus("ia"); if (r) return r;
     return fin({
-      reponse: t("Axia a reçu {0} requêtes pour un coût estimé de {1}. {2} des marchands actifs l'utilisent.", formatValeur(m("requetes_ia").valeur, "nombre"), formatValeur(m("cout_ia").valeur, "xaf"), formatValeur(m("adoption_ia").valeur, "pct")),
+      reponse: t("Stella a reçu {0} requêtes pour un coût estimé de {1}. {2} des marchands actifs l'utilisent.", formatValeur(m("requetes_ia").valeur, "nombre"), formatValeur(m("cout_ia").valeur, "xaf"), formatValeur(m("adoption_ia").valeur, "pct")),
       preuves: [], metriques: [metr(m("requetes_ia")), metr(m("adoption_ia")), metr(m("cout_ia"))], entites: [],
-      actions: [{ titre: t("Voir l'intelligence Axia"), href: href("/admin/ia") }], confiance: "elevee", hypothese: false,
+      actions: [{ titre: t("Voir l'intelligence Stella"), href: href("/admin/ia") }], confiance: "elevee", hypothese: false,
     });
   }
 

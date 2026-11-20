@@ -156,7 +156,7 @@ function Journal({ lieux, caisseId }: { lieux: Lieu[]; caisseId: string | null }
         : !lignes.length ? <EtatVide titre="Aucun mouvement" texte="Aucun mouvement de stock ne correspond à ces filtres." />
         : (
           <>
-            <ul className="divide-y divide-[#F0F0F0] rounded-2xl border border-[#E8E8E8] bg-white">
+            <ul className="divide-y divide-[#F0F0F0] rounded-[12px] border border-[#E8E8E8] bg-white">
               {lignes.map((m) => {
                 const sens = m.stockApres - m.stockAvant;
                 return (
@@ -213,7 +213,7 @@ export function EcranStock() {
 
   const lieux = donnees?.lieux ?? [];
   const stats = donnees?.stats;
-  const bouton = "inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[#E8E8E8] bg-white px-3 text-[12px] font-bold text-[#111111] hover:border-[#F5A623] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]";
+  const bouton = "inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[#E8E8E8] bg-white px-3 text-[12px] font-bold text-[#111111] hover:border-[#8a8a8a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]";
 
   return (
     <Page>
@@ -258,7 +258,7 @@ export function EcranStock() {
               <>
                 <ul className={cn("space-y-2 transition-opacity", etat.charge && "opacity-60")} aria-busy={etat.charge}>
                   {produits.map((p) => (
-                    <li key={p.id} className="rounded-2xl border border-[#E8E8E8] bg-white p-3 sm:p-4">
+                    <li key={p.id} className="rounded-[12px] border border-[#E8E8E8] bg-white p-3 sm:p-4">
                       <div className="flex flex-wrap items-center gap-3">
                         <Vignette src={p.image} />
                         <div className="min-w-0 flex-1">
@@ -274,7 +274,7 @@ export function EcranStock() {
                       <div className="mt-3"><GrilleEtats etats={p.etats} unite={p.uniteVente} compact /></div>
                       {p.variantes.length > 0 && (
                         <details className="group mt-2">
-                          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-lg text-[12px] font-semibold text-[#B45309] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#111111]">
+                          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-lg text-[12px] font-semibold text-[#5e4200] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#111111]">
                             <ChevronDown size={14} className="transition-transform group-open:rotate-180" aria-hidden />{t("{0} variantes", p.variantes.length)}
                           </summary>
                           <ul className="space-y-2">

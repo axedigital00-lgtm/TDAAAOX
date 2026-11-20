@@ -1,4 +1,4 @@
-// Chemin rapide d'AXIA : « ouvre-moi la page catalogue » se reconnaît par règles, sans
+// Chemin rapide de Stella : « ouvre-moi la page catalogue » se reconnaît par règles, sans
 // appel au modèle (avant : 2 appels Gemini avec ~75 Ko de prompt et d'outils, plusieurs
 // secondes). Seules les demandes courtes et non ambiguës passent ici : destination
 // trouvée telle quelle dans le catalogue des vraies pages, sinon null → parcours normal.
@@ -56,7 +56,7 @@ const POLITESSE = /\s+(?:stp|svp|s'il te plait|merci|please)$/;
 
 /** Intention de navigation reconnue sans modèle, ou null (le parcours normal s'en charge). */
 export function intentionRapide(message: string): Intention | null {
-  // Les fenêtres AXIA préfixent la demande d'un contexte « [Contexte : …] ».
+  // Les fenêtres Stella préfixent la demande d'un contexte « [Contexte : …] ».
   const contexte = message.match(/^\s*\[Contexte :([^\]]*)\]/)?.[1] ?? "";
   const texte = norm(message.replace(/^\s*\[Contexte :[^\]]*\]\s*/, ""));
   if (!texte || texte.length > 80 || /[?,;]| et | puis | ensuite /.test(texte)) return null;
@@ -77,5 +77,5 @@ export function intentionRapide(message: string): Intention | null {
   return { type: "dashboard", cle, chemin, nom };
 }
 
-/** Adresse d'une page du Constructeur, lue par la fenêtre AXIA du Constructeur pour changer de page. */
+/** Adresse d'une page du Constructeur, lue par la fenêtre Stella du Constructeur pour changer de page. */
 export const lienConstructeur = (page: PageEditee) => `/dashboard/builder?page=${page}`;

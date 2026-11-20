@@ -113,13 +113,13 @@ function Cases<T extends string>({ legende, options, valeur, onChange }: { legen
   const t = useT();
   return (
     <fieldset>
-      <legend className="text-[11px] font-semibold uppercase tracking-wide text-[#666666]">{t(legende)}</legend>
+      <legend className="text-[11px] font-semibold text-[#666666]">{t(legende)}</legend>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {options.map((o) => {
           const coche = valeur.includes(o.id);
           return (
-            <label key={o.id} className={cn("flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[13px] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#111111]", coche ? "border-[#F5A623] bg-[#FFF7ED] font-semibold" : "border-[#E8E8E8] bg-white")}>
-              <input type="checkbox" className="accent-[#F5A623]" checked={coche} onChange={() => onChange(coche ? valeur.filter((v) => v !== o.id) : [...valeur, o.id])} />
+            <label key={o.id} className={cn("flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[13px] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#111111]", coche ? "border-[#1a1a1a] bg-[#f1f1f1] font-semibold" : "border-[#E8E8E8] bg-white")}>
+              <input type="checkbox" className="accent-[#1a1a1a]" checked={coche} onChange={() => onChange(coche ? valeur.filter((v) => v !== o.id) : [...valeur, o.id])} />
               {t(o.libelle)}
             </label>
           );
@@ -221,7 +221,7 @@ export function FormulairePromotion({ ouverte, onFermer, promotion, autres, maga
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {TYPES_PROMOTION.map((id) => (
             <li key={id}>
-              <button type="button" onClick={() => maj({ type: id, segments: [] })} className={cn("h-full min-h-20 w-full rounded-2xl border border-[#E8E8E8] bg-white p-3 text-left transition-colors hover:border-[#F5A623]", FOCUS)}>
+              <button type="button" onClick={() => maj({ type: id, segments: [] })} className={cn("h-full min-h-20 w-full rounded-[12px] border border-[#E8E8E8] bg-white p-3 text-left transition-colors hover:border-[#8a8a8a]", FOCUS)}>
                 <span className="block text-[14px] font-bold">{t(TYPES_PROMO[id].libelle)}</span>
                 <span className="mt-1 block text-[12px] leading-snug text-[#666666]">{t(TYPES_PROMO[id].description)}</span>
               </button>
@@ -238,7 +238,7 @@ export function FormulairePromotion({ ouverte, onFermer, promotion, autres, maga
             <Saisie label="Nom de la promotion" value={b.nom} onChange={(e) => maj({ nom: e.target.value })} maxLength={80} required aide="Affiché sur le reçu et à la caisse." />
 
             {/* Règle propre au type */}
-            <section className="space-y-3 rounded-2xl border border-[#F0F0F0] p-3" aria-label={t("Règle")}>
+            <section className="space-y-3 rounded-[12px] border border-[#F0F0F0] p-3" aria-label={t("Règle")}>
               {type === "pourcentage" && nombre("Remise", "valeur", { suffixe: "%", max: 100 })}
               {type === "montant_fixe" && (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -259,7 +259,7 @@ export function FormulairePromotion({ ouverte, onFermer, promotion, autres, maga
                     {nombre("Articles pris", "x", { min: 2 })}
                     {nombre("Articles payés", "y", { min: 1, aide: "3 pris, 2 payés = le 2+1. Les moins chers sont offerts." })}
                   </div>
-                  <label className="flex min-h-11 items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[#F5A623]" checked={b.memeArticle} onChange={(e) => maj({ memeArticle: e.target.checked })} />{t("Uniquement sur un même article (pas de mélange)")}</label>
+                  <label className="flex min-h-11 items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[#1a1a1a]" checked={b.memeArticle} onChange={(e) => maj({ memeArticle: e.target.checked })} />{t("Uniquement sur un même article (pas de mélange)")}</label>
                 </>
               )}
               {type === "lot" && (
@@ -311,7 +311,7 @@ export function FormulairePromotion({ ouverte, onFermer, promotion, autres, maga
                     {b.paliers.length < 10 && <Bouton variante="secondaire" taille="compact" onClick={() => maj({ paliers: [...b.paliers, { minQuantite: "", prix: "", pct: "" }] })}>{t("Ajouter un palier")}</Bouton>}
                     {b.paliers.length > 1 && <Bouton variante="secondaire" taille="compact" onClick={() => maj({ paliers: b.paliers.slice(0, -1) })}>{t("Retirer le dernier")}</Bouton>}
                   </div>
-                  <label className="flex min-h-11 items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[#F5A623]" checked={b.grossisteTous} onChange={(e) => maj({ grossisteTous: e.target.checked, segments: [] })} />{t("Ouvert à tout client : la quantité seule décide (sinon réservé aux grossistes)")}</label>
+                  <label className="flex min-h-11 items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[#1a1a1a]" checked={b.grossisteTous} onChange={(e) => maj({ grossisteTous: e.target.checked, segments: [] })} />{t("Ouvert à tout client : la quantité seule décide (sinon réservé aux grossistes)")}</label>
                 </>
               )}
             </section>
@@ -336,10 +336,10 @@ export function FormulairePromotion({ ouverte, onFermer, promotion, autres, maga
             </section>
 
             {/* Cumul */}
-            <section className="space-y-3 rounded-2xl border border-[#F0F0F0] p-3" aria-label={t("Cumul")}>
+            <section className="space-y-3 rounded-[12px] border border-[#F0F0F0] p-3" aria-label={t("Cumul")}>
               <div className="grid gap-3 sm:grid-cols-2">
                 {nombre("Priorité", "priorite", { min: -1000, max: 1000, aide: "La plus haute passe en premier." })}
-                <label className="flex min-h-11 items-center gap-2 self-start text-[13px] sm:mt-5"><input type="checkbox" className="accent-[#F5A623]" checked={b.cumulable} onChange={(e) => maj({ cumulable: e.target.checked })} />{t("Cumulable avec d'autres promotions cumulables")}</label>
+                <label className="flex min-h-11 items-center gap-2 self-start text-[13px] sm:mt-5"><input type="checkbox" className="accent-[#1a1a1a]" checked={b.cumulable} onChange={(e) => maj({ cumulable: e.target.checked })} />{t("Cumulable avec d'autres promotions cumulables")}</label>
               </div>
               <p className="text-[11.5px] leading-snug text-[#666666]">{t("Un article ne reçoit jamais deux promotions. Une promotion non cumulable écarte toutes les autres du panier.")}</p>
               {codesPromo.length > 0 && (
@@ -353,7 +353,7 @@ export function FormulairePromotion({ ouverte, onFermer, promotion, autres, maga
           </div>
 
           {/* Aperçu */}
-          <aside className="space-y-3 rounded-2xl bg-[#FAFAFA] p-3 lg:sticky lg:top-0 lg:self-start" aria-label={t("Aperçu sur un panier d'exemple")}>
+          <aside className="space-y-3 rounded-[12px] bg-[#FAFAFA] p-3 lg:sticky lg:top-0 lg:self-start" aria-label={t("Aperçu sur un panier d'exemple")}>
             <p className="text-[13px] font-bold">{t("Aperçu sur un panier d'exemple")}</p>
             <p className="text-[11.5px] leading-snug text-[#666666]">{donnees ? resumePromotion(donnees, fmt) : ""}</p>
             <SelecteurArticles label="Panier d'exemple" valeur={exemple} onChange={setExemple} avecQuantite />
@@ -362,7 +362,7 @@ export function FormulairePromotion({ ouverte, onFermer, promotion, autres, maga
               {select("Segment", profil.segment, (segment) => setProfil({ ...profil, segment }), [["", "Aucun"], ...SEGMENTS.map((s) => [s, LIBELLES_SEGMENT[s]] as [string, string])])}
             </div>
             {autres.some((p) => p.etat === "active" && p.id !== promotion?.id) && (
-              <label className="flex min-h-11 items-center gap-2 text-[12.5px]"><input type="checkbox" className="accent-[#F5A623]" checked={avecAutres} onChange={(e) => setAvecAutres(e.target.checked)} />{t("Avec les autres promotions actives")}</label>
+              <label className="flex min-h-11 items-center gap-2 text-[12.5px]"><input type="checkbox" className="accent-[#1a1a1a]" checked={avecAutres} onChange={(e) => setAvecAutres(e.target.checked)} />{t("Avec les autres promotions actives")}</label>
             )}
             {!apercu ? <p className="text-[12px] text-[#888888]">{t("Ajoutez des articles pour voir l'effet de la promotion.")}</p> : (
               <div aria-live="polite" className="space-y-2">

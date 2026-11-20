@@ -1,3 +1,5 @@
+import "@fontsource-variable/inter/wght.css";
+import "@/components/ui/espace-sombre.css";
 import { auth } from "@/lib/auth";
 import { ActivationPush } from "@/components/ActivationPush";
 import { MenusDeroulants } from "@/components/ui/MenusDeroulants";
@@ -34,7 +36,7 @@ export default async function LivreurLayout({ children }: { children: React.Reac
 
   return (
     <I18nProvider langue={await getLangue()} dico={await dico("livreur")}>
-    <div className="min-h-screen bg-[#0A0A0A] text-white">
+    <div className="ax-sombre min-h-screen bg-[#0A0A0A] text-white">
       <ActivationPush espace="livreur" />
       <MenusDeroulants />
       {/* Fond étoilé subtil */}

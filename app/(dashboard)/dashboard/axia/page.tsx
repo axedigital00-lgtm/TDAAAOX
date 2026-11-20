@@ -13,7 +13,7 @@ export default function AxiaPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Msg[]>([{
     role: "assistant",
-    content: "Bonjour ! Je suis Axia, ton assistante IA.\n\nPose-moi n'importe quelle question sur ta boutique : ventes, stocks, clients, marketing…",
+    content: "Bonjour ! Je suis Stella, ton assistante IA.\n\nPose-moi n'importe quelle question sur ta boutique : ventes, stocks, clients, marketing…",
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,7 +81,7 @@ export default function AxiaPage() {
                 return prev;
               });
             } else if (data.type === "done") {
-              // ouvrir_page : AXIA amène le marchand sur la page demandée.
+              // ouvrir_page : Stella amène le marchand sur la page demandée.
               const lien = pageAOuvrir(data.actions);
               if (lien) ouvrirPage(lien, router.push);
               setMessages(prev => {
@@ -122,10 +122,10 @@ export default function AxiaPage() {
       {/* Header */}
       <div className="flex-shrink-0 flex flex-wrap items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
         <div className="w-10 h-10 rounded-2xl overflow-hidden flex-shrink-0">
-          <img src="/axia-icon.png" alt={t("Axia")} className="w-full h-full object-cover" />
+          <img src="/axia-icon.png" alt={t("Stella")} className="w-full h-full object-cover" />
         </div>
         <div>
-          <h1 className="text-base font-bold text-gray-900">{t("Axia — Assistante IA")}</h1>
+          <h1 className="text-base font-bold text-gray-900">{t("Stella — Assistante IA")}</h1>
           <p className="text-xs text-gray-400">{t("Marketing · Stocks · Revenus · Clients · Livraisons")}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -146,7 +146,7 @@ export default function AxiaPage() {
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden ${m.role === "assistant" ? "" : "bg-[#F5A623]"}`}>
               {m.role === "assistant"
-                ? <img src="/axia-icon.png" alt={t("Axia")} className="w-full h-full object-cover" />
+                ? <img src="/axia-icon.png" alt={t("Stella")} className="w-full h-full object-cover" />
                 : <User size={13} className="text-white" />}
             </div>
             <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
@@ -189,7 +189,7 @@ export default function AxiaPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); envoyer(); } }}
-            placeholder={t("Pose une question à Axia…")}
+            placeholder={t("Pose une question à Stella…")}
             disabled={loading}
             className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
           />
@@ -208,7 +208,7 @@ export default function AxiaPage() {
           </button>
         </div>
         <p className="text-center text-[10px] text-gray-300 mt-2">
-          {t("Axia peut créer des produits, envoyer des campagnes et analyser tes ventes.")}
+          {t("Stella peut créer des produits, envoyer des campagnes et analyser tes ventes.")}
         </p>
       </div>
 

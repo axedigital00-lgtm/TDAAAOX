@@ -1,6 +1,6 @@
-// Style de langage du marchand : déduit de ses propres messages à AXIA, gardé
+// Style de langage du marchand : déduit de ses propres messages à Stella, gardé
 // en mémoire (AgentMemory) et réutilisé pour que les réponses et les prises de
-// parole d'AXIA lui ressemblent (tutoiement, emojis, longueur, expressions).
+// parole de Stella lui ressemblent (tutoiement, emojis, longueur, expressions).
 import { prisma } from "@/lib/prisma";
 import { completionAuto } from "@/lib/llm-client";
 
@@ -57,7 +57,7 @@ export async function rafraichirStyle(tenantId: string): Promise<void> {
   }
 }
 
-/** Bloc à ajouter aux prompts d'AXIA (vide tant que le profil n'existe pas). */
+/** Bloc à ajouter aux prompts de Stella (vide tant que le profil n'existe pas). */
 export function consigneStyle(style: string): string {
   return style
     ? `─── STYLE DU MARCHAND ───\nAdapte ta façon de parler à la sienne (cette consigne prime sur le registre par défaut) :\n${style}`

@@ -1,5 +1,5 @@
 // Synchronisation des produits dropshipping avec leurs fournisseurs.
-// Appelée par la tâche planifiée (toutes les boutiques) et par AXIA (sa boutique seulement).
+// Appelée par la tâche planifiée (toutes les boutiques) et par Stella (sa boutique seulement).
 import { prisma } from "./prisma";
 
 interface SyncResult {

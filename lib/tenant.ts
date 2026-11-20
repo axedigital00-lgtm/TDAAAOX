@@ -7,7 +7,7 @@ import { COOKIE_APERCU, lireJetonApercu } from "@/lib/builder/apercu";
 
 /**
  * Boutique publiée : les rappels « pas encore publiée » (notification de création,
- * constat AXIA) deviennent faux — on les retire. Appelé par chaque chemin de publication.
+ * constat Stella) deviennent faux — on les retire. Appelé par chaque chemin de publication.
  */
 export async function oublierRappelsBrouillon(tenantId: string) {
   await Promise.all([

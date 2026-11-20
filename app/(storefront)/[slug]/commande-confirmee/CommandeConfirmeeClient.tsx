@@ -208,6 +208,10 @@ export function CommandeConfirmeeClient({ commande, theme, slug, nomBoutique, te
         </p>
       </div>
 
+      <Link href={`/suivi?numero=${encodeURIComponent(commande.numero)}`}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50">
+        <Truck size={16} />{t("Suivre ma commande")}
+      </Link>
       {/* Lien retour boutique */}
       <div className="text-center pt-2">
         <Link

@@ -59,6 +59,7 @@ const nextConfig: NextConfig = {
   },
 
   images: {
+    unoptimized: process.env.AXSO_RUNTIME === "workers" || process.env.AXSO_WORKER_BUILD === "1",
     remotePatterns: [
       { protocol: "https", hostname: "**" },
       { protocol: "http",  hostname: "localhost" },

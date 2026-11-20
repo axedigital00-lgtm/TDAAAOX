@@ -1,5 +1,5 @@
 // Sync automatique des prix/stocks fournisseurs dropshipping — tâche planifiée,
-// protégée par CRON_SECRET (elle touche toutes les boutiques). AXIA appelle
+// protégée par CRON_SECRET (elle touche toutes les boutiques). Stella appelle
 // directement synchroniserFournisseurs() pour la boutique du marchand.
 import { NextResponse } from "next/server";
 import { synchroniserFournisseurs } from "@/lib/sync-fournisseurs";

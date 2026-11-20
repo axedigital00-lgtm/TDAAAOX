@@ -75,7 +75,7 @@ export async function proxy(request: NextRequest) {
     hostname !== DOMAINE_APP &&
     !hostname.endsWith(`.${DOMAINE_APP}`) &&
     !hostname.startsWith("localhost") &&
-    !estDomaineVercel;
+    !estDomaineVercel && !hostname.endsWith(".workers.dev");
 
   if (estSousDomaine || estDomainePropre) {
     // Domaine propre : le nom de domaine n'est PAS le slug — recherche en base
@@ -110,7 +110,7 @@ export async function proxy(request: NextRequest) {
   // redirection permanente vers ce domaine (modèle Shopify) — anciens liens et QR
   // continuent de marcher. Jamais pendant l'aperçu du Constructeur (cadre même origine).
   const premier = pathname.split("/")[1];
-  if (premier && !SLUGS_RESERVES.has(premier) && (request.method === "GET" || request.method === "HEAD") && request.cookies.get("axso_apercu")?.value !== "1") {
+  if (!hostname.endsWith(".workers.dev") && premier && !SLUGS_RESERVES.has(premier) && (request.method === "GET" || request.method === "HEAD") && request.cookies.get("axso_apercu")?.value !== "1") {
     const domaine = await domainePrincipal(premier);
     if (domaine) return NextResponse.redirect(`https://${domaine}${pathname.slice(premier.length + 1) || "/"}${request.nextUrl.search}`, 308);
     // Sous-domaines actifs : axsoafrica.com/nom/… → nom.axsoafrica.com/… (anciens liens et QR codes compris).

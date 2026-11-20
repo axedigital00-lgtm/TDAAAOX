@@ -19,6 +19,9 @@
 
 # production
 /build
+/dist/
+/.wrangler/
+.dev.vars*
 
 # misc
 .DS_Store
@@ -44,3 +47,7 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Analyse locale (images de la vidéo de référence, journaux de dev) et cache vinext
+/.analysis/
+/.vinext/

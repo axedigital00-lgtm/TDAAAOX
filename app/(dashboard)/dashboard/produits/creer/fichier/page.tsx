@@ -576,7 +576,7 @@ export default function CreerFichierPage() {
           <div className="w-7 h-7 rounded-lg bg-[#F5A623]/10 flex items-center justify-center">
             <FileDown size={14} className="text-[#F5A623]" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 font-poppins">{tr("Fichier digital")}</h1>
+          <h1 className="text-xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{tr("Fichier digital")}</h1>
         </div>
         <p className="text-sm text-gray-500">{tr("Étape")}{" "}{tr(etape) + 1} sur {ETAPES.length} — {tr(ETAPES[etape])}</p>
       </div>

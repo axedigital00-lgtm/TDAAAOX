@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
+import { useT } from "@/components/I18nProvider";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   livreurLat?: number | null;
@@ -34,6 +36,8 @@ function haversineKm(a: [number, number], b: [number, number]): number {
 }
 
 export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livreurNom, onLiveInfo }: Props) {
+  const t = useT();
+  const [ready, setReady] = useState(false);
   const containerRef  = useRef<HTMLDivElement>(null);
   const mapInstance   = useRef<any>(null);
   const livreurMarker = useRef<any>(null);
@@ -47,6 +51,7 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
 
   function animateTo(marker: any, from: [number, number], to: [number, number], ms = 1800) {
     if (animFrame.current) cancelAnimationFrame(animFrame.current);
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { marker.setLatLng(to); return; }
     const start = performance.now();
     function step(now: number) {
       const raw  = Math.min((now - start) / ms, 1);
@@ -85,13 +90,12 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
   useEffect(() => {
     if (!containerRef.current || mapInstance.current) return;
 
+    let disposed = false;
     const cLat = livreurLat ?? clientLat ?? 14.7167;
     const cLng = livreurLng ?? clientLng ?? -17.4677;
 
     import("leaflet").then((L) => {
-      if (!containerRef.current || mapInstance.current) return;
-
-      (L.Icon.Default.prototype as any)._getIconUrl = undefined;
+      if (disposed || !containerRef.current || mapInstance.current) return;
 
       const map = L.map(containerRef.current, {
         center: [cLat, cLng],
@@ -107,8 +111,9 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
         maxZoom: 19,
       }).addTo(map);
 
+      setReady(true);
       // Client/destination marker
-      if (clientLat && clientLng) {
+      if (clientLat != null && clientLng != null) {
         const icon = L.divIcon({
           className: "",
           html: `<div style="background:#F5A623;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,0.5)"></div>`,
@@ -121,14 +126,14 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
       }
 
       // Livreur marker + trail seed
-      if (livreurLat && livreurLng) {
+      if (livreurLat != null && livreurLng != null) {
         const pos: [number, number] = [livreurLat, livreurLng];
         trailPoints.current = [pos];
         dernierFix.current = { pos, at: Date.now() };
 
         livreurMarker.current = L.marker(pos, { icon: livreurIcon(L) })
           .addTo(map)
-          .bindPopup(livreurNom ? `🚴 ${livreurNom}` : "🚴 Livreur en route");
+          .bindPopup(Object.assign(document.createElement("span"), { textContent: livreurNom || t("Livreur en route") }));
 
         // Trail: grows as livreur moves
         trailLine.current = L.polyline([pos], {
@@ -137,7 +142,7 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
       }
 
       // Dashed line livreur → client
-      if (livreurLat && livreurLng && clientLat && clientLng) {
+      if (livreurLat != null && livreurLng != null && clientLat != null && clientLng != null) {
         destLine.current = L.polyline(
           [[livreurLat, livreurLng], [clientLat, clientLng]],
           { color: "#F5A623", weight: 2, opacity: 0.55, dashArray: "7 7" }
@@ -149,12 +154,13 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
           etaMin: Math.round((haversineKm([livreurLat, livreurLng], [clientLat, clientLng]) / VITESSE_DEFAUT_KMH) * 60),
           speedKmh: null,
         });
-      } else if (clientLat && clientLng) {
+      } else if (clientLat != null && clientLng != null) {
         map.setView([clientLat, clientLng], 14);
       }
     });
 
     return () => {
+      disposed = true;
       if (animFrame.current) cancelAnimationFrame(animFrame.current);
       if (mapInstance.current) {
         mapInstance.current.remove();
@@ -172,7 +178,7 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
 
   // Live update: smooth animation + cap (heading) + trail + distance/ETA
   useEffect(() => {
-    if (!mapInstance.current || !livreurLat || !livreurLng) return;
+    if (!ready || !mapInstance.current || livreurLat == null || livreurLng == null) return;
 
     import("leaflet").then((L) => {
       if (!mapInstance.current) return;
@@ -190,7 +196,7 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
       } else {
         livreurMarker.current = L.marker(newPos, { icon: livreurIcon(L) })
           .addTo(mapInstance.current)
-          .bindPopup(livreurNom ? `🚴 ${livreurNom}` : "🚴 Livreur en route");
+          .bindPopup(Object.assign(document.createElement("span"), { textContent: livreurNom || t("Livreur en route") }));
       }
 
       // Vitesse mesurée entre les deux derniers fixes GPS réels (pas les frames
@@ -220,7 +226,7 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
       }
 
       // Update dashed remaining-distance line + distance/ETA callback
-      if (clientLat && clientLng) {
+      if (clientLat != null && clientLng != null) {
         if (destLine.current) {
           destLine.current.setLatLngs([newPos, [clientLat, clientLng]]);
         } else {
@@ -236,14 +242,14 @@ export function MapTracking({ livreurLat, livreurLng, clientLat, clientLng, livr
         });
       }
 
-      mapInstance.current.panTo(newPos, { animate: true, duration: 1.5 });
+      if (moved && last) mapInstance.current.panTo(newPos, { animate: !matchMedia("(prefers-reduced-motion: reduce)").matches, duration: 1.5 });
     });
-  }, [livreurLat, livreurLng, livreurNom, clientLat, clientLng]);
+  }, [ready, livreurLat, livreurLng, livreurNom, clientLat, clientLng]);
 
   return (
     <>
-      <style>{`@keyframes pingMap{75%,100%{transform:scale(2);opacity:0}} .axs-map{height:280px} @media(min-width:1024px){.axs-map{height:480px}}`}</style>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <style>{`@keyframes pingMap{75%,100%{transform:scale(2);opacity:0}} .axs-map{height:280px;isolation:isolate}@media(prefers-reduced-motion:reduce){.axs-map *{animation:none!important;transition:none!important}} @media(min-width:1024px){.axs-map{height:360px}}`}</style>
+
       <div ref={containerRef} className="axs-map" style={{ width: "100%", background: "#1a1a1a" }} />
     </>
   );

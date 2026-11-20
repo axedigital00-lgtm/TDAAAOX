@@ -1,4 +1,4 @@
-// Prises de parole d'AXIA : constats calculés sur les données réelles de la
+// Prises de parole de Stella : constats calculés sur les données réelles de la
 // boutique (jamais par l'IA), puis reformulés en 1-2 phrases dans le style du
 // marchand. Lancé au plus toutes les 15 min par boutique, quand un marchand a
 // le dashboard ouvert (app/api/axia/propositions) — pas besoin de cron.
@@ -8,7 +8,7 @@ import { calculerProgression } from "@/lib/objectifs";
 import { lireStyle, rafraichirStyle, consigneStyle } from "./style";
 
 const JOUR = 86_400_000;
-const MAX_PAR_JOUR = 4; // au-delà, AXIA devient du bruit
+const MAX_PAR_JOUR = 4; // au-delà, Stella devient du bruit
 const il_y_a = (jours: number) => new Date(Date.now() - jours * JOUR);
 const jourCle = () => new Date().toISOString().slice(0, 10);
 const semaineCle = () => Math.floor(Date.now() / (7 * JOUR));
@@ -454,7 +454,7 @@ async function formuler(constats: Constat[], tenantId: string, nomBoutique: stri
     const { text } = await completionAuto([
       {
         role: "system",
-        content: `Tu es AXIA, l'associée du marchand de la boutique « ${nomBoutique} ». Tu prends la parole de toi-même dans une petite bulle. Reformule chaque constat en un message de 2 phrases maximum (220 caractères maximum), en ${langue === "en" ? "anglais" : "français"}, sans salutation. Garde exactement les chiffres et les noms ; n'ajoute aucune information. Ne change jamais qui fait l'action : ce que le marchand doit faire lui-même (appeler, vérifier) reste à sa charge — tu ne peux ni téléphoner ni te déplacer. Si le constat se termine par une question, garde la question.
+        content: `Tu es Stella, l'associée du marchand de la boutique « ${nomBoutique} ». Tu prends la parole de toi-même dans une petite bulle. Reformule chaque constat en un message de 2 phrases maximum (220 caractères maximum), en ${langue === "en" ? "anglais" : "français"}, sans salutation. Garde exactement les chiffres et les noms ; n'ajoute aucune information. Ne change jamais qui fait l'action : ce que le marchand doit faire lui-même (appeler, vérifier) reste à sa charge — tu ne peux ni téléphoner ni te déplacer. Si le constat se termine par une question, garde la question.
 Réponds uniquement en JSON : {"messages": ["…", "…"]}, dans le même ordre.${style ? `\n\n${consigneStyle(style)}` : ""}`,
       },
       { role: "user", content: constats.map((c, i) => `${i + 1}. ${c.texte}`).join("\n") },

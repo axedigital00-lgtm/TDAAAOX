@@ -128,7 +128,7 @@ export function Catalogue({ caisseId, modeSimple, champRef, onAjouter, actions, 
           {[{ nom: null as string | null, libelle: t("Tout") }, ...categories.map((c) => ({ nom: c.nom as string | null, libelle: `${c.nom} (${c.articles})` }))].map((c) => (
             <button key={c.nom ?? "__tout"} type="button" aria-pressed={categorie === c.nom} onClick={() => setCategorie(c.nom)}
               className={cn("min-h-11 flex-shrink-0 rounded-full border px-4 text-[12.5px] font-semibold transition-colors", FOCUS,
-                categorie === c.nom ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#444444] hover:border-[#F5A623]")}>
+                categorie === c.nom ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#444444] hover:border-[#8a8a8a]")}>
               {c.libelle}
             </button>
           ))}
@@ -149,7 +149,7 @@ export function Catalogue({ caisseId, modeSimple, champRef, onAjouter, actions, 
                 return (
                   <li key={a.produitId}>
                     <button type="button" onClick={() => onAjouter(a)}
-                      className={cn("flex h-full w-full flex-col overflow-hidden rounded-xl border border-[#E8E8E8] bg-white text-left transition-colors hover:border-[#F5A623] active:bg-[#FFF7ED]", FOCUS)}>
+                      className={cn("flex h-full w-full flex-col overflow-hidden rounded-xl border border-[#E8E8E8] bg-white text-left transition-colors hover:border-[#8a8a8a] active:bg-[#f1f1f1]", FOCUS)}>
                       <span className="flex aspect-[4/3] w-full items-center justify-center bg-[#F5F5F5]">
                         {a.image
                           // eslint-disable-next-line @next/next/no-img-element

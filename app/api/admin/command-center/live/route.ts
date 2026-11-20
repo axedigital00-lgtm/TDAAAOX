@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ a: maintenant, simule: true, fenetreMin: FENETRE_MIN, compteurs: [
       { cle: "actifs", nom: "Marchands actifs", valeur: b(1, 64) }, { cle: "commandes", nom: "Commandes", valeur: b(2, 41) },
       { cle: "transactions", nom: "Paiements réussis", valeur: b(3, 29) }, { cle: "boutiques", nom: "Boutiques créées", valeur: b(4, 3) },
-      { cle: "ia", nom: "Requêtes Axia", valeur: b(5, 120) }, { cle: "echecs", nom: "Paiements échoués", valeur: b(6, 2) },
+      { cle: "ia", nom: "Requêtes Stella", valeur: b(5, 120) }, { cle: "echecs", nom: "Paiements échoués", valeur: b(6, 2) },
     ] });
   }
   const depuis = new Date(maintenant - FENETRE_MIN * 60_000);
@@ -35,6 +35,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ a: maintenant, simule: false, fenetreMin: FENETRE_MIN, compteurs: [
     { cle: "actifs", nom: "Boutiques modifiées", valeur: actifs }, { cle: "commandes", nom: "Commandes", valeur: commandes },
     { cle: "transactions", nom: "Paiements réussis", valeur: payees }, { cle: "boutiques", nom: "Boutiques créées", valeur: boutiques },
-    { cle: "ia", nom: "Conversations Axia", valeur: conversations }, { cle: "echecs", nom: "Paiements échoués", valeur: echecs },
+    { cle: "ia", nom: "Conversations Stella", valeur: conversations }, { cle: "echecs", nom: "Paiements échoués", valeur: echecs },
   ] });
 }

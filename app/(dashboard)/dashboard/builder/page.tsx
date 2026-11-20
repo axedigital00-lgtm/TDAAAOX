@@ -299,8 +299,8 @@ export default function BuilderPage() {
     } finally { setSavingInfos(false); }
   }, [infosForm, refetchTenant]);
 
-  // Passé à AXIA (constructeur libre) : sauvegarde d'abord tout changement
-  // local en cours (AXIA écrit directement en base, un changement non
+  // Passé à Stella (constructeur libre) : sauvegarde d'abord tout changement
+  // local en cours (Stella écrit directement en base, un changement non
   // sauvegardé serait sinon écrasé au rechargement), puis recharge après sa
   // réponse pour que ses changements apparaissent immédiatement.
   const syncWithServer = async () => {

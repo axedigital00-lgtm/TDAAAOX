@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Copy, Check, ExternalLink, Package, RefreshCw, Info, Zap, Search, Globe, Music4, CheckCircle, ClipboardList, Gift } from "lucide-react";
+import { Copy, Check, ExternalLink, Package, RefreshCw, Info, Zap, Search, Globe, CheckCircle, ClipboardList, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
+import { iconePlateforme } from "@/components/brand/LogoPlateforme";
 
 const FEEDS_TUTORIAL_STEPS = [
   { Icon: Search,       titre: "Google Shopping gratuit", description: "Soumettez votre flux XML dans Google Merchant Center pour apparaître gratuitement dans Google Shopping et Google Images." },
@@ -15,7 +16,7 @@ const PLATEFORMES_FEED = [
   {
     id: "google",
     nom: "Google Shopping",
-    Icon: Search,
+    Icon: iconePlateforme("google"),
     color: "#4285F4",
     format: "XML (RSS 2.0)",
     path: "/api/feed/google",
@@ -34,7 +35,7 @@ const PLATEFORMES_FEED = [
   {
     id: "meta",
     nom: "Meta Catalog",
-    Icon: Globe,
+    Icon: iconePlateforme("meta"),
     color: "#1877F2",
     format: "CSV",
     path: "/api/feed/meta",
@@ -52,7 +53,7 @@ const PLATEFORMES_FEED = [
   {
     id: "tiktok",
     nom: "TikTok Shop",
-    Icon: Music4,
+    Icon: iconePlateforme("tiktok"),
     color: "#010101",
     format: "CSV",
     path: "/api/feed/tiktok",
@@ -113,7 +114,7 @@ export default function FeedsPage() {
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900 font-poppins">{t("Flux Produits (Feeds)")}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Flux Produits (Feeds)")}</h1>
             <BoutonRevoirTutoriel moduleKey="feeds" />
           </div>
           <p className="text-gray-400 text-sm">{t("Synchronisez votre catalogue sur Google, Meta et TikTok automatiquement")}</p>
@@ -160,8 +161,8 @@ export default function FeedsPage() {
               {/* Header carte */}
               <div className="flex items-center justify-between gap-3 p-5 border-b border-gray-50">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: plat.color + "15" }}>
-                    <plat.Icon size={22} style={{ color: plat.color }} />
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "#fff", border: "1px solid #E8E8E8" }}>
+                    <plat.Icon size={24} style={{ color: plat.color }} />
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">

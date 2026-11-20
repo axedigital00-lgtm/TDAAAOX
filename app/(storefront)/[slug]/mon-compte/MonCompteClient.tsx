@@ -302,7 +302,7 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
                       <span className="text-[11px] text-[#888]">{t("Facture")}{" "}{c.facture.numero}</span>
                     )}
                     {c.trackingToken && (
-                      <Link href={`/${slug}/tracking/${c.trackingToken}`} className="flex items-center gap-1.5 text-[11px] text-[#F5A623] font-semibold ml-auto">
+                      <Link href={`/${slug}/tracking/${c.trackingToken}`} className="ml-auto inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 hover:bg-gray-50">
                         <Eye size={11} />{" "}{t("Suivre")}
                       </Link>
                     )}

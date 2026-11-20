@@ -44,7 +44,7 @@ export default function ProfilPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCompte((c) => (c ? { ...c, ...data } : c));
-      if ("image" in patch) annoncerPhoto(data.image ?? null); // en-tête, menu mobile, AXIA
+      if ("image" in patch) annoncerPhoto(data.image ?? null); // en-tête, menu mobile, Stella
       toast.success(t(message));
       router.refresh(); // nom du header
     } catch (e) {
@@ -60,7 +60,7 @@ export default function ProfilPage() {
   const nomModifie = nom.trim() && nom.trim() !== (compte.name ?? "");
 
   return (
-    <div className="space-y-5 max-w-3xl w-full mx-auto pb-10" style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className="space-y-5 max-w-3xl w-full mx-auto pb-10" style={{ fontFamily: "var(--merchant-font)" }}>
       <div className="pt-1">
         <h1 className="text-[20px] font-bold text-[#111111] tracking-tight">{t("Mon profil")}</h1>
         <p className="text-[12.5px] text-[#AAAAAA] mt-0.5">{t("Ton compte personnel — les réglages de ta boutique sont dans Paramètres.")}</p>

@@ -9,6 +9,8 @@ const ADMINS = [
 ];
 
 export async function register() {
+  // La base Neon existante conserve ses comptes. Une instance Worker est éphémère.
+  if (process.env.AXSO_RUNTIME === "workers") return;
   if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production") return;
   try {
     const { prisma } = await import("./lib/prisma");

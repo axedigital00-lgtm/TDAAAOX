@@ -19,7 +19,7 @@ export const INFO_RAPPORT: Record<TypeRapport, { titre: string; description: str
   croissance: { titre: "Weekly Growth Report", description: "Acquisition, activation, rétention et marchands actifs sur 7 jours.", frequence: "hebdomadaire", section: "croissance" },
   revenus: { titre: "Monthly Revenue Report", description: "Revenu, MRR, mouvements d'abonnements et répartition du mois écoulé.", frequence: "mensuel", section: "revenus" },
   sante_marchands: { titre: "Merchant Health Report", description: "Répartition des scores santé, radar churn et opportunités d'upgrade.", frequence: null, section: "succes" },
-  ia: { titre: "AI Report", description: "Usage et coût d'Axia par type, adoption et impact des fonctionnalités.", frequence: null, section: "ia" },
+  ia: { titre: "AI Report", description: "Usage et coût de Stella par type, adoption et impact des fonctionnalités.", frequence: null, section: "ia" },
   marketing: { titre: "Marketing Report", description: "Dépenses, CAC et inscriptions par canal d'acquisition.", frequence: null, section: "marketing" },
   operations: { titre: "Operations Report", description: "Livraison, paiements, annulations et incidents.", frequence: null, section: "operations" },
 };
@@ -127,10 +127,10 @@ export function construireRapport(type: TypeRapport, v: Vue, f: Fenetres, a: Ana
       break;
     }
     case "ia": {
-      s.push({ id: "kpis", titre: "Axia IA", kpis: k(v, ["requetes_ia", "cout_ia", "adoption_ia"], f), note: v.ds.manques.includes("tokens") ? "Tokens et coût non mesurés précisément dans cette source : le coût est une estimation." : undefined });
+      s.push({ id: "kpis", titre: "Stella IA", kpis: k(v, ["requetes_ia", "cout_ia", "adoption_ia"], f), note: v.ds.manques.includes("tokens") ? "Tokens et coût non mesurés précisément dans cette source : le coût est une estimation." : undefined });
       const parType = new Map<string, { n: number; tokens: number; cout: number; m: Set<string> }>();
       for (const e of tranche(v.ia, w)) { const x = parType.get(e.type) ?? { n: 0, tokens: 0, cout: 0, m: new Set<string>() }; x.n += e.nombre; x.tokens += e.tokens; x.cout += e.cout; x.m.add(e.marchandId); parType.set(e.type, x); }
-      s.push({ id: "types", titre: "Usage par type", tableaux: [{ id: "ia_types", titre: "Requêtes par type", vide: "Aucune requête Axia sur la période.", colonnes: [{ cle: "type", nom: "Type" }, { cle: "requetes", nom: "Requêtes", format: "nombre", droite: true }, { cle: "marchands", nom: "Marchands", format: "nombre", droite: true }, ...(v.ds.manques.includes("tokens") ? [] : [{ cle: "tokens", nom: "Tokens", format: "nombre" as const, droite: true }]), { cle: "cout", nom: "Coût estimé", format: "xaf", droite: true }],
+      s.push({ id: "types", titre: "Usage par type", tableaux: [{ id: "ia_types", titre: "Requêtes par type", vide: "Aucune requête Stella sur la période.", colonnes: [{ cle: "type", nom: "Type" }, { cle: "requetes", nom: "Requêtes", format: "nombre", droite: true }, { cle: "marchands", nom: "Marchands", format: "nombre", droite: true }, ...(v.ds.manques.includes("tokens") ? [] : [{ cle: "tokens", nom: "Tokens", format: "nombre" as const, droite: true }]), { cle: "cout", nom: "Coût estimé", format: "xaf", droite: true }],
         lignes: [...parType].sort((x, y) => y[1].n - x[1].n).map(([t, x]) => ({ _id: t, type: NOM_TYPE_IA[t as TypeIA] ?? t, requetes: x.n, marchands: x.m.size, tokens: x.tokens, cout: Math.round(x.cout) })) }] });
       s.push({ id: "fonctions", titre: "Adoption des fonctionnalités", note: "Écarts de GMV entre adopteurs et autres : corrélation observée, pas une preuve de causalité.", tableaux: [{ id: "fonctions", titre: "Fonctionnalités", colonnes: [{ cle: "fonction", nom: "Fonctionnalité" }, { cle: "adoption", nom: "Adoption", format: "pct", droite: true }, { cle: "adopteurs", nom: "Adopteurs", format: "nombre", droite: true }, { cle: "gmvA", nom: "GMV / adopteur", format: "xaf", droite: true }, { cle: "gmvB", nom: "GMV / autre", format: "xaf", droite: true }],
         lignes: a.fonctions.map((x) => ({ _id: x.fonction, fonction: x.nom, adoption: pct(x.adoption), adopteurs: x.adopteurs, gmvA: x.gmvParAdopteur, gmvB: x.gmvParAutre })) }] });

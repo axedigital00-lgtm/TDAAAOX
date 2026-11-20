@@ -4,7 +4,7 @@
 // d'un seul bloc "embed-html" monolithique. Chaque section reste un bloc
 // embed-html (HTML d'origine intact) ; le CSS du design est commun, injecté
 // une fois (lib/scope-css.ts::cssSectionsDesign). Le Constructeur l'utilise
-// dans le navigateur (DOMParser) ; AXIA côté serveur avec node-html-parser.
+// dans le navigateur (DOMParser) ; Stella côté serveur avec node-html-parser.
 import type { BlockNode, ThemeConfig } from "@/lib/theme-config";
 import { genBlockId, type Zone } from "@/lib/block-tree";
 

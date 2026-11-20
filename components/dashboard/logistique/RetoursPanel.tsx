@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { RefreshCw, CheckCircle, XCircle, Clock, Plus, ChevronDown } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { CheckCircle, Clock, Plus, ChevronDown } from "lucide-react";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
+import { Modal } from "@/components/dashboard/design-system/components/Modal";
+import { Field } from "@/components/dashboard/design-system/components/primitives";
 import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
 
@@ -34,12 +38,12 @@ interface Stats {
   acceptes: number;
 }
 
-const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
-  ouvert: { label: "Ouvert", color: "#f59e0b" },
-  en_cours: { label: "En cours", color: "#111111" },
-  accepte: { label: "Accepté", color: "#10b981" },
-  rejete: { label: "Rejeté", color: "#ef4444" },
-  clos: { label: "Clos", color: "#6b7280" },
+const STATUT_CONFIG: Record<string, { label: string; tone: "attention" | "info" | "success" | "critical" | "neutral" }> = {
+  ouvert: { label: "Ouvert", tone: "attention" },
+  en_cours: { label: "En cours", tone: "info" },
+  accepte: { label: "Accepté", tone: "success" },
+  rejete: { label: "Rejeté", tone: "critical" },
+  clos: { label: "Clos", tone: "neutral" },
 };
 
 const RAISON_LABELS: Record<string, string> = {
@@ -101,144 +105,102 @@ export function RetoursPanel() {
     setSaving(false);
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (loading) return <div className="axd-card"><p className="axd-fichiers__etat">{t("Chargement…")}</p></div>;
 
   return (
-    <div className="space-y-5">
+    <div className="axd-stack">
       <ModuleTutorial moduleKey="logistique-retours" titre={t("Retours")} sousTitre={t("Gestion des retours & RMA")} steps={RETOURS_TUTORIAL_STEPS} />
-      <div className="flex items-center justify-end">
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[13px] font-semibold"
-          style={{ background: "#F5A623" }}
-        >
-          <Plus size={14} />{" "}{t("Créer un retour")}
-        </button>
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="axd-grid axd-g4">
         {[
-          { label: "Total", value: stats.total, color: "#111" },
-          { label: "Ouverts", value: stats.ouverts, color: "#f59e0b" },
-          { label: "En cours", value: stats.enCours, color: "#111111" },
-          { label: "Acceptés", value: stats.acceptes, color: "#10b981" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white border border-[#F0F0F0] rounded-xl p-4">
-            <p className="text-[11px] text-[#888] mb-1">{t(label)}</p>
-            <p className="text-2xl font-bold" style={{ color }}>{t(value)}</p>
+          { label: "Total", value: stats.total },
+          { label: "Ouverts", value: stats.ouverts },
+          { label: "En cours", value: stats.enCours },
+          { label: "Acceptés", value: stats.acceptes },
+        ].map(({ label, value }) => (
+          <div key={label} className="axd-card axd-card--pad">
+            <div className="axd-kpi__t">{t(label)}</div>
+            <div className="axd-kpi__v" style={{ marginBottom: 0 }}>{(value ?? 0).toLocaleString(t.loc)}</div>
           </div>
         ))}
       </div>
 
-      {/* Formulaire création */}
-      {showForm && (
-        <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-          <h3 className="text-[14px] font-semibold text-[#111] mb-4">{t("Nouveau retour")}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-[11px] text-[#888] mb-1">{t("N° de commande (livrée)")}</label>
-              <input className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" placeholder="AX-20261007-1234" value={form.commande} onChange={(e) => setForm((f) => ({ ...f, commande: e.target.value }))} />
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Raison")}</label>
-              <select className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.raison} onChange={(e) => setForm((f) => ({ ...f, raison: e.target.value }))}>
+      <div className="axd-card" style={{ overflow: "hidden" }}>
+        <div className="axd-card__head" style={{ padding: "var(--space-300) var(--space-400)" }}>
+          <h2 className="axd-card__title">{t("Demandes de retour")}</h2>
+          <Button size="sm" onClick={() => setShowForm(true)}>{t("Créer un retour")}</Button>
+        </div>
+        {retours.length === 0 ? (
+          <div className="axd-empty">
+            <h3>{t("Aucun retour pour l'instant")}</h3>
+            <p>{t("Créez un retour à partir d’une commande livrée : remboursement, échange ou avoir.")}</p>
+          </div>
+        ) : (
+          <div className="axd-ix-wrap">
+            <table className="axd-ix">
+              <thead><tr><th>{t("Client")}</th><th>{t("Commande")}</th><th className="axd-ix-hide-m">{t("Raison")}</th><th>{t("Statut")}</th><th className="axd-ix-num">{t("Montant")}</th><th className="axd-ix-hide-m">{t("Date")}</th><th style={{ width: 36 }} /></tr></thead>
+              <tbody>
+                {retours.map((r) => {
+                  const sc = STATUT_CONFIG[r.statut] ?? { label: r.statut, tone: "neutral" as const };
+                  const ouvert = expanded === r.id;
+                  return (
+                    <Fragment key={r.id}>
+                      <tr className="axd-ix-link" onClick={() => setExpanded(ouvert ? null : r.id)} aria-expanded={ouvert}>
+                        <td className="axd-ix-primary">{t(r.clientNom)}<div className="axd-muted" style={{ fontWeight: 400, fontSize: 12 }}>{t(TYPE_LABELS[r.type] ?? r.type)}</div></td>
+                        <td>{r.commande.numero}</td>
+                        <td className="axd-ix-hide-m">{t(RAISON_LABELS[r.raison] ?? r.raison)}</td>
+                        <td><Badge tone={sc.tone}>{t(sc.label)}</Badge></td>
+                        <td className="axd-ix-num">{r.montant ? `${r.montant.toLocaleString(t.loc)} ${r.commande.devise === "XAF" ? "FCFA" : r.commande.devise}` : "—"}</td>
+                        <td className="axd-ix-hide-m">{new Date(r.createdAt).toLocaleDateString(t.loc, { day: "numeric", month: "short" })}</td>
+                        <td><ChevronDown size={14} style={{ transform: ouvert ? "rotate(180deg)" : "none", color: "var(--color-icon)" }} /></td>
+                      </tr>
+                      {ouvert && (
+                        <tr>
+                          <td colSpan={7} style={{ background: "var(--color-surface-secondary)", whiteSpace: "normal" }}>
+                            <div style={{ display: "grid", gap: 8, padding: "4px 0" }}>
+                              {r.description && <p style={{ margin: 0 }}>{t(r.description)}</p>}
+                              {r.clientEmail && <p className="axd-muted" style={{ margin: 0, overflowWrap: "anywhere" }}>{t("Email client :")} {r.clientEmail}</p>}
+                              {r.statut === "accepte" && r.type === "remboursement" && <p style={{ margin: 0, color: "var(--badge-success-text)" }}>{t("Commande remboursée.")}</p>}
+                              {r.notes && <p className="axd-muted" style={{ margin: 0 }}>{t("Note :")} {t(r.notes)}</p>}
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                {r.statut !== "accepte" && <Button size="sm" variant="primary" onClick={() => updateStatut(r.id, "accepte")}>{t("Accepter")}</Button>}
+                                {r.statut !== "accepte" && r.statut !== "en_cours" && r.statut !== "clos" && <Button size="sm" onClick={() => updateStatut(r.id, "en_cours")}>{t("Passer en cours")}</Button>}
+                                {r.statut !== "accepte" && r.statut !== "rejete" && <Button size="sm" variant="critical" onClick={() => updateStatut(r.id, "rejete")}>{t("Rejeter")}</Button>}
+                                {r.statut !== "clos" && <Button size="sm" variant="plain" onClick={() => updateStatut(r.id, "clos")}>{t("Clore")}</Button>}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={t("Nouveau retour")}
+        footer={<><Button onClick={() => setShowForm(false)}>{t("Annuler")}</Button><Button variant="primary" onClick={createRetour} loading={saving} disabled={!form.commande.trim()}>{t("Créer le retour")}</Button></>}>
+        <div style={{ display: "grid", gap: "var(--space-300)", padding: "var(--space-400)" }}>
+          <Field label={t("N° de commande (livrée)")}>{(p) => <input {...p} className="axd-input" placeholder="AX-20261007-1234" value={form.commande} onChange={(e) => setForm((f) => ({ ...f, commande: e.target.value }))} />}</Field>
+          <div className="axd-grid axd-g2" style={{ gap: "var(--space-300)" }}>
+            <Field label={t("Raison")}>{(p) => (
+              <select {...p} className="axd-input" value={form.raison} onChange={(e) => setForm((f) => ({ ...f, raison: e.target.value }))}>
                 {Object.entries(RAISON_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="block text-[11px] text-[#888] mb-1">{t("Type de résolution")}</label>
-              <select className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+            )}</Field>
+            <Field label={t("Type de résolution")}>{(p) => (
+              <select {...p} className="axd-input" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
                 {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
               </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-[11px] text-[#888] mb-1">{t("Description (optionnel)")}</label>
-              <textarea className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px]" rows={2} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
+            )}</Field>
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={createRetour} disabled={saving} className="px-4 py-2 rounded-lg text-white text-[13px] font-semibold" style={{ background: "#F5A623" }}>
-              {saving ? t("Enregistrement...") : t("Créer le retour")}
-            </button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-[13px] text-[#666] border border-[#E5E5E5]">{t("Annuler")}</button>
-          </div>
+          <Field label={t("Description (optionnel)")}>{(p) => <textarea {...p} className="axd-input" rows={3} style={{ height: "auto", padding: "8px 12px" }} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}</Field>
+          <p className="axd-muted" style={{ margin: 0, fontSize: 12 }}>{t("Accepter un remboursement rembourse toute la commande (argent, stock, accès digitaux).")}</p>
         </div>
-      )}
-
-      {/* Liste des retours */}
-      {retours.length === 0 ? (
-        <div className="bg-white border border-dashed border-[#E5E5E5] rounded-xl p-10 text-center">
-          <RefreshCw size={32} className="mx-auto mb-3 text-[#DDD]" />
-          <p className="text-[13px] text-[#888]">{t("Aucun retour pour l'instant. C'est bon signe !")}</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {retours.map((r) => {
-            const sc = STATUT_CONFIG[r.statut] ?? { label: r.statut, color: "#888" };
-            const isExpanded = expanded === r.id;
-            return (
-              <div key={r.id} className="bg-white border border-[#F0F0F0] rounded-xl overflow-hidden">
-                <div
-                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-[#FAFAFA] transition-colors"
-                  onClick={() => setExpanded(isExpanded ? null : r.id)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[13px] font-semibold text-[#111]">{t(r.clientNom)}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold text-white" style={{ background: sc.color }}>{t(sc.label)}</span>
-                      <span className="text-[10px] text-[#AAA]">{t(TYPE_LABELS[r.type]) ?? t(r.type)}</span>
-                    </div>
-                    <p className="text-[11px] text-[#888] mt-0.5">
-                      {t("Cmd")}{" "}{r.commande.numero} · {t(RAISON_LABELS[r.raison]) ?? t(r.raison)}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    {r.montant && <p className="text-[13px] font-bold text-[#111]">{r.montant.toLocaleString()} {t(r.commande.devise)}</p>}
-                    <p className="text-[10px] text-[#AAA]">{new Date(r.createdAt).toLocaleDateString("fr")}</p>
-                  </div>
-                  <ChevronDown size={14} className="text-[#CCC] shrink-0" style={{ transform: isExpanded ? "rotate(180deg)" : "none" }} />
-                </div>
-
-                {isExpanded && (
-                  <div className="border-t border-[#F0F0F0] p-4 bg-[#FAFAFA]">
-                    {r.description && <p className="text-[12px] text-[#555] mb-3">{t(r.description)}</p>}
-                    {r.clientEmail && <p className="text-[11px] text-[#888] mb-3 break-all">{t("Email client :")}{" "}{r.clientEmail}</p>}
-                    {r.statut === "accepte" && r.type === "remboursement" && <p className="text-[11px] text-[#10b981] mb-3">{t("Commande remboursée.")}</p>}
-                    {r.notes && <p className="text-[11px] text-[#666] mb-3 italic">{t("Note :")}{" "}{t(r.notes)}</p>}
-                    <div className="flex gap-2 flex-wrap">
-                      {r.statut !== "accepte" && (
-                        <button onClick={() => updateStatut(r.id, "accepte")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-[12px] font-semibold" style={{ background: "#10b981" }}>
-                          <CheckCircle size={12} />{" "}{t("Accepter")}
-                        </button>
-                      )}
-                      {r.statut !== "accepte" && r.statut !== "en_cours" && r.statut !== "clos" && (
-                        <button onClick={() => updateStatut(r.id, "en_cours")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-[12px] font-semibold" style={{ background: "#111111" }}>
-                          <Clock size={12} />{" "}{t("En cours")}
-                        </button>
-                      )}
-                      {r.statut !== "accepte" && r.statut !== "rejete" && (
-                        <button onClick={() => updateStatut(r.id, "rejete")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-[12px] font-semibold" style={{ background: "#ef4444" }}>
-                          <XCircle size={12} />{" "}{t("Rejeter")}
-                        </button>
-                      )}
-                      {r.statut !== "clos" && (
-                        <button onClick={() => updateStatut(r.id, "clos")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-[#666] border border-[#E5E5E5]">
-                          {t("Clore")}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

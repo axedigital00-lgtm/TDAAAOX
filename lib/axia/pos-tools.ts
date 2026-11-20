@@ -1,23 +1,23 @@
-// Outils AXIA de la caisse (§42-44) — tous préfixés `pos_`.
+// Outils Stella de la caisse (§42-44) — tous préfixés `pos_`.
 //
 // - LECTURE : ventes, marge et ses causes, ruptures, dormants, caisse la plus
 //   active, quoi commander, comparaison de fournisseurs, rapport. Les chiffres
-//   viennent des mêmes fonctions que les écrans (lib/pos/analytics) : AXIA ne
+//   viennent des mêmes fonctions que les écrans (lib/pos/analytics) : Stella ne
 //   calcule rien lui-même, il lit et il explique.
 // - ACTIONS PRÉPARÉES : bon de commande, promotion, inventaire, transfert.
 //   Elles sont dans SENSIBLES (./confirmation.ts) : l'appel du modèle ne crée
-//   qu'une demande dans la bulle AXIA, et `executerOutilPos` ne tourne qu'après
+//   qu'une demande dans la bulle Stella, et `executerOutilPos` ne tourne qu'après
 //   le clic « Valider » du marchand. Même validée, une action ne fait que
 //   PRÉPARER : bon en brouillon, promotion inactive, transfert en brouillon,
 //   inventaire ouvert — aucun stock ne bouge, rien n'est envoyé.
 // - `pos_relance_client` rédige un message ; il n'envoie rien.
 //
-// DROITS : l'exécuteur AXIA ne connaît que la boutique, pas la personne. Le
+// DROITS : l'exécuteur Stella ne connaît que la boutique, pas la personne. Le
 // filtre se fait donc en amont, par ./droits.ts (grille des modules du membre) :
 // chiffres et marge = « finance », stock = « produits », préparation d'achats,
 // d'inventaire, de transfert et comparaison de prix d'achat = « produits » en
 // écriture, promotion = « marketing » en écriture. Un caissier ne voit donc
-// aucun de ces chiffres par AXIA et ne peut valider aucune de ces actions.
+// aucun de ces chiffres par Stella et ne peut valider aucune de ces actions.
 // Tout est éteint tant que le drapeau `axia_pos` l'est.
 import { randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
@@ -90,10 +90,10 @@ function periode(tenantId: string, p: unknown): { f: FiltresVentes; libelle: str
 const precedente = (f: FiltresVentes): FiltresVentes => ({ ...f, debut: new Date(2 * f.debut.getTime() - f.fin.getTime()), fin: f.debut });
 const variation = (a: number, b: number) => (b > 0 ? ` (${a >= b ? "+" : ""}${Math.round(((a - b) / b) * 100)} % vs période précédente)` : "");
 
-/** Contexte des fonctions des autres lots : elles ne tournent ici qu'APRÈS la validation du marchand dans la bulle AXIA. */
+/** Contexte des fonctions des autres lots : elles ne tournent ici qu'APRÈS la validation du marchand dans la bulle Stella. */
 async function contexteAxia(tenantId: string): Promise<ContextePos> {
   const { magasinId, caisseId } = await assurerMagasinParDefaut(tenantId);
-  return { tenantId, userId: "axia", userNom: "AXIA (validé par le marchand)", magasinId, caisseId, droits: TOUS_DROITS };
+  return { tenantId, userId: "axia", userNom: "Stella (validé par le marchand)", magasinId, caisseId, droits: TOUS_DROITS };
 }
 
 /** Produit désigné par son identifiant ou son nom. Plusieurs produits au même nom : refus, avec la liste. */
@@ -128,7 +128,7 @@ const resumeVentes = (a: Agregat, devise: string) =>
 /** Exécute un outil `pos_*`. Pour une action préparée : à n'appeler qu'après l'accord du marchand (lib/axia/tools.ts s'en charge). */
 export const executerOutilPos: ToolExecutor = async (nom, args, tenantId) => {
   try {
-    if (!(await flagActif(tenantId, "axia_pos"))) return refus("AXIA n'est pas activé pour la caisse de cette boutique. Le marchand peut l'activer dans Caisse & magasin → Réglages de la caisse → « AXIA dans la caisse ».");
+    if (!(await flagActif(tenantId, "axia_pos"))) return refus("Stella n'est pas activé pour la caisse de cette boutique. Le marchand peut l'activer dans Caisse & magasin → Réglages de la caisse → « Stella dans la caisse ».");
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true, nomBoutique: true } });
     const devise = tenant?.devise ?? "XAF";
 
@@ -254,7 +254,7 @@ export const executerOutilPos: ToolExecutor = async (nom, args, tenantId) => {
         }
         if (!parFournisseur.size) return refus(`Aucun bon créé : aucun fournisseur n'est renseigné pour ${sansFournisseur.join(", ")}. Indique le fournisseur, ou renseigne-le sur la fiche produit.`);
         const ctx = await contexteAxia(tenantId);
-        const r = await creerBons(ctx, [...parFournisseur].map(([fournisseurId, lignes]) => ({ fournisseurId, lignes, notes: "Préparé par AXIA, validé par le marchand." })), "reappro", `axia:${randomUUID()}`);
+        const r = await creerBons(ctx, [...parFournisseur].map(([fournisseurId, lignes]) => ({ fournisseurId, lignes, notes: "Préparé par Stella, validé par le marchand." })), "reappro", `axia:${randomUUID()}`);
         return ok(`${r.bons.length} bon(s) de commande créé(s) EN BROUILLON : ${r.bons.map((b) => `${b.numero} — ${b.fournisseur}, ${b.lignes} ligne(s), ${nb(b.montantTotal)} ${devise}`).join(" ; ")}. Rien n'a été envoyé au fournisseur : le marchand relit les prix et envoie depuis Achats & réassort.${sansFournisseur.length ? ` Non commandés, faute de fournisseur : ${sansFournisseur.join(", ")}.` : ""}`);
       }
 
@@ -277,7 +277,7 @@ export const executerOutilPos: ToolExecutor = async (nom, args, tenantId) => {
             data: { tenantId, nom: d.nom, type: d.type, valeur: d.valeur ?? null, regles: d.regles as Prisma.InputJsonValue, cumulable: d.cumulable, priorite: d.priorite, dateDebut: d.dateDebut ?? null, dateFin: d.dateFin ?? null, magasinIds: d.magasinIds, actif: false },
             select: { id: true, nom: true },
           });
-          await journaliserAudit(tx, { tenantId, userNom: "AXIA (validé par le marchand)" }, { action: "promotion.creee", entite: "Promotion", entiteId: cree.id, apres: { nom: d.nom, type: d.type, valeur: d.valeur, actif: false, source: "axia" } });
+          await journaliserAudit(tx, { tenantId, userNom: "Stella (validé par le marchand)" }, { action: "promotion.creee", entite: "Promotion", entiteId: cree.id, apres: { nom: d.nom, type: d.type, valeur: d.valeur, actif: false, source: "axia" } });
           return cree;
         });
         const actif = await flagActif(tenantId, "smart_promotions");
@@ -288,7 +288,7 @@ export const executerOutilPos: ToolExecutor = async (nom, args, tenantId) => {
         const type = ["complet", "categorie", "cyclique"].includes(args.type) ? (args.type as "complet" | "categorie" | "cyclique") : "cyclique";
         const ctx = await contexteAxia(tenantId);
         const r = await creerInventaire(ctx, {
-          cle: `axia:${randomUUID()}`, type, notes: "Préparé par AXIA, validé par le marchand.",
+          cle: `axia:${randomUUID()}`, type, notes: "Préparé par Stella, validé par le marchand.",
           perimetre: { ...(Array.isArray(args.categories) && args.categories.length ? { categories: args.categories.map(String) } : {}), ...(type === "cyclique" ? { nombre: Math.min(Math.max(Math.floor(Number(args.nombre)) || 20, 1), 500) } : {}) },
         });
         return ok(`Inventaire ${type} ouvert avec ${r.lignes} article(s) à compter. Aucun stock n'est modifié : le comptage se fait dans Caisse & magasin → Inventaires, puis un responsable le valide.`);
@@ -303,7 +303,7 @@ export const executerOutilPos: ToolExecutor = async (nom, args, tenantId) => {
         }
         if (!lignes.length) return refus("Aucun article à transférer.");
         const ctx = await contexteAxia(tenantId);
-        const r = await creerTransfert(ctx, { cle: `axia:${randomUUID()}`, entrepotSourceId: source.id, entrepotDestinationId: destination.id, lignes, notes: "Préparé par AXIA, validé par le marchand.", demander: false });
+        const r = await creerTransfert(ctx, { cle: `axia:${randomUUID()}`, entrepotSourceId: source.id, entrepotDestinationId: destination.id, lignes, notes: "Préparé par Stella, validé par le marchand.", demander: false });
         return ok(`Transfert ${r.numero} créé EN BROUILLON : ${source.nom} → ${destination.nom}, ${lignes.length} article(s). Aucun stock n'a bougé : il reste à le demander, l'approuver et l'expédier dans Caisse & magasin → Transferts de stock.`);
       }
 

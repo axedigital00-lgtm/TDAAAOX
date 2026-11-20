@@ -1,4 +1,4 @@
-// Décision de l'admin sur une action préparée par AXIA admin.
+// Décision de l'admin sur une action préparée par Stella admin.
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";

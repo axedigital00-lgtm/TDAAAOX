@@ -149,7 +149,7 @@ export default function ParametresPage() {
 
   return (
     <div className="space-y-5 max-w-2xl"
-      style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+      style={{ fontFamily: "var(--merchant-font)" }}>
       <ModuleTutorial moduleKey="parametres" titre={t("Réglages")} sousTitre={t("Configuration de ton compte")} steps={PARAMETRES_TUTORIAL_STEPS} />
 
       {/* ── Header ── */}

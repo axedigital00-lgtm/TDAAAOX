@@ -43,7 +43,7 @@ function plage(periode: string): { debut: string; fin: string } {
 function CardResume({ label, value, Icon, color, sub }: { label: string; value: string; Icon: any; color: string; sub?: string }) {
   const t = useT();
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4">
+    <div className="bg-white border border-gray-100 rounded-[12px] p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}12`, border: `1px solid ${color}20` }}>
           <Icon size={16} style={{ color }} />
@@ -77,24 +77,24 @@ export default function ComptabilitePage() {
   if (erreur) return <div className="p-5 max-w-5xl mx-auto"><EtatPos code={erreur.code} message={erreur.message} onReessayer={() => void charger()} /></div>;
 
   if (loading || !data) {
-    return <div className="p-5 max-w-5xl mx-auto py-20 text-center text-sm text-gray-400" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>{t("Chargement…")}</div>;
+    return <div className="p-5 max-w-5xl mx-auto py-20 text-center text-sm text-gray-400" style={{ fontFamily: "var(--merchant-font)" }}>{t("Chargement…")}</div>;
   }
 
   const r = data.resume;
   const resultatPositif = r.beneficeNet >= 0;
 
   return (
-    <div className="p-5 max-w-5xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <div className="p-5 max-w-5xl mx-auto space-y-5" style={{ fontFamily: "var(--merchant-font)" }}>
       <ModuleTutorial moduleKey="pos-comptabilite" titre={t("Comptabilité")} sousTitre={t("Module Point de vente")} steps={COMPTA_TUTORIAL_STEPS} />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-[18px] font-bold text-[#111] inline-flex items-center gap-2"><BarChart3 size={17} className="text-[#F5A623]" />{" "}{t("Comptabilité boutique")}</h1>
+            <h1 className="text-[18px] font-bold text-[#111] inline-flex items-center gap-2"><BarChart3 size={17} className="text-[#1a1a1a]" />{" "}{t("Comptabilité boutique")}</h1>
             <BoutonRevoirTutoriel moduleKey="pos-comptabilite" />
           </div>
           <p className="text-[12px] text-gray-500">{t("Rentabilité, entrées, charges et fonds généraux de la vente physique")}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 bg-gray-100 rounded-2xl p-1">
+        <div className="flex flex-wrap items-center gap-1.5 bg-gray-100 rounded-[12px] p-1">
           {PERIODES.map(p => (
             <button key={p.v} onClick={() => setPeriode(p.v)}
               className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold flex items-center gap-1 ${periode === p.v ? "bg-white shadow-sm text-[#111]" : "text-gray-500"}`}>
@@ -105,10 +105,10 @@ export default function ComptabilitePage() {
       </div>
 
       {/* Bénéfice net — carte hero */}
-      {/* Positif : jaune AXSO, texte noir (lisible) ; négatif : rouge, texte blanc. */}
-      <div className={`rounded-2xl p-6 ${resultatPositif ? "text-[#111111]" : "text-white"}`} style={{ background: resultatPositif ? "linear-gradient(135deg,#F5A623,#D4911A)" : "linear-gradient(135deg,#ef4444,#dc2626)" }}>
-        <p className="text-[11px] font-semibold opacity-70 uppercase tracking-widest mb-1">{t("Bénéfice net de la période")}</p>
-        <p className="text-[26px] sm:text-[32px] font-black flex items-center gap-2 break-all">
+      {/* Positif : carte sombre de l'admin ; négatif : rouge sobre. Texte blanc dans les deux cas. */}
+      <div className="rounded-[12px] p-6 text-white" style={{ background: resultatPositif ? "#1a1a1a" : "#8e0b21" }}>
+        <p className="text-[11px] font-semibold opacity-70 mb-1">{t("Bénéfice net de la période")}</p>
+        <p className="text-[26px] sm:text-[32px] font-semibold flex items-center gap-2 break-all">
           {resultatPositif ? <TrendingUp size={26} /> : <TrendingDown size={26} />}
           {fmt(r.beneficeNet)}
         </p>
@@ -128,12 +128,12 @@ export default function ComptabilitePage() {
       {/* Taxes, remises, retours — déjà pris en compte dans le chiffre d'affaires */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <CardResume label={t("Taxes collectées (comprises dans le chiffre d'affaires)")} value={`${fmt(r.taxes ?? 0)}`} Icon={Wallet} color="#1B2A4A" />
-        <CardResume label={t("Remises accordées (déjà déduites)")} value={`${fmt(r.remises ?? 0)}`} Icon={TrendingDown} color="#F5A623" />
+        <CardResume label={t("Remises accordées (déjà déduites)")} value={`${fmt(r.remises ?? 0)}`} Icon={TrendingDown} color="#1a1a1a" />
         <CardResume label={t("Retours d'articles (déjà déduits)")} value={`${fmt(r.retours ?? 0)}`} Icon={TrendingDown} color="#ef4444" />
       </div>
 
       {(data.approximation?.lignesCoutActuel > 0 || data.approximation?.lignesSansCout > 0) && (
-        <p role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-800">
+        <p role="note" className="rounded-[12px] border border-amber-300 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-800">
           {t("Marge approchée.")}{" "}
           {data.approximation.lignesCoutActuel > 0 && <>{data.approximation.lignesCoutActuel}{" "}{t("ligne(s) vendue(s) avant la caisse 2.0 n'ont pas de coût figé : le coût actuel du produit est utilisé à la place.")}{" "}</>}
           {data.approximation.lignesSansCout > 0 && <>{data.approximation.lignesSansCout}{" "}{t("ligne(s) concernent un produit sans prix d'achat : leur coût est compté à zéro.")}</>}
@@ -141,8 +141,8 @@ export default function ComptabilitePage() {
       )}
 
       {/* Fonds généraux cumulés */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-5">
-        <p className="text-[12.5px] font-bold text-[#111] mb-4 flex items-center gap-1.5"><PiggyBank size={14} className="text-[#F5A623]" />{" "}{t("Fonds généraux (tout historique)")}</p>
+      <div className="bg-white border border-gray-100 rounded-[12px] p-5">
+        <p className="text-[12.5px] font-bold text-[#111] mb-4 flex items-center gap-1.5"><PiggyBank size={14} className="text-[#1a1a1a]" />{" "}{t("Fonds généraux (tout historique)")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <p className="text-[16px] font-bold text-green-600">{fmt(data.fondsGeneraux.entreesTotales)}</p>
@@ -164,9 +164,9 @@ export default function ComptabilitePage() {
         <p className="text-[12.5px] font-bold text-[#111] mb-1">{t("Rentabilité par produit")}</p>
         <p className="text-[11px] text-gray-400 mb-2">{t("Bénéfice net = bénéfice brut − quote-part des charges d'exploitation, répartie au prorata du revenu de chaque produit")}</p>
         {data.parProduit.length === 0 ? (
-          <div className="py-8 text-center text-sm text-gray-400 bg-white border border-dashed border-gray-200 rounded-2xl">{t("Aucune vente sur cette période")}</div>
+          <div className="py-8 text-center text-sm text-gray-400 bg-white border border-dashed border-gray-200 rounded-[12px]">{t("Aucune vente sur cette période")}</div>
         ) : (
-          <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50">
+          <div className="bg-white border border-gray-100 rounded-[12px] divide-y divide-gray-50">
             {data.parProduit.map((p: ProduitRentabilite) => (
               <div key={p.produitId} className="p-3.5">
                 <div className="flex items-center gap-3">
@@ -194,7 +194,7 @@ export default function ComptabilitePage() {
       {Object.keys(data.parCategorieCharge).length > 0 && (
         <div>
           <p className="text-[12.5px] font-bold text-[#111] mb-2">{t("Charges par catégorie")}</p>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-2.5">
+          <div className="bg-white border border-gray-100 rounded-[12px] p-4 space-y-2.5">
             {Object.entries(data.parCategorieCharge).map(([cat, montant]: [string, any]) => {
               const pct = r.chargesExploitation > 0 ? Math.round((montant / r.chargesExploitation) * 100) : 0;
               return (
@@ -204,7 +204,7 @@ export default function ComptabilitePage() {
                     <span className="font-bold text-[#111]">{fmt(montant)}</span>
                   </div>
                   <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#F5A623] rounded-full" style={{ width: `${pct}%` }} />
+                    <div className="h-full bg-[#1a1a1a] rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );

@@ -1,6 +1,6 @@
-// Axia AI Intelligence : usage, coût et « ROI » de l'IA. Module pur (sans Prisma).
+// Stella AI Intelligence : usage, coût et « ROI » de l'IA. Module pur (sans Prisma).
 // Honnêteté : on ne mesure PAS un « revenu généré par l'IA ». On compare le coût IA
-// au GMV et au revenu Axso des marchands qui utilisent Axia, et utilisateurs vs
+// au GMV et au revenu Axso des marchands qui utilisent Stella, et utilisateurs vs
 // non-utilisateurs — une corrélation, pas une causalité.
 import { TYPES_IA, NOM_TYPE_IA, type TypeIA } from "./types";
 import { Vue, tranche, sousVue } from "./moteur";
@@ -31,7 +31,7 @@ export function analyseIA(v: Vue, w: Fenetre) {
   const gmvUtilisateurs = [...utilisateurs].reduce((s, id) => s + (gmv.get(id) ?? 0), 0);
   const revenuUtilisateurs = sv.revenuAbonnements(w) + sv.revenuCommissions(w);
 
-  // Comparaison parmi les marchands actifs : utilisateurs d'Axia vs les autres.
+  // Comparaison parmi les marchands actifs : utilisateurs de Stella vs les autres.
   const payants = new Set(v.mrrParMarchand(w.fin).keys());
   const groupe = (ids: string[]) => ids.length < MIN_GROUPE ? null : {
     n: ids.length,

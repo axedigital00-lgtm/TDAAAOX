@@ -7,7 +7,7 @@ import { useT } from "@/components/I18nProvider";
 
 /** Classe d'un <input>, <select> ou <textarea> du kit (à poser sur un champ natif). */
 export const CLASSE_SAISIE =
-  "w-full min-h-11 rounded-xl border border-[#E8E8E8] bg-white px-3 py-2 text-[14px] text-[#111111] placeholder:text-[#AAAAAA] outline-none transition-colors focus:border-[#F5A623] focus-visible:ring-2 focus-visible:ring-[#F5A623]/40 disabled:bg-[#F5F5F5] disabled:text-[#AAAAAA] aria-[invalid=true]:border-[#B91C1C]";
+  "w-full min-h-11 rounded-[10px] border border-[#8a8a8a] bg-white px-3 py-2 text-[14px] text-[#1a1a1a] placeholder:text-[#8a8a8a] outline-none transition-colors focus:border-[#1a1a1a] focus:shadow-[0_0_0_1px_#1a1a1a] disabled:bg-[#f7f7f7] disabled:text-[#8a8a8a] aria-[invalid=true]:border-[#8e0b21]";
 
 export type ChampProps = {
   label: string;
@@ -30,13 +30,13 @@ export function Champ({ label, aide, erreur, labelMasque, children, className }:
   const decrit = erreur ? `${id}-erreur` : aide ? `${id}-aide` : undefined;
   return (
     <div className={className}>
-      <label htmlFor={id} className={labelMasque ? "sr-only" : "block text-[11px] font-semibold uppercase tracking-wide text-[#666666]"}>{t(label)}</label>
+      <label htmlFor={id} className={labelMasque ? "sr-only" : "block text-[13px] font-medium text-[#303030]"}>{t(label)}</label>
       <div className={labelMasque ? undefined : "mt-1"}>
         {typeof children === "function" ? children({ id, "aria-describedby": decrit, "aria-invalid": erreur ? true : undefined }) : children}
       </div>
       {erreur
-        ? <p id={`${id}-erreur`} role="alert" className="mt-1 text-[12px] leading-snug text-[#B91C1C]">{t(erreur)}</p>
-        : aide && <p id={`${id}-aide`} className="mt-1 text-[11px] leading-snug text-[#888888]">{t(aide)}</p>}
+        ? <p id={`${id}-erreur`} role="alert" className="mt-1 text-[12px] leading-snug text-[#8e0b21]">{t(erreur)}</p>
+        : aide && <p id={`${id}-aide`} className="mt-1 text-[12px] leading-snug text-[#616161]">{t(aide)}</p>}
     </div>
   );
 }
@@ -55,7 +55,7 @@ export function Saisie({ label, aide, erreur, labelMasque, suffixe, className, r
       {(attributs) => (
         <div className="relative">
           <input ref={ref} {...input} {...attributs} className={cn(CLASSE_SAISIE, suffixe ? "pr-14" : undefined)} />
-          {suffixe && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px] font-semibold text-[#888888]">{suffixe}</span>}
+          {suffixe && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px] font-medium text-[#616161]">{suffixe}</span>}
         </div>
       )}
     </Champ>

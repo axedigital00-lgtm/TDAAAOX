@@ -40,8 +40,8 @@ export const PAGES_FIXES = [
   { cle: "accueil", nom: "Accueil", chemin: "", outil: "outils de sections/composants (page vide ou « accueil »)" },
   { cle: "produits", nom: "Catalogue", chemin: "produits", outil: "design importé (non modifiable par une IA) ou layout du thème" },
   { cle: "fiche-produit", nom: "Fiche produit", chemin: "produits/<id>", outil: "axso_builder_update_product_page" },
-  { cle: "a-propos", nom: "À propos", chemin: "a-propos", outil: "modifier_page (AXIA)" },
-  { cle: "contact", nom: "Contact", chemin: "contact", outil: "modifier_page (AXIA)" },
+  { cle: "a-propos", nom: "À propos", chemin: "a-propos", outil: "modifier_page (Stella)" },
+  { cle: "contact", nom: "Contact", chemin: "contact", outil: "modifier_page (Stella)" },
 ];
 
 export const pagesDe = (cfg: ThemeConfig): Record<string, PagePerso> => (cfg as any).pagesPerso ?? {};

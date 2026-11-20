@@ -1,6 +1,6 @@
 // Cycle de livraison d'une commande : changement de statut et assignation d'un
-// livreur. Point de passage unique pour l'interface (marchand et livreur), AXIA,
-// les agents IA et les actions autorisées depuis la bulle AXIA — mêmes contrôles
+// livreur. Point de passage unique pour l'interface (marchand et livreur), Stella,
+// les agents IA et les actions autorisées depuis la bulle Stella — mêmes contrôles
 // (transitions, code de remise, périmètre des livreurs, quota) et mêmes effets
 // (WhatsApp, notifications, commission, analytics) quel que soit l'acteur.
 import { pousserLivreur } from "@/lib/push";
@@ -18,7 +18,7 @@ import { publier } from "@/lib/controle-ia/evenements";
 import { enregistrerGainCourse } from "@/lib/gains-livreur";
 
 // "interface" : le marchand a cliqué lui-même, il reçoit le lien WhatsApp de secours dans la réponse.
-// "axia" : action d'AXIA (directe ou autorisée dans la bulle), le lien de secours part dans ses notifications.
+// "axia" : action de Stella (directe ou autorisée dans la bulle), le lien de secours part dans ses notifications.
 // "lien" : livreur sans compte, avec le lien de la course (QR montré par le marchand) — mêmes droits que l'appli livreur.
 export type Acteur =
   | { type: "livreur"; userId: string }
@@ -44,7 +44,7 @@ const NOTIF_LIVREUR: Record<string, { type: string; titre: (n: string) => string
 /**
  * Message WhatsApp non parti automatiquement (boutique sans WhatsApp connecté…) :
  * sans ce relais, seul le marchand qui clique dans l'interface voyait le lien de
- * secours — une action du livreur ou d'AXIA laissait le destinataire sans rien.
+ * secours — une action du livreur ou de Stella laissait le destinataire sans rien.
  */
 async function relayerWhatsAppNonEnvoye(p: { tenantId: string; commandeId: string; numero: string; destinataire: string; whatsappUrl: string | null }) {
   if (!p.whatsappUrl) return;
@@ -313,7 +313,7 @@ export async function assignerLivreurCommande(p: {
  */
 export async function marquerEspecesRemises(p: {
   tenantId: string;
-  userId: string | null; // null : autorisé depuis la bulle AXIA (tracé dans le journal des décisions)
+  userId: string | null; // null : autorisé depuis la bulle Stella (tracé dans le journal des décisions)
   commandeIds?: string[];
   livreurId?: string; // toutes les commandes non remises de ce livreur
 }): Promise<Resultat<{ count: number }>> {

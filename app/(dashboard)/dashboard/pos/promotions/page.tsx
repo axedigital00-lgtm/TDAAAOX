@@ -83,7 +83,7 @@ export default function PagePromotions() {
       {d && (
         <>
           {!d.moteurActif && (
-            <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3">
+            <div role="status" className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-[13.5px] font-bold text-[#92400E]">{t("Le moteur de promotions est éteint")}</p>
                 <p className="mt-0.5 text-[12.5px] leading-relaxed text-[#92400E]">{t("Vous pouvez préparer vos promotions, mais aucune ne s'applique en caisse tant qu'il n'est pas activé.")}{!d.peutActiverMoteur && ` ${t("Demandez au propriétaire de l'activer dans les réglages de la caisse.")}`}</p>
@@ -103,9 +103,9 @@ export default function PagePromotions() {
                 const magasins = p.magasinIds.map((id) => d.magasins.find((m) => m.id === id)?.nom).filter(Boolean);
                 const code = d.codesPromo.find((c) => c.id === p.codePromoId)?.code;
                 return (
-                  <li key={p.id} className="rounded-2xl border border-[#E8E8E8] bg-white p-4">
+                  <li key={p.id} className="rounded-[12px] border border-[#E8E8E8] bg-white p-4">
                     <div className="flex flex-wrap items-start gap-3">
-                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF7ED] text-[#B45309]" aria-hidden><Tag size={18} /></span>
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#f1f1f1] text-[#5e4200]" aria-hidden><Tag size={18} /></span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-[14.5px] font-bold text-[#111111]">{p.nom}</h2>

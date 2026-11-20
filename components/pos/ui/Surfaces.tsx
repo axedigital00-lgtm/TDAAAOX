@@ -42,20 +42,20 @@ function Dialogue({ ouverte, onFermer, titre, description, children, actions, ve
       onCancel={(e) => { e.preventDefault(); if (!verrouillee) onFermer(); }}
       // Clic sur le fond (la cible est alors le <dialog> lui-même, pas son contenu).
       onClick={(e) => { if (e.target === ref.current && !verrouillee) onFermer(); }}
-      className={cn("bg-transparent p-0 text-[#111111] backdrop:bg-black/50 backdrop:backdrop-blur-[1px] open:flex", className)}
+      className={cn("bg-transparent p-0 text-[#1a1a1a] backdrop:bg-black/50 open:flex", className)}
       style={POLICE}
     >
       {ouverte && (
-        <div className="flex max-h-full w-full flex-col overflow-hidden bg-white shadow-2xl">
-          <header className="flex items-start gap-3 border-b border-[#F0F0F0] px-5 py-4">
+        <div className="flex max-h-full w-full flex-col overflow-hidden bg-white shadow-[0_26px_80px_rgba(0,0,0,.28)]">
+          <header className="flex items-start gap-3 border-b border-[#ebebeb] px-4 py-3">
             <div className="min-w-0 flex-1">
-              <h2 id={`${id}-titre`} className="text-[16px] font-bold leading-tight">{t(titre)}</h2>
-              {description && <p id={`${id}-description`} className="mt-1 text-[12.5px] leading-relaxed text-[#666666]">{t(description)}</p>}
+              <h2 id={`${id}-titre`} className="text-[14px] font-semibold leading-5">{t(titre)}</h2>
+              {description && <p id={`${id}-description`} className="mt-0.5 text-[13px] leading-5 text-[#616161]">{t(description)}</p>}
             </div>
             {!verrouillee && <BoutonIcone label={t("Fermer")} onClick={onFermer} variante="secondaire" className="-mr-1 -mt-1 border-transparent"><X size={18} aria-hidden /></BoutonIcone>}
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-          {actions && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[#F0F0F0] bg-[#FAFAFA] px-5 py-3">{actions}</footer>}
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
+          {actions && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[#ebebeb] px-4 py-3">{actions}</footer>}
         </div>
       )}
     </dialog>
@@ -68,8 +68,8 @@ const LARGEURS = { sm: "sm:max-w-sm", md: "sm:max-w-lg", lg: "sm:max-w-2xl", xl:
 export function Modale({ taille = "md", ...props }: SurfaceProps & { taille?: keyof typeof LARGEURS }) {
   return (
     <Dialogue {...props} className={cn(
-      "m-0 mt-auto max-h-[92dvh] w-full max-w-full [&>div]:rounded-t-2xl",
-      "sm:m-auto sm:max-h-[86dvh] sm:[&>div]:rounded-2xl", LARGEURS[taille],
+      "m-0 mt-auto max-h-[92dvh] w-full max-w-full [&>div]:rounded-t-[16px]",
+      "sm:m-auto sm:max-h-[86dvh] sm:[&>div]:rounded-[16px]", LARGEURS[taille],
     )} />
   );
 }

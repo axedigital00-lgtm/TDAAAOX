@@ -5,6 +5,10 @@ import { toast } from "sonner";
 import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { useT } from "@/components/I18nProvider";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Card, Field, Toggle } from "@/components/dashboard/design-system/components/primitives";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
 
 const ENTREPOTS_TUTORIAL_STEPS = [
   { Icon: Plus,      titre: "Ajoute un entrepôt",           description: "Renseigne le nom, la ville et l'adresse pour créer un nouveau point de stockage." },
@@ -79,94 +83,69 @@ export default function EntrepotsPage() {
     setForm({ nom: e.nom, adresse: e.adresse ?? "", ville: e.ville ?? "", pays: e.pays, principal: e.principal });
   }
 
-  const inp = "w-full border border-[#E8E8E8] rounded-xl px-3 py-2 text-[13px] outline-none focus:border-[#F5A623]/60";
-
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <Page width="narrow">
       <ModuleTutorial moduleKey="entrepots" titre={t("Entrepôts")} sousTitre={t("Tes points de stockage")} steps={ENTREPOTS_TUTORIAL_STEPS} />
-      <div>
-        <h1 className="text-[22px] font-bold text-[#111] inline-flex items-center gap-2">
-          {t("Entrepôts")}{" "}<AgentActiveIndicator label={t("Agent Stock actif")} />
-          <BoutonRevoirTutoriel moduleKey="entrepots" />
-        </h1>
-        <p className="text-[13px] text-[#888] mt-0.5">{t("Gestion des stocks multi-entrepôts")}</p>
-      </div>
+      <PageHeader icon="box" backHref="/dashboard/logistique"
+        title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{t("Entrepôts")}<BoutonRevoirTutoriel moduleKey="entrepots" /></span>}
+        extraActions={<AgentActiveIndicator label={t("Agent Stock actif")} />} />
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="axd-grid axd-g3" style={{ marginBottom: "var(--space-400)" }}>
         {[
-          { label: "Total", v: entrepots.length },
+          { label: "Entrepôts", v: entrepots.length },
           { label: "Actifs", v: entrepots.filter(e => e.actif).length },
-          { label: "SKUs stockés", v: entrepots.reduce((s, e) => s + e._count.stocks, 0) },
+          { label: "Références stockées", v: entrepots.reduce((s, e) => s + e._count.stocks, 0) },
         ].map(s => (
-          <div key={s.label} className="bg-white border border-[#F0F0F0] rounded-2xl p-4 text-center">
-            <p className="text-[24px] font-bold text-[#111]">{t(s.v)}</p>
-            <p className="text-[11px] text-[#AAA] mt-0.5">{t(s.label)}</p>
+          <div key={s.label} className="axd-card axd-card--pad">
+            <div className="axd-kpi__t">{t(s.label)}</div>
+            <div className="axd-kpi__v" style={{ marginBottom: 0 }}>{s.v.toLocaleString(t.loc)}</div>
           </div>
         ))}
       </div>
 
-      {/* Form */}
-      <div className="bg-white border border-[#F0F0F0] rounded-2xl p-5 space-y-3">
-        <h2 className="text-[14px] font-bold text-[#111]">{editId ? t("Modifier l'entrepôt") : t("Nouvel entrepôt")}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input className={inp} placeholder={t("Nom (ex: Entrepôt Douala)")} value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} />
-          <input className={inp} placeholder={t("Ville")} value={form.ville} onChange={e => setForm(f => ({ ...f, ville: e.target.value }))} />
-          <input className={inp} placeholder={t("Adresse")} value={form.adresse} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} />
-          <input className={inp} placeholder={t("Pays")} value={form.pays} onChange={e => setForm(f => ({ ...f, pays: e.target.value }))} />
-        </div>
-        <label className="flex items-center gap-2 text-[13px] text-[#555] cursor-pointer">
-          <input type="checkbox" checked={form.principal} onChange={e => setForm(f => ({ ...f, principal: e.target.checked }))} />
-          {t("Entrepôt principal")}
-        </label>
-        <div className="flex gap-2">
-          <button
-            onClick={save} disabled={!form.nom || loading}
-            className="px-5 py-2 rounded-xl text-white text-[13px] font-semibold disabled:opacity-40"
-            style={{ background: "#F5A623" }}
-          >
-            {loading ? "..." : editId ? t("Modifier") : t("Créer")}
-          </button>
-          {editId && (
-            <button onClick={() => { setEditId(null); setForm({ ...EMPTY }); }} className="px-4 py-2 rounded-xl border border-[#E8E8E8] text-[13px] text-[#666]">
-              {t("Annuler")}
-            </button>
-          )}
-        </div>
-      </div>
+      <div className="axd-stack">
+        <Card title={editId ? t("Modifier l'entrepôt") : t("Nouvel entrepôt")}>
+          <div className="axd-grid axd-g2" style={{ gap: "var(--space-300)" }}>
+            <Field label={t("Nom")}>{(p) => <input {...p} className="axd-input" placeholder={t("ex : Entrepôt Douala")} value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} />}</Field>
+            <Field label={t("Ville")}>{(p) => <input {...p} className="axd-input" value={form.ville} onChange={e => setForm(f => ({ ...f, ville: e.target.value }))} />}</Field>
+            <Field label={t("Adresse")}>{(p) => <input {...p} className="axd-input" value={form.adresse} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} />}</Field>
+            <Field label={t("Pays")}>{(p) => <input {...p} className="axd-input" value={form.pays} onChange={e => setForm(f => ({ ...f, pays: e.target.value }))} />}</Field>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "var(--space-300) 0" }}>
+            <Toggle checked={form.principal} onChange={(v) => setForm(f => ({ ...f, principal: v }))} label={t("Entrepôt principal")} />
+            <span>{t("Entrepôt principal")}</span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button variant="primary" onClick={save} disabled={!form.nom} loading={loading}>{editId ? t("Enregistrer") : t("Créer l’entrepôt")}</Button>
+            {editId && <Button onClick={() => { setEditId(null); setForm({ ...EMPTY }); }}>{t("Annuler")}</Button>}
+          </div>
+        </Card>
 
-      {/* List */}
-      <div className="space-y-2">
-        {entrepots.map(e => (
-          <div key={e.id} className="bg-white border border-[#F0F0F0] rounded-2xl p-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-            <div className="flex-1 min-w-[12rem]">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[14px] font-semibold text-[#111]">{t(e.nom)}</span>
-                {e.principal && <span className="text-[10px] bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full font-bold">{t("Principal")}</span>}
-                {!e.actif && <span className="text-[10px] bg-[#F0F0F0] text-[#AAA] px-2 py-0.5 rounded-full">{t("Inactif")}</span>}
+        <div className="axd-card" style={{ overflow: "hidden" }}>
+          {!entrepots.length ? (
+            <div className="axd-empty"><h3>{t("Aucun entrepôt")}</h3><p>{t("Créez votre premier entrepôt pour gérer le stock sur plusieurs sites.")}</p></div>
+          ) : entrepots.map(e => (
+            <div key={e.id} className="axd-livreur" style={e.actif ? undefined : { opacity: .6 }}>
+              <div className="axd-livreur__ligne" style={{ flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <b style={{ color: "var(--color-text-strong)" }}>{t(e.nom)}</b>
+                    {e.principal && <Badge tone="info">{t("Principal")}</Badge>}
+                    {!e.actif && <Badge>{t("Inactif")}</Badge>}
+                  </div>
+                  <div className="axd-muted" style={{ fontSize: 12 }}>{[e.adresse, e.ville, e.pays].filter(Boolean).join(", ")} · {e._count.stocks.toLocaleString(t.loc)} {t("référence(s)")}</div>
+                </div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {!e.principal && <Button size="sm" variant="plain" onClick={() => setPrincipal(e)}>{t("Définir principal")}</Button>}
+                  <Button size="sm" variant="plain" onClick={() => startEdit(e)}>{t("Modifier")}</Button>
+                  <Button size="sm" variant="plain" onClick={() => toggleActif(e)}>{e.actif ? t("Désactiver") : t("Activer")}</Button>
+                  <Button size="sm" variant="plain" onClick={() => del(e.id)}>{t("Supprimer")}</Button>
+                </div>
               </div>
-              <p className="text-[12px] text-[#888] mt-0.5">{[e.adresse, e.ville, e.pays].filter(Boolean).join(", ")} · {t(e._count.stocks)}{" "}{t("SKU(s)")}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {!e.principal && (
-                <button onClick={() => setPrincipal(e)} className="text-[11px] text-[#F5A623] border border-[#F5A623]/30 px-2 py-1 rounded-lg">
-                  {t("Définir principal")}
-                </button>
-              )}
-              <button onClick={() => startEdit(e)} className="text-[11px] text-[#666] border border-[#E8E8E8] px-2 py-1 rounded-lg">{t("Modifier")}</button>
-              <button onClick={() => toggleActif(e)} className="text-[11px] text-[#666] border border-[#E8E8E8] px-2 py-1 rounded-lg">
-                {e.actif ? t("Désactiver") : t("Activer")}
-              </button>
-              <button onClick={() => del(e.id)} className="text-[11px] text-red-500 border border-red-100 px-2 py-1 rounded-lg">{t("Supprimer")}</button>
-            </div>
-          </div>
-        ))}
-        {!entrepots.length && (
-          <div className="bg-[#FAFAFA] rounded-2xl p-8 text-center text-[13px] text-[#AAA]">
-            {t("Aucun entrepôt. Crée ton premier entrepôt pour gérer le stock multi-site.")}
-          </div>
-        )}
+          ))}
+        </div>
       </div>
-    </div>
+    </Page>
   );
 }

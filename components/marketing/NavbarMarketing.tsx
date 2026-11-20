@@ -1,319 +1,139 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+// Navigation du site public : logo, menus déroulants, Tarifs, connexion et
+// inscription. Menu plein écran sur mobile.
+// Au défilement : transparente en haut de page, elle se cache quand on descend
+// et revient (fond plein, flou) dès qu'on remonte.
+import "@fontsource-variable/inter/wght.css";
+import "./site/site.css";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useT } from "@/components/I18nProvider";
 
-// Landing en une page : chaque lien mène à sa section (défilement doux : globals.css + scroll-mt-24).
-// « /#… » plutôt que « #… » pour que le menu marche aussi depuis /themes, /contact, etc.
-const LIENS = [
-  { label: "Fonctionnalités", href: "/#fonctionnalites" },
-  { label: "Thèmes",          href: "/#themes"          },
-  { label: "Tarifs",          href: "/#tarifs"          },
-  { label: "Affiliation",     href: "/#affiliation"     },
-  { label: "Témoignages",     href: "/#temoignages"     },
-  { label: "Contact",         href: "/#contact"         },
+type Lien = { label: string; desc?: string; href: string };
+type Menu = { id: string; label: string; titre: string; liens: Lien[] };
+
+const MENUS: Menu[] = [
+  {
+    id: "pourquoi", label: "Pourquoi AXSO", titre: "Pensé pour vendre en Afrique",
+    liens: [
+      { label: "Lancer sa boutique", desc: "En ligne en quelques minutes, sans carte bancaire.", href: "/inscription" },
+      { label: "Fonctionnalités", desc: "Tout ce qu’AXSO fait pour votre commerce.", href: "/fonctionnalites" },
+      { label: "Témoignages", desc: "Des marchands racontent leur croissance.", href: "/temoignages" },
+      { label: "À propos", desc: "Notre mission et notre équipe.", href: "/about" },
+    ],
+  },
+  {
+    id: "produits", label: "Produits", titre: "Tout pour vendre, partout",
+    liens: [
+      { label: "Boutique en ligne", desc: "Thèmes prêts à vendre et constructeur visuel.", href: "/themes" },
+      { label: "Vente sur WhatsApp", desc: "Commandes WhatsApp reçues dans votre admin.", href: "/fonctionnalites" },
+      { label: "Caisse en magasin", desc: "Encaissez en boutique, stock synchronisé.", href: "/fonctionnalites" },
+      { label: "Stella, votre assistante IA", desc: "Analyse, fiches produits, relances.", href: "/#axia" },
+      { label: "Affiliation", desc: "Faites vendre vos produits par des créateurs.", href: "/affiliation" },
+      { label: "Documentation", desc: "Guides et intégrations.", href: "/docs" },
+    ],
+  },
+  {
+    id: "ressources", label: "Ressources", titre: "Apprendre et échanger",
+    liens: [
+      { label: "Blog", desc: "Conseils pour vendre plus.", href: "/blog" },
+      { label: "Tutoriels vidéo", desc: "Pas à pas, en quelques minutes.", href: "/tutorials" },
+      { label: "Communauté", desc: "Échangez avec d’autres marchands.", href: "/community" },
+      { label: "Suivre un colis", desc: "Pour vos clients.", href: "/suivi" },
+    ],
+  },
 ];
 
 export function NavbarMarketing() {
   const t = useT();
-  const [scrolled,    setScrolled]    = useState(false);
-  const [hovered,     setHovered]     = useState(false);
-  const [mobileOpen,  setMobileOpen]  = useState(false);
-  const collapseRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isExpanded    = !scrolled || hovered;
+  const pathname = usePathname();
+  const [ouvert, setOuvert] = useState<string | null>(null);
+  const [mobile, setMobile] = useState(false);
+  const zone = useRef<HTMLElement>(null);
+  const [etat, setEtat] = useState<"haut" | "visible" | "cache">("haut");
 
-  /* ── scroll listener (throttlé via rAF, cf. VideoSection.tsx) ── */
+  useEffect(() => { setOuvert(null); setMobile(false); }, [pathname]);
   useEffect(() => {
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        setScrolled(window.scrollY > 56);
-        ticking = false;
-      });
+    const fermer = (e: MouseEvent) => { if (!zone.current?.contains(e.target as Node)) setOuvert(null); };
+    const echap = (e: KeyboardEvent) => { if (e.key === "Escape") { setOuvert(null); setMobile(false); } };
+    document.addEventListener("mousedown", fermer); document.addEventListener("keydown", echap);
+    return () => { document.removeEventListener("mousedown", fermer); document.removeEventListener("keydown", echap); };
+  }, []);
+  useEffect(() => { document.body.style.overflow = mobile ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [mobile]);
+  useEffect(() => {
+    let dernier = window.scrollY, attente = false;
+    const maj = () => {
+      attente = false;
+      const y = window.scrollY;
+      if (y < 12) setEtat("haut");
+      else if (y > dernier + 6 && y > 140) setEtat("cache");
+      else if (y < dernier - 6) setEtat("visible");
+      dernier = y;
     };
+    const onScroll = () => { if (!attente) { attente = true; requestAnimationFrame(maj); } };
+    maj();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const onEnter = () => { if (collapseRef.current) clearTimeout(collapseRef.current); setHovered(true); };
-  const onLeave = () => { collapseRef.current = setTimeout(() => setHovered(false), 320); };
+  // Menu ouvert : la barre reste affichée.
+  const etatAffiche = (ouvert || mobile) && etat === "cache" ? "visible" : etat;
 
   return (
-    <>
-      <style>{`
-        @keyframes axGlow {
-          0%,100% { opacity:.5; transform:translateX(-50%) scaleX(.7); }
-          50%      { opacity:1;  transform:translateX(-50%) scaleX(1);  }
-        }
-        @keyframes axFadeUp {
-          from { opacity:0; transform:translateY(10px); }
-          to   { opacity:1; transform:translateY(0);    }
-        }
-        @keyframes axSheetOpen {
-          from { opacity:0; transform:translateY(-6px) scale(.97); }
-          to   { opacity:1; transform:translateY(0)    scale(1);   }
-        }
-        .ax-nl:hover  { color:#fff !important; background:rgba(255,255,255,.1) !important; }
-        .ax-cta:hover { transform:scale(1.05) !important; box-shadow:0 6px 26px rgba(245,166,35,.7) !important; }
-        .ax-ml:hover  { background:rgba(255,255,255,.08) !important; color:#fff !important; }
-        .ax-desktop { display:none; }
-        @media (min-width:768px) { .ax-desktop { display:flex; } }
-        .ax-mobile  { display:flex; }
-        @media (min-width:768px) { .ax-mobile  { display:none; } }
-      `}</style>
-
-      <nav
-        aria-label={t("Navigation principale")}
-        style={{
-          position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
-          display: "flex", flexDirection: "column", alignItems: "center",
-          paddingTop: "14px",
-          fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif",
-          pointerEvents: "none",
-        }}
-      >
-        {/* ── Ambient glow ─────────────────────────────────────────────── */}
-        <div style={{
-          position: "absolute", top: 0, left: "50%",
-          width: "600px", height: "90px",
-          background: "radial-gradient(ellipse at top, rgba(245,166,35,.14) 0%, transparent 68%)",
-          pointerEvents: "none",
-          animation: "axGlow 4s ease-in-out infinite",
-          transition: "opacity .5s ease",
-          opacity: isExpanded ? 1 : .4,
-        }} />
-
-        {/* ── Desktop island ───────────────────────────────────────────── */}
-        <div
-          className="ax-desktop"
-          onMouseEnter={onEnter}
-          onMouseLeave={onLeave}
-          style={{
-            alignItems: "center",
-            pointerEvents: "auto",
-            background: "#111111",
-            borderRadius: "999px",
-            padding: isExpanded ? "8px 10px 8px 18px" : "7px 12px",
-            width: isExpanded
-              ? "min(1120px, calc(100vw - 32px))"
-              : "min(190px, calc(100vw - 32px))",
-            transition:
-              "width .55s cubic-bezier(.34,1.56,.64,1), padding .4s ease, box-shadow .35s ease",
-            boxShadow: scrolled
-              ? "0 16px 56px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.07)"
-              : "0 8px 36px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.06)",
-            overflow: "hidden",
-            position: "relative",
-          }}
-        >
-          {/* Logo */}
-          <Link href="/" style={{ display:"flex", alignItems:"center", flexShrink:0, textDecoration:"none", zIndex:2 }}>
-            <img
-              src="/logo-dark.png" alt="axso"
-              style={{
-                height: isExpanded ? "42px" : "32px",
-                width: "auto", objectFit: "contain",
-                transition: "height .45s cubic-bezier(.34,1.56,.64,1)",
-              }}
-            />
-          </Link>
-
-          {/* Nav links — centre */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: "2px",
-            flex: 1, justifyContent: "center",
-            opacity:    isExpanded ? 1 : 0,
-            transform:  isExpanded ? "none" : "scale(.9) translateX(-12px)",
-            transition: isExpanded
-              ? "opacity .3s ease .14s, transform .45s cubic-bezier(.34,1.56,.64,1) .08s"
-              : "opacity .15s ease, transform .25s ease",
-            pointerEvents: isExpanded ? "auto" : "none",
-          }}>
-            {LIENS.map(l => (
-              <a key={l.href} href={l.href} className="ax-nl" style={{
-                padding: "7px 12px",
-                borderRadius: "999px",
-                fontSize: "13.5px", fontWeight: 500,
-                color: "rgba(255,255,255,.6)",
-                textDecoration: "none", whiteSpace: "nowrap",
-                transition: "color .15s, background .15s",
-              }}>
-                {t(l.label)}
-              </a>
-            ))}
-          </div>
-
-          {/* CTAs — droite */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: "6px", flexShrink: 0,
-            opacity:    isExpanded ? 1 : 0,
-            transform:  isExpanded ? "none" : "translateX(20px)",
-            transition: isExpanded
-              ? "opacity .3s ease .2s, transform .45s cubic-bezier(.34,1.56,.64,1) .12s"
-              : "opacity .12s ease, transform .2s ease",
-            pointerEvents: isExpanded ? "auto" : "none",
-          }}>
-            <Link href="/connexion" style={{
-              padding: "7px 17px", borderRadius: "999px",
-              fontSize: "13px", fontWeight: 500,
-              color: "rgba(255,255,255,.5)", textDecoration: "none",
-              whiteSpace: "nowrap", transition: "color .15s",
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.5)"}
-            >
-              {t("Connexion")}
-            </Link>
-            <Link href="/inscription" className="ax-cta" style={{
-              padding: "9px 22px", borderRadius: "999px",
-              fontSize: "13px", fontWeight: 700,
-              color: "#080808", background: "#F5A623",
-              textDecoration: "none", whiteSpace: "nowrap",
-              boxShadow: "0 3px 16px rgba(245,166,35,.52)",
-              transition: "transform .18s, box-shadow .18s",
-              display: "inline-block",
-            }}>
-              {t("Créer ma boutique gratuite →")}
-            </Link>
-          </div>
-
-          {/* Compact indicator — visible quand îlot fermé (absolue, n'affecte pas le flux) */}
-          <div style={{
-            position: "absolute", right: "12px",
-            display: "flex", alignItems: "center", gap: "8px",
-            opacity:       isExpanded ? 0 : 1,
-            pointerEvents: isExpanded ? "none" : "auto",
-            transition:    isExpanded ? "opacity .1s ease" : "opacity .25s ease .15s",
-          }}>
-            <Link href="/inscription" style={{
-              padding: "7px 18px", borderRadius: "999px",
-              fontSize: "12.5px", fontWeight: 700,
-              color: "#080808", background: "#F5A623",
-              textDecoration: "none", whiteSpace: "nowrap",
-              boxShadow: "0 2px 12px rgba(245,166,35,.45)",
-            }}>
-              →
-            </Link>
-          </div>
-        </div>
-
-        {/* ── Mobile island — s'expand en place (vrai Dynamic Island) ── */}
-        <div
-          className="ax-mobile"
-          style={{
-            flexDirection: "column",
-            pointerEvents: "auto",
-            background: "#111111",
-            borderRadius: mobileOpen ? "28px" : "999px",
-            width: "calc(100vw - 28px)",
-            overflow: "hidden",
-            boxShadow: mobileOpen
-              ? "0 20px 60px rgba(0,0,0,.55), 0 4px 14px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.07)"
-              : "0 10px 40px rgba(0,0,0,.38), 0 2px 8px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.06)",
-            transition: "border-radius .5s cubic-bezier(.34,1.56,.64,1), box-shadow .4s ease",
-          }}
-        >
-          {/* ── Ligne du haut — toujours visible ── */}
-          <div style={{ display:"flex", alignItems:"center", padding:"7px 10px 7px 16px", gap:"8px" }}>
-            <Link href="/" style={{ display:"flex", alignItems:"center", textDecoration:"none", flexShrink:0 }}>
-              <img src="/logo-dark.png" alt="axso" style={{
-                height: mobileOpen ? "34px" : "30px",
-                objectFit:"contain",
-                transition: "height .4s cubic-bezier(.34,1.56,.64,1)",
-              }} />
-            </Link>
-            <div style={{ flex: 1 }} />
-            {/* CTA masqué quand ouvert */}
-            <Link href="/inscription" style={{
-              padding: "7px 16px", borderRadius: "999px",
-              fontSize: "12.5px", fontWeight: 700,
-              color: "#080808", background: "#F5A623",
-              textDecoration: "none", whiteSpace: "nowrap",
-              boxShadow: "0 2px 10px rgba(245,166,35,.4)",
-              opacity: mobileOpen ? 0 : 1,
-              transform: mobileOpen ? "scale(.75)" : "scale(1)",
-              transition: "opacity .2s ease, transform .3s cubic-bezier(.34,1.56,.64,1)",
-              pointerEvents: mobileOpen ? "none" : "auto",
-            }}>
-              {t("Créer gratuitement")}
-            </Link>
-            <button
-              onClick={() => setMobileOpen(v => !v)}
-              style={{
-                width: "36px", height: "36px", borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,.15)",
-                background: mobileOpen ? "rgba(255,255,255,.12)" : "rgba(255,255,255,.06)",
-                color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", flexShrink: 0,
-                transition: "background .2s, transform .45s cubic-bezier(.34,1.56,.64,1)",
-                transform: mobileOpen ? "rotate(45deg)" : "none",
-              }}
-              aria-label={t("Menu")}
-            >
-              {mobileOpen ? <X size={15} /> : <Menu size={15} />}
-            </button>
-          </div>
-
-          {/* ── Contenu expandable ── */}
-          <div style={{
-            maxHeight: mobileOpen ? "420px" : "0",
-            opacity: mobileOpen ? 1 : 0,
-            overflow: "hidden",
-            transition: "max-height .5s cubic-bezier(.34,1.56,.64,1), opacity .3s ease",
-          }}>
-            <div style={{ padding: "0 12px 16px" }}>
-              <div style={{ borderTop: "1px solid rgba(255,255,255,.08)", paddingTop: "10px" }}>
-                {LIENS.map((l, i) => (
-                  <a
-                    key={l.href} href={l.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="ax-ml"
-                    style={{
-                      display: "block",
-                      padding: "13px 10px",
-                      borderRadius: "14px",
-                      fontSize: "15px", fontWeight: 500,
-                      color: "rgba(255,255,255,.65)",
-                      textDecoration: "none",
-                      transition: "background .15s, color .15s",
-                      animation: mobileOpen ? `axFadeUp .32s ease ${i * 0.07}s both` : "none",
-                    }}
-                  >
-                    {t(l.label)}
-                  </a>
-                ))}
-                <div style={{
-                  display: "flex", gap: "8px", marginTop: "12px",
-                  animation: mobileOpen ? `axFadeUp .32s ease ${LIENS.length * 0.07}s both` : "none",
-                }}>
-                  <Link href="/connexion" onClick={() => setMobileOpen(false)} style={{
-                    flex: 1, display: "block", textAlign: "center",
-                    padding: "13px", borderRadius: "16px",
-                    border: "1px solid rgba(255,255,255,.13)",
-                    fontSize: "14px", fontWeight: 600,
-                    color: "rgba(255,255,255,.55)", textDecoration: "none",
-                  }}>
-                    {t("Connexion")}
-                  </Link>
-                  <Link href="/inscription" onClick={() => setMobileOpen(false)} style={{
-                    flex: 2, display: "block", textAlign: "center",
-                    padding: "13px", borderRadius: "16px",
-                    fontSize: "14px", fontWeight: 700,
-                    color: "#080808", background: "#F5A623",
-                    textDecoration: "none",
-                    boxShadow: "0 4px 20px rgba(245,166,35,.5)",
-                  }}>
-                    {t("Créer ma boutique gratuite")}
-                  </Link>
+    <header className="axm axm-nav" ref={zone} data-etat={etatAffiche} data-menu={ouvert || undefined}>
+      <div className="axm-wrap axm-nav__in">
+        <Link href="/" className="axm-nav__logo" aria-label="AXSO"><img src="/logo-dark.png" alt="AXSO" /></Link>
+        <nav className="axm-nav__menu" aria-label={t("Navigation principale")}>
+          {MENUS.map((m) => (
+            <div key={m.id} className="axm-nav__item" onMouseEnter={() => setOuvert(m.id)} onMouseLeave={() => setOuvert(null)}>
+              <button type="button" className="axm-nav__btn" aria-expanded={ouvert === m.id} onClick={() => setOuvert(ouvert === m.id ? null : m.id)}>
+                {t(m.label)}
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M5 8l5 5 5-5" /></svg>
+              </button>
+              {ouvert === m.id && (
+                <div className="axm-mega" role="menu">
+                  <div className="axm-wrap axm-mega__in">
+                    <p className="axm-mega__col-title">{t(m.titre)}</p>
+                    <div className="axm-mega__liens">
+                      {m.liens.map((l) => (
+                        <Link key={l.label} href={l.href} role="menuitem"><b>{t(l.label)}</b>{l.desc && <span>{t(l.desc)}</span>}</Link>
+                      ))}
+                    </div>
+                    <Link href="/inscription" className="axm-mega__une" role="menuitem">
+                      <img src={m.id === "ressources" ? "/catalogue-atelier.webp" : m.id === "produits" ? "/theme-noir-atelier.webp" : "/hero-market.webp"} alt="" loading="lazy" />
+                      <b>{t("Démarrer gratuitement")}</b>
+                      <span>{t("Votre boutique en ligne en quelques minutes.")}</span>
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          </div>
+          ))}
+          <Link href="/tarifs" className="axm-nav__btn">{t("Tarifs")}</Link>
+        </nav>
+        <div className="axm-nav__right">
+          <Link href="/connexion" className="axm-nav__btn axm-hide-m">{t("Se connecter")}</Link>
+          <Link href="/inscription" className="axm-btn axm-btn--primary axm-btn--sm axm-hide-m">{t("Démarrer gratuitement")}</Link>
         </div>
-      </nav>
-    </>
+        <button type="button" className="axm-burger" aria-label={mobile ? t("Fermer le menu") : t("Ouvrir le menu")} aria-expanded={mobile} onClick={() => setMobile((v) => !v)}>
+          <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+            {mobile ? <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /> : <path d="M4 6h12M4 10h12M4 14h12" />}
+          </svg>
+        </button>
+      </div>
+      {mobile && (
+        <div className="axm-drawer">
+          {MENUS.map((m) => (
+            <details key={m.id}>
+              <summary>{t(m.label)}</summary>
+              {m.liens.map((l) => <Link key={l.label} href={l.href}>{t(l.label)}</Link>)}
+            </details>
+          ))}
+          <Link href="/tarifs">{t("Tarifs")}</Link>
+          <Link href="/connexion">{t("Se connecter")}</Link>
+          <div style={{ marginTop: 24 }}><Link href="/inscription" className="axm-btn axm-btn--primary" style={{ width: "100%", borderBottom: 0 }}>{t("Démarrer gratuitement")}</Link></div>
+        </div>
+      )}
+    </header>
   );
 }

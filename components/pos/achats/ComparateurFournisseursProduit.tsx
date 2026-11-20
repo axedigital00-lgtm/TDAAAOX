@@ -68,7 +68,7 @@ export default function ComparateurFournisseursProduit({ produitId, quantite: qu
       ) : (
         <>
           {reco && (
-            <section className="rounded-2xl border border-[#F5A623] bg-[#FFF7ED] p-4" aria-label={t("Recommandation")}>
+            <section className="rounded-[12px] border border-[#1a1a1a] bg-[#f1f1f1] p-4" aria-label={t("Recommandation")}>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-[13px] font-bold text-[#111111]">{t("Recommandation")} : {reco.nom}</p>
                 <Badge ton={reco.ferme ? "positif" : "attention"}>{t(reco.ferme ? "Recommandation ferme" : "Meilleur disponible, données insuffisantes")}</Badge>
@@ -82,7 +82,7 @@ export default function ComparateurFournisseursProduit({ produitId, quantite: qu
 
           <ul className="space-y-3">
             {d.offres.map((o) => (
-              <li key={o.ref} className={`rounded-2xl border bg-white p-4 ${o.ref === reco?.ref ? "border-[#111111]" : "border-[#E8E8E8]"}`}>
+              <li key={o.ref} className={`rounded-[12px] border bg-white p-4 ${o.ref === reco?.ref ? "border-[#111111]" : "border-[#E8E8E8]"}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <p className="truncate text-[14px] font-bold">{o.nom}</p>
@@ -130,7 +130,7 @@ export default function ComparateurFournisseursProduit({ produitId, quantite: qu
       )}
 
       {d.autresReceptions.length > 0 && (
-        <section className="rounded-2xl border border-[#E8E8E8] bg-white p-4">
+        <section className="rounded-[12px] border border-[#E8E8E8] bg-white p-4">
           <p className="text-[12px] font-bold text-[#111111]">{t("Autres réceptions de ce produit")}</p>
           <p className="text-[11.5px] text-[#888888]">{t("Reçues sans fournisseur précisé, ou d'un fournisseur sans offre enregistrée.")}</p>
           <ul className="mt-2 text-[12px] tabular-nums text-[#444444]">

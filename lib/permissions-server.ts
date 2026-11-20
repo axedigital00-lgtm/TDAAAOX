@@ -71,7 +71,7 @@ export async function accesComplet(session: any): Promise<boolean> {
 /**
  * Agents IA qui agissent sans confirmation (/api/ai/agent-*, copilote) : ils
  * touchent plusieurs modules à la fois, donc réservés à un accès complet sur la
- * boutique (même règle que deleguer_vers_agent d'AXIA, lib/axia/droits.ts).
+ * boutique (même règle que deleguer_vers_agent de Stella, lib/axia/droits.ts).
  * `palierPro` : agents autonomes promis à partir du Palier Pro.
  */
 export async function refusAgentIA(session: any, palierPro = true): Promise<{ status: number; error: string } | null> {

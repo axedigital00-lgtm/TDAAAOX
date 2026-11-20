@@ -58,11 +58,11 @@ export function CaisseKiosk({ boutiqueNom }: { boutiqueNom?: string }) {
       ...(infos.retour ? [{ id: "retours" as const, libelle: "Retours", Icone: RotateCcw }] : []),
     ];
     return (
-      <div className="h-dvh w-screen overflow-y-auto bg-[#F5F5F5] p-2 text-gray-900 sm:p-3" style={{ fontFamily: "'Poppins', 'Century Gothic', system-ui, sans-serif" }}>
+      <div className="h-dvh w-screen overflow-y-auto bg-[#F5F5F5] p-2 text-gray-900 sm:p-3" style={{ fontFamily: "var(--merchant-font)" }}>
         <nav aria-label={t("Écrans de la caisse")} className="mb-2 flex items-center gap-2">
           {onglets.map(({ id, libelle, Icone }) => (
             <button key={id} type="button" onClick={() => setOnglet(id)} aria-current={onglet === id ? "page" : undefined}
-              className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[12.5px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F5A623] ${onglet === id ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#444444] hover:border-[#F5A623]"}`}>
+              className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[12.5px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1a1a1a] ${onglet === id ? "border-[#111111] bg-[#111111] text-white" : "border-[#E8E8E8] bg-white text-[#444444] hover:border-[#8a8a8a]"}`}>
               <Icone size={15} aria-hidden />
               <span className={onglet === id ? "" : "hidden sm:inline"}>{t(libelle)}</span>
             </button>
@@ -71,7 +71,7 @@ export function CaisseKiosk({ boutiqueNom }: { boutiqueNom?: string }) {
             type="button"
             onClick={() => signOut({ callbackUrl: "/connexion" })}
             aria-label={t("Se déconnecter")}
-            className="ml-auto flex min-h-11 items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold text-[#444444] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F5A623]"
+            className="ml-auto flex min-h-11 items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold text-[#444444] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1a1a1a]"
           >
             <LogOut size={15} aria-hidden />
             <span className="hidden sm:inline">{t("Se déconnecter")}</span>
@@ -90,14 +90,14 @@ export function CaisseKiosk({ boutiqueNom }: { boutiqueNom?: string }) {
   return (
     <div
       className="h-dvh w-screen flex flex-col overflow-hidden bg-[#f0f2f8] text-gray-900"
-      style={{ fontFamily: "'Poppins', 'Century Gothic', system-ui, sans-serif" }}
+      style={{ fontFamily: "var(--merchant-font)" }}
     >
       {/* ─── Header kiosque ─── */}
       <header
         className="flex-shrink-0 flex items-center justify-between px-5 sm:px-8 h-16 sm:h-[72px]"
         style={{
-          background: "linear-gradient(135deg,#F5A623 0%,#D4911A 100%)",
-          boxShadow: "0 2px 16px rgba(245,166,35,0.3)",
+          background: "#0c0c0c",
+          color: "#fff",
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -131,7 +131,7 @@ export function CaisseKiosk({ boutiqueNom }: { boutiqueNom?: string }) {
       <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
         <div className="w-full max-w-[1600px] mx-auto">
           {v2 === null
-            ? <div className="flex justify-center py-16" role="status" aria-label={t("Chargement…")}><Loader2 size={24} className="animate-spin text-[#F5A623]" aria-hidden /></div>
+            ? <div className="flex justify-center py-16" role="status" aria-label={t("Chargement…")}><Loader2 size={24} className="animate-spin text-[#1a1a1a]" aria-hidden /></div>
             : <POSPanel />}
         </div>
       </main>

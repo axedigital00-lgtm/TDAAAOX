@@ -143,7 +143,7 @@ test("découverte : une connexion en lecture ne voit aucun outil d'écriture ; s
   assert.equal(r.code, "INSUFFICIENT_PERMISSION");
   assert.equal((await prisma.produit.findUnique({ where: { id: id.pA } }))!.prix, 10_000);
   assert.equal((await appelerOutil(lecture, "outil_qui_n_existe_pas", {})).code, "NOT_FOUND");
-  assert.equal((await appelerOutil(lecture, "deleguer_vers_agent", { agent: "x", tache: "y" })).code, "NOT_FOUND", "la délégation AXIA sans droits n'est jamais exposée");
+  assert.equal((await appelerOutil(lecture, "deleguer_vers_agent", { agent: "x", tache: "y" })).code, "NOT_FOUND", "la délégation Stella sans droits n'est jamais exposée");
 });
 
 test("pas d'escalade : tous les droits cochés par un caissier restent ceux du caissier", async () => {

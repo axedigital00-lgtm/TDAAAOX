@@ -2,7 +2,7 @@
 // configs par défaut et de leur description, partagée par :
 // - app/(dashboard)/dashboard/builder/canvas/blockDefaults.ts (bibliothèque
 //   glisser-déposer du tableau de bord, y ajoute juste les icônes)
-// - lib/gemini.ts::agentConstructeurLibre (l'agent AXIA lit ce catalogue
+// - lib/gemini.ts::agentConstructeurLibre (l'agent Stella lit ce catalogue
 //   pour savoir quels types/champs il a le droit de manipuler)
 // Fichier pur (aucun React/Prisma) : importable aussi bien côté client que
 // dans une route API.

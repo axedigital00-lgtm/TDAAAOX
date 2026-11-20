@@ -2,6 +2,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tauxProduit, commissionCommande, etatCommission, estAutoReferencement } from "@/lib/affiliation-regles";
+import { prixClient, tauxCommande } from "@/lib/pricing";
+
+for (const type of ["service", "abonnement", "parcours"]) {
+  test(`tarification et affiliation numériques pour un ${type}`, () => {
+    const prix = prixClient(10000, 0.10, type);
+    assert.equal(prix, 11300);
+    const taux = tauxCommande([{ prix, quantite: 1, type }], 0.10);
+    assert.ok(Math.abs(taux - 0.13) < 1e-9);
+    assert.equal(commissionCommande({ lignes: [ligne(prix, type)], montantTotal: prix, montantLivraison: 0, tauxCommission: taux, devise: "XAF" }), 2000);
+  });
+}
 
 test("taux : minimum 10 % physique, 20 % numérique, le marchand peut monter", () => {
   assert.equal(tauxProduit({ type: "physique" }, null), 0.1);

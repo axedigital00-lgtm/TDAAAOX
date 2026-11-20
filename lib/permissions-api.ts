@@ -3,7 +3,7 @@
 // caissier pouvait par exemple vider le portefeuille de la boutique).
 // Un membre d'équipe n'atteint une route que si sa grille donne au module la
 // lecture (GET) ou l'écriture (le reste). Propriétaires : accès complet.
-// Les routes IA (AXIA, agents) appliquent leurs propres droits ; les routes
+// Les routes IA (Stella, agents) appliquent leurs propres droits ; les routes
 // publiques (vitrine, webhooks, tâches planifiées) ne sont pas concernées.
 import type { ModuleKey } from "./permissions";
 import type { Palier } from "./plans";

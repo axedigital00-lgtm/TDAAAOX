@@ -25,7 +25,7 @@ export function versArticleAchat(a: ArticleResolu, varianteId: string | null = a
   };
 }
 
-const CLASSE_CHOIX = `flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-left text-[13px] hover:bg-[#FFF7ED] ${FOCUS}`;
+const CLASSE_CHOIX = `flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-left text-[13px] hover:bg-[#f1f1f1] ${FOCUS}`;
 
 export function RechercheArticle({ onChoisir, varianteObligatoire, label = "Ajouter un produit" }: { onChoisir: (a: ArticleAchat) => void; varianteObligatoire?: boolean; label?: string }) {
   const t = useT();

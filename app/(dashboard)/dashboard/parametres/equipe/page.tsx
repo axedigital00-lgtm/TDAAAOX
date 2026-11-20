@@ -205,7 +205,7 @@ export default function EquipePage() {
   const lbl = "text-[10px] font-bold text-gray-400 uppercase tracking-wide";
 
   return (
-    <div className="p-5 max-w-3xl mx-auto space-y-5" style={{ fontFamily: "'Poppins',system-ui,sans-serif" }}>
+    <div className="p-5 max-w-3xl mx-auto space-y-5" style={{ fontFamily: "var(--merchant-font)" }}>
       <ModuleTutorial moduleKey="equipe" titre={t("Équipe")} sousTitre={t("Rôles et accès de ton équipe")} steps={EQUIPE_TUTORIAL_STEPS} />
 
       <div className="flex items-center justify-between flex-wrap gap-2">

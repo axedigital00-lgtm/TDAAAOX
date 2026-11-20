@@ -1,5 +1,5 @@
-// Droits d'AXIA = droits du membre connecté. Sans ce filtre, un membre
-// d'équipe restreint (caissier, lecture seule…) pouvait faire par AXIA ce que
+// Droits de Stella = droits du membre connecté. Sans ce filtre, un membre
+// d'équipe restreint (caissier, lecture seule…) pouvait faire par Stella ce que
 // le menu et les API lui refusent (lire les revenus, modifier des produits…).
 // Chaque outil est rattaché à un module de lib/permissions.ts et au niveau
 // minimum requis ; les outils absents de la table ne demandent aucun droit

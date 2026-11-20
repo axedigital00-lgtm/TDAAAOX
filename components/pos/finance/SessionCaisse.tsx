@@ -307,7 +307,7 @@ function ModaleMouvement({ caisseId, attendu, onFermer, onEnregistre }: { caisse
           <div role="group" aria-label={t("Sens de la correction")} className="grid grid-cols-2 gap-2">
             {[[true, "Il y a moins dans le tiroir"], [false, "Il y a plus dans le tiroir"]].map(([v, label]) => (
               <button key={String(v)} type="button" aria-pressed={moins === v} onClick={() => setMoins(v as boolean)}
-                className={`min-h-11 rounded-xl border px-3 text-[12.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] ${moins === v ? "border-[#F5A623] bg-[#FFF7ED]" : "border-[#E8E8E8] bg-white"}`}>
+                className={`min-h-11 rounded-xl border px-3 text-[12.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] ${moins === v ? "border-[#1a1a1a] bg-[#f1f1f1]" : "border-[#E8E8E8] bg-white"}`}>
                 {t(label as string)}
               </button>
             ))}

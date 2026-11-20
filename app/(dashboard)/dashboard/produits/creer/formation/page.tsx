@@ -123,7 +123,7 @@ export default function CreerFormationPage() {
           <BookOpen size={18} className="text-[#F5A623]" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 font-poppins">{t("Nouvelle formation")}</h1>
+          <h1 className="text-xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Nouvelle formation")}</h1>
           <p className="text-xs text-gray-400">{t("Chapitres et leçons avec suivi de progression")}</p>
         </div>
       </div>

@@ -117,8 +117,8 @@ export default async function Marchand360({ params, searchParams }: { params: Pr
           <p className="cc-faint text-[11.5px] mt-2">{tx("Best-sellers indisponibles : le jeu de données normalisé ne détaille pas les lignes de commande par produit.")}</p>
         </Carte>
 
-        <Carte titre={tx("Axia IA")} sousTitre={tx("90 derniers jours")}>
-          {!iaParType.length ? <EtatVide titre={tx("Aucun usage d'Axia")} explication={tx("Ce marchand n'a envoyé aucune requête IA sur 90 jours.")} /> : (
+        <Carte titre={tx("Stella IA")} sousTitre={tx("90 derniers jours")}>
+          {!iaParType.length ? <EtatVide titre={tx("Aucun usage de Stella")} explication={tx("Ce marchand n'a envoyé aucune requête IA sur 90 jours.")} /> : (
             <dl>
               {iaParType.map((x) => <Ligne key={x.ty} nom={tx(NOM_TYPE_IA[x.ty])}><span className="cc-num">{formatValeur(x.n, "nombre", true)}</span></Ligne>)}
               <Ligne nom={tx("Coût IA estimé")}><span className="cc-num font-medium">{formatValeur(coutIa, "xaf")}</span></Ligne>

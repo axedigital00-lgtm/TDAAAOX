@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 
-const TYPES_DIGITAUX = ["fichier", "formation", "licence", "bundle"] as const;
+const TYPES_DIGITAUX = ["fichier", "formation", "licence", "bundle", "service", "abonnement", "parcours"] as const;
 
 // GET — liste tous les produits digitaux (nouveau système) du tenant
 export async function GET(_req: NextRequest) {
@@ -25,6 +25,9 @@ export async function GET(_req: NextRequest) {
           },
         },
         bundleProduit: { include: { _count: { select: { elements: true } } } },
+        serviceProduit: { select: { mode: true, seances: true, dureeMin: true, _count: { select: { commandes: true } } } },
+        abonnementProduit: { select: { periodeJours: true, _count: { select: { adhesions: true, contenus: true } } } },
+        parcoursProduit: { select: { _count: { select: { etapes: true } } } },
         _count: { select: { lignesCommande: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "nom, prix et type sont requis" }, { status: 400 });
     }
 
-    const TYPES_VALIDES = ["fichier", "formation", "licence", "bundle"];
+    const TYPES_VALIDES: string[] = [...TYPES_DIGITAUX];
     if (!TYPES_VALIDES.includes(type)) {
       return NextResponse.json({ error: `Type invalide. Valeurs: ${TYPES_VALIDES.join(", ")}` }, { status: 400 });
     }
@@ -88,6 +91,13 @@ export async function POST(req: NextRequest) {
       await prisma.licenceProduit.create({ data: { produitId: produit.id } });
     } else if (type === "bundle") {
       await prisma.bundleProduit.create({ data: { produitId: produit.id } });
+    } else if (type === "service") {
+      // Réglages par défaut prudents : séance d'1 h en visio, à compléter (disponibilités) avant publication.
+      await prisma.serviceProduit.create({ data: { produitId: produit.id } });
+    } else if (type === "abonnement") {
+      await prisma.abonnementProduit.create({ data: { produitId: produit.id } });
+    } else if (type === "parcours") {
+      await prisma.parcoursProduit.create({ data: { produitId: produit.id } });
     }
 
     return NextResponse.json({ produit }, { status: 201 });

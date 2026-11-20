@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { requireNiveau } from "@/lib/permissions-server";
 import { assignerLivreurCommande } from "@/lib/cycle-livraison";
 
-// Logique partagée avec AXIA et les agents : lib/cycle-livraison.ts
+// Logique partagée avec Stella et les agents : lib/cycle-livraison.ts
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });

@@ -1,5 +1,5 @@
 // Actions d'administration de la plateforme — partagées par les routes
-// app/api/admin/* (boutons de l'admin) et par AXIA admin, pour que les deux
+// app/api/admin/* (boutons de l'admin) et par Stella admin, pour que les deux
 // appliquent exactement les mêmes contrôles. Le contrôle du rôle (admin
 // complet) reste à la charge de l'appelant.
 import { prisma } from "@/lib/prisma";

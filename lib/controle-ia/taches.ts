@@ -1,6 +1,6 @@
 // Tâches longues (étude, génération vidéo, import, objectif) : l'appel MCP rend un job_id
 // tout de suite, le travail continue après la réponse (after() de Next, comme les constats
-// AXIA) et l'IA suit l'avancement avec axso_statut_tache.
+// Stella) et l'IA suit l'avancement avec axso_statut_tache.
 // ponytail: borné par maxDuration de la route (60 s) ; passer à une vraie file (cron qui
 // reprend les TacheIA « en_attente ») si un travail doit durer plus longtemps.
 import { after } from "next/server";

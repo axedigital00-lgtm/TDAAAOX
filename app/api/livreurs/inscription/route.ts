@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { annoncerInscription } from "@/lib/push";
 import { prisma } from "@/lib/prisma";
-import { hash } from "bcryptjs";
+import { hash } from "@/lib/mots-de-passe";
 import { z } from "zod";
 import { emailDejaPris, normaliserEmail } from "@/lib/unicite-email";
 

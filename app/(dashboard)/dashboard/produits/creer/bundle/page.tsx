@@ -454,7 +454,7 @@ export default function CreerBundlePage() {
           <div className="w-7 h-7 rounded-lg bg-[#F5A623]/15 flex items-center justify-center">
             <Package size={14} className="text-[#F5A623]" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 font-poppins">{tr("Bundle")}</h1>
+          <h1 className="text-xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{tr("Bundle")}</h1>
         </div>
         <p className="text-sm text-gray-500">{tr("Étape")}{" "}{tr(etape) + 1} sur {ETAPES.length} — {tr(ETAPES[etape])}</p>
       </div>

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { resolveConfigVitrine } from "@/lib/vitrine-design";
 import { FormationPlayer } from "@/components/storefront/FormationPlayer";
-import { chargerParcours, delivrerCertificatSiEligible } from "@/lib/formation/parcours";
+import { chargerParcoursAvecVerrou, delivrerCertificatSiEligible } from "@/lib/formation/parcours";
 
 interface Props {
   params: Promise<{ slug: string; token: string }>;
@@ -16,8 +16,15 @@ interface Props {
 // demande par /api/apprenant/[token]/lecons/[id], et jamais pour une leçon verrouillée.
 export default async function FormationAccessPage({ params }: Props) {
   const { slug, token } = await params;
-  const p = await chargerParcours(token);
+  const p = await chargerParcoursAvecVerrou(token);
   if (!p || p.slug !== slug) notFound();
+  if (p.verrouParcours) return (
+    <main className="mx-auto max-w-xl px-6 py-16">
+      <h1 className="text-2xl font-semibold">Formation verrouillée</h1>
+      <p className="my-4">Validez les étapes obligatoires précédentes de votre parcours pour ouvrir cette formation.</p>
+      <a className="underline" href={`/${slug}/mon-compte`}>Retrouver mes formations</a>
+    </main>
+  );
 
   const tenant = await prisma.tenant.findUnique({ where: { slug } });
   if (!tenant) notFound();

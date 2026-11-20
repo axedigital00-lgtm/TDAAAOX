@@ -38,7 +38,7 @@ export function BoutonRenvoyerCode({ onRenvoyer }: { onRenvoyer: () => Promise<v
     <div className="text-center text-sm">
       <span className="text-[#808080]">{t("Pas reçu ?")}</span>{" "}
       <button type="button" onClick={renvoyer} disabled={envoi || reste > 0}
-        className="font-semibold text-[#F5A623] hover:opacity-80 disabled:text-[#B3B3B3] disabled:cursor-not-allowed inline-flex items-center gap-1">
+        className="axa-lien inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline">
         {envoi && <Loader2 size={13} className="animate-spin" />}
         {reste > 0 ? `${t("Renvoyer le code")} (${reste} s)` : t("Renvoyer le code")}
       </button>

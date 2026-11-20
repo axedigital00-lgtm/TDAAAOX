@@ -67,7 +67,7 @@ export function Pilotage() {
 
       <BarreFiltres filtres={filtres} onChange={setFiltres} listes={donnees?.filtres ?? null} />
 
-      {flux.etat === "refuse" && <p role="status" className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#B45309]">{t("L'activité en direct n'est pas disponible pour votre compte : les chiffres se mettent à jour avec « Actualiser ».")}</p>}
+      {flux.etat === "refuse" && <p role="status" className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2 text-[12.5px] text-[#5e4200]">{t("L'activité en direct n'est pas disponible pour votre compte : les chiffres se mettent à jour avec « Actualiser ».")}</p>}
 
       {erreur && !donnees ? <EtatPos code={erreur.code} message={erreur.message} onReessayer={recharger} />
         : !donnees || !r ? <EtatChargement texte="Chargement des chiffres…" />
@@ -118,7 +118,7 @@ export function Pilotage() {
             <Carte titre="Par magasin">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] text-left text-[13px]">
-                  <thead className="text-[11px] uppercase tracking-wide text-[#666666]">
+                  <thead className="text-[11px] text-[#666666]">
                     <tr><th className="py-2 font-semibold">{t("Magasin")}</th><th className="py-2 text-right font-semibold">{t("Chiffre d'affaires")}</th><th className="py-2 text-right font-semibold">{t("Ventes")}</th><th className="py-2 text-right font-semibold">{t("Marge")}</th><th className="py-2 text-right font-semibold">{t("Caisses ouvertes")}</th></tr>
                   </thead>
                   <tbody className="divide-y divide-[#F0F0F0]">

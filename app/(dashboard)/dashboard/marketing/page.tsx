@@ -1,243 +1,129 @@
-// Dashboard Marketing et promotions
+// Croissance (MASTERPROMPT §8.10) : bandeau Stella, performance marketing sur
+// 30 jours (ventes générées par les codes promo et les affiliés), canaux,
+// raccourcis vers campagnes, e-mails, SMS et affiliation.
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { formatMontant } from "@/lib/utils";
-import Link from "next/link";
-import {
-  Tag,
-  Mail,
-  Megaphone,
-  TrendingUp,
-  ArrowRight,
-  Users,
-  Zap,
-  Target,
-} from "lucide-react";
-import { AgentActiveIndicator } from "@/components/dashboard/AgentActiveIndicator";
-import { BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
 import { MarketingTutorial } from "@/components/dashboard/tutorials/MarketingTutorial";
-import { getT } from "@/lib/i18n/serveur";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { LineChart } from "@/components/dashboard/design-system/components/Charts";
+import { Delta } from "@/components/dashboard/design-system/components/MetricsStrip";
+import { canalCommande } from "@/components/dashboard/design-system/components/Badge";
+import { AxiaMark, Icon } from "@/components/dashboard/design-system/icons/Icon";
+import { bornesPeriode, serie, nombre, variation } from "@/components/dashboard/design-system/format";
 
-export default async function MarketingPage() {
-  const t = await getT();
+const COULEURS = ["var(--chart-cyan)", "var(--chart-primary)", "var(--chart-violet)", "var(--chart-compare)"];
+
+export default async function CroissancePage() {
   const session = await auth();
   if (!session) redirect("/connexion");
   await exigerModule(session, "marketing");
+  const tenantId = (session.user as any)?.tenantId as string;
 
-  const tenantId = (session.user as any)?.tenantId;
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!tenant) redirect("/inscription");
-
-  const [codesPromo, totalClients, totalCodes, codesActifs] = await Promise.all([
-    prisma.codePromo.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    prisma.client.count({ where: { tenantId } }),
-    prisma.codePromo.count({ where: { tenantId } }),
+  const b = bornesPeriode("30j");
+  const champs = { createdAt: true, montantTotal: true, codePromoId: true, codeAffiliation: true, canal: true, methodePaiement: true } as const;
+  const [tenant, cmd, cmdPrec, codesActifs, clients] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { devise: true } }),
+    prisma.commande.findMany({ where: { tenantId, createdAt: { gte: b.debut, lt: b.fin }, statut: { not: "annulee" } }, select: champs }),
+    prisma.commande.findMany({ where: { tenantId, createdAt: { gte: b.precedent.debut, lt: b.precedent.fin }, statut: { not: "annulee" } }, select: champs }),
     prisma.codePromo.count({ where: { tenantId, actif: true } }),
+    prisma.client.count({ where: { tenantId } }),
   ]);
+  const devise = tenant?.devise || "XAF";
+  const marketing = (c: (typeof cmd)[number]) => !!(c.codePromoId || c.codeAffiliation);
+  const somme = (l: typeof cmd) => l.reduce((t, c) => t + c.montantTotal, 0);
+  const attribuees = cmd.filter(marketing), attribueesPrec = cmdPrec.filter(marketing);
+  const viaPromo = cmd.filter((c) => c.codePromoId), viaAffilies = cmd.filter((c) => c.codeAffiliation);
+  const serieMarketing = serie(attribuees.map((c) => ({ date: c.createdAt, valeur: c.montantTotal })), b.debut, b.pas, b.points);
+  const jour = (d: Date) => d.toLocaleDateString("fr-FR", { timeZone: "Africa/Douala", day: "numeric", month: "short" });
+  const labels = [0, 0.25, 0.5, 0.75, 1].map((f) => jour(new Date(b.debut.getTime() + f * (b.points - 1) * b.pas)));
 
-  const pixelsActifs = [tenant.metaPixelId, tenant.tiktokPixelId, tenant.snapPixelId, tenant.gtmId].filter(Boolean).length;
-
-  const tools = [
-    {
-      icone: Tag,
-      titre: "Codes Promo",
-      description: "Créez des remises pour fidéliser vos clients et booster vos ventes.",
-      href: "/dashboard/marketing/codes-promo",
-      accent: "#F5A623",
-      stat: codesActifs > 0 ? t("{0} code(s) actif(s)", codesActifs) : t("Aucun code actif"),
-      statClass: codesActifs > 0 ? "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]" : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]",
-    },
-    {
-      icone: Mail,
-      titre: "Email Marketing",
-      description: "Envoyez des campagnes email ciblées à votre base clients.",
-      href: "/dashboard/marketing/email",
-      accent: "#16A34A",
-      stat: t("{0} client(s) à contacter", totalClients),
-      statClass: "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]",
-    },
-    {
-      icone: Megaphone,
-      titre: "Campagnes",
-      description: "Popups, relances automatiques et badges pour votre boutique.",
-      href: "/dashboard/campagnes",
-      accent: "#7C3AED",
-      stat: t("Popups et automatisations"),
-      statClass: "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]",
-    },
-    {
-      icone: TrendingUp,
-      titre: "SEO & Visibilité",
-      description: "Optimisez le référencement de vos produits pour attirer plus de visiteurs.",
-      href: "/dashboard/produits",
-      accent: "#D97706",
-      stat: t("Optimisez vos fiches"),
-      statClass: "bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]",
-    },
-    {
-      icone: Target,
-      titre: "Tracking & Pixels",
-      description: "Meta, TikTok, Snapchat, Google Tag Manager et vos scripts de suivi personnalisés.",
-      href: "/dashboard/marketing/tracking",
-      accent: "#1877F2",
-      stat: pixelsActifs > 0 ? t("{0} pixel(s) actif(s)", pixelsActifs) : t("Aucun pixel actif"),
-      statClass: pixelsActifs > 0 ? "bg-[#EFF6FF] text-[#1877F2] border border-[#BFDBFE]" : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]",
-    },
-  ];
+  const parCanal = [...cmd.reduce((m, c) => m.set(canalCommande(c), (m.get(canalCommande(c)) ?? 0) + 1), new Map<string, number>())]
+    .sort((a, b) => b[1] - a[1]);
+  const totalCanal = parCanal.reduce((t, [, v]) => t + v, 0);
 
   return (
-    <div className="space-y-6">
+    <Page>
       <MarketingTutorial />
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-[#111111] font-poppins inline-flex items-center gap-2">{t("Marketing")}{" "}<AgentActiveIndicator label={t("Agent Marketing actif")} /></h1>
-            <BoutonRevoirTutoriel moduleKey="marketing" />
-          </div>
-          <p className="text-[#717171] text-sm mt-1">{t("Boostez vos ventes avec des outils ciblés")}</p>
-        </div>
-        <div className="flex items-center gap-2 bg-white border border-[#E8E8E8] rounded-xl px-4 py-2">
-          <Users size={14} className="text-[#717171]" />
-          <span className="text-[#717171] text-sm">{t("{0} client(s)", totalClients)}</span>
-        </div>
-      </div>
+      <PageHeader icon="gauge" title="Croissance" />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Codes actifs",    value: codesActifs.toString(),                                                              icon: Tag,      accent: "#F5A623" },
-          { label: "Total codes",     value: totalCodes.toString(),                                                              icon: Zap,      accent: "#7C3AED" },
-          { label: "Base clients",    value: totalClients.toString(),                                                              icon: Users,    accent: "#16A34A" },
-          { label: "Taux activation", value: totalCodes > 0 ? `${Math.round((codesActifs / totalCodes) * 100)}%` : "—", icon: TrendingUp, accent: "#D97706" },
-        ].map((stat, i) => {
-          const Icone = stat.icon;
-          return (
-            <div key={i} className="bg-white border border-[#E8E8E8] rounded-2xl p-4">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4] mb-3">
-                <Icone size={15} style={{ color: stat.accent }} />
-              </div>
-              <p className="text-[#111111] text-xl font-bold font-poppins">{stat.value}</p>
-              <p className="text-[#717171] text-xs mt-0.5">{t(stat.label)}</p>
+      <div className="axd-card" style={{ padding: "var(--space-600)" }}>
+        <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <h2 style={{ font: "var(--heading-section)", letterSpacing: "-.2px", margin: 0, color: "var(--color-text-strong)" }}>Faites travailler Stella sur votre marketing</h2>
+            <p className="axd-muted" style={{ maxWidth: 520, margin: "6px 0 14px" }}>
+              Stella analyse vos ventes, votre catalogue et vos clients pour proposer des promotions, des relances WhatsApp et des publications, et vous laisse valider chaque action.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link href={`/dashboard?axia=${encodeURIComponent("Propose-moi un plan marketing pour les 30 prochains jours à partir de mes ventes.")}`} className="axd-btn axd-btn--primary">Démarrer</Link>
+              <Link href="/dashboard/campagnes" className="axd-btn axd-btn--tint">Voir les campagnes</Link>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Grid outils marketing */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {tools.map((tool, i) => {
-          const Icone = tool.icone;
-          return (
-            <Link key={i} href={tool.href}>
-              <div className="bg-white border border-[#E8E8E8] rounded-2xl p-6 hover:border-[#D0D0D0] transition-colors group cursor-pointer h-full flex flex-col">
-                <div className="flex items-start justify-between mb-5">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#F4F4F4]">
-                    <Icone size={20} style={{ color: tool.accent }} />
-                  </div>
-                  <ArrowRight
-                    size={16}
-                    className="text-[#717171] group-hover:text-[#111111] group-hover:translate-x-0.5 transition-all duration-200 mt-1"
-                  />
-                </div>
-
-                <p className="text-[#111111] font-semibold text-sm">{t(tool.titre)}</p>
-                <p className="text-[#717171] text-sm mt-1 leading-relaxed flex-1">{t(tool.description)}</p>
-
-                <div className="mt-4 pt-4 border-t border-[#E8E8E8] flex items-center justify-between">
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tool.statClass}`}>
-                    {tool.stat}
-                  </span>
-                  <span className="text-xs font-medium text-[#717171] md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                    {t("Accéder →")}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Codes promo récents */}
-      {codesPromo.length > 0 && (
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#F4F4F4]">
-                <Tag size={15} className="text-[#F5A623]" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-[#111111]">{t("Codes promo récents")}</h2>
-                <p className="text-[#717171] text-xs">{t("{0} actif(s) sur {1}", codesActifs, totalCodes)}</p>
-              </div>
-            </div>
-            <Link
-              href="/dashboard/marketing/codes-promo"
-              className="flex items-center gap-1 text-sm font-medium text-[#F5A623] hover:text-[#D97706] transition-colors"
-            >
-              {t("Voir tout")}{" "}<ArrowRight size={14} />
-            </Link>
           </div>
-
-          <div className="space-y-2">
-            {codesPromo.map((code) => (
-              <div
-                key={code.id}
-                className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-[#F4F4F4] border border-[#E8E8E8] hover:border-[#D0D0D0] transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <code className="text-sm font-mono font-bold px-3 py-1 rounded-lg bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
-                    {code.code}
-                  </code>
-                  <span className="text-[#717171] text-sm">
-                    {code.type === "pourcentage"
-                      ? t("{0}% de remise", code.valeur)
-                      : t("{0} de remise", formatMontant(code.valeur, tenant.devise))}
-                    {code.produitIds.length > 0 && ` · ${t("réservé à certains produits")}`}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[#717171] text-xs">
-                    {code.utilisations}/{code.maxUtilisations ?? "∞"} {t("util.")}
-                  </span>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    code.actif
-                      ? "bg-[#ECFDF5] text-[#16A34A] border border-[#BBF7D0]"
-                      : "bg-[#F4F4F4] text-[#717171] border border-[#E8E8E8]"
-                  }`}>
-                    {code.actif ? t("Actif") : t("Inactif")}
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div className="axd-hide-m" style={{ width: 200, height: 110, borderRadius: "var(--radius-xl)", background: "var(--color-surface-selected)", display: "grid", placeItems: "center" }}>
+            <AxiaMark size={44} />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Empty state */}
-      {codesPromo.length === 0 && totalClients === 0 && (
-        <div className="bg-white border border-[#E8E8E8] rounded-2xl p-10 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#F4F4F4] border border-[#E8E8E8] flex items-center justify-center mx-auto mb-4">
-            <Megaphone size={24} className="text-[#717171]" />
-          </div>
-          <p className="text-[#111111] font-semibold text-base mb-2">{t("Prêt à booster vos ventes ?")}</p>
-          <p className="text-[#717171] text-sm mb-6 max-w-sm mx-auto">
-            {t("Commencez par créer un code promo pour attirer vos premiers clients.")}
-          </p>
-          <Link href="/dashboard/marketing/codes-promo">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#111111] text-white">
-              <Tag size={14} />
-              {t("Créer un code promo")}
-            </span>
-          </Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "24px 0 10px" }}>
+        <h2 className="axd-card__title" style={{ flex: 1 }}>Performance marketing</h2>
+        <span className="axd-btn axd-btn--sm" style={{ cursor: "default" }}><Icon name="calendar" />30 derniers jours</span>
+        <Link href="/dashboard/analytics" className="axd-btn axd-btn--plain axd-btn--sm">Afficher les détails</Link>
+      </div>
+
+      <div className="axd-card axd-card--pad">
+        <div className="axd-kpi__t">Ventes générées par le marketing</div>
+        <div style={{ margin: "2px 0 8px" }}>
+          <span className="axd-kpi__v axd-kpi__v--lg" style={{ display: "inline-flex", margin: 0 }}>{formatMontant(somme(attribuees), devise)} <Delta value={variation(somme(attribuees), somme(attribueesPrec))} /></span>{" "}
+          <span className="axd-muted">sur {formatMontant(somme(cmd), devise)} de ventes totales</span>
         </div>
-      )}
-    </div>
+        <LineChart data={serieMarketing} labels={labels} width={1100} legend={[`${jour(b.debut)} – ${jour(new Date(b.fin.getTime() - 1))}`]} summary={`Ventes générées par le marketing : ${formatMontant(somme(attribuees), devise)}`} />
+        <p className="axd-muted" style={{ fontSize: 12, margin: "8px 0 0" }}>Commandes passées avec un code promo ou via un lien d’affilié.</p>
+      </div>
+
+      <div className="axd-grid axd-g3 axd-section">
+        <div className="axd-card axd-card--pad">
+          <div className="axd-kpi__t">Commandes par canal</div>
+          <div className="axd-legend" style={{ justifyContent: "flex-start", flexWrap: "wrap", margin: "6px 0" }}>
+            {parCanal.map(([l, v], i) => <span key={l}><i style={{ background: COULEURS[i % COULEURS.length] }} />{l} {nombre(v)}</span>)}
+            {!parCanal.length && <span>Aucune commande sur la période</span>}
+          </div>
+          <div style={{ display: "flex", height: 34, borderRadius: 4, overflow: "hidden", marginTop: 12, background: "var(--color-surface-tertiary)" }}>
+            {parCanal.map(([l, v], i) => <div key={l} style={{ flex: v / (totalCanal || 1), background: COULEURS[i % COULEURS.length] }} />)}
+          </div>
+        </div>
+        <Link href="/dashboard/marketing/codes-promo" className="axd-card axd-card--pad" style={{ display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Icon name="discount" /><span className="axd-kpi__t" style={{ flex: 1 }}>Codes promo</span><span className="axd-muted" style={{ fontSize: 12 }}>{nombre(codesActifs)} actif{codesActifs > 1 ? "s" : ""}</span></div>
+          <div className="axd-kpi__v axd-kpi__v--lg" style={{ marginTop: 22 }}>{formatMontant(somme(viaPromo), devise)}</div>
+          <div className="axd-muted" style={{ fontSize: 12 }}>{nombre(viaPromo.length)} commande{viaPromo.length > 1 ? "s" : ""} avec un code</div>
+        </Link>
+        <Link href="/dashboard/affiliation" className="axd-card axd-card--pad" style={{ display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Icon name="users" /><span className="axd-kpi__t" style={{ flex: 1 }}>Affiliés</span><span className="axd-muted" style={{ fontSize: 12 }}>{nombre(clients)} clients</span></div>
+          <div className="axd-kpi__v axd-kpi__v--lg" style={{ marginTop: 22 }}>{formatMontant(somme(viaAffilies), devise)}</div>
+          <div className="axd-muted" style={{ fontSize: 12 }}>{nombre(viaAffilies.length)} commande{viaAffilies.length > 1 ? "s" : ""} via un lien d’affilié</div>
+        </Link>
+      </div>
+
+      <div className="axd-grid axd-g2 axd-section">
+        <div className="axd-card axd-card--pad">
+          <h2 className="axd-card__title">Campagnes</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+            <span className="axd-muted" style={{ flex: 1 }}>Pop-ups, relances automatiques et badges pour transformer les visiteurs en clients.</span>
+            <Link href="/dashboard/campagnes" className="axd-btn axd-btn--sm">Créer une campagne</Link>
+          </div>
+        </div>
+        <div className="axd-card axd-card--pad">
+          <h2 className="axd-card__title">E-mails et SMS</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+            <span className="axd-muted" style={{ flex: 1 }}>Écrivez à vos clients pour annoncer une nouveauté ou une promotion.</span>
+            <Link href="/dashboard/marketing/email" className="axd-btn axd-btn--sm">E-mails</Link>
+            <Link href="/dashboard/sms" className="axd-btn axd-btn--sm">SMS</Link>
+          </div>
+        </div>
+      </div>
+    </Page>
   );
 }

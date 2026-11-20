@@ -26,7 +26,7 @@ export function PlansGrid({ planActuel, nomPlan, devise, compact, essai, promo }
   const afficherXAF = devise === "XAF" || devise === "XOF";
 
   return (
-    <div className={compact ? "space-y-6" : "space-y-8 max-w-4xl"} style={{ fontFamily: "'Poppins','Century Gothic',system-ui,sans-serif" }}>
+    <div className={compact ? "space-y-6" : "space-y-8 max-w-4xl"} style={{ fontFamily: "var(--merchant-font)" }}>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

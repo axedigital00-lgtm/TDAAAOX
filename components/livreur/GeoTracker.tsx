@@ -14,9 +14,12 @@ export function GeoTracker({ livreurId, enLivraison }: Props) {
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
 
+    let actif = true;
     let dernierEnvoi = 0;
     const envoyer = ({ coords }: GeolocationPosition) => {
+      if (!actif) return;
       dernierEnvoi = Date.now();
+      window.dispatchEvent(new CustomEvent("axso:position-livreur", { detail: { lat: coords.latitude, lng: coords.longitude } }));
       fetch(`/api/livreurs/${livreurId}/position`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -28,7 +31,7 @@ export function GeoTracker({ livreurId, enLivraison }: Props) {
     lire();
     if (!enLivraison) {
       const intervalle = setInterval(lire, INTERVALLE_REPOS_MS);
-      return () => clearInterval(intervalle);
+      return () => { actif = false; clearInterval(intervalle); };
     }
 
     const watchId = navigator.geolocation.watchPosition(
@@ -38,7 +41,7 @@ export function GeoTracker({ livreurId, enLivraison }: Props) {
     );
     // Filet : certains iOS suspendent watchPosition à l'arrêt (feu rouge)
     const filet = setInterval(lire, INTERVALLE_REPOS_MS);
-    return () => { navigator.geolocation.clearWatch(watchId); clearInterval(filet); };
+    return () => { actif = false; navigator.geolocation.clearWatch(watchId); clearInterval(filet); };
   }, [livreurId, enLivraison]);
 
   return null;

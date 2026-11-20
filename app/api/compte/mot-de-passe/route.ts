@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { compare, hash } from "bcryptjs";
+import { compare, hash } from "@/lib/mots-de-passe";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 

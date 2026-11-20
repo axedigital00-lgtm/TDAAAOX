@@ -1,4 +1,4 @@
-// AXIA à qui on délègue la boutique : la navigation ne sort jamais du dashboard
+// Stella à qui on délègue la boutique : la navigation ne sort jamais du dashboard
 // (sauf adresse web de la boutique), un prix changé par modifier_produit attend
 // l'accord du marchand, et seul le propriétaire peut supprimer un produit.
 import { test } from "node:test";

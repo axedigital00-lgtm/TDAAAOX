@@ -70,25 +70,17 @@ export function FulfillmentKanban() {
     }
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-40">
-      <div className="w-6 h-6 border-2 border-[#F5A623] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (loading) return <p className="axd-fichiers__etat">{t("Chargement…")}</p>;
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4" style={{ scrollbarWidth: "thin" }}>
+    <div className="axd-kanban">
       {COLONNES.map((col) => {
         const cartes = commandes.filter((c) => c.statut === col.statut);
-        const survole = dragOverCol === col.statut;
         return (
           <div
             key={col.statut}
-            className="flex-shrink-0 w-72 rounded-2xl border transition-colors"
-            style={{
-              backgroundColor: survole ? `${col.color}0A` : "#FAFAFA",
-              borderColor: survole ? col.color : "#F0F0F0",
-            }}
+            className="axd-kanban__col"
+            data-survol={dragOverCol === col.statut || undefined}
             onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.statut); }}
             onDragLeave={() => setDragOverCol((c) => (c === col.statut ? null : c))}
             onDrop={(e) => {
@@ -97,33 +89,24 @@ export function FulfillmentKanban() {
               if (dragId) deplacer(dragId, col.statut);
             }}
           >
-            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "#F0F0F0" }}>
-              <col.Icon size={14} style={{ color: col.color }} />
-              <span className="text-[12.5px] font-bold text-[#111111]">{t(col.label)}</span>
-              <span className="ml-auto text-[11px] font-semibold text-gray-400">{cartes.length}</span>
+            <div className="axd-kanban__tete">
+              <col.Icon size={14} />
+              <span>{t(col.label)}</span>
+              <span className="axd-kanban__nb">{cartes.length}</span>
             </div>
-
-            <div className="p-2.5 space-y-2 min-h-[80px]">
-              {cartes.length === 0 && (
-                <p className="text-center text-[11px] text-gray-300 py-6">{t("Aucune commande")}</p>
-              )}
+            <div className="axd-kanban__liste">
+              {cartes.length === 0 && <p className="axd-kanban__vide">{t("Aucune commande")}</p>}
               {cartes.map((c) => (
-                <div
-                  key={c.id}
-                  draggable
-                  onDragStart={() => setDragId(c.id)}
-                  onDragEnd={() => setDragId(null)}
-                  className="bg-white border border-gray-100 rounded-xl p-3 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow"
-                  style={{ opacity: dragId === c.id ? 0.4 : 1 }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-mono font-bold text-[#F5A623]">{c.numero}</p>
-                      <p className="text-[11.5px] text-[#444] truncate mt-0.5">{t(c.clientNom)}</p>
+                <div key={c.id} draggable onDragStart={() => setDragId(c.id)} onDragEnd={() => setDragId(null)}
+                  className="axd-kanban__carte" style={{ opacity: dragId === c.id ? 0.4 : 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <a href={`/dashboard/commandes/${c.id}`} className="axd-kanban__num">{c.numero}</a>
+                      <p className="axd-kanban__client">{t(c.clientNom)}</p>
                     </div>
-                    <GripVertical size={13} className="text-gray-300 flex-shrink-0 mt-0.5" />
+                    <GripVertical size={13} style={{ color: "var(--color-icon)", flex: "none" }} aria-hidden />
                   </div>
-                  <p className="text-[12px] font-bold text-[#111111] mt-2">{formatMontant(c.montantTotal, c.devise)}</p>
+                  <p className="axd-kanban__total">{formatMontant(c.montantTotal, c.devise)}</p>
                 </div>
               ))}
             </div>

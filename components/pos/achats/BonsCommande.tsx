@@ -31,11 +31,11 @@ type Fiche = { bon: BonVue; texte: string; emailPossible: boolean };
 type LigneEdition = { produitId: string; varianteId: string | null; nom: string; variante: string | null; uniteVente: string; quantite: string; prix: string };
 
 const TONS_STATUT: Record<StatutBon, Ton> = { brouillon: "neutre", envoye: "info", confirme: "accent", partiellement_recu: "attention", recu: "positif", annule: "danger" };
-const SOURCES: Record<string, string> = { manuel: "Saisi à la main", reappro: "Préparé par le réapprovisionnement", axia: "Préparé par Axia" };
+const SOURCES: Record<string, string> = { manuel: "Saisi à la main", reappro: "Préparé par le réapprovisionnement", axia: "Préparé par Stella" };
 const qte = (n: number, unite: string) => libelleQuantite(n, unite as UniteVente);
 const unite = (u: string): UniteVente => (u === "kg" ? "kg" : "piece");
 // Lien sortant (WhatsApp, messagerie) aux allures du bouton « secondaire » du kit.
-const LIEN_EXTERNE = `inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-3 text-[12px] font-bold text-[#111111] hover:border-[#F5A623] ${FOCUS}`;
+const LIEN_EXTERNE = `inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E8E8E8] bg-white px-3 text-[12px] font-bold text-[#111111] hover:border-[#8a8a8a] ${FOCUS}`;
 
 // ─── Éditeur d'un brouillon ──────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ function EditeurBon({ ouvert, bon, liste, onFermer, onEnregistre }: { ouvert: bo
           </Champ>
           <Saisie label="Livraison souhaitée le" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
-        {liste.fournisseurs.length === 0 && <p className="text-[12px] text-[#B45309]">{t("Aucun fournisseur actif. Créez-en un dans Sourcing, ou importez votre liste depuis Import / export.")}</p>}
+        {liste.fournisseurs.length === 0 && <p className="text-[12px] text-[#5e4200]">{t("Aucun fournisseur actif. Créez-en un dans Sourcing, ou importez votre liste depuis Import / export.")}</p>}
 
         <RechercheArticle onChoisir={(a) => setLignes((ls) => (ls.some((l) => l.produitId === a.produitId && l.varianteId === a.varianteId)
           ? ls
@@ -180,7 +180,7 @@ function FicheBon({ id, droits, onChange, onModifier }: { id: string; droits: Li
         : <p role="alert" className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-3 text-[12.5px] text-[#B91C1C]">{t(refus.message)}</p>)}
 
       {/* Document imprimable : balisage simple, repris tel quel par imprimerElement. */}
-      <div ref={feuille} className="rounded-2xl border border-[#E8E8E8] bg-white p-4 text-[12.5px]">
+      <div ref={feuille} className="rounded-[12px] border border-[#E8E8E8] bg-white p-4 text-[12.5px]">
         <h2 className="text-[16px] font-bold">{t("Bon de commande")} {bon.numero}</h2>
         <p>{t("Fournisseur")} : {bon.fournisseur.nom}</p>
         <p>{t("Date")} : {jour(bon.createdAt)}{bon.dateAttendue ? ` · ${t("Livraison souhaitée le")} ${jour(bon.dateAttendue)}` : ""}</p>

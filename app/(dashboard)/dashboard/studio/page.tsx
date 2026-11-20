@@ -1,12 +1,27 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import {
-  Video, Mic, FileText, Zap, Loader2, Play, Download,
-  Pause, RefreshCw, Sparkles, ChevronDown, Copy, Check,
-  Film, Volume2, Camera, Share2, BookOpen, Package, Megaphone
+  Mic,
+  FileText,
+  Zap,
+  Loader2,
+  Play,
+  Download,
+  Pause,
+  RefreshCw,
+  Sparkles,
+  Copy,
+  Check,
+  Film,
+  Volume2,
+  Camera,
+  BookOpen,
+  Package,
+  Megaphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
+import { iconePlateforme } from "@/components/brand/LogoPlateforme";
 
 // ─── Types ────────────────────────────────────────────────────────
 type TabId = "video" | "voix" | "script" | "ugc";
@@ -459,10 +474,10 @@ function TabUGC() {
   const [copied, setCopied] = useState(false);
 
   const PLATFORMS = [
-    { id: "instagram", icon: Camera, label: "Instagram", color: "#E1306C" },
-    { id: "facebook", icon: Share2, label: "Facebook", color: "#1877F2" },
-    { id: "tiktok", icon: Film, label: "TikTok", color: "#000000" },
-    { id: "whatsapp", icon: Volume2, label: "WhatsApp", color: "#25D366" },
+    { id: "instagram", icon: iconePlateforme("instagram"), label: "Instagram", color: "#E1306C" },
+    { id: "facebook", icon: iconePlateforme("facebook"), label: "Facebook", color: "#1877F2" },
+    { id: "tiktok", icon: iconePlateforme("tiktok"), label: "TikTok", color: "#000000" },
+    { id: "whatsapp", icon: iconePlateforme("whatsapp"), label: "WhatsApp", color: "#25D366" },
   ];
 
   async function generer() {
@@ -522,9 +537,9 @@ Adapté au marché africain francophone. Style authentique et engageant. Répond
               return (
                 <button key={p.id} onClick={() => setPlatform(p.id)}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${platform === p.id ? "border-2" : "border-gray-200"}`}
-                  style={platform === p.id ? { borderColor: p.color, background: p.color + "10" } : {}}>
+                  style={platform === p.id ? { borderColor: "#111111" } : {}}>
                   <Icone size={20} style={{ color: platform === p.id ? p.color : "#9ca3af" }} />
-                  <span className="text-[11px] font-medium" style={{ color: platform === p.id ? p.color : "#6b7280" }}>{tr(p.label)}</span>
+                  <span className="text-[11px] font-medium" style={{ color: platform === p.id ? "#111111" : "#6b7280" }}>{tr(p.label)}</span>
                 </button>
               );
             })}
@@ -595,7 +610,7 @@ export default function StudioPage() {
           <Film size={22} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-poppins">{tr("Studio de Contenu IA")}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{tr("Studio de Contenu IA")}</h1>
           <p className="text-gray-400 text-sm">{tr("Vidéos, voix off, scripts, posts — tout généré par l'IA")}</p>
         </div>
       </div>

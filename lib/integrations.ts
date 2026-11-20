@@ -20,7 +20,7 @@ export const INTEGRATIONS: Integration[] = [
   { cle: "fichiers", nom: "Stockage des fichiers", fonction: "Images produits, médias, documents fournisseurs.", variables: ["BLOB_READ_WRITE_TOKEN"], indispensable: true },
   { cle: "crons", nom: "Tâches planifiées", fonction: "Surveillance des fournisseurs, alertes de caisse, publications programmées.", variables: ["CRON_SECRET"], indispensable: true },
   { cle: "emails", nom: "E-mails (Resend)", fonction: "Confirmations de commande, invitations, mots de passe oubliés.", variables: ["RESEND_API_KEY"], indispensable: true },
-  { cle: "ia", nom: "IA (Gemini)", fonction: "AXIA, assistant Sourcing, génération de boutiques et de textes.", variables: ["GEMINI_API_KEY"], indispensable: true },
+  { cle: "ia", nom: "IA (Gemini)", fonction: "Stella, assistant Sourcing, génération de boutiques et de textes.", variables: ["GEMINI_API_KEY"], indispensable: true },
   { cle: "ia_secours", nom: "IA de secours (DeepSeek)", fonction: "Prend le relais quand Gemini est indisponible.", variables: ["DEEPSEEK_API_KEY"] },
   { cle: "meta", nom: "Meta (Facebook, Instagram)", fonction: "Connexion des comptes Meta des marchands ; réception des messages WhatsApp, Instagram et des leads (webhooks signés).", variables: ["META_APP_ID", "META_APP_SECRET"] },
   { cle: "meta_webhook", nom: "Inscription du webhook Meta", fonction: "Jeton demandé par Meta pour enregistrer l'adresse du webhook.", variables: ["META_WEBHOOK_VERIFY_TOKEN", "NEXT_PUBLIC_META_WEBHOOK_TOKEN"] },
@@ -28,7 +28,6 @@ export const INTEGRATIONS: Integration[] = [
   { cle: "gmail", nom: "Gmail des marchands", fonction: "Connexion d'un compte Gmail pour envoyer les e-mails d'une boutique.", variables: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] },
   { cle: "sms", nom: "SMS (Africa's Talking)", fonction: "Campagnes SMS.", variables: ["AFRICASTALKING_USERNAME", "AFRICASTALKING_KEY"] },
   { cle: "domaines", nom: "Domaines personnalisés", fonction: "Rattacher le nom de domaine d'un marchand à sa boutique.", variables: ["VERCEL_API_TOKEN", "VERCEL_PROJECT_ID", "VERCEL_TEAM_ID"] },
-  { cle: "genuka", nom: "WhatsApp via Genuka (jeton partagé)", fonction: "WhatsApp simplifié pour les boutiques sans jeton Genuka propre.", variables: ["GENUKA_PROXY_TOKEN"] },
   { cle: "higgsfield", nom: "Vidéo IA (Higgsfield)", fonction: "Génération de vidéos dans Médias.", variables: ["HIGGSFIELD_API_KEY"] },
 ];
 
