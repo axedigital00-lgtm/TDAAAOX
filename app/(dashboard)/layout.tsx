@@ -31,6 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/connexion");
   // Compte affilié sans boutique : son espace est /affilie.
   if ((session.user as any)?.role === "affilie") redirect("/affilie");
+  if ((session.user as any)?.role === "transporteur") redirect("/transporteur");
 
   const tenantId = (session.user as any)?.tenantId;
   let boutique: { slug: string; nomBoutique: string; devise: string; url: string } | null = null;

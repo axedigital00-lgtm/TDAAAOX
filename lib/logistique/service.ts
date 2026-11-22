@@ -12,6 +12,7 @@ import { motifsInegibilite } from "./classement";
 import { courseActive, courseAnnulable, preuveSuffisante, statutCommandeDe, transitionCourse, type PreuveRequise } from "./course";
 import { consommer, liberer, annulerConsommation, reserver, soldes, type Ecriture } from "./credits";
 import { dansDeploiement, decider, exclusionsApresRefus, POLITIQUE_DEFAUT, type PolitiqueDispatch } from "./dispatch";
+import { DOCUMENTS_OBLIGATOIRES } from "./parcours";
 import { lirePosition } from "./position";
 import { calculerScore } from "./score";
 import { itineraire } from "./routage";
@@ -28,7 +29,7 @@ type Tx = Prisma.TransactionClient;
 const SYSTEME: Acteur = { type: "systeme" };
 const JSONV = (v: unknown) => JSON.parse(JSON.stringify(v ?? null)) as Prisma.InputJsonValue;
 
-export const DOCUMENTS_OBLIGATOIRES: Record<string, string[]> = { societe: ["registre_commerce", "identifiant_fiscal"], livreur: ["piece_identite"] };
+export { DOCUMENTS_OBLIGATOIRES };
 export const TYPES_DOCUMENT = ["registre_commerce", "identifiant_fiscal", "autorisation", "assurance", "piece_identite", "permis"] as const;
 const MIMES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 const TAILLE_MAX = 2_000_000;
@@ -130,12 +131,14 @@ export async function soumettreDocument(userId: string, fournisseurId: string, d
 }
 
 export async function recalculerStatutLegal(fournisseurId: string, db: Tx | typeof prisma = prisma) {
-  const f = await db.fournisseurLogistique.findUniqueOrThrow({ where: { id: fournisseurId }, select: { type: true, statutLegal: true, documents: { select: { type: true, statut: true, expireLe: true } } } });
+  const f = await db.fournisseurLogistique.findUniqueOrThrow({ where: { id: fournisseurId }, select: { type: true, statutLegal: true, livreurId: true, documents: { select: { type: true, statut: true, expireLe: true } } } });
   const maintenant = new Date();
   const docs = f.documents.map((d) => ({ ...d, statut: d.statut as StatutVerification }));
   const statutLegal = statutDossier(DOCUMENTS_OBLIGATOIRES[f.type], docs, maintenant);
   const valide = (t: string) => docs.some((d) => d.type === t && documentValide(d, maintenant));
   await db.fournisseurLogistique.update({ where: { id: fournisseurId }, data: { statutLegal, assuranceVerifiee: valide("assurance"), identiteVerifiee: valide("piece_identite") } });
+  // Dossier validé : le compte livreur en attente est activé. Un compte suspendu par un admin le reste.
+  if (statutLegal === "verifie" && f.livreurId) await db.livreur.updateMany({ where: { id: f.livreurId, actif: false, valideAt: null }, data: { actif: true, valideAt: maintenant } });
   return statutLegal;
 }
 

@@ -1,0 +1,45 @@
+/* Espace livreur : cadre noir, contenu clair, boutons noirs. Jaune AXSO réservé aux accents.
+   Portée : `.axe-livreur`. */
+.axe-livreur { min-height: 100vh; min-height: 100dvh; background: #f4f4f3; color: #111; -webkit-font-smoothing: antialiased; }
+.axe-livreur, .axe-livreur * { font-family: "Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, sans-serif !important; }
+.axe-livreur :is(.font-black, .font-extrabold) { font-weight: 650 !important; }
+.axe-livreur .uppercase:is([class*="tracking-"]) { text-transform: none !important; letter-spacing: 0 !important; }
+.axe-barre { background: #000; color: #fff; border-color: rgba(255, 255, 255, .12); }
+.axe-barre a:hover { color: #fff !important; }
+.axe-barre a[data-actif="reseau"] { color: #EDA900; }
+
+.axe-contenu [class~="text-white"] { color: #111; }
+.axe-contenu :is([class~="text-gray-200"], [class~="text-gray-300"]) { color: #3f3f3d; }
+.axe-contenu :is([class~="text-gray-400"], [class~="text-gray-500"], [class~="text-gray-600"]) { color: #62625f; }
+.axe-contenu [class~="text-[#EDA900]"] { color: #111; }
+.axe-contenu [class~="text-[#a78bfa]"] { color: #5b45c9; }
+.axe-contenu [class~="text-green-400"] { color: #0d6b3b; }
+.axe-contenu [class~="text-red-400"] { color: #b3261e; }
+.axe-contenu :is([class~="hover:text-white"], [class~="hover:text-gray-300"]):hover { color: #111; }
+
+.axe-contenu :is([class~="bg-[#171817]"], [class~="bg-[#161616]"], [class~="bg-[#1a1a1a]"], [class~="bg-[#111]"], [class~="bg-[#0A0A0A]"]) { background-color: #fff; }
+.axe-contenu [class~="from-[#141414]"] { background: #fff; }
+.axe-contenu :is([class~="bg-white/5"], [class~="bg-white/[0.03]"]) { background-color: #f4f4f3; }
+.axe-contenu :is([class~="hover:bg-white/5"], [class~="hover:bg-[#151515]"], [class~="hover:bg-[#222]"]):hover { background-color: #ebebe8; }
+.axe-contenu [class~="bg-green-500/10"] { background-color: #dff5e8; }
+.axe-contenu [class~="bg-red-500/10"] { background-color: #fde4e3; }
+.axe-contenu [class~="bg-[#EDA900]/10"], .axe-contenu [class~="bg-[#EDA900]/[0.07]"] { background-color: #fff5dc; }
+
+.axe-contenu :is([class~="border-white/5"], [class~="border-white/10"], [class~="border-white/15"], [class~="border-[#1a1a1a]"]) { border-color: #e6e6e3; }
+.axe-contenu [class~="border-[#EDA900]/25"] { border-color: #f3dfa7; }
+.axe-contenu :is([class~="border-green-500/20"], [class~="border-green-500/30"]) { border-color: #b7e6ca; }
+.axe-contenu :is([class~="border-red-500/20"], [class~="border-red-500/30"]) { border-color: #f6c3c0; }
+.axe-contenu :is([class~="hover:border-[#EDA900]/20"], [class~="hover:border-[#EDA900]/30"]):hover { border-color: #111; }
+
+/* Actions principales */
+.axe-contenu :is([class~="bg-[#EDA900]"], [class~="from-[#EDA900]"]) { background: #111 !important; color: #fff !important; box-shadow: none !important; }
+.axe-contenu :is([class~="bg-[#EDA900]"], [class~="from-[#EDA900]"]) * { color: #fff !important; }
+.axe-contenu [class~="from-green-500"] { background: #0d6b3b !important; color: #fff !important; box-shadow: none !important; }
+.axe-contenu [class~="from-green-500"] * { color: #fff !important; }
+.axe-contenu :is(input, select, textarea) { color: #111; }
+.axe-contenu :is(input, textarea)::placeholder { color: #8a8a86; }
+.axe-contenu :focus-visible { outline: 2px solid #111; outline-offset: 2px; }
+
+.axe-reseau { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px; border-radius: 16px; background: #000; color: #fff; }
+.axe-reseau p { margin: 0; font-size: 14px; line-height: 1.4; color: rgba(255, 255, 255, .72); } .axe-reseau b { display: block; color: #fff; font-size: 15px; }
+.axe-reseau a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 11px; background: #fff; color: #000; font-size: 14px; font-weight: 600; text-decoration: none; }

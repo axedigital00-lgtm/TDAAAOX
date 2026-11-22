@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Check, MapPin, RefreshCw, ShieldCheck, Truck, Upload, WifiOff, X } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { BADGES, DOCUMENTS, NIVEAUX, STATUTS_COURSE, VEHICULES, VERIFICATION } from "@/lib/logistique/libelles";
+import { documentsManquants, etapesTransporteur } from "@/lib/logistique/parcours";
 import { formatMontant } from "@/lib/utils";
 import { GestionTransporteur } from "./GestionTransporteur";
 import { PreuveRemise } from "./PreuveRemise";
@@ -71,9 +72,9 @@ function useGps(courseId: string | null) {
   return { etat, demarrer, arreter };
 }
 
-function Inscription({ onFait }: { onFait: () => void }) {
+function Inscription({ onFait, compte }: { onFait: () => void; compte: any }) {
   const t = useT();
-  const [f, setF] = useState({ type: "societe", nom: "", raisonSociale: "", registre: "", identifiantFiscal: "", adresseLegale: "", adresseOperation: "", telephone: "", email: "", capaciteMax: "5", villes: "", vehicules: ["moto"] as string[], base: "1500", parKm: "100", enlevement: "0", expressPct: "50", reglement: "" });
+  const [f, setF] = useState({ type: compte?.type ?? "livreur", nom: compte?.nom ?? "", raisonSociale: "", registre: "", identifiantFiscal: "", adresseLegale: "", adresseOperation: "", telephone: compte?.telephone ?? "", email: compte?.email ?? "", capaciteMax: compte?.type === "societe" ? "5" : "2", villes: (compte?.zone ?? "") as string, vehicules: [compte?.vehicule && compte.vehicule in VEHICULES ? compte.vehicule : "moto"] as string[], base: "1500", parKm: "100", enlevement: "0", expressPct: "50", reglement: "" });
   const [envoi, setEnvoi] = useState(false);
   const set = (k: string, v: unknown) => setF((x) => ({ ...x, [k]: v }));
   const champ = (k: keyof typeof f, l: string, type = "text") => <label><span>{t(l)}</span><input type={type} value={f[k] as string} onChange={(e) => set(k, e.target.value)} /></label>;
@@ -85,8 +86,9 @@ function Inscription({ onFait }: { onFait: () => void }) {
     } catch (x: any) { toast.error(t(x.message)); } finally { setEnvoi(false); }
   };
   return <form className="axl-carte axl-form" onSubmit={envoyer}>
-    <h2>{t("Rejoindre le réseau AXSO")}</h2>
-    <div className="axl-choix" role="radiogroup" aria-label={t("Type de compte")}>{[["societe", "Société de livraison"], ["livreur", "Livreur indépendant"]].map(([v, l]) => <button key={v} type="button" role="radio" aria-checked={f.type === v} onClick={() => set("type", v)}>{t(l)}</button>)}</div>
+    <h2>{t("Complétez votre profil")}</h2>
+    <p className="axl-doux">{t("Ces informations servent à vous proposer des courses dans vos zones.")}</p>
+    {compte?.role !== "livreur" && compte?.role !== "transporteur" && <div className="axl-choix" role="radiogroup" aria-label={t("Type de compte")}>{[["societe", "Société de livraison"], ["livreur", "Livreur indépendant"]].map(([v, l]) => <button key={v} type="button" role="radio" aria-checked={f.type === v} onClick={() => set("type", v)}>{t(l)}</button>)}</div>}
     <div className="axl-grille">
       {champ("nom", f.type === "societe" ? "Nom commercial" : "Nom complet")}{champ("telephone", "Téléphone", "tel")}{champ("email", "E-mail", "email")}
       {f.type === "societe" && <>{champ("raisonSociale", "Raison sociale")}{champ("registre", "N° de registre de commerce")}{champ("identifiantFiscal", "Identifiant fiscal (NIU, NINEA…)")}{champ("adresseLegale", "Adresse légale")}{champ("adresseOperation", "Adresse d'exploitation")}</>}
@@ -94,7 +96,7 @@ function Inscription({ onFait }: { onFait: () => void }) {
       {champ("base", "Prix de base (FCFA)", "number")}{champ("parKm", "Prix par km (FCFA)", "number")}{champ("enlevement", "Frais d'enlèvement (FCFA)", "number")}{champ("expressPct", "Supplément express (%)", "number")}{champ("reglement", "Numéro Mobile Money de versement")}
     </div>
     <fieldset><legend>{t("Véhicules")}</legend>{Object.entries(VEHICULES).map(([v, l]) => <label key={v} className="axl-coche"><input type="checkbox" checked={f.vehicules.includes(v)} onChange={(e) => set("vehicules", e.target.checked ? [...f.vehicules, v] : f.vehicules.filter((x) => x !== v))} />{t(l)}</label>)}</fieldset>
-    <button className="axl-btn axl-btn--fort" disabled={envoi || !f.nom.trim() || f.telephone.trim().length < 8 || !f.villes.trim() || !f.vehicules.length}>{envoi ? t("Envoi…") : t("Créer mon profil")}</button>
+    <button className="axl-btn axl-btn--fort" disabled={envoi || !f.nom.trim() || f.telephone.trim().length < 8 || !f.villes.trim() || !f.vehicules.length}>{envoi ? t("Envoi…") : t("Enregistrer et continuer")}</button>
   </form>;
 }
 
@@ -127,9 +129,21 @@ function Course({ c, onChange }: { c: any; onChange: () => void }) {
   </article>;
 }
 
+function Activation({ f }: { f: any }) {
+  const t = useT();
+  const { etapes, prochaine } = etapesTransporteur(f);
+  if (!prochaine) return null;
+  const aide: Record<string, string> = { documents: "Envoyez vos documents obligatoires dans la section Vérification.", validation: "AXSO vérifie votre dossier. Vous serez activé dès sa validation.", disponible: "Passez sur Disponible pour commencer à recevoir des courses." };
+  return <section className="axl-carte">
+    <h2>{t("Activez votre compte")}</h2>
+    <ol className="axl-etapes">{etapes.map((e) => <li key={e.id} data-etat={e.fait ? "fait" : e.id === prochaine ? "actuelle" : "attente"}><i aria-hidden="true">{e.fait ? <Check size={13} /> : null}</i><span>{t(e.libelle)}</span></li>)}</ol>
+    <p className="axl-doux">{t(aide[prochaine])}</p>
+  </section>;
+}
+
 function Documents({ f, onChange }: { f: any; onChange: () => void }) {
   const t = useT();
-  const [type, setType] = useState(f.type === "societe" ? "registre_commerce" : "piece_identite");
+  const [type, setType] = useState(documentsManquants(f)[0] ?? (f.type === "societe" ? "registre_commerce" : "piece_identite"));
   const [expire, setExpire] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const deposer = (fichier?: File) => {
@@ -159,9 +173,10 @@ export function PortailTransporteur() {
   const [liste, setListe] = useState<any[] | null>(null);
   const [actif, setActif] = useState(0);
   const [vue, setVue] = useState<any>(null);
+  const [compte, setCompte] = useState<any>(null);
   const f = liste?.[actif];
   const charger = useCallback(async () => {
-    const d = await api("/api/logistique/fournisseurs"); setListe(d.fournisseurs);
+    const d = await api("/api/logistique/fournisseurs"); setCompte(d.compte); setListe(d.fournisseurs);
     const x = d.fournisseurs[actif];
     if (x) setVue(await api(`/api/logistique/fournisseurs/${x.id}`));
   }, [actif]);
@@ -170,11 +185,11 @@ export function PortailTransporteur() {
   const dispo = async () => { try { await api(`/api/logistique/fournisseurs/${f.id}`, "PATCH", { disponible: !f.disponible }); charger(); } catch (e: any) { toast.error(t(e.message)); } };
 
   return <main className="axl"><div className="axl-page">
-    <header className="axl-tete"><div><img src="/logo.png" alt="AXSO" /><h1>{f ? f.nom : t("Portail transporteur")}</h1></div>{f && <div className="axl-tete__a"><button type="button" className="axl-dispo" aria-pressed={f.disponible} onClick={dispo}><i />{t(f.disponible ? "Disponible" : "Hors service")}</button><button type="button" className="axl-icone" aria-label={t("Actualiser")} onClick={() => charger()}><RefreshCw size={16} /></button></div>}</header>
-    {liste === null ? <p className="axl-doux">{t("Chargement…")}</p> : !f ? <Inscription onFait={charger} /> : <>
+    <header className="axl-tete"><div><img src="/logo.png" alt="AXSO" /><h1>{f ? f.nom : t("Portail transporteur")}</h1></div>{compte?.role === "livreur" && !f && <a className="axl-btn" href="/livreur">{t("Mes livraisons")}</a>}{f && <div className="axl-tete__a">{compte?.role === "livreur" && <a className="axl-btn" href="/livreur">{t("Mes livraisons")}</a>}<button type="button" className="axl-dispo" aria-pressed={f.disponible} onClick={dispo}><i />{t(f.disponible ? "Disponible" : "Hors service")}</button><button type="button" className="axl-icone" aria-label={t("Actualiser")} onClick={() => charger()}><RefreshCw size={16} /></button></div>}</header>
+    {liste === null ? <p className="axl-doux">{t("Chargement…")}</p> : !f ? <Inscription key={compte?.email ?? "x"} compte={compte} onFait={charger} /> : <>
       {liste.length > 1 && <div className="axl-choix">{liste.map((x, i) => <button key={x.id} type="button" aria-checked={i === actif} role="radio" onClick={() => setActif(i)}>{x.nom}</button>)}</div>}
       {f.suspendu && <p className="axl-alerte">{t("Compte suspendu")} : {f.motifSuspension}</p>}
-      {f.statutLegal !== "verifie" && <p className="axl-alerte">{t("Vous recevrez des courses dès que vos documents obligatoires seront vérifiés.")}</p>}
+      <Activation f={f} />
       <div className="axl-kpis">
         <div><small>{t("Score AXSO")}</small><b>{f.score?.probation === false ? f.score.global : "—"}</b><span>{f.score?.niveau ? NIVEAUX[f.score.niveau] : t("Période d'essai")}</span></div>
         <div><small>{t("Livraisons")}</small><b>{f.score?.volume ?? 0}</b><span>{f.score?.tauxReussite != null ? `${Math.round(f.score.tauxReussite * 100)} % ${t("réussies")}` : t("Pas encore de données")}</span></div>

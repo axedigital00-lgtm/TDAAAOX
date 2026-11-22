@@ -14,7 +14,7 @@ type Donnees = {
 };
 
 const STATUT_RETRAIT: Record<string, { label: string; color: string }> = {
-  en_attente: { label: "En attente", color: "#F5A623" },
+  en_attente: { label: "En attente", color: "#EDA900" },
   complete: { label: "Envoyé", color: "#34d399" },
   echoue: { label: "Refusé · remis sur le solde", color: "#f87171" },
 };
@@ -46,35 +46,35 @@ export function GainsLivreur() {
   }
 
   if (!d || (!d.soldes.length && !d.gains.length && !d.retraits.length)) return null;
-  const champ = "w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#F5A623]/50";
+  const champ = "w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EDA900]/50";
 
   return (
     <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-[#141414] to-[#0d0d0d] p-5 space-y-4">
-      <p className="text-white font-semibold text-sm flex items-center gap-2"><Wallet size={15} className="text-[#F5A623]" />{" "}{t("Mes gains")}</p>
+      <p className="text-white font-semibold text-sm flex items-center gap-2"><Wallet size={15} className="text-[#EDA900]" />{" "}{t("Mes gains")}</p>
 
       {d.soldes.map(s => (
         <div key={s.devise} className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-2xl font-bold text-[#F5A623]">{formatMontant(s.solde, s.devise)}</p>
+            <p className="text-2xl font-bold text-[#EDA900]">{formatMontant(s.solde, s.devise)}</p>
             <p className="text-gray-500 text-xs">{t("Solde retirable · minimum {0}", formatMontant(s.minimum, s.devise))}</p>
           </div>
           <button type="button" disabled={s.solde < s.minimum}
             onClick={() => setForm({ devise: s.devise, montant: String(Math.floor(s.solde)), telephone: d.telephone, operateur: "MTN" })}
-            className="bg-[#F5A623] text-black font-semibold px-4 py-2 rounded-xl text-sm disabled:opacity-40">
+            className="bg-[#EDA900] text-black font-semibold px-4 py-2 rounded-xl text-sm disabled:opacity-40">
             {t("Retirer")}
           </button>
         </div>
       ))}
 
       {form && (
-        <form onSubmit={retirer} className="space-y-2 rounded-2xl border border-[#F5A623]/20 p-3">
+        <form onSubmit={retirer} className="space-y-2 rounded-2xl border border-[#EDA900]/20 p-3">
           <input className={champ} type="number" min={0} inputMode="decimal" required value={form.montant} onChange={e => setForm({ ...form, montant: e.target.value })} placeholder={t("Montant")} />
           <input className={champ} required value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} placeholder={t("Numéro Mobile Money")} />
           <select className={champ} value={form.operateur} onChange={e => setForm({ ...form, operateur: e.target.value })}>
             {["MTN", "Orange", "Wave", "Moov", "Airtel", "M-Pesa", "Autre"].map(o => <option key={o} value={o} className="text-black">{o}</option>)}
           </select>
           <div className="flex gap-2">
-            <button type="submit" disabled={envoi} className="flex-1 flex items-center justify-center gap-2 bg-[#F5A623] text-black font-semibold py-2 rounded-xl text-sm disabled:opacity-50">
+            <button type="submit" disabled={envoi} className="flex-1 flex items-center justify-center gap-2 bg-[#EDA900] text-black font-semibold py-2 rounded-xl text-sm disabled:opacity-50">
               {envoi && <Loader2 size={14} className="animate-spin" />}{t("Demander le retrait")}
             </button>
             <button type="button" onClick={() => setForm(null)} className="px-4 py-2 rounded-xl text-sm text-gray-400 border border-white/10">{t("Annuler")}</button>

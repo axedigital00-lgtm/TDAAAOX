@@ -40,7 +40,8 @@ function ConnexionForm() {
     if (result?.error) return code ? "Code invalide ou expiré" : "Email ou mot de passe incorrect";
     const sessionRes = await fetch("/api/auth/session");
     const session    = await sessionRes.json();
-    if (session?.user?.role === "livreur") router.push("/livreur");
+    if (session?.user?.role === "livreur") router.push(cb?.startsWith("/transporteur") ? cb : "/livreur");
+    else if (session?.user?.role === "transporteur") router.push("/transporteur");
     else if (session?.user?.role === "affilie") router.push(cb?.startsWith("/") && !cb.startsWith("//") ? cb : "/affilie");
     else if (estRoleAdmin(session?.user?.role)) router.push("/admin");
     else router.push(callbackUrl);
@@ -111,7 +112,7 @@ function ConnexionForm() {
         </button>
       </form>
 
-      <p className="axa-bas">{t("Nouveau sur AXSO ?")}{" "}<Link href="/inscription" className="axa-lien">{t("Créer une boutique gratuitement")}</Link></p>
+      <p className="axa-bas">{t("Nouveau sur AXSO ?")}{" "}<Link href={cb?.startsWith("/transporteur") ? "/inscription/livreur" : "/inscription"} className="axa-lien">{t(cb?.startsWith("/transporteur") ? "Créer un compte transporteur" : "Créer une boutique gratuitement")}</Link></p>
     </>
   );
 }

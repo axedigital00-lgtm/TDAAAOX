@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { genererContrat, identiteAxso, lireCompte } from "@/lib/logistique/contrat";
 import { dansDeploiement } from "@/lib/logistique/dispatch";
+import { documentsManquants, etapesTransporteur } from "@/lib/logistique/parcours";
 import { prevoirDemande } from "@/lib/logistique/intelligence";
 import { construireGraphe, economieParVille } from "@/lib/logistique/pilotage";
 import { lireReponseOsrm } from "@/lib/logistique/routage";
@@ -60,4 +61,13 @@ test("pilotage : graphe, dépendance et ville déficitaire", () => {
   const e = economieParVille([{ ville: "Douala", statut: "livree", prixFournisseur: 2000, commission: 200, creditApplique: 500 }]);
   assert.equal(e[0].contribution, -300);
   assert.equal(e[0].deficitaire, true);
+});
+
+test("parcours transporteur : prochaine étape et document rejeté à renvoyer", () => {
+  const base = { type: "livreur", statutLegal: "en_attente", disponible: false };
+  assert.equal(etapesTransporteur({ ...base, documents: [] }).prochaine, "documents");
+  assert.deepEqual(documentsManquants({ type: "livreur", documents: [{ type: "piece_identite", statut: "rejete" }] }), ["piece_identite"]);
+  assert.equal(etapesTransporteur({ ...base, documents: [{ type: "piece_identite", statut: "en_revue" }] }).prochaine, "validation");
+  assert.equal(etapesTransporteur({ ...base, statutLegal: "verifie", documents: [{ type: "piece_identite", statut: "verifie" }] }).prochaine, "disponible");
+  assert.equal(etapesTransporteur({ ...base, statutLegal: "verifie", disponible: true, documents: [{ type: "piece_identite", statut: "verifie" }] }).prochaine, null);
 });

@@ -14,7 +14,7 @@ export default async function TransporteursPage({ searchParams }: { searchParams
   const ville = (await searchParams).ville?.trim().slice(0, 80) || null;
   const liste = await annuaire(ville).catch(() => []);
   return <PageAxm>
-    <HeroPage surtitre={t("Réseau logistique")} titre={t("Des transporteurs vérifiés, choisis sur leurs résultats.")} lead={t("Chaque transporteur est évalué sur ses livraisons réelles. La vérification légale et la performance sont affichées séparément.")} principal={{ label: t("Rejoindre le réseau"), href: "/transporteur" }} secondaire={{ label: t("Je suis marchand"), href: "/inscription" }} />
+    <HeroPage surtitre={t("Réseau logistique")} titre={t("Des transporteurs vérifiés, choisis sur leurs résultats.")} lead={t("Chaque transporteur est évalué sur ses livraisons réelles. La vérification légale et la performance sont affichées séparément.")} principal={{ label: t("Rejoindre le réseau"), href: "/inscription/livreur" }} secondaire={{ label: t("Je suis marchand"), href: "/inscription" }} />
     <Section serre>
       <form style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
         <input name="ville" defaultValue={ville ?? ""} aria-label={t("Ville")} placeholder={t("Rechercher une ville")} style={{ flex: "1 1 220px", height: 52, borderRadius: 999, border: "1px solid var(--m-line)", background: "#111", color: "#fff", padding: "0 22px", fontSize: 16 }} />
@@ -33,6 +33,6 @@ export default async function TransporteursPage({ searchParams }: { searchParams
         </article>)}
       </div>}
     </Section>
-    <AppelFinal titre={t("Vous livrez ? Recevez des courses.")} lead={t("Inscrivez votre société ou votre activité de livreur, faites vérifier vos documents, puis recevez des courses dans vos zones.")} principal={{ label: t("Rejoindre le réseau"), href: "/transporteur" }} secondaire={{ label: t("Découvrir la livraison"), href: "/fonctionnalites/livraison" }} />
+    <AppelFinal titre={t("Vous livrez ? Recevez des courses.")} lead={t("Inscrivez votre société ou votre activité de livreur, faites vérifier vos documents, puis recevez des courses dans vos zones.")} principal={{ label: t("Rejoindre le réseau"), href: "/inscription/livreur" }} secondaire={{ label: t("Découvrir la livraison"), href: "/fonctionnalites/livraison" }} />
   </PageAxm>;
 }

@@ -11,11 +11,11 @@ import { aRemettre } from "@/lib/gains-livreur";
 import { GainsLivreur } from "@/components/livreur/GainsLivreur";
 
 const STATUT: Record<string, { label: string; color: string; bg: string }> = {
-  confirmee:      { label: "À récupérer",   color: "#d4d4d4", bg: "rgba(212,212,212,0.08)" },
-  en_preparation: { label: "Préparation",   color: "#a78bfa", bg: "rgba(167,139,250,0.1)" },
-  expediee:       { label: "En livraison",  color: "#F5A623", bg: "rgba(245,166,35,0.1)" },
-  tentative_echouee: { label: "À retenter", color: "#f87171", bg: "rgba(248,113,113,0.1)" },
-  livree:         { label: "Livré ✓",       color: "#34d399", bg: "rgba(52,211,153,0.1)" },
+  confirmee:      { label: "À récupérer",   color: "#3f3f3d", bg: "rgba(212,212,212,0.08)" },
+  en_preparation: { label: "Préparation",   color: "#5b45c9", bg: "rgba(167,139,250,0.1)" },
+  expediee:       { label: "En livraison",  color: "#8f6500", bg: "rgba(245,166,35,0.1)" },
+  tentative_echouee: { label: "À retenter", color: "#b3261e", bg: "rgba(248,113,113,0.1)" },
+  livree:         { label: "Livré ✓",       color: "#0d6b3b", bg: "rgba(52,211,153,0.1)" },
 };
 
 export default async function LivreurDashboard() {
@@ -76,9 +76,7 @@ export default async function LivreurDashboard() {
   return (
     <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 lg:items-start">
       {/* Hero card */}
-      <div className="relative rounded-xl overflow-hidden lg:col-span-2">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#F5A623]/20 via-[#F5A623]/5 to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_#F5A62320,_transparent_60%)]" />
+      <div className="relative rounded-xl overflow-hidden lg:col-span-2 bg-[#171817] border border-white/15">
         <div className="relative p-6">
           <div className="flex items-start justify-between mb-6">
             <div>
@@ -109,7 +107,7 @@ export default async function LivreurDashboard() {
           {/* Stats du jour */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-2xl font-bold text-[#F5A623]">{commandesActives.length}</p>
+              <p className="text-2xl font-bold text-white">{commandesActives.length}</p>
               <p className="text-gray-400 text-xs mt-1">{t("En cours")}</p>
             </div>
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
@@ -117,7 +115,7 @@ export default async function LivreurDashboard() {
               <p className="text-gray-400 text-xs mt-1">{t("Auj.")}</p>
             </div>
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-2xl font-bold text-[#a78bfa]">{t(livraisonsSemaine)}</p>
+              <p className="text-2xl font-bold text-white">{t(livraisonsSemaine)}</p>
               <p className="text-gray-400 text-xs mt-1">{t("Cette semaine")}</p>
             </div>
           </div>
@@ -126,8 +124,8 @@ export default async function LivreurDashboard() {
 
       {/* Espèces à reverser */}
       {aReverser.length > 0 && (
-        <div className="lg:col-span-2 rounded-xl border border-[#F5A623]/25 bg-[#F5A623]/[0.07] p-5">
-          <p className="text-[#F5A623] font-semibold text-sm">{t("Espèces à reverser")}</p>
+        <div className="lg:col-span-2 rounded-xl border border-[#EDA900]/25 bg-[#EDA900]/[0.07] p-5">
+          <p className="text-[#EDA900] font-semibold text-sm">{t("Espèces à reverser")}</p>
           <div className="mt-3 space-y-2">
             {aReverser.map(r => (
               <div key={`${r.boutique}|${r.devise}`} className="flex items-center justify-between gap-3">
@@ -148,7 +146,7 @@ export default async function LivreurDashboard() {
         <div className={`space-y-3 ${commandesActives.length === 1 ? "lg:col-span-2" : ""}`}>
           <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold flex items-center gap-2">
-              <Zap size={16} className="text-[#F5A623]" />
+              <Zap size={16} className="text-[#EDA900]" />
               {t("Livraison en cours")}
             </h2>
             <span className="text-xs px-2 py-1 rounded-lg font-medium"
@@ -167,7 +165,7 @@ export default async function LivreurDashboard() {
 
           {/* Détails commande */}
           {/* Pas de lien dans un lien (HTML invalide → erreur d'hydratation, et Maps/WhatsApp ouvraient la fiche) */}
-          <div className="bg-[#171817] border border-white/15 hover:border-[#F5A623]/30 rounded-2xl p-4 transition-all">
+          <div className="bg-[#171817] border border-white/15 hover:border-[#EDA900]/30 rounded-2xl p-4 transition-all">
               <Link href={`/livreur/commande/${commandePrioritaire.id}`} className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <p className="text-white font-bold">{t(commandePrioritaire.clientNom)}</p>
@@ -181,7 +179,7 @@ export default async function LivreurDashboard() {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-[#F5A623] font-bold text-lg">{formatMontant(commandePrioritaire.montantTotal, commandePrioritaire.devise)}</p>
+                  <p className="text-[#EDA900] font-bold text-lg">{formatMontant(commandePrioritaire.montantTotal, commandePrioritaire.devise)}</p>
                   <p className="text-gray-300 text-xs">{commandePrioritaire.lignes.length} article{commandePrioritaire.lignes.length > 1 ? "s" : ""}</p>
                 </div>
               </Link>
@@ -220,7 +218,7 @@ export default async function LivreurDashboard() {
               const st = STATUT[cmd.statut] || STATUT.confirmee;
               return (
                 <Link key={cmd.id} href={`/livreur/commande/${cmd.id}`}>
-                  <div className="flex items-center gap-3 bg-[#171817] border border-white/15 rounded-2xl p-3.5 hover:border-[#F5A623]/20 transition-all">
+                  <div className="flex items-center gap-3 bg-[#171817] border border-white/15 rounded-2xl p-3.5 hover:border-[#EDA900]/20 transition-all">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: st.bg }}>
                       <Package size={16} style={{ color: st.color }} />
                     </div>
@@ -231,7 +229,7 @@ export default async function LivreurDashboard() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end flex-shrink-0">
-                      <p className="text-[#F5A623] text-sm font-bold">{formatMontant(cmd.montantTotal, cmd.devise)}</p>
+                      <p className="text-[#EDA900] text-sm font-bold">{formatMontant(cmd.montantTotal, cmd.devise)}</p>
                       <span className="text-[10px] mt-0.5" style={{ color: st.color }}>{t(st.label)}</span>
                     </div>
                     <ChevronRight size={14} className="text-gray-500" />
@@ -246,11 +244,11 @@ export default async function LivreurDashboard() {
       {/* Aucune commande */}
       {commandesActives.length === 0 && (
         <div className="lg:col-span-2 bg-[#171817] border border-white/15 rounded-xl p-10 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#F5A623]/10 flex items-center justify-center mx-auto mb-4">
-            <Package size={28} className="text-[#F5A623]" />
+          <div className="w-16 h-16 rounded-2xl bg-[#EDA900]/10 flex items-center justify-center mx-auto mb-4">
+            <Package size={28} className="text-[#EDA900]" />
           </div>
           <p className="text-white font-semibold">{t("Aucune livraison assignée")}</p>
-          <p className="text-gray-500 text-sm mt-2">{t("Votre responsable vous assignera la prochaine commande")}</p>
+          <p className="text-gray-500 text-sm mt-2">{t("Vos prochaines courses apparaîtront ici.")}</p>
           {livreur.disponible && (
             <div className="flex items-center justify-center gap-2 mt-4 text-green-400 text-sm">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />

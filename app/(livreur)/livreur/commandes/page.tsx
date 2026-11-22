@@ -8,12 +8,12 @@ import { formatDate, formatMontant } from "@/lib/utils";
 import { getT } from "@/lib/i18n/serveur";
 
 const STATUT_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  confirmee:      { label: "À récupérer", color: "#d4d4d4", bg: "#d4d4d415" },
-  en_preparation: { label: "En préparation", color: "#7c3aed", bg: "#7c3aed15" },
-  expediee:       { label: "En livraison", color: "#F5A623", bg: "#F5A62315" },
-  tentative_echouee: { label: "À retenter", color: "#f87171", bg: "#f8717115" },
-  livree:         { label: "Livré", color: "#10b981", bg: "#10b98115" },
-  annulee:        { label: "Annulé", color: "#ef4444", bg: "#ef444415" },
+  confirmee:      { label: "À récupérer", color: "#3f3f3d", bg: "#3f3f3d15" },
+  en_preparation: { label: "En préparation", color: "#5b45c9", bg: "#5b45c915" },
+  expediee:       { label: "En livraison", color: "#8f6500", bg: "#EDA90015" },
+  tentative_echouee: { label: "À retenter", color: "#b3261e", bg: "#b3261e15" },
+  livree:         { label: "Livré", color: "#0d6b3b", bg: "#0d6b3b15" },
+  annulee:        { label: "Annulé", color: "#b3261e", bg: "#b3261e15" },
 };
 
 export default async function HistoriquePage() {
@@ -52,7 +52,7 @@ export default async function HistoriquePage() {
           <p className="text-gray-300 text-xs">{t("Total")}</p>
         </div>
         <div className="bg-[#171817] border border-white/15 rounded-xl p-3 text-center">
-          <p className="text-lg font-bold text-[#F5A623]">{t(stats.enCours)}</p>
+          <p className="text-lg font-bold text-[#EDA900]">{t(stats.enCours)}</p>
           <p className="text-gray-300 text-xs">{t("En cours")}</p>
         </div>
         <div className="bg-[#171817] border border-white/15 rounded-xl p-3 text-center">
@@ -70,7 +70,7 @@ export default async function HistoriquePage() {
             <Link
               key={cmd.id}
               href={`/livreur/commande/${cmd.id}`}
-              className="flex items-center gap-4 bg-[#171817] border border-white/15 rounded-2xl p-4 hover:border-[#F5A623]/20 transition-all"
+              className="flex items-center gap-4 bg-[#171817] border border-white/15 rounded-2xl p-4 hover:border-[#EDA900]/20 transition-all"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -86,7 +86,7 @@ export default async function HistoriquePage() {
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <p className="text-[#F5A623] text-sm font-bold">{formatMontant(cmd.montantTotal, cmd.devise)}</p>
+                <p className="text-[#EDA900] text-sm font-bold">{formatMontant(cmd.montantTotal, cmd.devise)}</p>
                 <p className="text-gray-300 text-xs">{formatDate(cmd.updatedAt)}</p>
               </div>
               <ChevronRight size={14} className="text-gray-500 flex-shrink-0" />

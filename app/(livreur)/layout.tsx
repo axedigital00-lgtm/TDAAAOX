@@ -1,12 +1,12 @@
 import "@fontsource-variable/inter/wght.css";
-import "@/components/ui/espace-sombre.css";
+import "@/components/livreur/espace-livreur.css";
 import { auth } from "@/lib/auth";
 import { ActivationPush } from "@/components/ActivationPush";
 import { MenusDeroulants } from "@/components/ui/MenusDeroulants";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Home, List, LogOut } from "lucide-react";
+import { Home, List, LogOut, Network } from "lucide-react";
 import { NotificationsPanel } from "@/components/livreur/NotificationsPanel";
 import { DisponibiliteToggle } from "@/components/livreur/DisponibiliteToggle";
 import { I18nProvider } from "@/components/I18nProvider";
@@ -32,21 +32,16 @@ export default async function LivreurLayout({ children }: { children: React.Reac
 
   if (!livreur) redirect("/connexion");
 
+  const profilReseau = await prisma.fournisseurLogistique.findUnique({ where: { livreurId: livreur.id }, select: { id: true } });
   const enLivraison = (await prisma.commande.count({ where: { livreurId: livreur.id, statut: "expediee" } })) > 0;
 
   return (
     <I18nProvider langue={await getLangue()} dico={await dico("livreur")}>
-    <div className="ax-sombre min-h-screen bg-[#0A0A0A] text-white">
+    <div className="axe-livreur">
       <ActivationPush espace="livreur" />
       <MenusDeroulants />
-      {/* Fond étoilé subtil */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-[#F5A623]/5 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#080810] to-transparent" />
-      </div>
-
       {/* Header premium */}
-      <header className="sticky top-0 z-50 bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-white/5">
+      <header className="axe-barre sticky top-0 z-50 border-b">
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
             <img
@@ -63,11 +58,14 @@ export default async function LivreurLayout({ children }: { children: React.Reac
 
           {/* Navigation PC (la barre du bas est réservée au mobile) */}
           <nav className="hidden lg:flex items-center gap-1 text-sm">
-            <Link href="/livreur" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:text-[#F5A623] hover:bg-white/5 transition-colors">
+            <Link href="/livreur" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:text-[#EDA900] hover:bg-white/5 transition-colors">
               <Home size={16} />{t("Accueil")}
             </Link>
-            <Link href="/livreur/commandes" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:text-[#F5A623] hover:bg-white/5 transition-colors">
+            <Link href="/livreur/commandes" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:text-[#EDA900] hover:bg-white/5 transition-colors">
               <List size={16} />{t("Livraisons")}
+            </Link>
+            <Link href="/transporteur" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:bg-white/5 transition-colors">
+              <Network size={16} />{t("Réseau")}
             </Link>
             <Link href="/connexion" className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-500 hover:text-red-400 hover:bg-white/5 transition-colors">
               <LogOut size={16} />{t("Quitter")}
@@ -84,27 +82,37 @@ export default async function LivreurLayout({ children }: { children: React.Reac
       {/* Tracker GPS silencieux */}
       <GeoTracker livreurId={livreur.id} enLivraison={enLivraison} />
 
-      <main className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-5 pb-24 lg:pb-10">
+      <main className="axe-contenu max-w-2xl lg:max-w-5xl mx-auto px-4 py-5 pb-24 lg:pb-10">
         {!livreur.actif && (
-          <div className="mb-5 rounded-2xl border border-[#F5A623]/25 bg-[#F5A623]/10 px-4 py-3 text-sm text-[#F5A623]">
+          <div className="mb-5 rounded-2xl border border-[#EDA900]/25 bg-[#EDA900]/10 px-4 py-3 text-sm text-[#EDA900]">
             {livreur.valideAt
               ? t("Votre compte est suspendu. Contactez l'équipe Axso pour le réactiver.")
               : t("Votre compte est en attente de validation par l'équipe Axso. Vous recevrez des livraisons dès qu'il sera validé.")}
+          </div>
+        )}
+        {!profilReseau && (
+          <div className="axe-reseau">
+            <p><b>{t("Rejoignez le réseau AXSO")}</b>{t("Complétez votre profil pour recevoir des courses de toutes les boutiques.")}</p>
+            <Link href="/transporteur">{t("Compléter mon profil")}</Link>
           </div>
         )}
         {children}
       </main>
 
       {/* Bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#0A0A0A]/95 backdrop-blur-xl border-t border-white/5 safe-area-bottom">
-        <div className="max-w-2xl mx-auto px-4 py-3 grid grid-cols-3">
-          <Link href="/livreur" className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#F5A623] transition-colors py-1">
+      <nav className="axe-barre lg:hidden fixed bottom-0 left-0 right-0 border-t safe-area-bottom">
+        <div className="max-w-2xl mx-auto px-4 py-3 grid grid-cols-4">
+          <Link href="/livreur" className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#EDA900] transition-colors py-1">
             <Home size={20} />
             <span className="text-[10px]">{t("Accueil")}</span>
           </Link>
-          <Link href="/livreur/commandes" className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#F5A623] transition-colors py-1">
+          <Link href="/livreur/commandes" className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#EDA900] transition-colors py-1">
             <List size={20} />
             <span className="text-[10px]">{t("Livraisons")}</span>
+          </Link>
+          <Link href="/transporteur" className="flex flex-col items-center gap-1 text-gray-400 transition-colors py-1">
+            <Network size={20} />
+            <span className="text-[10px]">{t("Réseau")}</span>
           </Link>
           <Link href="/connexion" className="flex flex-col items-center gap-1 text-gray-500 hover:text-red-400 transition-colors py-1">
             <LogOut size={20} />

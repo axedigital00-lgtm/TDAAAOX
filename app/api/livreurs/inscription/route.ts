@@ -8,12 +8,13 @@ import { emailDejaPris, normaliserEmail } from "@/lib/unicite-email";
 const schema = z.object({
   nom: z.string().min(2),
   email: z.string().trim().email(),
-  telephone: z.string().min(8),
+  type: z.enum(["livreur", "societe"]).default("livreur"),
+  telephone: z.string().min(8).optional(),
   password: z.string().min(6),
   vehicule: z.enum(["moto", "voiture", "velo", "a_pied"]).default("moto"),
   zone: z.string().optional(),
   ville: z.string().optional(),
-});
+}).refine((d) => d.type === "societe" || !!d.telephone, { path: ["telephone"] });
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,6 +25,13 @@ export async function POST(req: NextRequest) {
     const emailPris = await emailDejaPris(data.email, "user");
     if (emailPris) {
       return NextResponse.json({ error: emailPris }, { status: 400 });
+    }
+
+    // Une société n'a pas de fiche livreur : son profil se complète sur le portail transporteur.
+    if (data.type === "societe") {
+      await prisma.user.create({ data: { name: data.nom, email: data.email, password: await hash(data.password, 10), role: "transporteur" } });
+      await annoncerInscription({ name: data.nom, email: data.email, role: "transporteur" });
+      return NextResponse.json({ success: true }, { status: 201 });
     }
 
     const { livreur } = await prisma.$transaction(async (tx) => {
@@ -40,7 +48,7 @@ export async function POST(req: NextRequest) {
         data: {
           userId: user.id,
           nom: data.nom,
-          telephone: data.telephone,
+          telephone: data.telephone!,
           vehicule: data.vehicule,
           zone: data.zone || data.ville || null,
           disponible: true,

@@ -101,11 +101,11 @@ export const pousserTest = (userId: string, espace: Espace) =>
 
 /** Nouvel inscrit (marchand ou livreur) → Command Center. */
 export function annoncerInscription(u: { name?: string | null; email?: string | null; role: string; tenantId?: string | null }) {
-  const livreur = u.role === "livreur", affilie = u.role === "affilie";
+  const livreur = u.role === "livreur", affilie = u.role === "affilie", societe = u.role === "transporteur";
   return pousserAdmins({
-    titre: livreur ? "🛵 Nouveau livreur inscrit" : affilie ? "🤝 Nouvel affilié inscrit" : "🎉 Nouveau marchand inscrit",
+    titre: livreur ? "🛵 Nouveau livreur inscrit" : societe ? "🚚 Nouvelle société de livraison" : affilie ? "🤝 Nouvel affilié inscrit" : "🎉 Nouveau marchand inscrit",
     message: `${u.name || u.email || "Nouveau compte"}${u.email && u.name ? ` · ${u.email}` : ""}`,
-    lien: livreur ? "/admin/livreurs" : affilie ? "/admin/affilies" : u.tenantId ? `/admin/marchands/${u.tenantId}` : "/admin/marchands",
+    lien: livreur ? "/admin/livreurs" : societe ? "/admin/logistique" : affilie ? "/admin/affilies" : u.tenantId ? `/admin/marchands/${u.tenantId}` : "/admin/marchands",
     type: "nouvel_inscrit",
   });
 }
