@@ -15,6 +15,10 @@ type Dossier = { type: string; statutLegal: string; disponible: boolean; documen
 export const documentsManquants = (f: Pick<Dossier, "type" | "documents">) =>
   (DOCUMENTS_OBLIGATOIRES[f.type] ?? []).filter((t) => !f.documents.some((d) => d.type === t && ["en_revue", "verifie"].includes(d.statut)));
 
+/** Vrai au dépôt qui complète le dossier : une seule alerte, et de nouveau après un document rejeté puis renvoyé. */
+export const dossierVientDEtreComplet = (type: string, avant: { type: string; statut: string }[], apres: { type: string; statut: string }[]) =>
+  documentsManquants({ type, documents: avant }).length > 0 && documentsManquants({ type, documents: apres }).length === 0;
+
 export function etapesTransporteur(f: Dossier) {
   const etapes = [
     { id: "compte", libelle: "Compte créé", fait: true },

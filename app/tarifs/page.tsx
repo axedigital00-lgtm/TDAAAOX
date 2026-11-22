@@ -1,5 +1,6 @@
 // Tarifs : page dédiée (comme la page des forfaits des grandes plateformes),
 // avec les forfaits et la FAQ existants.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { TarifsSection } from "@/components/marketing/TarifsSection";
 import { FaqSection } from "@/components/marketing/FaqSection";
@@ -9,7 +10,7 @@ import { getLangue, getT } from "@/lib/i18n/serveur";
 import { AnnuaireModules } from "@/components/marketing/motion/Sections";
 
 export const revalidate = 60;
-export const metadata: Metadata = { title: "Tarifs · AXSO", description: "Les forfaits AXSO : commencez gratuitement, passez au Pro quand vous grandissez." };
+export const metadata: Metadata = seoPage("/tarifs");
 
 export default async function TarifsPage() {
   const [t, promo, langue] = await Promise.all([getT(), finPromo(), getLangue()]);

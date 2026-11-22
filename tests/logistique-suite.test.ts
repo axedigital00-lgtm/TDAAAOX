@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { genererContrat, identiteAxso, lireCompte } from "@/lib/logistique/contrat";
 import { dansDeploiement } from "@/lib/logistique/dispatch";
-import { apercuGain, documentsManquants, etapesTransporteur } from "@/lib/logistique/parcours";
+import { apercuGain, documentsManquants, dossierVientDEtreComplet, etapesTransporteur } from "@/lib/logistique/parcours";
 import { calculerDevis } from "@/lib/logistique/tarifs";
 import { prevoirDemande } from "@/lib/logistique/intelligence";
 import { construireGraphe, economieParVille } from "@/lib/logistique/pilotage";
@@ -80,4 +80,12 @@ test("aperçu du gain : identique au vrai devis", () => {
   assert.ok(d.eligible);
   assert.equal(a.prix, d.prixFournisseur);
   assert.equal(a.net, d.versementFournisseur);
+});
+
+test("alerte : seulement au dépôt qui complète le dossier", () => {
+  const rc = { type: "registre_commerce", statut: "en_revue" }, fiscal = { type: "identifiant_fiscal", statut: "en_revue" };
+  assert.equal(dossierVientDEtreComplet("societe", [], [rc]), false);
+  assert.equal(dossierVientDEtreComplet("societe", [rc], [rc, fiscal]), true);
+  assert.equal(dossierVientDEtreComplet("societe", [rc, fiscal], [rc, fiscal, { type: "assurance", statut: "en_revue" }]), false);
+  assert.equal(dossierVientDEtreComplet("livreur", [{ type: "piece_identite", statut: "rejete" }], [{ type: "piece_identite", statut: "rejete" }, { type: "piece_identite", statut: "en_revue" }]), true);
 });

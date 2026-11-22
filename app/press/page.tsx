@@ -1,10 +1,11 @@
 // Espace presse : présentation, faits vérifiables, identité et contact.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
 import { DOSSIERS } from "@/lib/dossiers-fonctionnalites";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Presse", description: "Kit média AXSO : présentation, faits clés, logos, couleurs et contact presse." };
+export const metadata: Metadata = seoPage("/press");
 
 const logo: React.CSSProperties = { display: "grid", placeItems: "center", minHeight: 150, borderRadius: 16 };
 

@@ -1,11 +1,12 @@
 // Blog : conseils pratiques pour vendre en ligne en Afrique.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
 import { ARTICLES } from "@/lib/contenu-site";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Blog", description: "Le blog AXSO : stratégie, paiement, livraison, IA et WhatsApp pour les entrepreneurs africains." };
+export const metadata: Metadata = seoPage("/blog");
 
 export default async function BlogPage() {
   const t = await getT();

@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { seoPage } from "@/lib/seo";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { BadgeCheck, Package } from "lucide-react";
@@ -8,10 +9,7 @@ import { formatMontant } from "@/lib/utils";
 import { PageAxm, HeroPage, Section, Faq, AppelFinal } from "@/components/marketing/site/Blocs";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = {
-  title: "Programme d'affiliation AXSO — gagnez de l'argent en recommandant des produits africains",
-  description: "Créez votre compte affilié gratuit, partagez vos liens et touchez une commission (10 % minimum, 20 % sur le numérique) sur chaque vente payée en ligne, versée par Axso sur Mobile Money.",
-};
+export const metadata: Metadata = seoPage("/affiliation");
 
 const INSCRIPTION = "/inscription/affilie";
 const VERS_CATALOGUE = `${INSCRIPTION}?suite=/affilie/catalogue`;

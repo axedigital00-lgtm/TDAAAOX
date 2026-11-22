@@ -1,15 +1,13 @@
 // Témoignages : uniquement les avis réels déposés par les marchands depuis
 // leur tableau de bord et validés par AXSO (aucun témoignage inventé).
+import { seoPage } from "@/lib/seo";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { avisPublies } from "@/lib/avis-plateforme";
 import { getT } from "@/lib/i18n/serveur";
 import { PageAxm, HeroPage, Section, AppelFinal } from "@/components/marketing/site/Blocs";
 
-export const metadata: Metadata = {
-  title: "Témoignages marchands",
-  description: "Des marchands africains racontent leur expérience avec AXSO.",
-};
+export const metadata: Metadata = seoPage("/temoignages");
 
 function Etoiles({ note }: { note: number }) {
   return (

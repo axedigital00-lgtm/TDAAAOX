@@ -1,4 +1,5 @@
 // Documentation : tous les guides, par rubrique.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
@@ -6,7 +7,7 @@ import { Scene } from "@/components/marketing/motion/Scenes";
 import { GUIDES, RUBRIQUES } from "@/lib/contenu-site";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Documentation", description: "Documentation AXSO : démarrage, boutique, paiements, livraison, vente aux professionnels et Stella." };
+export const metadata: Metadata = seoPage("/docs");
 
 export default async function DocsPage() {
   const t = await getT();

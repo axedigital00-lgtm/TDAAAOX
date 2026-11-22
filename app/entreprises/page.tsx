@@ -1,9 +1,10 @@
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { AppelFinal, Faq, HeroPage, PageAxm } from "@/components/marketing/site/Blocs";
 import { Etapes, Recits } from "@/components/marketing/motion/Sections";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "AXSO pour les entreprises", description: "Équipes, magasins, entrepôts, vente aux professionnels, finance et contrôle : AXSO pour les commerces qui grandissent." };
+export const metadata: Metadata = seoPage("/entreprises");
 
 export default async function Entreprises() {
   const t = await getT();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { annoncerInscription } from "@/lib/push";
+import { signalerInscriptionTransporteur } from "@/lib/logistique/alertes";
 import { prisma } from "@/lib/prisma";
 import { hash } from "@/lib/mots-de-passe";
 import { z } from "zod";
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     // Une société n'a pas de fiche livreur : son profil se complète sur le portail transporteur.
     if (data.type === "societe") {
       await prisma.user.create({ data: { name: data.nom, email: data.email, password: await hash(data.password, 10), role: "transporteur" } });
-      await annoncerInscription({ name: data.nom, email: data.email, role: "transporteur" });
+      await signalerInscriptionTransporteur({ type: "societe", nom: data.nom, email: data.email }).catch((e) => console.error("[inscription] alerte", e?.message));
       return NextResponse.json({ success: true }, { status: 201 });
     }
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       return { livreur };
     });
 
-    await annoncerInscription({ name: data.nom, email: data.email, role: "livreur" });
+    await signalerInscriptionTransporteur({ type: "livreur", nom: data.nom, email: data.email, telephone: data.telephone, zone: data.zone || data.ville, vehicule: data.vehicule }).catch((e) => console.error("[inscription] alerte", e?.message));
     return NextResponse.json({ success: true, livreurId: livreur.id }, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {

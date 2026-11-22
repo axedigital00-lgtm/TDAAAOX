@@ -1,4 +1,5 @@
 // Thèmes : la bibliothèque de designs de boutique, en grille.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { GrilleThemes, NB_THEMES } from "@/components/marketing/ThemesSection";
 import { getT } from "@/lib/i18n/serveur";
@@ -6,10 +7,7 @@ import Link from "next/link";
 import { PageAxm, HeroPage, Section, AppelFinal, Bloc } from "@/components/marketing/site/Blocs";
 import { FAMILLES_THEMES } from "@/lib/themes-familles";
 
-export const metadata: Metadata = {
-  title: "Thèmes",
-  description: "Choisissez le design de votre boutique parmi la bibliothèque AXSO : des thèmes prêts à vendre, conçus pour l’Afrique.",
-};
+export const metadata: Metadata = seoPage("/themes");
 
 export default async function ThemesPage({ searchParams }: { searchParams: Promise<{ style?: string }> }) {
   const t = await getT();

@@ -1,10 +1,11 @@
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
 import { Scene, type TypeScene } from "@/components/marketing/motion/Scenes";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Les nouveautés AXSO", description: "Devis, comptes entreprises, workflows, lancements, marchés, vente en gros, Stella : tout ce qui vient d'arriver sur AXSO." };
+export const metadata: Metadata = seoPage("/nouveautes");
 
 const NOUVEAUTES: { nom: string; titre: string; texte: string; h: string; scene: TypeScene; points: string[] }[] = [
   { nom: "Vente aux pros", titre: "Devis et comptes entreprises", texte: "Envoyez un devis, faites-le accepter en ligne, vendez à terme.", h: "devis-entreprises", scene: "gros", points: ["Lien d'acceptation", "Paiement à 15, 30, 60 jours", "Portail de commande rapide"] },

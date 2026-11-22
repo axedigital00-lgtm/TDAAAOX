@@ -12,7 +12,7 @@ import { motifsInegibilite } from "./classement";
 import { courseActive, courseAnnulable, preuveSuffisante, statutCommandeDe, transitionCourse, type PreuveRequise } from "./course";
 import { consommer, liberer, annulerConsommation, reserver, soldes, type Ecriture } from "./credits";
 import { dansDeploiement, decider, exclusionsApresRefus, POLITIQUE_DEFAUT, type PolitiqueDispatch } from "./dispatch";
-import { DOCUMENTS_OBLIGATOIRES } from "./parcours";
+import { DOCUMENTS_OBLIGATOIRES, dossierVientDEtreComplet } from "./parcours";
 import { lirePosition } from "./position";
 import { calculerScore } from "./score";
 import { itineraire } from "./routage";
@@ -124,9 +124,13 @@ export async function soumettreDocument(userId: string, fournisseurId: string, d
   if (!taille || taille > TAILLE_MAX) throw new ErreurLogistique("Fichier trop lourd : 2 Mo maximum");
   const expireLe = d.expireLe ? new Date(d.expireLe) : null;
   if (expireLe && Number.isNaN(expireLe.getTime())) throw new ErreurLogistique("Date d'expiration invalide");
+  const dossier = await prisma.fournisseurLogistique.findUniqueOrThrow({ where: { id: fournisseurId }, select: { type: true, documents: { select: { type: true, statut: true } } } });
   const doc = await prisma.documentVerification.create({ data: { fournisseurId, type: d.type, statut: "en_revue", nomFichier: d.nomFichier.slice(0, 160), mime: d.mime, taille, contenuChiffre: chiffrer(d.base64), expireLe }, select: { id: true, type: true, statut: true } });
   await recalculerStatutLegal(fournisseurId);
   await journal(prisma, { type: "fournisseur", id: userId }, "document.soumis", "DocumentVerification", doc.id, undefined, { type: d.type });
+  if (dossierVientDEtreComplet(dossier.type, dossier.documents, [...dossier.documents, { type: d.type, statut: "en_revue" }])) {
+    await import("./alertes").then((a) => a.signalerDossierAValider(fournisseurId)).catch((e) => console.error("[transporteur] alerte dossier", e?.message));
+  }
   return doc;
 }
 

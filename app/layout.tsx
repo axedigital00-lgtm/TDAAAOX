@@ -1,3 +1,4 @@
+import { PAGES_SEO } from "@/lib/seo";
 import type { Metadata } from "next";
 import "@fontsource/poppins/latin-300.css";
 import "@fontsource/poppins/latin-400.css";
@@ -13,19 +14,18 @@ import "./globals.css";
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://axsoafrica.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://www.axsoafrica.com"),
   title: {
-    default: "Axso — Ta boutique en ligne en 3 minutes",
-    template: "%s | Axso",
+    default: PAGES_SEO["/"].titre,
+    template: "%s | AXSO",
   },
-  description:
-    "Crée ta boutique en ligne en 3 minutes. Gratuit pour commencer. Tu touches ton prix en entier : quand ton client paie en ligne, 10 % s'ajoutent à son prix (13 % pour un produit numérique) ; rien sur le paiement à la livraison. Paiements Orange Money, MTN Mobile Money ou à la livraison.",
-  keywords: ["e-commerce", "boutique en ligne", "mobile money", "vendre en ligne", "axso"],
+  description: PAGES_SEO["/"].description,
   openGraph: {
-    title: "Axso — Ta boutique en ligne en 3 minutes",
-    description: "Crée ta boutique en ligne, vends partout, encaisse facilement.",
+    title: PAGES_SEO["/"].titre,
+    description: PAGES_SEO["/"].description,
     type: "website",
-    siteName: "Axso",
+    siteName: "AXSO",
+    locale: "fr_FR",
   },
   twitter: { card: "summary_large_image" },
   // Comme AxeTask : une PNG légère déclarée en premier — c'est elle que Vercel (avatar du projet),

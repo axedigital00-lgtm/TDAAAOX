@@ -1,13 +1,11 @@
 // Contact : canaux (email, WhatsApp), horaires, formulaire (ouvre l'app email)
 // et questions fréquentes.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/serveur";
 import { PageAxm, HeroPage, Section, Faq } from "@/components/marketing/site/Blocs";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description: "Contactez l'équipe AXSO : support, partenariats, presse.",
-};
+export const metadata: Metadata = seoPage("/contact");
 
 export default async function ContactPage() {
   const t = await getT();

@@ -1,13 +1,11 @@
 // À propos : mission, ce qui nous guide, présence africaine, appel final.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/serveur";
 import { Recits } from "@/components/marketing/motion/Sections";
 import { PageAxm, HeroPage, Section, AppelFinal, CartesLiens } from "@/components/marketing/site/Blocs";
 
-export const metadata: Metadata = {
-  title: "À propos",
-  description: "AXSO est la plateforme de commerce pensée pour les entrepreneurs africains : boutique en ligne, WhatsApp, caisse et livraison au même endroit.",
-};
+export const metadata: Metadata = seoPage("/about");
 
 const VALEURS = [
   { titre: "Pensé pour l’Afrique", desc: "Paiement à la livraison, Mobile Money, livraison par quartier, prix en FCFA : nous partons des réalités du terrain." },

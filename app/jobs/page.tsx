@@ -1,10 +1,11 @@
 // Carrières : candidature spontanée (aucun poste ouvert pour l'instant).
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
 import { Etapes } from "@/components/marketing/motion/Sections";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Carrières", description: "Rejoignez AXSO et construisez les outils du commerce africain de demain." };
+export const metadata: Metadata = seoPage("/jobs");
 
 const VALEURS = [["Partir du terrain", "On construit pour le commerçant de Douala, de Dakar ou d'Abidjan, avec ses vraies contraintes : réseau, livraison, cash."], ["Finir ce qu'on commence", "Une fonctionnalité compte quand un marchand peut réellement s'en servir."], ["Dire la vérité", "Pas de chiffres gonflés ni de promesses en l'air, ni aux clients ni entre nous."], ["Apprendre vite", "Essayer, mesurer, corriger. Le produit évolue chaque semaine."]];
 const METIERS = [["Produit et design", "Imaginer des écrans simples pour des usages exigeants."], ["Ingénierie", "Web, données, IA, paiement et fiabilité."], ["Accompagnement", "Aider les marchands à réussir leurs premières ventes."], ["Croissance", "Faire connaître AXSO, marché après marché."], ["Partenariats", "Livraison, paiement et fournisseurs locaux."], ["Contenu", "Guides, formations et vidéos pour les entrepreneurs."]];

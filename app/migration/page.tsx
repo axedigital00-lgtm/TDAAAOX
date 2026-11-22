@@ -1,9 +1,10 @@
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { AppelFinal, Faq, HeroPage, PageAxm } from "@/components/marketing/site/Blocs";
 import { Etapes, Recits } from "@/components/marketing/motion/Sections";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Passer à AXSO", description: "La méthode complète pour transférer votre catalogue, votre vitrine et votre adresse vers AXSO sans interrompre vos ventes." };
+export const metadata: Metadata = seoPage("/migration");
 
 export default async function Migration() {
   const t = await getT();

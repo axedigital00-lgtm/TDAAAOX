@@ -1,4 +1,5 @@
 // Annuaire public des transporteurs : données de performance réelles, aucun document ni contact personnel.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
@@ -7,7 +8,7 @@ import { annuaire } from "@/lib/logistique/vues";
 import { getT } from "@/lib/i18n/serveur";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Transporteurs · AXSO", description: "Sociétés de livraison et livreurs du réseau AXSO : vérification, zones couvertes et performance." };
+export const metadata: Metadata = seoPage("/transporteurs");
 
 export default async function TransporteursPage({ searchParams }: { searchParams: Promise<{ ville?: string }> }) {
   const t = await getT();

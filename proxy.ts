@@ -24,6 +24,12 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get("host") || request.nextUrl.host;
 
+  // Une seule version pour les visiteurs et Google : HTTPS, et jamais l'adresse technique workers.dev.
+  if (process.env.AXSO_RUNTIME === "workers" && (request.method === "GET" || request.method === "HEAD") && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/")) {
+    if (hostname.endsWith(".workers.dev")) return NextResponse.redirect(`https://www.${DOMAINE_APP}${pathname}${request.nextUrl.search}`, 308);
+    if (new URL(request.url).protocol === "http:" && (hostname === DOMAINE_APP || hostname.endsWith(`.${DOMAINE_APP}`))) return NextResponse.redirect(`https://${hostname}${pathname}${request.nextUrl.search}`, 308);
+  }
+
   // API : jamais préfixées du slug (appelées en /api/... depuis une vitrine sur
   // sous-domaine ou domaine custom). Un membre d'équipe connecté n'atteint que
   // les modules que sa grille lui ouvre (lib/permissions-api.ts).

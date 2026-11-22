@@ -33,6 +33,10 @@ export function TourDeControle() {
     setD(x);
     if (x.politique?.config) setPol((p) => ({ ...p, ...x.politique.config }));
   }, [t]);
+  useEffect(() => {
+    const demande = new URLSearchParams(location.search).get("onglet");
+    if (ONGLETS.some(([id]) => id === demande)) setOnglet(demande as (typeof ONGLETS)[number][0]);
+  }, []);
   useEffect(() => { charger(); const i = setInterval(() => { if (!document.hidden) charger(); }, 30_000); return () => clearInterval(i); }, [charger]);
   const agir = async (b: object, ok = "Action enregistrée") => { try { const r = await post(b); toast.success(t(ok)); charger(); return r; } catch (e: any) { toast.error(t(e.message)); } };
   if (!d) return <Carte><p className="cc-faint text-[13px]">{t("Chargement…")}</p></Carte>;
@@ -49,7 +53,7 @@ export function TourDeControle() {
       <Carte titre={t("Que recommande AXSO ?")}><p className="text-[13px]">{d.alertesProposees[0] ? d.alertesProposees[0].action : t("Aucune recommandation pour le moment.")}</p></Carte>
       <Carte titre={t("Qu'est-ce qui a été exécuté ?")}><p className="text-[13px]">{d.journal[0] ? `${d.journal[0].action} · ${new Date(d.journal[0].createdAt).toLocaleTimeString(t.loc, { hour: "2-digit", minute: "2-digit" })}` : t("Aucune action récente.")}</p></Carte>
     </div>
-    <div className="flex gap-1 overflow-x-auto" role="tablist">{ONGLETS.map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={onglet === id} className={`cc-btn cc-btn-sm ${onglet === id ? "cc-btn-primary" : ""}`} onClick={() => setOnglet(id)}>{t(l)}</button>)}</div>
+    <div className="flex gap-1 overflow-x-auto" role="tablist">{ONGLETS.map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={onglet === id} className={`cc-btn cc-btn-sm ${onglet === id ? "cc-btn-primary" : ""}`} onClick={() => setOnglet(id)}>{t(l)}{id === "verification" && d.documents.length > 0 ? ` (${d.documents.length})` : ""}</button>)}</div>
 
     {onglet === "jumeau" && <JumeauNumerique />}
 

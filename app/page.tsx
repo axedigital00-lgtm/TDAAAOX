@@ -1,9 +1,11 @@
+import { donneesStructurees, seoPage } from "@/lib/seo";
 import { NavbarMarketing } from "@/components/marketing/NavbarMarketing";
 import { FooterMarketing } from "@/components/marketing/FooterMarketing";
 import { HomeAxso } from "@/components/marketing/home/HomeAxso";
 
 // Régénérée chaque minute : une date de fin de promo changée par l'admin s'affiche vite, la page reste rapide.
 export const revalidate = 60;
+export const metadata = seoPage("/");
 
 export default function HomePage() {
   return (
@@ -12,13 +14,7 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Organization",
-            name: "Axso",
-            url: "https://axsoafrica.com",
-            logo: "https://axsoafrica.com/icon.png",
-          }),
+          __html: JSON.stringify(donneesStructurees),
         }}
       />
       {/* overflow-x-clip, pas -hidden : « hidden » fait de <main> une seconde zone de défilement

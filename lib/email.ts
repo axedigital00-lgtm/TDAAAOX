@@ -383,6 +383,33 @@ export async function envoyerAlerteRetrait(p: {
   });
 }
 
+// Candidature d'un transporteur : tout ce qu'il faut pour la traiter, avec un bouton vers la validation.
+export async function envoyerAlerteTransporteur(p: {
+  a: string; etape: "inscription" | "dossier"; nom: string; type: string; email: string | null; telephone: string | null; zones: string | null; detail: string | null; lien: string;
+}): Promise<boolean> {
+  const resend = getResendClient();
+  if (!resend) return false;
+  const e = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const ligne = (k: string, v: string | null) => (v ? `<tr><td style="padding:6px 10px;color:#666;white-space:nowrap;vertical-align:top">${k}</td><td style="padding:6px 10px">${e(v)}</td></tr>` : "");
+  const dossier = p.etape === "dossier";
+  return envoyer(resend, {
+    from: "Axso <noreply@axsoafrica.com>",
+    to: p.a,
+    ...(p.email ? { replyTo: p.email } : {}),
+    subject: `${dossier ? "Dossier à valider" : "Nouvelle candidature"} : ${p.nom.replace(/[\r\n]/g, " ").slice(0, 80)}`,
+    html: `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;color:#111">
+        <h2 style="margin:0 0 8px">${dossier ? "Un dossier transporteur attend ta validation" : "Un transporteur vient de s'inscrire"}</h2>
+        <p style="color:#555;margin:0 0 16px">${dossier ? "Tous les documents obligatoires ont été envoyés." : "Son compte est créé. Il doit maintenant compléter son profil et envoyer ses documents."}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;background:#f6f6f4;border-radius:10px">
+          ${ligne("Nom", p.nom)}${ligne("Type", p.type)}${ligne("Téléphone", p.telephone)}${ligne("E-mail", p.email)}${ligne("Zones", p.zones)}${ligne(dossier ? "Documents" : "Véhicule", p.detail)}
+        </table>
+        <p style="text-align:center;margin:24px 0"><a href="${e(p.lien)}" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;border-radius:10px;text-decoration:none;font-weight:bold">${dossier ? "Vérifier le dossier" : "Voir la candidature"}</a></p>
+      </div>
+    `,
+  });
+}
+
 // Campagne e-mail d'une boutique : envoi par lots de 100 (API batch de Resend), lien de
 // désinscription en en-tête (bouton « Se désabonner » de Gmail). Renvoie le nombre réellement accepté.
 export async function envoyerCampagneEmail(params: {

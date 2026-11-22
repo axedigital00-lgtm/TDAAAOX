@@ -4,14 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { DOSSIERS } from "@/lib/dossiers-fonctionnalites";
 import { ARTICLES, GUIDES } from "@/lib/contenu-site";
 
-const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://axsoafrica.com";
+const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://www.axsoafrica.com";
 
 const PAGES = [
   "", "/fonctionnalites", "/themes", "/temoignages", "/affiliation", "/about", "/contact",
   ...DOSSIERS.map(d => `/fonctionnalites/${d.slug}`),
   ...ARTICLES.map(a => `/blog/${a.slug}`),
   ...GUIDES.map(g => `/docs/${g.slug}`),
-  "/tarifs", "/outils", "/transporteurs", "/entreprises", "/nouveautes", "/migration",
+  "/inscription", "/inscription/livreur", "/tarifs", "/outils", "/transporteurs", "/entreprises", "/nouveautes", "/migration",
   "/blog", "/docs", "/tutorials", "/community", "/press", "/jobs",
   "/legal/cgu", "/legal/privacy", "/legal/cookies", "/legal/abonnements", "/legal/politique-prix",
 ];

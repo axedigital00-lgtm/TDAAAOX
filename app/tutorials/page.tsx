@@ -1,4 +1,5 @@
 // Apprendre AXSO : parcours pas à pas (guides écrits) et film de présentation.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FilmBoutique } from "@/components/marketing/VideoSection";
@@ -6,7 +7,7 @@ import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/s
 import { GUIDES } from "@/lib/contenu-site";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Tutoriels", description: "Des parcours pas à pas pour apprendre AXSO, du premier produit à l'automatisation." };
+export const metadata: Metadata = seoPage("/tutorials");
 
 const PARCOURS: { niveau: string; titre: string; texte: string; guides: string[] }[] = [
   { niveau: "Débutant", titre: "Ouvrir sa boutique aujourd'hui", texte: "Du compte à la première commande.", guides: ["creer-sa-boutique", "ajouter-ses-produits", "paiement-livraison", "zones-livraison", "configurer-whatsapp"] },

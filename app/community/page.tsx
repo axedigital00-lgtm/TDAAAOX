@@ -1,10 +1,11 @@
 // Communauté : entraide entre marchands. L'espace dédié n'est pas encore ouvert.
+import { seoPage } from "@/lib/seo";
 import type { Metadata } from "next";
 import { AppelFinal, CartesLiens, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
 import { Recits } from "@/components/marketing/motion/Sections";
 import { getT } from "@/lib/i18n/serveur";
 
-export const metadata: Metadata = { title: "Communauté", description: "Les ressources et l'entraide pour les entrepreneurs africains qui vendent avec AXSO." };
+export const metadata: Metadata = seoPage("/community");
 
 export default async function CommunityPage() {
   const t = await getT();
