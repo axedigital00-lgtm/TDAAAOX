@@ -19,6 +19,7 @@ import { passeRappelsEssai } from "@/lib/essai";
 import { passeRappelsAbonnement } from "@/lib/abonnement-paiement";
 import { passeRappelsSeances } from "@/lib/numerique/service";
 import { passeAdhesions } from "@/lib/numerique/abonnement";
+import { passeLancements } from "@/lib/commerce/lancements";
 
 export const maxDuration = 60;
 
@@ -34,6 +35,7 @@ const taches = {
   rappelsAbonnement: () => passeRappelsAbonnement(),
   rappelsSeances: () => passeRappelsSeances(),
   adhesions: () => passeAdhesions(),
+  lancements: () => passeLancements(),
 };
 type Tache = keyof typeof taches;
 

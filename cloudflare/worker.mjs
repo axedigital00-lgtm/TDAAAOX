@@ -8,9 +8,10 @@ export default {
   },
   async scheduled(event, env) {
     if (env.AXSO_CRONS_ENABLED !== "1") return;
-    const job = schedules.crons.find(job => job.schedule === event.cron);
+    // Lancements planifiés : le seul passage fréquent (l'heure annoncée au marchand doit être tenue).
+    const job = event.cron === "*/5 * * * *" ? { path: "/api/cron/automatisations", seul: "lancements" } : schedules.crons.find(job => job.schedule === event.cron);
     if (!job || !env.CRON_SECRET) throw new Error("Configuration cron AXSO incomplète");
-    const taches = job.path === "/api/cron/automatisations"
+    const taches = job.seul ? [job.seul] : job.path === "/api/cron/automatisations"
       ? ["automatisations", "relances", "livraisons", "imports", "rappelsLive", "studio", "sousDomaines", "rappelsEssai", "rappelsAbonnement", "rappelsSeances", "adhesions"]
       : [null];
     const echecs = [];

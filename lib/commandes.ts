@@ -21,7 +21,7 @@ export const paiementEnLigneNonRecu = (c: { methodePaiement: string; paiementSta
 
 /** À la livraison, seule une commande encaissée hors ligne (COD…) devient payée. */
 export const payeeALaLivraison = (c: { methodePaiement: string; paiementStatut: string }) =>
-  c.paiementStatut !== PAIEMENT.PAYE && !METHODES_EN_LIGNE.includes(c.methodePaiement);
+  c.paiementStatut !== PAIEMENT.PAYE && !METHODES_EN_LIGNE.includes(c.methodePaiement) && c.methodePaiement !== "facture_terme"; // à terme : encaissée plus tard (lib/commerce/devis.ts)
 
 // Valeurs de Commande.canal : d'où vient la vente. Une vente en caisse est une
 // Commande comme les autres (stock, retours, factures, analytics) sur le canal

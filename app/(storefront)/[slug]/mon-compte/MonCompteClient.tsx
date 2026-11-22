@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { RAISONS_RETOUR } from "@/lib/commerce/regles";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Package, Download, LogOut, User, Eye, GraduationCap, Award } from "lucide-react";
@@ -32,11 +33,49 @@ interface Commande {
   facture: { numero: string; statut: string } | null;
   accesDigital: boolean; // achat digital payé : page d'accès aux fichiers / formation / clés
   cleAcces?: string | null; // clé signée de la page d'accès
+  retourPossible?: boolean;
+  retours?: { id: string; statut: string; type: string }[];
 }
 
 interface MaFormation {
   produitId: string; nom: string; image: string | null; token: string;
   pct: number; total: number; terminees: number; demarree: boolean; certificat: string | null;
+}
+
+const STATUT_RETOUR: Record<string, string> = { ouvert: "Retour demandé", en_cours: "Retour en cours", accepte: "Retour accepté", rejete: "Retour refusé", clos: "Retour clos" };
+
+// Demande de retour : le marchand décide ensuite (rien n'est remboursé automatiquement).
+function FormulaireRetour({ commandeId, slug, onFait }: { commandeId: string; slug: string; onFait: () => void }) {
+  const t = useT();
+  const [ouvert, setOuvert] = useState(false);
+  const [raison, setRaison] = useState<keyof typeof RAISONS_RETOUR>("defaut");
+  const [type, setType] = useState<"remboursement" | "echange">("remboursement");
+  const [description, setDescription] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+  if (!ouvert) return <button type="button" onClick={() => setOuvert(true)} className="inline-flex min-h-10 items-center rounded-lg border border-gray-300 bg-white px-3 text-[12px] font-semibold text-[#111]">{t("Demander un retour")}</button>;
+  async function envoyer() {
+    setEnvoi(true); setErreur("");
+    const token = localStorage.getItem(`axso_buyer_token_${slug}`) ?? "";
+    const r = await fetch("/api/clients-acheteurs/retours", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, slug, commandeId, raison, type, description: description.trim() || null }) });
+    const d = await r.json().catch(() => ({}));
+    setEnvoi(false);
+    if (!r.ok) return setErreur(t(d.error ?? "Envoi impossible"));
+    setOuvert(false); onFait();
+  }
+  const cls = "w-full min-h-11 rounded-lg border border-gray-300 bg-white px-3 text-[14px] text-[#111]";
+  return (
+    <div className="mt-3 w-full space-y-2 rounded-lg bg-[#F7F7F7] p-3">
+      <select aria-label={t("Motif du retour")} className={cls} value={raison} onChange={(e) => setRaison(e.target.value as keyof typeof RAISONS_RETOUR)}>{Object.entries(RAISONS_RETOUR).map(([k, l]) => <option key={k} value={k}>{t(l)}</option>)}</select>
+      <select aria-label={t("Solution souhaitée")} className={cls} value={type} onChange={(e) => setType(e.target.value as "remboursement" | "echange")}><option value="remboursement">{t("Remboursement")}</option><option value="echange">{t("Échange")}</option></select>
+      <textarea aria-label={t("Précisions")} placeholder={t("Précisions (facultatif)")} maxLength={1000} rows={2} className={`${cls} py-2`} value={description} onChange={(e) => setDescription(e.target.value)} />
+      {erreur && <p role="alert" className="text-[12px] text-red-700">{erreur}</p>}
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={() => setOuvert(false)} className="min-h-10 rounded-lg px-3 text-[12px] font-semibold text-[#444]">{t("Annuler")}</button>
+        <button type="button" onClick={envoyer} disabled={envoi} className="min-h-10 rounded-lg bg-[#111] px-3 text-[12px] font-semibold text-white disabled:opacity-50">{envoi ? t("Envoi…") : t("Envoyer la demande")}</button>
+      </div>
+    </div>
+  );
 }
 
 const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
@@ -297,7 +336,9 @@ export function MonCompteClient({ habille = false, lien }: { habille?: boolean; 
                   )}
 
                   {/* Footer */}
-                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#F0F0F0]">
+                  <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-[#F0F0F0]">
+                    {c.retours?.[0] && <span className="text-[11px] font-semibold text-[#555]">{t(STATUT_RETOUR[c.retours[0].statut] ?? c.retours[0].statut)}</span>}
+                    {c.retourPossible && <FormulaireRetour commandeId={c.id} slug={slug} onFait={() => { const j = localStorage.getItem(`axso_buyer_token_${slug}`); if (j) loadData(j); }} />}
                     {c.facture && (
                       <span className="text-[11px] text-[#888]">{t("Facture")}{" "}{c.facture.numero}</span>
                     )}

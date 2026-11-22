@@ -8,5 +8,5 @@
   "vars": { "AXSO_RUNTIME": "workers", "AUTH_TRUST_HOST": "true" },
   "assets": { "binding": "ASSETS" },
   "services": [{ "binding": "SELF", "service": "axso-free" }],
-  "triggers": { "crons": ["0 4 * * *", "30 4 * * *", "0 6 * * *", "0 7 * * *"] }
+  "triggers": { "crons": ["0 4 * * *", "30 4 * * *", "0 6 * * *", "0 7 * * *", "*/5 * * * *"] }
 }

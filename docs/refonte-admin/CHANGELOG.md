@@ -111,4 +111,13 @@
 - Outils gratuits : `/outils` (prix de vente, seuil de rentabilité, noms de boutique).
 - Migration additive `20261121100000_gros_et_marches`.
 
-**Reste à construire** : commandes brouillons et devis, comptes entreprises (conditions de paiement, n° de bon de commande), lancements planifiés avec retour arrière, retours en libre-service, éditeur d'automatisations déclencheur / condition / action.
+- Brouillons et devis : `/dashboard/commandes/devis`, lien client `/[slug]/devis/[token]`, conversion atomique en commande.
+- Entreprises : `/dashboard/clients/entreprises`, paiement à terme, remise, plafond, n° de bon de commande, portail de commande rapide `/[slug]/pro/[token]`.
+- Retours en libre-service depuis « Mon compte » (14 jours), décision du marchand.
+- Workflows : `/dashboard/automation/workflows` (quand, si, alors).
+- Lancements : `/dashboard/boutique/lancements`, publication programmée et retour automatique ; passage toutes les 5 minutes sur Cloudflare.
+- Migration additive `20261122100000_b2b_workflows_lancements`.
+
+**Vérifié** : 328 tests, typecheck, 37 contrôles de parcours réels en navigateur.
+
+**Limite** : le lien du devis enregistre l'accord du client ; le paiement en ligne n'est pas actif dans AXSO.

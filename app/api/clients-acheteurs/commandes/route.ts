@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { TYPES_LIVRAISON_DIGITALE } from "@/lib/affiliation";
 import { cleAccesCommande } from "@/lib/livraison-numerique";
 import { mesFormations } from "@/lib/formation/parcours";
+import { refusRetour } from "@/lib/commerce/regles";
 
 // GET /api/clients-acheteurs/commandes?token=xxx&slug=xxx
 export async function GET(req: Request) {
@@ -44,6 +45,7 @@ export async function GET(req: Request) {
         },
       },
       facture: { select: { numero: true, statut: true } },
+      retours: { select: { id: true, statut: true, type: true, createdAt: true }, orderBy: { createdAt: "desc" } },
     },
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -62,7 +64,7 @@ export async function GET(req: Request) {
     commandes: commandes.map((c) => {
       const accesDigital = c.paiementStatut === "completed" && c.statut !== "annulee" && c.lignes.some((l) => TYPES_LIVRAISON_DIGITALE.has(l.produit.type));
       // Clé signée de la page d'accès : l'acheteur a prouvé son e-mail (code) ou détient le lien de suivi.
-      return { ...c, accesDigital, cleAcces: accesDigital ? cleAccesCommande(c.id) : null };
+      return { ...c, accesDigital, cleAcces: accesDigital ? cleAccesCommande(c.id) : null, retourPossible: refusRetour(c, new Date()) === null };
     }),
   });
 }

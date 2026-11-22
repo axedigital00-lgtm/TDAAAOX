@@ -51,3 +51,7 @@ next-env.d.ts
 # Analyse locale (images de la vidéo de référence, journaux de dev) et cache vinext
 /.analysis/
 /.vinext/
+
+# Variables locales (jamais versionnées)
+/env
+/env.*

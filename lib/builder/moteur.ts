@@ -3,6 +3,7 @@
 // transaction logique. Publier = copier le brouillon en ligne et créer une version ;
 // restaurer = revenir à une version. Seul point d'écriture des configurations du Builder.
 import { createHash } from "crypto";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ThemeConfig } from "@/lib/theme-config";
 import { comparer, resumer, type Changement } from "./diff";
@@ -135,6 +136,32 @@ export async function publierBrouillon(tenantId: string, raison: string, auteur:
   });
   await purger(tenantId);
   return { version, changements, resume: resumer(changements), statutBoutique: b.statutBoutique };
+}
+
+/**
+ * Met une config en ligne sans toucher au brouillon (lancements planifiés). L'état d'avant reste une
+ * version ; `apres` s'exécute dans la transaction et peut l'annuler. Empreinte relue en base (JSONB réordonne les clés).
+ */
+export async function mettreEnLigne(
+  tenantId: string, config: Record<string, any>, raison: string, auteur: Auteur,
+  apres?: (tx: Prisma.TransactionClient, r: { versionAvant: number; empreinte: string }) => Promise<void>,
+) {
+  const r = await prisma.$transaction(async (tx) => {
+    const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { themeConfig: true } });
+    const derniere = await tx.versionBoutique.findFirst({ where: { tenantId }, orderBy: { numero: "desc" }, select: { numero: true, config: true } });
+    let versionAvant = derniere?.numero ?? 0;
+    if (!derniere || empreinte(derniere.config) !== empreinte(t.themeConfig)) {
+      versionAvant = await prochainNumero(tenantId, tx as any);
+      await tx.versionBoutique.create({ data: { tenantId, numero: versionAvant, type: "instantane", config: (t.themeConfig ?? {}) as any, raison: `État en ligne avant : ${raison}`.slice(0, 500), ...metaVersion(auteur) } });
+    }
+    await tx.versionBoutique.create({ data: { tenantId, numero: await prochainNumero(tenantId, tx as any), type: "publication", config: config as any, raison: raison.slice(0, 500), changements: comparer((t.themeConfig ?? {}) as Record<string, any>, config) as any, ...metaVersion(auteur) } });
+    const lu = await tx.tenant.update({ where: { id: tenantId }, data: { themeConfig: config as any }, select: { themeConfig: true } });
+    const res = { versionAvant, empreinte: empreinte(lu.themeConfig) };
+    await apres?.(tx, res);
+    return res;
+  });
+  await purger(tenantId);
+  return r;
 }
 
 /** Remet une version : dans le brouillon (à vérifier puis publier) ou directement en ligne. */

@@ -12,6 +12,9 @@ import type { Palier } from "./plans";
 const MODULES_API: [string, ModuleKey | null][] = [
   // publiques, appelées par la vitrine
   ["/api/commandes/digital-creer", null],
+  ["/api/devis/public", null], // jeton du lien client
+  ["/api/pro", null], // jeton du portail entreprise
+  ["/api/clients-acheteurs/retours", null], // session acheteur, vérifiée dans la route
   ["/api/commandes/whatsapp-creer", null],
   ["/api/commandes/whatsapp-redirect", null],
   ["/api/livraison/calculer", null],
@@ -55,6 +58,8 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/pos", "pos"],
   // commandes et livraison
   ["/api/commandes", "commandes"],
+  ["/api/devis", "commandes"],
+  ["/api/entreprises", "clients"],
   ["/api/retours", "commandes"],
   ["/api/livraison-digitale", "commandes"],
   ["/api/livraison", "commandes"],
@@ -89,6 +94,7 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/email", "marketing"],
   ["/api/posts", "marketing"],
   ["/api/automation", "marketing"],
+  ["/api/workflows", "marketing"],
   ["/api/veille", "marketing"],
   ["/api/medias", "marketing"],
   // IA du tableau de bord (les agents autonomes exigent en plus un accès complet, refusAgentIA)
@@ -111,6 +117,7 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/tenants/moi", "parametres"],
   ["/api/tenants", null], // PATCH : boutique (design, publication) ou paramètres selon les champs, contrôlé dans la route
   ["/api/domaine", "parametres"],
+  ["/api/lancements", "boutique"],
   ["/api/tenant/marches", "parametres"],
   ["/api/connecteurs", "parametres"],
   ["/api/themes", "boutique"],

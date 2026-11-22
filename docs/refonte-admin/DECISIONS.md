@@ -61,3 +61,7 @@
 | Vente en gros | Paliers et règles de quantité par produit physique, recalculés côté serveur au checkout | Le navigateur n'est jamais source du prix. |
 | Marchés | Se greffent sur la conversion visiteur existante (devise, taux, arrondi) ; encaissement en devise boutique | Un seul système d'affichage des prix. |
 | Ajustement de prix par marché | Non proposé à l'écran | Il changerait le prix vu sans changer le montant encaissé ; à ouvrir seulement avec une tarification par marché appliquée à la commande. |
+| Paiement à terme | Méthode `facture_terme` : la livraison ne marque pas la commande payée, le marchand l'encaisse | Sinon le CA compterait des factures non réglées. |
+| Commande rapide entreprise | Crée une demande à valider, pas une commande directe | Le marchand garde la main sur le stock et le crédit. |
+| Retour en libre-service | Ouvre une demande, sans remboursement automatique | L'argent ne bouge qu'après décision du marchand. |
+| Fin d'un lancement | Pas de retour si la boutique a été retouchée entre-temps ; le marchand est prévenu | Ne jamais écraser son travail. |

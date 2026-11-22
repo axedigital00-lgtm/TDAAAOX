@@ -385,6 +385,11 @@ model Commande {
   montantPaye       Float           @default(0) // réellement encaissé, hors crédit client (une vente à crédit compte dans le CA dès la vente)
   creeLocalAt       DateTime? // horodatage de l'appareil (vente saisie hors ligne)
   commandeOrigineId String? // échange / retour : vente d'origine
+  // Vente aux entreprises (lib/commerce)
+  bonCommande        String? // n° de bon de commande de l'acheteur
+  conditionsPaiement String? // comptant | net15 | net30 | net60
+  echeancePaiement   DateTime?
+  compteEntrepriseId String?
   paiements         PaiementVente[]
 
   @@index([tenantId, createdAt])
@@ -4192,4 +4197,95 @@ model EtapeParcours {
   formation Produit         @relation("FormationDuParcours", fields: [formationProduitId], references: [id])
 
   @@unique([parcoursId, formationProduitId])
+}
+
+// Commande brouillon / devis : prix figés, lien client (token), transformé en Commande à l'acceptation.
+model Devis {
+  id              String    @id @default(cuid())
+  tenantId        String
+  numero          String    @unique
+  token           String    @unique
+  statut          String    @default("brouillon") // brouillon | envoye | soumis | accepte | refuse | annule
+  entrepriseId    String?
+  clientNom       String
+  clientEmail     String?
+  clientTelephone String
+  adresse         String?
+  ville           String?
+  pays            String?
+  lignes          Json // [{ produitId, nom, variante, prix, quantite, imageUrl }]
+  remise          Float     @default(0)
+  livraison       Float     @default(0)
+  total           Float
+  devise          String    @default("XAF")
+  conditions      String    @default("comptant")
+  bonCommande     String?
+  note            String?
+  expireAt        DateTime?
+  commandeId      String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([tenantId, statut, createdAt])
+  @@index([entrepriseId])
+}
+
+model CompteEntreprise {
+  id                String   @id @default(cuid())
+  tenantId          String
+  nom               String
+  contactNom        String?
+  email             String?
+  telephone         String
+  adresse           String?
+  ville             String?
+  pays              String?
+  identifiantFiscal String?
+  conditions        String   @default("comptant")
+  remisePct         Float    @default(0)
+  plafond           Float?
+  actif             Boolean  @default(true)
+  token             String   @unique // lien privé du portail de commande rapide
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId, actif])
+}
+
+// Éditeur du marchand : QUAND + SI + ALORS. Distinct d'AutomatisationIA (créée par une IA, étapes = outils).
+model WorkflowBoutique {
+  id                String    @id @default(cuid())
+  tenantId          String
+  nom               String
+  actif             Boolean   @default(true)
+  declencheur       String
+  conditions        Json      @default("[]")
+  actions           Json      @default("[]")
+  executions        Int       @default(0)
+  derniereExecution DateTime?
+  dernierResultat   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([tenantId, declencheur, actif])
+}
+
+// Publication programmée d'une version figée de la boutique, avec retour automatique à la fin.
+model LancementBoutique {
+  id           String    @id @default(cuid())
+  tenantId     String
+  nom          String
+  statut       String    @default("planifie") // planifie | en_ligne | termine | annule | conflit | echec
+  config       Json
+  debut        DateTime
+  fin          DateTime?
+  versionAvant Int?
+  empreinte    String? // empreinte de la config mise en ligne : un retour n'écrase jamais des retouches faites depuis
+  erreur       String?
+  auteur       String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([statut, debut])
 }

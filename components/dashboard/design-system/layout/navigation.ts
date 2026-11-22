@@ -40,6 +40,7 @@ export const NAV: NavSection[] = [
   {
     id: "orders", icon: "orders", label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes", count: "commandes",
     sub: [
+      { label: "Brouillons et devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
       { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours"] },
       { label: "Factures", href: "/dashboard/factures", moduleKey: "finance" },
       { label: "Livraisons", href: "/dashboard/logistique", moduleKey: "commandes" },
@@ -59,7 +60,10 @@ export const NAV: NavSection[] = [
   },
   {
     id: "customers", icon: "user", label: "Clients", href: "/dashboard/clients", moduleKey: "clients",
-    sub: [{ label: "Avis clients", href: "/dashboard/avis", moduleKey: "clients" }],
+    sub: [
+      { label: "Entreprises", href: "/dashboard/clients/entreprises", moduleKey: "clients" },
+      { label: "Avis clients", href: "/dashboard/avis", moduleKey: "clients" },
+    ],
   },
   {
     id: "growth", icon: "gauge", label: "Croissance", href: "/dashboard/marketing", moduleKey: "marketing", requiresPalier: PRO, messageVerrou: MSG_PRO,
@@ -104,6 +108,8 @@ export const APPS: NavSection[] = [
       { label: "Journal des décisions", href: "/dashboard/axia/journal" },
       { label: "Agents", href: "/dashboard/agents" },
       { label: "Automatisations", href: "/dashboard/automation" },
+      { label: "Workflows", href: "/dashboard/automation/workflows", moduleKey: "marketing" },
+      { label: "Lancements", href: "/dashboard/boutique/lancements", moduleKey: "boutique" },
       { label: "Chatbot", href: "/dashboard/chatbot" },
     ],
   },

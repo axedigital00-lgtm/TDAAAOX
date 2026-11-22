@@ -4,6 +4,7 @@ import { lienBoutique } from "@/lib/origine-site";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { erreurQuantite, lireVenteGros, prixPourQuantite } from "@/lib/commerce/gros";
+import { publier } from "@/lib/controle-ia/evenements";
 import { genererNumeroCommande, formatMontant } from "@/lib/utils";
 import { notifierMarchand } from "@/lib/notifications-marchand";
 import { envoyerConfirmationCommande, envoyerAlerteNouvelleCommande, emailReel } from "@/lib/email";
@@ -154,6 +155,8 @@ export async function POST(req: NextRequest) {
       }
       return c;
     });
+
+    publier(tenantId, "order.created", { commandeId: commande.id, numero: commande.numero, montant: commande.montantTotal, devise: commande.devise, methode: commande.methodePaiement });
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://axsoafrica.com";
     const factureUrl  = await lienBoutique(tenant.slug, `/facture/${trackingToken}`);

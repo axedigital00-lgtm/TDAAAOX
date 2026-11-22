@@ -48,6 +48,8 @@ async function diffuser(tenantId: string, type: TypeEvenement, donnees: Record<s
   const r = await Promise.allSettled([
     import("./automatisations").then((m) => m.declencherParEvenement(tenantId, type, donnees, provoquePar)),
     livrerAuxWebhooks(tenantId, { id: evt.id, type, createdAt: evt.createdAt, donnees }),
+    // Workflows du marchand (lib/commerce/workflows.ts) : pas sur un événement provoqué par une automatisation.
+    provoquePar ? Promise.resolve() : import("@/lib/commerce/workflows").then((m) => m.declencherWorkflows(tenantId, type, donnees)),
   ]);
   for (const x of r) if (x.status === "rejected") console.warn("[evenements]", type, String(x.reason?.message).slice(0, 200));
 }
