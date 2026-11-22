@@ -1,15 +1,16 @@
 // Tutoriels vidéo : sujets prévus (vidéos en cours de tournage).
 import type { Metadata } from "next";
+import { FilmBoutique } from "@/components/marketing/VideoSection";
+import "@/components/marketing/home/editorial.css";
 import { getT } from "@/lib/i18n/serveur";
 import { PageAxm, HeroPage, Section, GrilleAVenir, AppelFinal } from "@/components/marketing/site/Blocs";
 
 export const metadata: Metadata = {
   title: "Tutoriels vidéo",
-  description: "Tutoriels vidéo AXSO pas à pas (en préparation).",
+  description: "Regardez la présentation AXSO et découvrez les prochains tutoriels.",
 };
 
 const TUTOS = [
-  { niveau: "Débutant", titre: "Créer sa boutique en 3 minutes" },
   { niveau: "Débutant", titre: "Encaisser à la livraison et par Mobile Money" },
   { niveau: "Débutant", titre: "Ajouter et gérer ses produits" },
   { niveau: "Intermédiaire", titre: "Stella : bien démarrer avec l’assistante" },
@@ -24,8 +25,9 @@ export default async function TutorialsPage() {
   return (
     <PageAxm>
       <HeroPage surtitre={t("Tutoriels vidéo")} titre={t("Apprenez à votre rythme")}
-        lead={t("Nos tutoriels vidéo sont en cours de tournage. Voici les sujets prévus.")} />
-      <Section serre><GrilleAVenir image etiquette={t("Bientôt")} items={TUTOS.map((v) => ({ tag: t(v.niveau), titre: t(v.titre) }))} /></Section>
+        lead={t("Découvrez la création d’une boutique en trois minutes.")} />
+      <Section serre><FilmBoutique /></Section>
+      <Section serre titre={t("Prochains tutoriels")}><GrilleAVenir image etiquette={t("Bientôt")} items={TUTOS.map((v) => ({ tag: t(v.niveau), titre: t(v.titre) }))} /></Section>
       <AppelFinal titre={t("Besoin d’aide pour démarrer ?")} principal={{ label: t("Nous contacter"), href: "/contact" }} secondaire={{ label: t("Lire la documentation"), href: "/docs" }} />
     </PageAxm>
   );

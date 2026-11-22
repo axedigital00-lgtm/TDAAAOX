@@ -111,6 +111,7 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/tenants/moi", "parametres"],
   ["/api/tenants", null], // PATCH : boutique (design, publication) ou paramètres selon les champs, contrôlé dans la route
   ["/api/domaine", "parametres"],
+  ["/api/tenant/marches", "parametres"],
   ["/api/connecteurs", "parametres"],
   ["/api/themes", "boutique"],
   ["/api/preview-theme", "boutique"],

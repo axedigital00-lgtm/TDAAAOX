@@ -27,6 +27,7 @@ import { DeviseVitrineProvider, PastillePaysDesign } from "@/components/storefro
 import { deviseVisiteur, paysVisiteur } from "@/lib/devise-visiteur";
 import { tauxDuJour } from "@/lib/taux-change";
 import { ratioConversion } from "@/lib/devise-convert";
+import { affichageVisiteur, lireMarches } from "@/lib/commerce/marches";
 import { I18nProvider } from "@/components/I18nProvider";
 import { getLangue, dico } from "@/lib/i18n/serveur";
 
@@ -49,6 +50,7 @@ async function ContenuVitrine({ children, params }: Props) {
   const tenant = await prisma.tenant.findUnique({
     where: { slug },
     select: {
+      marches: true,
       id: true, nomBoutique: true, themeId: true, themeConfig: true, statut: true, devise: true,
       metaPixelId: true, tiktokPixelId: true, snapPixelId: true, gtmId: true, trackingScripts: true,
     },
@@ -83,9 +85,10 @@ async function ContenuVitrine({ children, params }: Props) {
   const navigation = ((cfg as any).navigation ?? (tenant.themeConfig as any)?.navigation ?? {}) as { principal?: { libelle: string; lien: string }[]; pied?: { titre: string; liens: { libelle: string; lien: string }[] }[] };
   const piedMenu = cfg.builderTree?.some((n) => zoneDe(n) === "footer") ? [] : (navigation.pied ?? []);
 
-  const deviseAffichee = await deviseVisiteur(tenant.devise);
+  const [deviseParDefaut, pays, taux] = await Promise.all([deviseVisiteur(tenant.devise), paysVisiteur(), tauxDuJour()]);
+  const affichage = affichageVisiteur({ marches: lireMarches(tenant.marches), pays, deviseBoutique: tenant.devise, deviseParDefaut, ratioVers: (d) => ratioConversion(tenant.devise, d, taux) });
   return (
-    <DeviseVitrineProvider devise={deviseAffichee} pays={await paysVisiteur()} deviseBoutique={tenant.devise} ratio={ratioConversion(tenant.devise, deviseAffichee, await tauxDuJour())}>
+    <DeviseVitrineProvider devise={affichage.devise} pays={pays} deviseBoutique={tenant.devise} ratio={affichage.ratio} arrondi={affichage.arrondi}>
       <StorefrontTypography fonts={cfg.fonts} />
       <StorefrontCustomCss css={cfg.customCss} />
       <ElementsPagesVitrine slug={slug} elementsPages={cfg.elementsPages} />

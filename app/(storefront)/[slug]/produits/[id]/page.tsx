@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import { pourcentageRemise } from "@/lib/utils";
 import { prixClient } from "@/lib/pricing";
+import { lireVenteGros } from "@/lib/commerce/gros";
 import { resolveConfigVitrine } from "@/lib/vitrine-design";
 import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
 import { ViewContentTracker } from "@/components/storefront/ViewContentTracker";
@@ -148,6 +149,7 @@ export default async function ProduitPage({ params }: Props) {
     marque: (produit as any).marque ?? null,
     masquerVentes: (produit as any).masquerVentes ?? false,
     texteBoutonAchat: (produit as any).texteBoutonAchat ?? null,
+    gros: produit.type === "physique" ? lireVenteGros(produit.venteGros) : null,
     // Lien à partager : sous-domaine de la boutique (https://<slug>.axsoafrica.com/produits/<id>), domaine perso s'il est actif.
     lienPartage: await lienBoutique(slug, `/produits/${produit.id}`),
     faq: Array.isArray((produit as any).faq) ? (produit as any).faq as { question: string; reponse: string }[] : [],

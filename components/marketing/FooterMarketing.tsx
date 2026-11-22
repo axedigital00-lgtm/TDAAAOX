@@ -18,7 +18,7 @@ const COLONNES: { titre: string; liens: { label: string; href: string }[] }[] = 
   ] },
   { titre: "Ressources", liens: [
     { label: "Blog", href: "/blog" }, { label: "Tutoriels vidéo", href: "/tutorials" },
-    { label: "Tarifs", href: "/tarifs" }, { label: "Suivre un colis", href: "/suivi" },
+    { label: "Tarifs", href: "/tarifs" }, { label: "Outils gratuits", href: "/outils" }, { label: "Suivre un colis", href: "/suivi" },
   ] },
   { titre: "Assistance", liens: [
     { label: "Contact", href: "/contact" }, { label: "Communauté", href: "/community" },

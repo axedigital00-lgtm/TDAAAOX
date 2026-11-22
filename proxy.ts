@@ -22,7 +22,7 @@ const DOMAINE_APP = process.env.NEXT_PUBLIC_AXSO_DOMAIN || "localhost:3000";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hostname = request.headers.get("host") || "";
+  const hostname = request.headers.get("host") || request.nextUrl.host;
 
   // API : jamais préfixées du slug (appelées en /api/... depuis une vitrine sur
   // sous-domaine ou domaine custom). Un membre d'équipe connecté n'atteint que
@@ -74,7 +74,7 @@ export async function proxy(request: NextRequest) {
   const estDomainePropre =
     hostname !== DOMAINE_APP &&
     !hostname.endsWith(`.${DOMAINE_APP}`) &&
-    !hostname.startsWith("localhost") &&
+    !hostname.startsWith("localhost") && !/^127\.0\.0\.1(:\d+)?$/.test(hostname) && !/^\[::1\](:\d+)?$/.test(hostname) &&
     !estDomaineVercel && !hostname.endsWith(".workers.dev");
 
   if (estSousDomaine || estDomainePropre) {

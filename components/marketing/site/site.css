@@ -252,3 +252,24 @@ body:has(.axm-nav) main :is([class*="hover:scale-"], [class*="hover:-translate-y
 .axm-tabs a[aria-current="page"] { background: #fff; color: #000; }
 .axm-hero__image { margin-top: clamp(40px, 6vw, 72px); aspect-ratio: 16 / 7; border-radius: var(--m-radius-lg); }
 @media (max-width: 640px) { .axm-hero__image { aspect-ratio: 4 / 3; } }
+
+.axm-editions { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+.axm-edition { display: grid; isolation: isolate; position: relative; overflow: hidden; min-height: 250px; color: white; border-radius: 12px; align-items: end; }
+.axm-edition:first-child { grid-row: span 2; }
+.axm-edition img { position: absolute; z-index: -2; width: 100%; height: 100%; object-fit: cover; }
+.axm-edition::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(transparent 20%, #05130de8); }
+.axm-edition > div { padding: clamp(18px,3vw,40px); }
+.axm-edition p { margin-top: 10px; max-width: 36ch; }
+.axm-migration-steps { margin: 0; padding: 0; list-style: none; }
+.axm-migration-steps li { display: grid; grid-template-columns: minmax(42px, .3fr) 1fr; gap: 16px; border-top: 1px solid var(--m-line); padding: 32px 0; }
+.axm-migration-steps li > span { color: var(--m-muted); font-variant-numeric: tabular-nums; }
+.axm-migration-steps p { margin: 12px 0 16px; }
+@media (max-width: 650px) { .axm-editions { grid-template-columns: 1fr; } .axm-edition:first-child { grid-row: auto; } }
+@media (prefers-reduced-motion: no-preference) {
+  .axm-edition img { transition: transform .65s ease; }
+  .axm-edition:is(:hover,:focus-visible) img { transform: scale(1.035); }
+  @supports (animation-timeline: view()) {
+    .axm-hero__image { animation: axm-hero-reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 94%; }
+    @keyframes axm-hero-reveal { from { clip-path: inset(6% 4% round 20px); } to { clip-path: inset(0 round 20px); } }
+  }
+}

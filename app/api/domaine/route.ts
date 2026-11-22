@@ -21,7 +21,7 @@ const serveurNonConfigure = () => NextResponse.json({ error: "Les domaines perso
 export async function GET(req: NextRequest) {
   const c = await contexte("lecture"); if (c.erreur) return c.erreur;
   const t = await prisma.tenant.findUnique({ where: { id: c.tenantId }, select: { customDomain: true, slug: true, statut: true, domaineActifAt: true, sousDomaineAt: true } });
-  const base = { slug: t?.slug, sousDomaineAt: t?.sousDomaineAt ?? null, publiee: t?.statut === "active", configure: domainesConfigures() };
+  const base = { slug: t?.slug, sousDomaineAt: t?.sousDomaineAt ?? null, publiee: t?.statut === "active", configure: domainesConfigures(), hebergeur: surWorkers() ? "cloudflare" : "vercel" };
   if (!t?.customDomain) return NextResponse.json({ ...base, domaine: null });
   if (!domainesConfigures()) return NextResponse.json({ ...base, domaine: t.customDomain, etat: null });
   const etat = await etatDomaine(t.customDomain, c.tenantId!, req.nextUrl.searchParams.get("verifier") === "1");
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (!domaine) return NextResponse.json({ error: "Domaine invalide. Exemple : boutique.mondomaine.com" }, { status: 400 });
   const pris = await prisma.tenant.findFirst({ where: { customDomain: domaine, NOT: { id: c.tenantId } }, select: { id: true } });
   if (pris) return NextResponse.json({ error: "Ce domaine est déjà utilisé par une autre boutique." }, { status: 409 });
-  const ajout = surWorkers() ? { ok: true } : await ajouterDomaineVercel(domaine);
+  const ajout = await ajouterDomaineVercel(domaine);
   if (!ajout.ok) return NextResponse.json({ error: ajout.erreur }, { status: 400 });
   const ancien = await prisma.tenant.findUnique({ where: { id: c.tenantId }, select: { customDomain: true, slug: true } });
   // Nouveau domaine : il ne devient principal qu'une fois vérifié actif.

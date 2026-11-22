@@ -3,6 +3,7 @@
 import { lienBoutique } from "@/lib/origine-site";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { erreurQuantite, lireVenteGros, prixPourQuantite } from "@/lib/commerce/gros";
 import { genererNumeroCommande, formatMontant } from "@/lib/utils";
 import { notifierMarchand } from "@/lib/notifications-marchand";
 import { envoyerConfirmationCommande, envoyerAlerteNouvelleCommande, emailReel } from "@/lib/email";
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     const produits = await prisma.produit.findMany({
       where: { id: { in: itemsClient.map((i: any) => String(i.produitId)) }, tenantId, actif: true },
-      select: { id: true, nom: true, type: true, prix: true, images: true, variantes: { where: { actif: true }, select: { nom: true, valeur: true, prix: true } } },
+      select: { id: true, nom: true, type: true, prix: true, images: true, venteGros: true, variantes: { where: { actif: true }, select: { nom: true, valeur: true, prix: true } } },
     });
     const items: { produitId: string; nom: string; prix: number; quantite: number; imageUrl: string | null; variante: string | null }[] = [];
     for (const item of itemsClient) {
@@ -63,10 +64,14 @@ export async function POST(req: NextRequest) {
       }
       const variante = item.variante ? p.variantes.find((v) => `${v.nom}: ${v.valeur}` === item.variante) : null;
       if (item.variante && !variante) return NextResponse.json({ error: `Variante « ${item.variante} » introuvable pour ${p.nom}` }, { status: 400 });
+      const quantite = Math.min(Math.max(Math.floor(Number(item.quantite) || 1), 1), 99999);
+      const gros = lireVenteGros(p.venteGros);
+      const refus = erreurQuantite(gros, quantite, p.nom) ?? (!gros && quantite > 999 ? `${p.nom} : maximum 999 unités` : null);
+      if (refus) return NextResponse.json({ error: refus }, { status: 400 });
       items.push({
-        // À la livraison : prix du marchand, sans commission.
-        produitId: p.id, nom: p.nom, prix: variante?.prix ?? p.prix,
-        quantite: Math.min(Math.max(Math.floor(Number(item.quantite) || 1), 1), 999),
+        // À la livraison : prix du marchand, sans commission ; prix de gros selon la quantité.
+        produitId: p.id, nom: p.nom, prix: prixPourQuantite(variante?.prix ?? p.prix, gros, quantite),
+        quantite,
         imageUrl: p.images[0] ?? null, variante: variante ? item.variante : null,
       });
     }

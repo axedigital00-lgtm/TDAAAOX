@@ -20,6 +20,7 @@ model Tenant {
   categorie             String
   pays                  String
   devise                String    @default("XAF")
+  marches               Json      @default("[]") // marchés multi-pays (lib/commerce/marches.ts)
   whatsapp              String
   whatsappNumero        String? // Numéro WhatsApp marchand pour commandes physiques ex: "+22507XXXXXXXX"
   email                 String
@@ -147,6 +148,7 @@ model Produit {
   // Stock
   stockMin                   Int? // seuil de réapprovisionnement (alerte AXIA)
   stockReserve               Int      @default(0) // stock réservé par paniers actifs
+  venteGros                  Json? // prix dégressifs + règles de quantité (lib/commerce/gros.ts)
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 

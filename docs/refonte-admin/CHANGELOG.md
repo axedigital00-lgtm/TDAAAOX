@@ -97,3 +97,18 @@
 
 **Reste** : routes client (`/api/service/[token]`, espace membre), questions-réponses par leçon, et toutes les interfaces (création service / abonnement / parcours, fiche formation, suivi prestataire, pages client).
 
+## Domaines personnalisés et contrôle fonctionnel
+
+**Fait** : sur Cloudflare Workers, AXSO enregistre et retire lui-même le domaine du marchand dans Cloudflare for SaaS si `CF_SAAS_EDIT_TOKEN` est fourni (sinon mode manuel, comme avant) ; page Domaines refaite dans le design system, message de configuration propre à l'hébergeur (Vercel ou Cloudflare). Doc `docs/cloudflare-free.md` mise à jour.
+
+**Vérifié** : contrôle automatique des 104 routes du dashboard (compte de test) : aucune erreur JavaScript, aucun appel API en échec, hors `/api/fichiers` (503 attendu sans stockage configuré en local). Ce contrôle couvre le chargement des pages, pas chaque action (créer, modifier, supprimer).
+
+## Analyse Shopify — manques intégrés
+
+**Fait**
+- Vente en gros : `lib/commerce/gros.ts`, `/dashboard/produits/[id]/gros`, grille sur la fiche produit, prix et quantités appliqués au checkout.
+- Marchés : `lib/commerce/marches.ts`, `/dashboard/parametres/marches`, devise, taux et arrondi par groupe de pays sur la vitrine et les cartes des thèmes.
+- Outils gratuits : `/outils` (prix de vente, seuil de rentabilité, noms de boutique).
+- Migration additive `20261121100000_gros_et_marches`.
+
+**Reste à construire** : commandes brouillons et devis, comptes entreprises (conditions de paiement, n° de bon de commande), lancements planifiés avec retour arrière, retours en libre-service, éditeur d'automatisations déclencheur / condition / action.

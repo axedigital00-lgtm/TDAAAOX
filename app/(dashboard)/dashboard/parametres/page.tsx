@@ -190,6 +190,7 @@ export default function ParametresPage() {
       <div className="ax-card divide-y divide-[#F5F5F5]">
         {[
           { Icon: Globe,        label: "Domaine personnalisé",     desc: "Connectez votre propre nom de domaine",     href: "/dashboard/parametres/domaine",       iconBg: "#ECFDF5", iconColor: "#16A34A" },
+          { Icon: Globe,        label: "Marchés",                   desc: "Vendez dans plusieurs pays et devises",    href: "/dashboard/parametres/marches",       iconBg: "#EFF6FF", iconColor: "#2563EB" },
           { Icon: Bell,         label: "Notifications",             desc: "Alertes WhatsApp et email",                href: "/dashboard/parametres/notifications",  iconBg: "#FFFBEB", iconColor: "#D97706" },
           { Icon: Users,        label: "Équipe",                    desc: "Gérez les accès de vos collaborateurs",    href: "/dashboard/parametres/equipe",         iconBg: "#FFF1F2", iconColor: "#E11D48" },
         ].map((s, i) => {

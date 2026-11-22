@@ -227,12 +227,12 @@ export const OUTILS_CATALOGUE: Outil[] = [
     run: async (a, ctx) => {
       const source = await prisma.produit.findFirst({ where: { id: requis(a, "product_id", 64), tenantId: ctx.tenantId }, include: { variantes: true } });
       if (!source) return refuser("NOT_FOUND", "Produit introuvable dans cette boutique.");
-      const { id: _id, slug: _slug, createdAt: _c, updatedAt: _u, ventes: _v, vues: _vu, stock: _s, stockReserve: _r, sku: _sku, codeBarres: _cb, chariowProduitId: _ch, variantes, faq, champsCommande, ...fiche } = source;
+      const { id: _id, slug: _slug, createdAt: _c, updatedAt: _u, ventes: _v, vues: _vu, stock: _s, stockReserve: _r, sku: _sku, codeBarres: _cb, chariowProduitId: _ch, variantes, faq, champsCommande, venteGros, ...fiche } = source;
       const nom = texte(a, "name", { max: 150 }) ?? `${source.nom} (copie)`;
       const copie = await prisma.produit.create({
         data: {
           ...fiche, nom, slug: await slugLibre(ctx.tenantId, nom), actif: false, stock: 0,
-          faq: faq ?? undefined, champsCommande: champsCommande ?? undefined,
+          faq: faq ?? undefined, champsCommande: champsCommande ?? undefined, venteGros: venteGros ?? undefined,
           variantes: { create: variantes.map((v) => ({ nom: v.nom, valeur: v.valeur, prix: v.prix, image: v.image, actif: v.actif, dimension: v.dimension, cout: v.cout })) },
         },
         select: { id: true, updatedAt: true },

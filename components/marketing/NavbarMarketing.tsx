@@ -1,139 +1,155 @@
 "use client";
-// Navigation du site public : logo, menus déroulants, Tarifs, connexion et
-// inscription. Menu plein écran sur mobile.
-// Au défilement : transparente en haut de page, elle se cache quand on descend
-// et revient (fond plein, flou) dès qu'on remonte.
+
 import "@fontsource-variable/inter/wght.css";
 import "./site/site.css";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useEffect, useId, useRef, useState } from "react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
+import { familles, lienSolution, solutions, texte } from "@/lib/catalogue-fonctionnalites";
+import styles from "@/app/fonctionnalites/[solution]/solution.module.css";
 
-type Lien = { label: string; desc?: string; href: string };
-type Menu = { id: string; label: string; titre: string; liens: Lien[] };
+const lien = (href: string, fr: string, en: string) => ({ href, nom: texte(fr, en) });
+type Groupe = { nom: ReturnType<typeof texte>; liens: ReturnType<typeof lien>[] };
 
-const MENUS: Menu[] = [
+const menus = [
   {
-    id: "pourquoi", label: "Pourquoi AXSO", titre: "Pensé pour vendre en Afrique",
-    liens: [
-      { label: "Lancer sa boutique", desc: "En ligne en quelques minutes, sans carte bancaire.", href: "/inscription" },
-      { label: "Fonctionnalités", desc: "Tout ce qu’AXSO fait pour votre commerce.", href: "/fonctionnalites" },
-      { label: "Témoignages", desc: "Des marchands racontent leur croissance.", href: "/temoignages" },
-      { label: "À propos", desc: "Notre mission et notre équipe.", href: "/about" },
-    ],
+    id: "pourquoi", nom: texte("Pourquoi AXSO", "Why AXSO"),
+    groupes: [{
+      nom: texte("Découvrir AXSO", "Discover AXSO"),
+      liens: [
+        lien("/inscription", "Lancer sa boutique", "Launch a store"),
+        lien("/migration", "Migrer vers AXSO", "Switch to AXSO"),
+        lien("/fonctionnalites", "Fonctionnalités", "Features"),
+        lien("/temoignages", "Témoignages", "Merchant stories"),
+        lien("/about", "À propos", "About AXSO"),
+        lien("/#axia", "Stella sur la page d’accueil", "Stella on the homepage"),
+      ],
+    }],
   },
   {
-    id: "produits", label: "Produits", titre: "Tout pour vendre, partout",
-    liens: [
-      { label: "Boutique en ligne", desc: "Thèmes prêts à vendre et constructeur visuel.", href: "/themes" },
-      { label: "Vente sur WhatsApp", desc: "Commandes WhatsApp reçues dans votre admin.", href: "/fonctionnalites" },
-      { label: "Caisse en magasin", desc: "Encaissez en boutique, stock synchronisé.", href: "/fonctionnalites" },
-      { label: "Stella, votre assistante IA", desc: "Analyse, fiches produits, relances.", href: "/#axia" },
-      { label: "Affiliation", desc: "Faites vendre vos produits par des créateurs.", href: "/affiliation" },
-      { label: "Documentation", desc: "Guides et intégrations.", href: "/docs" },
-    ],
+    id: "produits", nom: texte("Produits", "Products"),
+    groupes: familles.map(famille => {
+      const liens = solutions.filter(s => s.famille === famille.id).map(s => ({ href: lienSolution(s.slug), nom: s.nom }));
+      if (famille.id === "construire") liens.push(lien("/themes", "Galerie de thèmes", "Theme gallery"));
+      if (famille.id === "developper") liens.push(lien("/affiliation", "Affiliation", "Affiliate program"));
+      return { nom: famille.nom, liens };
+    }),
   },
   {
-    id: "ressources", label: "Ressources", titre: "Apprendre et échanger",
-    liens: [
-      { label: "Blog", desc: "Conseils pour vendre plus.", href: "/blog" },
-      { label: "Tutoriels vidéo", desc: "Pas à pas, en quelques minutes.", href: "/tutorials" },
-      { label: "Communauté", desc: "Échangez avec d’autres marchands.", href: "/community" },
-      { label: "Suivre un colis", desc: "Pour vos clients.", href: "/suivi" },
-    ],
+    id: "ressources", nom: texte("Ressources", "Resources"),
+    groupes: [{
+      nom: texte("Apprendre et échanger", "Learn and connect"),
+      liens: [
+        lien("/docs", "Documentation", "Documentation"),
+        lien("/blog", "Blog", "Blog"),
+        lien("/tutorials", "Tutoriels vidéo", "Video tutorials"),
+        lien("/community", "Communauté", "Community"),
+        lien("/suivi", "Suivre un colis", "Track a parcel"),
+      ],
+    }],
   },
-];
+] satisfies { id: string; nom: ReturnType<typeof texte>; groupes: Groupe[] }[];
 
 export function NavbarMarketing() {
-  const t = useT();
+  const { langue } = useT();
   const pathname = usePathname();
+  const id = useId();
+  const header = useRef<HTMLElement>(null);
+  const burger = useRef<HTMLButtonElement>(null);
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [mobile, setMobile] = useState(false);
-  const zone = useRef<HTMLElement>(null);
-  const [etat, setEtat] = useState<"haut" | "visible" | "cache">("haut");
 
-  useEffect(() => { setOuvert(null); setMobile(false); }, [pathname]);
+  function fermer() {
+    setMobile(false);
+    setOuvert(null);
+  }
+
+  useEffect(fermer, [pathname]);
   useEffect(() => {
-    const fermer = (e: MouseEvent) => { if (!zone.current?.contains(e.target as Node)) setOuvert(null); };
-    const echap = (e: KeyboardEvent) => { if (e.key === "Escape") { setOuvert(null); setMobile(false); } };
-    document.addEventListener("mousedown", fermer); document.addEventListener("keydown", echap);
-    return () => { document.removeEventListener("mousedown", fermer); document.removeEventListener("keydown", echap); };
+    const breakpoint = matchMedia("(max-width: 1199px)");
+    breakpoint.addEventListener("change", fermer);
+    return () => breakpoint.removeEventListener("change", fermer);
   }, []);
-  useEffect(() => { document.body.style.overflow = mobile ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [mobile]);
   useEffect(() => {
-    let dernier = window.scrollY, attente = false;
-    const maj = () => {
-      attente = false;
-      const y = window.scrollY;
-      if (y < 12) setEtat("haut");
-      else if (y > dernier + 6 && y > 140) setEtat("cache");
-      else if (y < dernier - 6) setEtat("visible");
-      dernier = y;
+    if (!mobile) return;
+    const avant = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = avant; };
+  }, [mobile]);
+  useEffect(() => {
+    if (!ouvert && !mobile) return;
+    function dehors(e: PointerEvent) {
+      if (!header.current?.contains(e.target as Node)) fermer();
+    }
+    function echap(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (ouvert) {
+        document.getElementById(`${id}-btn-${ouvert}`)?.focus();
+        setOuvert(null);
+      } else {
+        burger.current?.focus();
+        fermer();
+      }
+    }
+    document.addEventListener("pointerdown", dehors);
+    document.addEventListener("keydown", echap);
+    return () => {
+      document.removeEventListener("pointerdown", dehors);
+      document.removeEventListener("keydown", echap);
     };
-    const onScroll = () => { if (!attente) { attente = true; requestAnimationFrame(maj); } };
-    maj();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-  // Menu ouvert : la barre reste affichée.
-  const etatAffiche = (ouvert || mobile) && etat === "cache" ? "visible" : etat;
+  }, [ouvert, mobile, id]);
 
-  return (
-    <header className="axm axm-nav" ref={zone} data-etat={etatAffiche} data-menu={ouvert || undefined}>
-      <div className="axm-wrap axm-nav__in">
-        <Link href="/" className="axm-nav__logo" aria-label="AXSO"><img src="/logo-dark.png" alt="AXSO" /></Link>
-        <nav className="axm-nav__menu" aria-label={t("Navigation principale")}>
-          {MENUS.map((m) => (
-            <div key={m.id} className="axm-nav__item" onMouseEnter={() => setOuvert(m.id)} onMouseLeave={() => setOuvert(null)}>
-              <button type="button" className="axm-nav__btn" aria-expanded={ouvert === m.id} onClick={() => setOuvert(ouvert === m.id ? null : m.id)}>
-                {t(m.label)}
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M5 8l5 5 5-5" /></svg>
-              </button>
-              {ouvert === m.id && (
-                <div className="axm-mega" role="menu">
-                  <div className="axm-wrap axm-mega__in">
-                    <p className="axm-mega__col-title">{t(m.titre)}</p>
-                    <div className="axm-mega__liens">
-                      {m.liens.map((l) => (
-                        <Link key={l.label} href={l.href} role="menuitem"><b>{t(l.label)}</b>{l.desc && <span>{t(l.desc)}</span>}</Link>
-                      ))}
-                    </div>
-                    <Link href="/inscription" className="axm-mega__une" role="menuitem">
-                      <img src={m.id === "ressources" ? "/catalogue-atelier.webp" : m.id === "produits" ? "/theme-noir-atelier.webp" : "/hero-market.webp"} alt="" loading="lazy" />
-                      <b>{t("Démarrer gratuitement")}</b>
-                      <span>{t("Votre boutique en ligne en quelques minutes.")}</span>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          <Link href="/tarifs" className="axm-nav__btn">{t("Tarifs")}</Link>
-        </nav>
-        <div className="axm-nav__right">
-          <Link href="/connexion" className="axm-nav__btn axm-hide-m">{t("Se connecter")}</Link>
-          <Link href="/inscription" className="axm-btn axm-btn--primary axm-btn--sm axm-hide-m">{t("Démarrer gratuitement")}</Link>
-        </div>
-        <button type="button" className="axm-burger" aria-label={mobile ? t("Fermer le menu") : t("Ouvrir le menu")} aria-expanded={mobile} onClick={() => setMobile((v) => !v)}>
-          <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-            {mobile ? <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /> : <path d="M4 6h12M4 10h12M4 14h12" />}
-          </svg>
-        </button>
-      </div>
-      {mobile && (
-        <div className="axm-drawer">
-          {MENUS.map((m) => (
-            <details key={m.id}>
-              <summary>{t(m.label)}</summary>
-              {m.liens.map((l) => <Link key={l.label} href={l.href}>{t(l.label)}</Link>)}
-            </details>
-          ))}
-          <Link href="/tarifs">{t("Tarifs")}</Link>
-          <Link href="/connexion">{t("Se connecter")}</Link>
-          <div style={{ marginTop: 24 }}><Link href="/inscription" className="axm-btn axm-btn--primary" style={{ width: "100%", borderBottom: 0 }}>{t("Démarrer gratuitement")}</Link></div>
-        </div>
-      )}
-    </header>
+  const navLien = (item: ReturnType<typeof lien>, classe?: string) => (
+    <Link key={item.href} href={item.href} className={classe} onClick={fermer}
+      aria-current={pathname === item.href ? "page" : undefined}>{item.nom[langue]}</Link>
   );
+  const compte = <>
+    {navLien(lien("/connexion", "Se connecter", "Log in"), "axm-nav__btn")}
+    {navLien(lien("/inscription", "Démarrer gratuitement", "Start for free"), "axm-btn axm-btn--primary axm-btn--sm")}
+  </>;
+
+  return <div className={styles.navSpace}>
+    <header ref={header} className={`axm axm-nav ${styles.header}`}
+      onBlur={e => { if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) fermer(); }}>
+      <div className="axm-wrap axm-nav__in">
+        <Link href="/" onClick={fermer} className="axm-nav__logo" aria-label="AXSO"><img src="/logo-dark.png" alt="AXSO" /></Link>
+        <button type="button" ref={burger} className="axm-burger" aria-expanded={mobile} aria-controls={id}
+          aria-label={(mobile ? texte("Fermer le menu", "Close menu") : texte("Ouvrir le menu", "Open menu"))[langue]}
+          onClick={() => { setOuvert(null); setMobile(!mobile); }}>
+          {mobile ? <X aria-hidden /> : <Menu aria-hidden />}
+        </button>
+        <nav id={id} aria-label={texte("Navigation principale", "Main navigation")[langue]}
+          className={styles.navigation} data-open={mobile}>
+          {menus.map(menu => <div key={menu.id} className={styles.menuItem}
+            onBlur={e => {
+              if (!mobile && e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) setOuvert(null);
+            }}>
+            <button type="button" className="axm-nav__btn" id={`${id}-btn-${menu.id}`}
+              aria-expanded={ouvert === menu.id} aria-controls={`${id}-panel-${menu.id}`}
+              onClick={() => setOuvert(ouvert === menu.id ? null : menu.id)}>
+              {menu.nom[langue]}<ChevronDown size={15} aria-hidden />
+            </button>
+            <div id={`${id}-panel-${menu.id}`} hidden={ouvert !== menu.id} className={styles.panel}>
+              <div className={`axm-wrap ${styles.menuGrid}`}>
+                {menu.groupes.map(g => <div className={styles.linkGroup} key={g.nom.fr}>
+                  <p>{g.nom[langue]}</p>
+                  <ul>{g.liens.map(item => <li key={item.href}>{navLien(item)}</li>)}</ul>
+                </div>)}
+                {menu.id === "produits" && <div className={styles.allFeatures}>
+                  {navLien(lien("/fonctionnalites", "Toutes les fonctionnalités", "Explore all features"))}
+                </div>}
+              </div>
+            </div>
+          </div>)}
+          {navLien(lien("/tarifs", "Tarifs", "Pricing"), "axm-nav__btn")}
+          {navLien(lien("/entreprises", "Entreprises", "Enterprise"), "axm-nav__btn")}
+          {navLien(lien("/nouveautes", "Nouveautés", "What’s new"), "axm-nav__btn")}
+          <div className={styles.mobileAccount}>{compte}</div>
+        </nav>
+        <div className={styles.desktopAccount}>{compte}</div>
+      </div>
+    </header>
+  </div>;
 }

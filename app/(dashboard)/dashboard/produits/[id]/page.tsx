@@ -887,6 +887,7 @@ export default function EditProduitPage() {
               {form.categorie && categoriesBoutique && !categoriesBoutique.some(c => c.nom === form.categorie) && <option value={form.categorie}>{tr(form.categorie)}</option>}
             </select>
             <Link href="/dashboard/produits/categories" className="block -mt-2 text-[12px] font-medium text-[#B45309] hover:underline">{tr("Gérer les catégories et leurs options →")}</Link>
+            {!estDigital && <Link href={`/dashboard/produits/${id}/gros`} className="block text-[12px] font-medium text-[#B45309] hover:underline">{tr("Vente en gros : prix dégressifs et quantités minimum →")}</Link>}
             <div className="flex gap-2">
               <input value={tagInput} onChange={e => setTagInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); const t = tagInput.trim().toLowerCase(); if (t && !form.tags.includes(t)) set("tags", [...form.tags, t]); setTagInput(""); }}}

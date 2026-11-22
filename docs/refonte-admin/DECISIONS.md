@@ -57,3 +57,7 @@
 | Tutoriels et toasts | Modale du design system (`.axd-tuto`) ; toasts sombres en bas au centre, erreurs en rouge | Charte. |
 | Étoiles d’avis | Jaune de marque | Illustration d’une note (usage autorisé hors action). |
 | Caisse et magasin | Alignée par son kit UI (une seule source) plutôt qu’écran par écran | 55 composants partagent le kit ; garder les cibles tactiles de 44 px. |
+| Analyse des produits Shopify | Seuls les vrais manques sont construits : vente en gros, marchés, outils gratuits. Le reste existait déjà (thèmes, domaines, caisse, promotions, retours, transferts, bons de commande, tests A/B, automatisations, comptes acheteurs) | Éviter les doublons ; structure seulement, aucune identité reprise. |
+| Vente en gros | Paliers et règles de quantité par produit physique, recalculés côté serveur au checkout | Le navigateur n'est jamais source du prix. |
+| Marchés | Se greffent sur la conversion visiteur existante (devise, taux, arrondi) ; encaissement en devise boutique | Un seul système d'affichage des prix. |
+| Ajustement de prix par marché | Non proposé à l'écran | Il changerait le prix vu sans changer le montant encaissé ; à ouvrir seulement avec une tarification par marché appliquée à la commande. |

@@ -7,6 +7,7 @@ export default {
     return contexteWorker.run({}, () => handler.fetch(request, env, ctx));
   },
   async scheduled(event, env) {
+    if (env.AXSO_CRONS_ENABLED !== "1") return;
     const job = schedules.crons.find(job => job.schedule === event.cron);
     if (!job || !env.CRON_SECRET) throw new Error("Configuration cron AXSO incomplète");
     const taches = job.path === "/api/cron/automatisations"

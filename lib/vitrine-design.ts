@@ -19,8 +19,9 @@ import { MANIFESTE_LIBRAIRIE } from "./axso-design-manifest";
 import { fichierDepuisSlugTheme } from "./axso-design-library";
 import { remplacerTokensCarte } from "./theme-import-clone";
 import { corrigerLiensDesign } from "./liens-design";
-import { convertirMontant } from "./devise-convert";
-import { deviseVisiteur } from "./devise-visiteur";
+import { ratioConversion } from "./devise-convert";
+import { affichageVisiteur, arrondir, lireMarches } from "./commerce/marches";
+import { deviseVisiteur, paysVisiteur } from "./devise-visiteur";
 import { tauxDuJour } from "./taux-change";
 import { cookies } from "next/headers";
 import { COOKIE_APERCU, lireJetonApercu } from "./builder/apercu";
@@ -137,7 +138,7 @@ async function rafraichirGrillesProduits(cfg: ThemeConfig, themeId: string, tena
   if (!RE_GRILLE.test((cfg.builderHtml ?? "") + (cfg.builderHtmlProduits ?? "") + JSON.stringify(tree))) return cfg;
   const [theme, tenant, produits, ordreCategories] = await Promise.all([
     prisma.theme.findUnique({ where: { id: themeId }, select: { slug: true } }),
-    prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, devise: true, commissionRate: true } }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, devise: true, commissionRate: true, marches: true } }),
     prisma.produit.findMany({ where: { tenantId, actif: true }, orderBy: { createdAt: "desc" }, take: 500 }), // ponytail: tout le catalogue en HTML, paginer au-delà de 500
     prisma.categorieProduit.findMany({ where: { tenantId }, orderBy: [{ ordre: "asc" }, { createdAt: "asc" }], select: { nom: true } }),
   ]);
@@ -147,7 +148,8 @@ async function rafraichirGrillesProduits(cfg: ThemeConfig, themeId: string, tena
   // Sans produit, on garde les cartes de démonstration du design.
   if (!tenant || !carte || produits.length === 0) return cfg;
   const taux = tenant.commissionRate ?? 0.1;
-  const [devise, tauxChange] = await Promise.all([deviseVisiteur(tenant.devise), tauxDuJour()]); // prix des cartes dans la devise du visiteur, aux taux du jour
+  const [deviseParDefaut, pays, tauxChange] = await Promise.all([deviseVisiteur(tenant.devise), paysVisiteur(), tauxDuJour()]); // prix des cartes dans la devise du visiteur (ou de son marché), aux taux du jour
+  const { devise, ratio, arrondi } = affichageVisiteur({ marches: lireMarches(tenant.marches), pays, deviseBoutique: tenant.devise, deviseParDefaut, ratioVers: (d) => ratioConversion(tenant.devise, d, tauxChange) });
   // Filtres : catégories qui ont des produits, dans l'ordre choisi sur la page Catalogue → Catégories.
   const rang = (label: string) => { const i = ordreCategories.findIndex((c) => c.nom === label); return i < 0 ? Infinity : i; };
   const categories = [...new Map(produits.filter((p) => p.categorie?.trim()).map((p) => [slugify(p.categorie!), p.categorie!.trim()])).entries()]
@@ -155,7 +157,7 @@ async function rafraichirGrillesProduits(cfg: ThemeConfig, themeId: string, tena
     .sort((a, b) => rang(a.label) - rang(b.label));
   // Catégorie, prix et rang (nouveautés) sur chaque carte : de quoi filtrer et trier dans le navigateur.
   const cartes = produits.map((p, rang) => {
-    const prix = convertirMontant(prixClient(p.prix, taux, p.type), tenant.devise, devise, tauxChange);
+    const prix = arrondir(Math.round(prixClient(p.prix, taux, p.type) * ratio), arrondi, devise);
     const html = remplacerTokensCarte(carte, { id: p.id, nom: p.nom, prixAffiche: formatMontant(prix, devise), image: p.images[0] ?? null, description: p.description }, tenant.slug);
     return html.replace(/^(\s*<[a-zA-Z0-9]+)/, `$1 data-cat="${esc(slugify(p.categorie ?? ""))}" data-prix="${prix}" data-rang="${rang}"`);
   });

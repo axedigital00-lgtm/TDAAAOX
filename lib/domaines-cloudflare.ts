@@ -27,3 +27,41 @@ export async function etatDomaineCloudflare(domaine: string, tenantId: string): 
     { type: "TXT", nom, valeur: preuve, raison: "Associe le domaine à votre boutique" },
   ], ...(!dnsOk && { message: "Le domaine doit être enregistré et son certificat activé dans Cloudflare for SaaS." }) };
 }
+
+// ── Enregistrement automatique (facultatif) ─────────────────────────────────
+// Avec un jeton « Custom Hostnames : Edit » (CF_SAAS_EDIT_TOKEN), AXSO enregistre et retire lui-même
+// le domaine dans Cloudflare for SaaS ; sans lui, l'opérateur le fait à la main (jeton lecture seule).
+export const enregistrementAutomatique = () => Boolean(process.env.CF_SAAS_ZONE_ID && process.env.CF_SAAS_EDIT_TOKEN);
+
+async function cfSaas(chemin: string, init: RequestInit = {}) {
+  const r = await fetch(`https://api.cloudflare.com/client/v4/zones/${process.env.CF_SAAS_ZONE_ID}/custom_hostnames${chemin}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${process.env.CF_SAAS_EDIT_TOKEN}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
+    cache: "no-store", signal: AbortSignal.timeout(15000),
+  });
+  const corps = await r.json().catch(() => ({})) as { success?: boolean; errors?: { code: number; message: string }[]; result?: unknown };
+  return { ok: r.ok && corps.success !== false, corps };
+}
+
+async function idHostname(domaine: string): Promise<string | null> {
+  const r = await cfSaas(`?hostname=${encodeURIComponent(domaine)}`);
+  const liste = (r.corps.result as { id: string; hostname: string }[] | undefined) ?? [];
+  return liste.find((h) => h.hostname === domaine)?.id ?? null;
+}
+
+/** Enregistre le domaine (certificat DV validé par HTTP). Déjà présent : succès. */
+export async function ajouterHostnameCloudflare(domaine: string): Promise<{ ok: boolean; erreur?: string }> {
+  if (!enregistrementAutomatique()) return { ok: true };
+  if (await idHostname(domaine)) return { ok: true };
+  const r = await cfSaas("", { method: "POST", body: JSON.stringify({ hostname: domaine, ssl: { method: "http", type: "dv" } }) });
+  if (r.ok) return { ok: true };
+  const deja = r.corps.errors?.some((e) => e.code === 1406 || /already exists/i.test(e.message));
+  return deja ? { ok: true } : { ok: false, erreur: r.corps.errors?.[0]?.message ?? "Cloudflare a refusé le domaine" };
+}
+
+/** Retire le domaine de Cloudflare for SaaS (libère la place du quota). Silencieux si absent. */
+export async function retirerHostnameCloudflare(domaine: string) {
+  if (!enregistrementAutomatique()) return;
+  const id = await idHostname(domaine).catch(() => null);
+  if (id) await cfSaas(`/${id}`, { method: "DELETE" }).catch(() => {});
+}

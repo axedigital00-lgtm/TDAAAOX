@@ -264,7 +264,7 @@ export async function dupliquerBootcamp(bootcampId: string, tenantId: string, no
   const { id: _i, createdAt: _c, updatedAt: _u, ventes: _v, vues: _w, ...produit } = src.produit;
   return prisma.$transaction(async (tx) => {
     const p = await tx.produit.create({
-      data: { ...produit, faq: produit.faq ?? undefined, champsCommande: produit.champsCommande ?? undefined, nom: `${src.produit.nom} — ${cohorte}`.slice(0, 200), slug: `${src.produit.slug}-${Date.now().toString(36)}`, actif: false, sku: null, codeBarres: null },
+      data: { ...produit, faq: produit.faq ?? undefined, champsCommande: produit.champsCommande ?? undefined, venteGros: produit.venteGros ?? undefined, nom: `${src.produit.nom} — ${cohorte}`.slice(0, 200), slug: `${src.produit.slug}-${Date.now().toString(36)}`, actif: false, sku: null, codeBarres: null },
     });
     const bc = await tx.bootcamp.create({
       data: {

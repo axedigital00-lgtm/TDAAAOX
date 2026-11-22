@@ -1,14 +1,18 @@
 "use client";
-// Domaine personnalisé — état réel lu chez Vercel via /api/domaine (voir lib/domaines.ts).
+// Domaine personnalisé — état réel lu chez l'hébergeur (Vercel ou Cloudflare for SaaS) via /api/domaine (lib/domaines.ts).
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Globe, AlertCircle, CheckCircle2, Clock, Copy, Loader2, RefreshCw, Trash2, ExternalLink } from "lucide-react";
+import { Copy } from "lucide-react";
+import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
+import { Banner, Card, Field } from "@/components/dashboard/design-system/components/primitives";
+import { Badge } from "@/components/dashboard/design-system/components/Badge";
+import { Button } from "@/components/dashboard/design-system/components/Button";
 import { useT } from "@/components/I18nProvider";
 import { urlBoutique } from "@/lib/utils";
 
 type Enregistrement = { type: string; nom: string; valeur: string; raison: string };
 type Etat = { actif: boolean; verifie: boolean; dnsOk: boolean; enregistrements: Enregistrement[]; message?: string };
-type Donnees = { slug?: string; sousDomaineAt?: string | null; publiee?: boolean; configure: boolean; domaine: string | null; etat?: Etat | null };
+type Donnees = { slug?: string; sousDomaineAt?: string | null; publiee?: boolean; configure: boolean; hebergeur?: "vercel" | "cloudflare"; domaine: string | null; etat?: Etat | null };
 
 function copier(texte: string, message: string) {
   navigator.clipboard?.writeText(texte).then(() => toast.success(message)).catch(() => {});
@@ -62,91 +66,72 @@ export default function DomainePage() {
   const etat = d?.etat;
 
   return (
-    <div className="space-y-5 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 font-[family-name:var(--merchant-font)]">{t("Domaine personnalisé")}</h1>
-        <p className="text-gray-400 text-sm mt-1">{t("Servez votre boutique sur votre propre nom de domaine (ex : boutique.mondomaine.com)")}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader icon="globe" title={t("Domaines")} backHref="/dashboard/parametres" />
+      <div className="axd-stack">
+        <Card title={t("Adresse AXSO de la boutique")}>
+          <p style={{ margin: 0, fontFamily: "ui-monospace, monospace", overflowWrap: "anywhere" }}>{adresseAxso}</p>
+          <p className="axd-muted" style={{ fontSize: 12, margin: "6px 0 0" }}>{t("Toujours disponible, même avec un domaine personnalisé.")}</p>
+        </Card>
 
-      <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-2xl p-4 sm:p-5 min-w-0">
-        <p className="text-[#B45309] font-semibold text-sm mb-1">{t("Adresse AXSO de la boutique")}</p>
-        <p className="text-gray-700 font-mono text-sm break-all">{t(adresseAxso)}</p>
-      </div>
+        {!d ? (
+          <Card><p className="axd-muted" style={{ margin: 0 }}>{t("Chargement…")}</p></Card>
+        ) : !d.configure ? (
+          <Banner tone="warning" title={t("Domaines personnalisés non activés sur ce serveur.")}>
+            {d.hebergeur === "cloudflare"
+              ? <>{t("L'administrateur doit renseigner")} <code>CF_SAAS_ZONE_ID</code>, <code>CF_SAAS_TARGET</code>, <code>CF_SAAS_READ_TOKEN</code> {t("(et")} <code>CF_SAAS_EDIT_TOKEN</code> {t("pour l'enregistrement automatique).")}</>
+              : <>{t("L'administrateur doit renseigner")} <code>VERCEL_API_TOKEN</code> {t("et")} <code>VERCEL_PROJECT_ID</code>.</>}
+          </Banner>
+        ) : !d.domaine ? (
+          <Card title={t("Connecter un domaine")}>
+            <form onSubmit={enregistrer} style={{ display: "grid", gap: "var(--space-300)" }}>
+              <Field label={t("Votre domaine")} help={t("Conseil : un sous-domaine (boutique.…, shop.…) est le plus simple. Vous devez déjà posséder ce domaine chez un registraire (OVH, Namecheap, GoDaddy…).")}>
+                {(p) => <input {...p} className="axd-input" value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="boutique.mondomaine.com" inputMode="url" autoCapitalize="none" />}
+              </Field>
+              {!d.publiee && <Banner tone="warning">{t("Votre boutique est en brouillon : le domaine l'affichera une fois la boutique publiée.")}</Banner>}
+              <div><Button variant="primary" type="submit" loading={envoi} disabled={!saisie.trim()}>{t("Connecter ce domaine")}</Button></div>
+            </form>
+          </Card>
+        ) : (
+          <>
+            <Card title={t("Domaine personnalisé")} actions={<Badge tone={etat?.actif ? "success" : "attention"}>{etat?.actif ? t("Actif") : t("En attente du DNS")}</Badge>}>
+              <a href={`https://${d.domaine}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "ui-monospace, monospace", overflowWrap: "anywhere", textDecoration: "underline" }}>{d.domaine}</a>
+              {etat?.message && <p style={{ margin: "8px 0 0", color: "var(--color-critical-text)", fontSize: 13 }}>{t(etat.message)}</p>}
+              {etat && !etat.actif && (
+                <ul className="axd-muted" style={{ fontSize: 13, margin: "10px 0 0", paddingLeft: 18 }}>
+                  <li>{etat.dnsOk ? t("Routage (A / CNAME) détecté") : t("Routage (A / CNAME) pas encore détecté")}</li>
+                  <li>{etat.verifie ? t("Propriété du domaine vérifiée") : t("Propriété du domaine pas encore vérifiée")}</li>
+                </ul>
+              )}
+              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-400)", flexWrap: "wrap" }}>
+                <Button onClick={verifier} loading={verif}>{t("Vérifier maintenant")}</Button>
+                <Button variant="plain" onClick={retirer}>{t("Retirer le domaine")}</Button>
+              </div>
+            </Card>
 
-      {!d ? (
-        <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-300" /></div>
-      ) : !d.configure ? (
-        <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-2xl p-5">
-          <AlertCircle size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-gray-600">{t("Les domaines personnalisés ne sont pas encore activés sur ce serveur. L'administrateur doit renseigner")}{" "}<code className="text-xs bg-white px-1 rounded">VERCEL_API_TOKEN</code> et <code className="text-xs bg-white px-1 rounded">VERCEL_PROJECT_ID</code>.</p>
-        </div>
-      ) : !d.domaine ? (
-        <form onSubmit={enregistrer} className="bg-white border border-gray-100 rounded-2xl p-5 sm:p-6 space-y-4">
-          <h2 className="text-gray-800 font-semibold">{t("Connecter un domaine")}</h2>
-          <div>
-            <label className="text-gray-500 text-xs block mb-2">{t("Votre domaine")}</label>
-            <input value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="boutique.mondomaine.com" inputMode="url" autoCapitalize="none"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#F5A623]/60" />
-            <p className="text-gray-500 text-xs mt-2">{t("Conseil : un sous-domaine (boutique.…, shop.…) est le plus simple. Vous devez déjà posséder ce domaine chez un registraire (OVH, Namecheap, GoDaddy…).")}</p>
-          </div>
-          {!d.publiee && <p className="text-xs text-[#B45309]">{t("Votre boutique est en brouillon : le domaine l'affichera une fois la boutique publiée.")}</p>}
-          <button type="submit" disabled={!saisie.trim() || envoi} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-[#F5A623] text-white hover:opacity-90 disabled:opacity-50">
-            {envoi ? <Loader2 size={15} className="animate-spin" /> : <Globe size={15} />}{" "}{t("Connecter ce domaine")}
-          </button>
-        </form>
-      ) : (
-        <>
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 sm:p-6 space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Globe size={18} className="text-gray-400 flex-shrink-0" />
-              <a href={`https://${d.domaine}`} target="_blank" rel="noopener noreferrer" className="font-mono text-sm text-gray-900 break-all hover:underline inline-flex items-center gap-1 min-w-0">{t(d.domaine)} <ExternalLink size={12} /></a>
-              <span className={`ml-auto inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${etat?.actif ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
-                {etat?.actif ? <><CheckCircle2 size={13} />{" "}{t("Actif")}</> : <><Clock size={13} />{" "}{t("En attente du DNS")}</>}
-              </span>
-            </div>
-            {etat?.message && <p className="text-xs text-red-600">{t(etat.message)}</p>}
-            {etat && !etat.actif && (
-              <ul className="text-xs text-gray-500 space-y-1">
-                <li>{etat.dnsOk ? "✓" : "○"}{" "}{t("Enregistrement de routage (A / CNAME) détecté")}</li>
-                <li>{etat.verifie ? "✓" : "○"}{" "}{t("Propriété du domaine vérifiée")}</li>
-              </ul>
+            {etat && !etat.actif && etat.enregistrements.length > 0 && (
+              <Card title={t("À créer chez votre registraire")} padding="none">
+                <p className="axd-muted" style={{ margin: "4px var(--space-400) var(--space-300)" }}>{t("Dans la zone DNS de votre domaine, ajoutez exactement ces enregistrements :")}</p>
+                <table className="axd-ix">
+                  <thead><tr><th>{t("Type")}</th><th>{t("Nom")}</th><th>{t("Valeur")}</th></tr></thead>
+                  <tbody>
+                    {etat.enregistrements.map((e, i) => (
+                      <tr key={i}>
+                        <td className="axd-ix-primary">{e.type}<div className="axd-muted" style={{ fontWeight: 400, fontSize: 12, whiteSpace: "normal" }}>{t(e.raison)}</div></td>
+                        <td><button type="button" className="axd-btn axd-btn--plain axd-btn--sm" onClick={() => copier(e.nom, t("Copié"))} style={{ fontFamily: "ui-monospace, monospace", whiteSpace: "normal", textAlign: "left" }}>{e.nom} <Copy size={11} /></button></td>
+                        <td><button type="button" className="axd-btn axd-btn--plain axd-btn--sm" onClick={() => copier(e.valeur, t("Copié"))} style={{ fontFamily: "ui-monospace, monospace", whiteSpace: "normal", wordBreak: "break-all", textAlign: "left" }}>{e.valeur} <Copy size={11} /></button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ padding: "var(--space-300) var(--space-400)" }}>
+                  <Banner>{t("La propagation prend de quelques minutes à 48 h. Le certificat HTTPS est ensuite créé automatiquement. Cliquez sur « Vérifier maintenant » pour suivre l'avancement.")}</Banner>
+                </div>
+              </Card>
             )}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button onClick={verifier} disabled={verif} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-[#F5A623]/50 disabled:opacity-50">
-                {verif ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}{" "}{t("Vérifier maintenant")}
-              </button>
-              <button onClick={retirer} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50">
-                <Trash2 size={14} />{" "}{t("Retirer le domaine")}
-              </button>
-            </div>
-          </div>
-
-          {etat && !etat.actif && etat.enregistrements.length > 0 && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 sm:p-6 space-y-4">
-              <h2 className="text-gray-800 font-semibold">{t("À créer chez votre registraire")}</h2>
-              <p className="text-gray-500 text-sm">{t("Dans la zone DNS de votre domaine, ajoutez exactement ces enregistrements :")}</p>
-              <div className="space-y-3">
-                {etat.enregistrements.map((e, i) => (
-                  <div key={i} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
-                    <p className="text-xs text-gray-500">{t(e.raison)}</p>
-                    <div className="grid grid-cols-[auto_1fr] sm:grid-cols-[70px_minmax(0,1fr)_minmax(0,2fr)] gap-x-3 gap-y-1 text-sm items-start">
-                      <span className="text-gray-500 text-xs sm:hidden">{t("Type")}</span><span className="font-mono font-bold text-[#B45309]">{t(e.type)}</span>
-                      <span className="text-gray-500 text-xs sm:hidden">{t("Nom")}</span>
-                      <button onClick={() => copier(e.nom, t("Copié"))} className="font-mono text-gray-700 text-left break-all inline-flex items-center gap-1.5 min-w-0">{t(e.nom)} <Copy size={11} className="text-gray-400 flex-shrink-0" /></button>
-                      <span className="text-gray-500 text-xs sm:hidden">{t("Valeur")}</span>
-                      <button onClick={() => copier(e.valeur, t("Copié"))} className="font-mono text-gray-700 text-xs text-left break-all inline-flex items-center gap-1.5 min-w-0">{t(e.valeur)} <Copy size={11} className="text-gray-400 flex-shrink-0" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-start gap-3 bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-xl p-4">
-                <AlertCircle size={16} className="text-[#D4911A] mt-0.5 flex-shrink-0" />
-                <p className="text-[#666666] text-sm">{t("La propagation prend de quelques minutes à 48 h. Le certificat HTTPS est ensuite créé automatiquement. Cliquez sur « Vérifier maintenant » pour suivre l'avancement.")}</p>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
+    </Page>
   );
 }

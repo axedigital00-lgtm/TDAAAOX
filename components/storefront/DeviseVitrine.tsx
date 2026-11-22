@@ -8,11 +8,12 @@ import { usePathname } from "next/navigation";
 import { Globe2, ChevronDown } from "lucide-react";
 import { convertirMontant, PAYS_OPTIONS } from "@/lib/devise-convert";
 import { formatMontant } from "@/lib/utils";
+import { arrondir, type Marche } from "@/lib/commerce/marches";
 import { SelectPays, Drapeau } from "@/components/ui/SelectPays";
 import { useT } from "@/components/I18nProvider";
 
 // ratio = multiplicateur devise de la boutique → devise du visiteur, aux taux du jour (lib/taux-change.ts).
-type Contexte = { devise: string; pays: string | null; deviseBoutique: string; ratio: number };
+type Contexte = { devise: string; pays: string | null; deviseBoutique: string; ratio: number; arrondi?: Marche["arrondi"] };
 const Visiteur = createContext<Contexte | null>(null);
 
 export function DeviseVitrineProvider({ children, ...valeur }: Contexte & { children: ReactNode }) {
@@ -28,7 +29,7 @@ export function usePrix() {
   const visiteur = ctx?.devise ?? null;
   const fmt = (montant: number, deviseBoutique: string) => {
     if (!visiteur) return formatMontant(montant, deviseBoutique);
-    const converti = deviseBoutique === ctx!.deviseBoutique ? Math.round(montant * ctx!.ratio) : convertirMontant(montant, deviseBoutique, visiteur);
+    const converti = deviseBoutique === ctx!.deviseBoutique ? arrondir(Math.round(montant * ctx!.ratio), ctx!.arrondi ?? "unite", visiteur) : convertirMontant(montant, deviseBoutique, visiteur);
     return formatMontant(converti, visiteur);
   };
   const converti = (deviseBoutique: string) => !!visiteur && visiteur !== deviseBoutique;

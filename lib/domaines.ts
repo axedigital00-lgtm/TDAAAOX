@@ -6,7 +6,7 @@
 // 3. proxy.ts → slugPourDomaine() sert la boutique sur ce domaine.
 // Variables : VERCEL_API_TOKEN, VERCEL_PROJECT_ID, VERCEL_TEAM_ID (si projet d'équipe).
 import { prisma } from "./prisma";
-import { surWorkers, domainesCloudflareConfigures, etatDomaineCloudflare } from "./domaines-cloudflare";
+import { surWorkers, domainesCloudflareConfigures, etatDomaineCloudflare, ajouterHostnameCloudflare, retirerHostnameCloudflare } from "./domaines-cloudflare";
 // Adresse publique d'une boutique (fonction pure, utilisable aussi côté client depuis lib/utils).
 export { urlBoutique } from "./utils";
 
@@ -39,6 +39,8 @@ async function vercel(chemin: string, init: RequestInit = {}) {
 const projet = () => `/v10/projects/${process.env.VERCEL_PROJECT_ID}/domains`;
 
 export async function ajouterDomaineVercel(domaine: string): Promise<{ ok: boolean; erreur?: string }> {
+  // Sur Cloudflare Workers : enregistrement dans Cloudflare for SaaS (automatique si un jeton d'écriture est fourni).
+  if (surWorkers()) return ajouterHostnameCloudflare(domaine);
   const r = await vercel(projet(), { method: "POST", body: JSON.stringify({ name: domaine }) });
   const dejaSurCeProjet = r.corps?.error?.code === "domain_already_in_use_by_project" || (r.status === 409 && /this project/i.test(r.corps?.error?.message ?? ""));
   if (r.ok || dejaSurCeProjet) return { ok: true };
@@ -97,7 +99,7 @@ export async function synchroniserSousDomaines(max = 50) {
 }
 
 export async function retirerDomaineVercel(domaine: string) {
-  if (surWorkers()) return;
+  if (surWorkers()) return retirerHostnameCloudflare(domaine);
   await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domaine}`, { method: "DELETE" }).catch(() => {});
 }
 

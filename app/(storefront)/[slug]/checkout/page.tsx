@@ -7,6 +7,7 @@ import { boutiqueVisible } from "@/lib/tenant";
 import Link from "next/link";
 import { CheckoutForm, type ArticleCommande } from "@/components/storefront/CheckoutForm";
 import { prixClient } from "@/lib/pricing";
+import { lireVenteGros, prixPourQuantite } from "@/lib/commerce/gros";
 import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
 import { resolveConfigVitrine } from "@/lib/vitrine-design";
 import { Lock } from "lucide-react";
@@ -24,15 +25,17 @@ async function articleCommande(tenantId: string, taux: number, q: { produit?: st
   if (!q.produit) return null;
   const p = await prisma.produit.findFirst({
     where: { id: q.produit, tenantId, actif: true },
-    select: { id: true, nom: true, type: true, prix: true, images: true, variantes: { where: { actif: true }, select: { nom: true, valeur: true, prix: true } } },
+    select: { id: true, nom: true, type: true, prix: true, images: true, venteGros: true, variantes: { where: { actif: true }, select: { nom: true, valeur: true, prix: true } } },
   });
   if (!p) return null;
   const variante = q.variante ? p.variantes.find((v) => `${v.nom}: ${v.valeur}` === q.variante) : undefined;
+  const gros = p.type === "physique" ? lireVenteGros(p.venteGros) : null;
+  const quantite = Math.min(Math.max(Math.floor(Number(q.quantite) || 1), 1), p.type !== "physique" ? 10 : gros ? 99999 : 999);
   return {
     produitId: p.id, nom: p.nom, type: p.type, imageUrl: p.images[0],
-    prix: prixClient(variante?.prix ?? p.prix, taux, p.type),
-    // Mêmes plafonds que la création de commande : 999 (à la livraison), 10 (payé en ligne).
-    quantite: Math.min(Math.max(Math.floor(Number(q.quantite) || 1), 1), p.type === "physique" ? 999 : 10),
+    prix: p.type === "physique" ? prixPourQuantite(variante?.prix ?? p.prix, gros, quantite) : prixClient(variante?.prix ?? p.prix, taux, p.type),
+    // Mêmes plafonds que la création de commande : 999 (à la livraison, 99 999 en gros), 10 (payé en ligne).
+    quantite,
     variante: variante ? q.variante : undefined,
   };
 }

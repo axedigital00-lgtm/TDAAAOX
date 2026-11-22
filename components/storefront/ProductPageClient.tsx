@@ -1,4 +1,5 @@
 "use client";
+import { grilleAffichage, prixPourQuantite, type VenteGros } from "@/lib/commerce/gros";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { urlVideoIntegree, adresseSite } from "@/lib/utils";
@@ -58,6 +59,8 @@ export interface ProductPageClientProps {
     collections: { nom: string; slug: string }[]; noteMoyenne: number;
     masquerVentes?: boolean;
     texteBoutonAchat?: string | null;
+    /** Vente en gros (produits physiques) : paliers dégressifs et règles de quantité — lib/commerce/gros.ts. */
+    gros?: VenteGros | null;
     lienPartage?: string; // lien public absolu de la fiche (https://<slug>.axsoafrica.com/produits/<id>)
     faq?: { question: string; reponse: string; image?: string }[];
     formationCurriculum?: {
@@ -1143,12 +1146,17 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
 
   // State
   const [selectedVariante, setSelectedVariante] = useState<Variante | null>(null);
-  const [quantite, setQuantite] = useState(1);
+  const gros = produit.gros ?? null;
+  const pasQte = gros?.multiple && gros.multiple > 1 ? gros.multiple : 1;
+  const qteMin = Math.max(gros?.min ?? 1, pasQte);
+  const [quantite, setQuantite] = useState(qteMin);
   const [tab, setTab] = useState<"description" | "livraison" | "avis">("description");
   const router = useRouter();
 
   // Variante payée à son prix (le serveur la refacture à la commande).
-  const prixEffectif = selectedVariante?.prix || produit.prixAffiche;
+  const prixBaseEffectif = selectedVariante?.prix || produit.prixAffiche;
+  const prixEffectif = prixPourQuantite(prixBaseEffectif, gros, quantite);
+  const grilleGros = grilleAffichage(prixBaseEffectif, gros);
   const stockEffectif = selectedVariante !== null ? selectedVariante.stock : produit.stock;
   const enRupture     = stockSuivi && stockEffectif <= 0;
 
@@ -1228,6 +1236,24 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
               </span>
             )}
           </div>
+          {grilleGros.length > 0 && (
+            <div className="rounded-xl border px-4 py-3 text-[14px]" style={{ borderColor: `${accent}25` }}>
+              <p className="font-semibold mb-1.5">{tx("Prix dégressifs")}</p>
+              <ul className="space-y-0.5">
+                {grilleGros.map((p) => (
+                  <li key={p.min} className="flex justify-between gap-4" style={{ fontWeight: quantite >= p.min ? 700 : 400 }}>
+                    <span>{tx("À partir de {0} unités").replace("{0}", String(p.min))}</span>
+                    <span className="tabular-nums">{fmt(p.prix, devise)} <span className="opacity-50">(−{p.remisePct}%)</span></span>
+                  </li>
+                ))}
+              </ul>
+              {(gros?.min || pasQte > 1) && (
+                <p className="mt-1.5 text-[13px] opacity-60">
+                  {[gros?.min ? tx("Minimum {0} unités").replace("{0}", String(gros.min)) : null, pasQte > 1 ? tx("par multiples de {0}").replace("{0}", String(pasQte)) : null].filter(Boolean).join(" · ")}
+                </p>
+              )}
+            </div>
+          )}
           {renderCountdown()}
           {showStock && (
             <div className="flex items-center gap-2 text-sm">
@@ -1274,9 +1300,9 @@ export function ProductPageClient({ produit, tenant, produitsSimilaires, sansPie
                 <div className="flex items-center gap-4">
                   <span className="text-[15px] font-medium opacity-60">{tx("Quantité")}</span>
                   <div className="flex items-center border rounded-xl overflow-hidden" style={{ borderColor: `${accent}25` }}>
-                    <button onClick={() => setQuantite(q => Math.max(1, q - 1))} aria-label={tx("Diminuer la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80" style={{ color: accent }}><Minus size={15} /></button>
+                    <button onClick={() => setQuantite(q => Math.max(qteMin, q - pasQte))} aria-label={tx("Diminuer la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80" style={{ color: accent }}><Minus size={15} /></button>
                     <span className="w-10 text-center text-base font-bold tabular-nums">{quantite}</span>
-                    <button onClick={() => setQuantite(q => Math.min(stockSuivi ? Math.max(1, stockEffectif) : 10, q + 1))} disabled={enRupture} aria-label={tx("Augmenter la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80" style={{ color: accent }}><Plus size={15} /></button>
+                    <button onClick={() => setQuantite(q => Math.min(stockSuivi ? Math.max(qteMin, stockEffectif) : gros ? (gros.max ?? 9999) : 10, gros?.max ?? Infinity, q + pasQte))} disabled={enRupture} aria-label={tx("Augmenter la quantité")} className="w-11 h-11 flex items-center justify-center hover:opacity-80" style={{ color: accent }}><Plus size={15} /></button>
                   </div>
                 </div>
               )}
