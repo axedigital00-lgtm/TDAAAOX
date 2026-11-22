@@ -2,6 +2,8 @@
 import { createHash } from "crypto";
 
 export type ModeleTarif = "zone" | "distance" | "poids" | "volume" | "hybride" | "contrat";
+import { TAUX_COMMISSION_DEFAUT } from "./parcours";
+
 export type RegleTarif = {
   modele: ModeleTarif;
   devise: string;
@@ -40,7 +42,7 @@ export type Devis =
   | { eligible: true; devise: string; lignes: LigneDevis[]; prixFournisseur: number; commission: number; versementFournisseur: number; creditApplique: number; prixMarchand: number; expireLe: Date; empreinte: string };
 
 export const DUREE_DEVIS_MS = 15 * 60_000;
-export const TAUX_COMMISSION_DEFAUT = 0.1;
+export { TAUX_COMMISSION_DEFAUT };
 
 const entier = (n: number) => Math.round(n);
 export const volumeLitres = (d?: [number, number, number] | null) => (d ? (d[0] * d[1] * d[2]) / 1000 : null);

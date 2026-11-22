@@ -1,11 +1,12 @@
 "use client";
 // Portail des sociétés de livraison et des livreurs indépendants.
+import "@fontsource-variable/inter/wght.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, MapPin, RefreshCw, ShieldCheck, Truck, Upload, WifiOff, X } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { BADGES, DOCUMENTS, NIVEAUX, STATUTS_COURSE, VEHICULES, VERIFICATION } from "@/lib/logistique/libelles";
-import { documentsManquants, etapesTransporteur } from "@/lib/logistique/parcours";
+import { apercuGain, documentsManquants, etapesTransporteur } from "@/lib/logistique/parcours";
 import { formatMontant } from "@/lib/utils";
 import { GestionTransporteur } from "./GestionTransporteur";
 import { PreuveRemise } from "./PreuveRemise";
@@ -85,18 +86,37 @@ function Inscription({ onFait, compte }: { onFait: () => void; compte: any }) {
       toast.success(t("Profil créé. Ajoutez maintenant vos documents.")); onFait();
     } catch (x: any) { toast.error(t(x.message)); } finally { setEnvoi(false); }
   };
-  return <form className="axl-carte axl-form" onSubmit={envoyer}>
-    <h2>{t("Complétez votre profil")}</h2>
-    <p className="axl-doux">{t("Ces informations servent à vous proposer des courses dans vos zones.")}</p>
+  const gain = apercuGain({ base: Number(f.base) || 0, parKm: Number(f.parKm) || 0, enlevement: Number(f.enlevement) || 0 });
+  return <form className="axl-carte axl-form axl-profil" onSubmit={envoyer}>
+    <header>
+      <small>{t("Dernière étape avant vos documents")}</small>
+      <h2>{t("Complétez votre profil")}</h2>
+      <p className="axl-doux">{t("Ces informations servent à vous proposer des courses dans vos zones.")}</p>
+    </header>
     {compte?.role !== "livreur" && compte?.role !== "transporteur" && <div className="axl-choix" role="radiogroup" aria-label={t("Type de compte")}>{[["societe", "Société de livraison"], ["livreur", "Livreur indépendant"]].map(([v, l]) => <button key={v} type="button" role="radio" aria-checked={f.type === v} onClick={() => set("type", v)}>{t(l)}</button>)}</div>}
-    <div className="axl-grille">
-      {champ("nom", f.type === "societe" ? "Nom commercial" : "Nom complet")}{champ("telephone", "Téléphone", "tel")}{champ("email", "E-mail", "email")}
-      {f.type === "societe" && <>{champ("raisonSociale", "Raison sociale")}{champ("registre", "N° de registre de commerce")}{champ("identifiantFiscal", "Identifiant fiscal (NIU, NINEA…)")}{champ("adresseLegale", "Adresse légale")}{champ("adresseOperation", "Adresse d'exploitation")}</>}
-      {champ("villes", "Villes desservies (séparées par des virgules)")}{champ("capaciteMax", "Courses simultanées maximum", "number")}
-      {champ("base", "Prix de base (FCFA)", "number")}{champ("parKm", "Prix par km (FCFA)", "number")}{champ("enlevement", "Frais d'enlèvement (FCFA)", "number")}{champ("expressPct", "Supplément express (%)", "number")}{champ("reglement", "Numéro Mobile Money de versement")}
-    </div>
-    <fieldset><legend>{t("Véhicules")}</legend>{Object.entries(VEHICULES).map(([v, l]) => <label key={v} className="axl-coche"><input type="checkbox" checked={f.vehicules.includes(v)} onChange={(e) => set("vehicules", e.target.checked ? [...f.vehicules, v] : f.vehicules.filter((x) => x !== v))} />{t(l)}</label>)}</fieldset>
-    <button className="axl-btn axl-btn--fort" disabled={envoi || !f.nom.trim() || f.telephone.trim().length < 8 || !f.villes.trim() || !f.vehicules.length}>{envoi ? t("Envoi…") : t("Enregistrer et continuer")}</button>
+    <section>
+      <h3>{t(f.type === "societe" ? "Votre société" : "Vos coordonnées")}</h3>
+      <div className="axl-grille">
+        {champ("nom", f.type === "societe" ? "Nom commercial" : "Nom complet")}{champ("telephone", "Téléphone", "tel")}{champ("email", "E-mail", "email")}
+        {f.type === "societe" && <>{champ("raisonSociale", "Raison sociale")}{champ("registre", "N° de registre de commerce")}{champ("identifiantFiscal", "Identifiant fiscal (NIU, NINEA…)")}{champ("adresseLegale", "Adresse légale")}{champ("adresseOperation", "Adresse d'exploitation")}</>}
+      </div>
+    </section>
+    <section>
+      <h3>{t("Où et comment vous livrez")}</h3>
+      <div className="axl-grille">{champ("villes", "Villes desservies (séparées par des virgules)")}{champ("capaciteMax", "Courses simultanées maximum", "number")}</div>
+      <fieldset><legend>{t("Véhicules")}</legend><div className="axl-puces">{Object.entries(VEHICULES).map(([v, l]) => <label key={v} className="axl-puce"><input type="checkbox" checked={f.vehicules.includes(v)} onChange={(e) => set("vehicules", e.target.checked ? [...f.vehicules, v] : f.vehicules.filter((x) => x !== v))} /><span>{t(l)}</span></label>)}</div></fieldset>
+    </section>
+    <section>
+      <h3>{t("Vos tarifs")}</h3>
+      <div className="axl-grille">{champ("base", "Prix de base (FCFA)", "number")}{champ("parKm", "Prix par km (FCFA)", "number")}{champ("enlevement", "Frais d'enlèvement (FCFA)", "number")}{champ("expressPct", "Supplément express (%)", "number")}</div>
+      <p className="axl-apercu"><span>{t("Exemple pour {0} km", String(gain.km))}</span><b>{formatMontant(gain.prix, "XAF")}</b><span>{t("Vous recevez")} <b>{formatMontant(gain.net, "XAF")}</b></span></p>
+    </section>
+    <section>
+      <h3>{t("Vos versements")}</h3>
+      <div className="axl-grille">{champ("reglement", "Numéro Mobile Money de versement")}</div>
+      <p className="axl-doux">{t("Indiquez l'opérateur et le numéro, par exemple : MTN 690000000. Ce numéro est chiffré.")}</p>
+    </section>
+    <div className="axl-envoi"><p>{t("Vous pourrez tout modifier plus tard.")}</p><button className="axl-btn axl-btn--fort" disabled={envoi || !f.nom.trim() || f.telephone.trim().length < 8 || !f.villes.trim() || !f.vehicules.length}>{envoi ? t("Envoi…") : t("Enregistrer et continuer")}</button></div>
   </form>;
 }
 

@@ -3,7 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { genererContrat, identiteAxso, lireCompte } from "@/lib/logistique/contrat";
 import { dansDeploiement } from "@/lib/logistique/dispatch";
-import { documentsManquants, etapesTransporteur } from "@/lib/logistique/parcours";
+import { apercuGain, documentsManquants, etapesTransporteur } from "@/lib/logistique/parcours";
+import { calculerDevis } from "@/lib/logistique/tarifs";
 import { prevoirDemande } from "@/lib/logistique/intelligence";
 import { construireGraphe, economieParVille } from "@/lib/logistique/pilotage";
 import { lireReponseOsrm } from "@/lib/logistique/routage";
@@ -70,4 +71,13 @@ test("parcours transporteur : prochaine étape et document rejeté à renvoyer",
   assert.equal(etapesTransporteur({ ...base, documents: [{ type: "piece_identite", statut: "en_revue" }] }).prochaine, "validation");
   assert.equal(etapesTransporteur({ ...base, statutLegal: "verifie", documents: [{ type: "piece_identite", statut: "verifie" }] }).prochaine, "disponible");
   assert.equal(etapesTransporteur({ ...base, statutLegal: "verifie", disponible: true, documents: [{ type: "piece_identite", statut: "verifie" }] }).prochaine, null);
+});
+
+test("aperçu du gain : identique au vrai devis", () => {
+  const t = { base: 1500, parKm: 100, enlevement: 250 };
+  const d = calculerDevis({ modele: "hybride", devise: "XAF", ...t }, { distanceKm: 5 }, { maintenant: new Date() });
+  const a = apercuGain(t);
+  assert.ok(d.eligible);
+  assert.equal(a.prix, d.prixFournisseur);
+  assert.equal(a.net, d.versementFournisseur);
 });

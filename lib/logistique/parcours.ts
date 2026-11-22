@@ -1,6 +1,14 @@
 // Étapes d'activation d'un transporteur, de la création du compte à la première course.
 export const DOCUMENTS_OBLIGATOIRES: Record<string, string[]> = { societe: ["registre_commerce", "identifiant_fiscal"], livreur: ["piece_identite"] };
 
+export const TAUX_COMMISSION_DEFAUT = 0.1;
+
+/** Exemple affiché au transporteur : prix d'une course et montant net après commission. */
+export function apercuGain(t: { base: number; parKm: number; enlevement: number }, km = 5) {
+  const prix = Math.round(t.base + t.enlevement + t.parKm * km);
+  return { km, prix, net: prix - Math.round(prix * TAUX_COMMISSION_DEFAUT) };
+}
+
 type Dossier = { type: string; statutLegal: string; disponible: boolean; documents: { type: string; statut: string }[] };
 
 /** Documents obligatoires à déposer : un document rejeté ou expiré est à renvoyer. */

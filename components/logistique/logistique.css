@@ -1,4 +1,5 @@
-.axl { min-height: 100svh; background: #f4f4f3; color: #111; font-family: "Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.axl { min-height: 100svh; background: #f4f4f3; color: #111; font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
+.axl, .axl * { font-family: "Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, sans-serif !important; }
 .axl-page { max-width: 920px; margin: 0 auto; padding: 16px 16px 64px; display: grid; gap: 14px; }
 .axl-tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 6px 0; }
 .axl-tete > div:first-child { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -45,3 +46,34 @@
 .axl-etapes i { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #cfcfca; background: #fff; color: #fff; }
 .axl-etapes li[data-etat="fait"] { color: #111; } .axl-etapes li[data-etat="fait"] i { border-color: #111; background: #111; }
 .axl-etapes li[data-etat="actuelle"] { color: #111; font-weight: 600; } .axl-etapes li[data-etat="actuelle"] i { border-color: #EDA900; box-shadow: inset 0 0 0 5px #EDA900; }
+.axl-tete h1 { font-size: 22px; font-weight: 600; letter-spacing: -.025em; }
+.axl-carte { border-radius: 20px; padding: clamp(18px, 3vw, 26px); }
+.axl-carte h2 { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+.axl-kpis b { font-weight: 600; letter-spacing: -.025em; }
+.axl input:not([type="checkbox"]), .axl select { min-height: 48px; border-color: #cfcfca; border-radius: 12px; transition: border-color .15s, box-shadow .15s; }
+.axl input:not([type="checkbox"]):hover, .axl select:hover { border-color: #8a8a86; }
+.axl input:not([type="checkbox"]):focus, .axl select:focus { border-color: #000; box-shadow: 0 0 0 1px #000; outline: none; }
+.axl label:not(.axl-btn):not(.axl-coche):not(.axl-puce) { font-weight: 550; letter-spacing: -.005em; }
+.axl-btn { border-radius: 999px; padding: 0 20px; font-weight: 600; letter-spacing: -.01em; transition: background .15s, border-color .15s; }
+.axl-btn:hover:not(:disabled) { border-color: #8a8a86; }
+.axl-btn--fort:hover:not(:disabled) { background: #262626; border-color: #262626; }
+.axl-profil { gap: 0; padding: clamp(22px, 4vw, 40px); }
+.axl-profil > header { display: grid; gap: 6px; padding-bottom: 24px; }
+.axl-profil > header small { color: #8f6500; font-size: 13px; font-weight: 600; }
+.axl-profil > header h2 { font-size: clamp(26px, 4vw, 34px); line-height: 1.08; letter-spacing: -.035em; }
+.axl-profil > .axl-choix { padding-bottom: 22px; }
+.axl-profil > section { display: grid; gap: 16px; padding: 24px 0; border-top: 1px solid #ececea; }
+.axl-profil h3 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.015em; }
+.axl-puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.axl-puce { position: relative; cursor: pointer; }
+.axl-puce input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.axl-puce span { display: inline-flex; align-items: center; min-height: 44px; padding: 0 17px; border: 1px solid #dcdcd8; border-radius: 999px; background: #fff; font-size: 14px; font-weight: 550; transition: background .15s, color .15s, border-color .15s; }
+.axl-puce:hover span { border-color: #8a8a86; }
+.axl-puce input:checked + span { background: #000; border-color: #000; color: #fff; }
+.axl-puce input:focus-visible + span { outline: 2px solid #111; outline-offset: 2px; }
+.axl-apercu { display: flex; align-items: center; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; margin: 0; padding: 14px 16px; border-radius: 14px; background: #f6f6f4; color: #62625f; font-size: 14px; }
+.axl-apercu b { color: #111; font-weight: 600; font-variant-numeric: tabular-nums; }
+.axl-envoi { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 22px; border-top: 1px solid #ececea; }
+.axl-envoi p { margin: 0; color: #62625f; font-size: 14px; }
+.axl-envoi .axl-btn { min-height: 50px; padding: 0 26px; font-size: 15px; }
+@media (max-width: 520px) { .axl-envoi .axl-btn { width: 100%; } }

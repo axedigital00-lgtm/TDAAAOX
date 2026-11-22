@@ -1,0 +1,84 @@
+/* Inscription des transporteurs : typographie et contrastes du site public. Portée : `.axi`. */
+.axi { --i-texte: #0b0b0b; --i-doux: #62625e; --i-ligne: #e2e2de; --i-fond: #f6f6f4; --i-jaune: #EDA900; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: #000; color: #fff; font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
+.axi, .axi * { font-family: "Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, sans-serif !important; }
+.axi-tete { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; max-width: 1240px; margin: 0 auto; padding: 22px clamp(16px, 4vw, 40px); }
+.axi-tete img { display: block; height: 30px; width: auto; }
+.axi-tete p { margin: 0; color: rgba(255, 255, 255, .64); font-size: 14px; }
+.axi-tete p a { color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.axi-grille { flex: 1; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 480px); align-items: center; gap: clamp(40px, 7vw, 104px); width: 100%; max-width: 1240px; margin: 0 auto; padding: clamp(16px, 3vw, 32px) clamp(16px, 4vw, 40px) 32px; }
+
+.axi-surtitre { margin: 0 0 18px; color: var(--i-jaune); font-size: 14px; font-weight: 600; }
+.axi-texte h1 { max-width: 13ch; margin: 0; font-size: clamp(38px, 5vw, 68px); line-height: 1.02; font-weight: 600; letter-spacing: -.04em; }
+.axi-lead { max-width: 480px; margin: 22px 0 0; color: rgba(255, 255, 255, .68); font-size: clamp(16px, 1.4vw, 18px); line-height: 1.55; }
+.axi-points { display: grid; gap: 20px; max-width: 460px; margin: 38px 0 0; padding: 0; list-style: none; }
+.axi-points li { display: flex; gap: 14px; }
+.axi-points li > span { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 1px solid rgba(255, 255, 255, .24); border-radius: 50%; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.axi-points b { display: block; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.axi-points small { display: block; margin-top: 2px; color: rgba(255, 255, 255, .58); font-size: 14px; line-height: 1.45; }
+
+.axi-carte { width: 100%; padding: clamp(24px, 3vw, 36px); border-radius: 24px; background: #fff; color: var(--i-texte); box-shadow: 0 30px 90px rgba(255, 255, 255, .06); animation: axi-in .5s cubic-bezier(.16, 1, .3, 1); }
+@keyframes axi-in { from { opacity: 0; transform: translateY(14px); } }
+.axi-progres { display: flex; gap: 6px; margin: 0 0 28px; padding: 0; list-style: none; }
+.axi-progres li { flex: 1; display: flex; align-items: center; gap: 7px; min-width: 0; padding-bottom: 10px; border-bottom: 2px solid var(--i-ligne); color: #6a6a66; font-size: 12.5px; font-weight: 550; transition: color .2s, border-color .2s; }
+.axi-progres li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axi-progres i { display: grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #efefec; color: #62625e; font-size: 11px; font-style: normal; font-weight: 650; }
+.axi-progres li[data-etat="actif"], .axi-progres li[data-etat="fait"] { border-color: #000; color: var(--i-texte); }
+.axi-progres li[data-etat="actif"] i, .axi-progres li[data-etat="fait"] i { background: #000; color: #fff; }
+
+.axi-corps { animation: axi-etape .32s cubic-bezier(.16, 1, .3, 1); }
+@keyframes axi-etape { from { opacity: 0; transform: translateX(10px); } }
+.axi-corps h2 { margin: 0; font-size: clamp(24px, 2.4vw, 30px); line-height: 1.12; font-weight: 600; letter-spacing: -.03em; }
+.axi-sous { margin: 8px 0 24px; color: var(--i-doux); font-size: 15px; line-height: 1.45; }
+.axi-champ { display: grid; gap: 7px; margin-bottom: 16px; }
+.axi-champ label { font-size: 14px; font-weight: 550; letter-spacing: -.005em; }
+.axi-champ input { width: 100%; height: 50px; padding: 0 15px; border: 1px solid #cfcfca; border-radius: 12px; outline: none; background: #fff; color: var(--i-texte); font-size: 16px; box-sizing: border-box; transition: border-color .15s, box-shadow .15s; }
+.axi-champ input:hover { border-color: #8a8a86; }
+.axi-champ input:focus { border-color: #000; box-shadow: 0 0 0 1px #000; }
+.axi-champ input::placeholder { color: #9b9b96; }
+.axi-champ input[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261e; }
+.axi-err { margin: 0; color: #b3261e; font-size: 13px; }
+.axi-mdp { position: relative; } .axi-mdp input { padding-right: 50px; }
+.axi-mdp button { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: none; color: #62625e; cursor: pointer; }
+.axi-mdp button:hover { background: #f1f1ef; color: #000; }
+
+.axi-types { display: grid; gap: 10px; }
+.axi-types button { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border: 1px solid var(--i-ligne); border-radius: 16px; background: #fff; color: var(--i-texte); text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, background .15s; }
+.axi-types button:hover { border-color: #8a8a86; }
+.axi-types button[aria-checked="true"] { border-color: #000; box-shadow: inset 0 0 0 1px #000; background: var(--i-fond); }
+.axi-ico { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px; background: #f1f1ee; }
+.axi-types button[aria-checked="true"] .axi-ico { background: #000; color: #fff; }
+.axi-types button > span:nth-child(2) { flex: 1; min-width: 0; }
+.axi-types b { display: block; font-size: 15.5px; font-weight: 600; letter-spacing: -.01em; }
+.axi-types small { display: block; margin-top: 2px; color: var(--i-doux); font-size: 13.5px; line-height: 1.35; }
+.axi-types button > i { flex: none; width: 20px; height: 20px; border: 1.5px solid #bdbdb8; border-radius: 50%; }
+.axi-types button[aria-checked="true"] > i { border: 6px solid #000; }
+
+.axi-vehicules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+.axi-vehicules button { display: grid; justify-items: center; gap: 7px; padding: 14px 4px; border: 1px solid var(--i-ligne); border-radius: 14px; background: #fff; color: var(--i-texte); font-size: 13.5px; font-weight: 550; cursor: pointer; transition: border-color .15s, box-shadow .15s, background .15s; }
+.axi-vehicules button:hover { border-color: #8a8a86; }
+.axi-vehicules button[aria-checked="true"] { border-color: #000; box-shadow: inset 0 0 0 1px #000; background: var(--i-fond); }
+
+.axi-actions { display: flex; gap: 8px; margin-top: 24px; }
+.axi-suite { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; border: 0; border-radius: 999px; background: #000; color: #fff; font-size: 16px; font-weight: 600; letter-spacing: -.01em; cursor: pointer; transition: background .15s; }
+.axi-suite:hover { background: #262626; } .axi-suite:disabled { opacity: .5; cursor: not-allowed; }
+.axi-retour { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border: 1px solid var(--i-ligne); border-radius: 50%; background: #fff; color: #000; cursor: pointer; }
+.axi-retour:hover { background: #f4f4f2; }
+.axi-vendre { margin: 18px 0 0; color: var(--i-doux); font-size: 14px; text-align: center; }
+.axi-vendre a { color: var(--i-texte); font-weight: 550; text-decoration: underline; text-underline-offset: 3px; }
+.axi-pied { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 8px 16px 26px; font-size: 13px; }
+.axi-pied a { color: rgba(255, 255, 255, .6); text-decoration: none; } .axi-pied a:hover { color: #fff; }
+.axi :focus-visible { outline: 2px solid var(--i-jaune); outline-offset: 2px; }
+.axi-champ input:focus-visible { outline: none; }
+
+@media (max-width: 920px) {
+  .axi-grille { grid-template-columns: minmax(0, 1fr); gap: 26px; align-items: start; max-width: 560px; }
+  .axi-texte h1 { max-width: 15ch; font-size: clamp(32px, 9vw, 44px); }
+  .axi-lead { margin-top: 12px; font-size: 15.5px; }
+  .axi-points, .axi-surtitre { display: none; }
+}
+@media (max-width: 420px) {
+  .axi-tete p { font-size: 13px; }
+  .axi-progres li span { display: none; } .axi-progres li { justify-content: center; }
+  .axi-vehicules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .axi-carte, .axi-corps { animation: none; } }
