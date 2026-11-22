@@ -65,3 +65,12 @@
 | Commande rapide entreprise | Crée une demande à valider, pas une commande directe | Le marchand garde la main sur le stock et le crédit. |
 | Retour en libre-service | Ouvre une demande, sans remboursement automatique | L'argent ne bouge qu'après décision du marchand. |
 | Fin d'un lancement | Pas de retour si la boutique a été retouchée entre-temps ; le marchand est prévenu | Ne jamais écraser son travail. |
+| Transporteurs | Table unique `FournisseurLogistique` pour sociétés et livreurs | Mêmes parcours de vérification, score, dispatch et règlement |
+| Temps réel logistique | Polling tant que WebSockets et Durable Objects ne sont pas branchés | Fonctionne sur le déploiement actuel, sans promettre du direct |
+| ETA | Plage affichée seulement si elle est calculable | Aucun fournisseur d'itinéraires n'est choisi : pas d'heure inventée |
+| Nouveaux visuels | Illustrations de la charte ; photos existantes de la landing conservées | Demande du propriétaire du 2026-11-22 |
+| Routage | OSRM auto-hébergé, jamais un service public | Les adresses et positions restent chez AXSO |
+| Autonomie | Active par défaut sur les livraisons demandées ; création automatique de course seulement sur option | Une course coûte de l'argent au marchand : il doit l'avoir choisi |
+| Prédiction | Active dès 7 jours, signalée en faible confiance avant 56 jours | Demande du propriétaire, sans présenter une estimation comme fiable |
+| Versements | Contrat signé, accord du transporteur, plafond, identifiant idempotent, bac à sable par défaut | Un envoi d'argent ne se rattrape pas |
+| Landing | Alternance de sections noires et claires par jetons `.axm-clair` | Demande du propriétaire |

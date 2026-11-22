@@ -27,7 +27,7 @@ export default async function TemoignagesPage() {
   const [vedette, ...autres] = avis;
   return (
     <PageAxm>
-      <HeroPage
+      <HeroPage image={{ src: "/visuels/hero-temoignages.webp", alt: "" }}
         surtitre={t("Témoignages")}
         titre={t("Ils vendent avec AXSO")}
         lead={t("Des marchands partagent leur expérience. Chaque avis est déposé depuis leur tableau de bord et vérifié par notre équipe.")}

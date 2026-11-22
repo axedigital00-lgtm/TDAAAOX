@@ -15,7 +15,7 @@ export default async function TarifsPage() {
   const [t, promo, langue] = await Promise.all([getT(), finPromo(), getLangue()]);
   return (
     <PageAxm>
-      <HeroPage
+      <HeroPage image={{ src: "/visuels/hero-tarifs.webp", alt: "" }}
         surtitre={t("Tarifs")}
         titre={t("Commencez gratuitement. Grandissez à votre rythme.")}
         lead={t("Aucune commission AXSO sur vos ventes payées à la livraison. Changez de forfait quand vous voulez.")}

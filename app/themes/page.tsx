@@ -17,7 +17,7 @@ export default async function ThemesPage({ searchParams }: { searchParams: Promi
   const famille = FAMILLES_THEMES.some((f) => f.nom === style) ? style : undefined;
   return (
     <PageAxm>
-      <HeroPage
+      <HeroPage image={{ src: "/visuels/hero-themes.webp", alt: "" }}
         surtitre={t("Thèmes")}
         titre={t("Une boutique à votre image, sans écrire de code")}
         lead={<>{NB_THEMES} {t("thèmes conçus pour les marchés africains, tous inclus dans votre forfait.")}</>}

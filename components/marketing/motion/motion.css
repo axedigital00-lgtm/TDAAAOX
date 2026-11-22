@@ -6,8 +6,8 @@
 /* Apparitions plus cinématographiques */
 .axm-reveal { opacity: 0; transform: translate3d(0, 34px, 0) scale(.985); filter: blur(7px); transition: opacity .95s var(--ease), transform 1.1s var(--ease), filter .9s var(--ease); }
 .axm-reveal.axm-in { opacity: 1; transform: none; filter: none; }
-.axm-h2.axm-reveal { clip-path: inset(0 0 100% 0); transform: translate3d(0, 46px, 0); filter: none; transition: clip-path 1.15s var(--ease), transform 1.15s var(--ease), opacity .5s; }
-.axm-h2.axm-reveal.axm-in { clip-path: inset(-8% -2% -14% -2%); }
+.axm-h2.axm-reveal { clip-path: inset(0 0 55% 0); transform: translate3d(0, 46px, 0); filter: none; transition: clip-path 1.15s var(--ease), transform 1.15s var(--ease), opacity .5s; }
+.axm-h2.axm-reveal.axm-in { clip-path: inset(-8% -2% -14% -2%); transform: none; }
 
 /* Parallaxe, relief, aimant */
 .axm-hero__image, .axm-case-img, [data-parallaxe] { translate: 0 var(--axp, 0); will-change: translate; }
@@ -309,3 +309,15 @@
 .axx-familles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 28px; }
 .axx-familles a { padding: 8px 14px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--m-line); color: var(--m-muted); text-decoration: none; font-size: 14px; }
 .axx-familles a:hover { background: #fff; color: #000; }
+
+/* Each illustration pairs its own editorial photograph with the working example. */
+.axs > img.axs-editorial { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.axs:has(> .axs-editorial)::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 10%, rgb(5 11 17 / 18%) 55%, rgb(5 11 17 / 52%)); pointer-events: none; }
+.axs:has(> .axs-editorial) .axs-contenu { position: relative; z-index: 1; margin-left: auto; margin-right: 5%; width: min(67%, 360px); }
+.axs-v-grille figure > svg,.axs-cat figure > svg { display: block; margin: 10px auto; color: #455b55; }
+.axs-scan > svg { color: #493123; }
+.axs--vitrine .axs-v-hero > img { object-fit: cover; }
+.axs--vitrine .axs-v-grille figure { background: #e7ece5; }
+@media(max-width:600px) {
+  .axs:has(> .axs-editorial) .axs-contenu { width: min(78%, 320px); margin-right: 4%; }
+}

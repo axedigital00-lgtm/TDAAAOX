@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { requireNiveau } from "@/lib/permissions-server";
 import { hash } from "@/lib/mots-de-passe";
 import { z } from "zod";
+import { STATUT_EN_ROUTE } from "@/lib/logistique/position";
 import { emailDejaPris, normaliserEmail } from "@/lib/unicite-email";
 
 const schemaLivreur = z.object({
@@ -34,7 +35,14 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json({ livreurs });
+  // Même dans son équipe, un livreur n'apparaît sur la carte que pendant une livraison.
+  const enRoute = new Set((await prisma.commande.findMany({
+    where: { tenantId, statut: STATUT_EN_ROUTE, livreurId: { in: livreurs.map((l) => l.id) } },
+    select: { livreurId: true },
+  })).map((c) => c.livreurId));
+  return NextResponse.json({
+    livreurs: livreurs.map((l) => (enRoute.has(l.id) ? l : { ...l, latitude: null, longitude: null, positionAt: null })),
+  });
 }
 
 export async function POST(req: NextRequest) {

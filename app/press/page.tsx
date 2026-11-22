@@ -15,7 +15,7 @@ export default async function PressPage() {
     ["15", t("devises d'affichage prises en charge")], ["1", t("stock commun au site, à WhatsApp et au magasin")],
   ];
   return <PageAxm>
-    <HeroPage surtitre={t("Espace presse")} titre={t("AXSO, en quelques mots.")} lead={t("Tout ce qu'il faut pour parler de nous avec justesse : présentation, faits, logos et contact direct.")} principal={{ label: t("Contacter la presse"), href: "mailto:presse@axsoafrica.com" }} />
+    <HeroPage image={{ src: "/visuels/hero-press.webp", alt: "" }} surtitre={t("Espace presse")} titre={t("AXSO, en quelques mots.")} lead={t("Tout ce qu'il faut pour parler de nous avec justesse : présentation, faits, logos et contact direct.")} principal={{ label: t("Contacter la presse"), href: "mailto:presse@axsoafrica.com" }} />
     <Section serre titre={t("Présentation")}>
       <p className="axm-lead" style={{ maxWidth: 860, color: "#fff", fontSize: "clamp(20px, 2.2vw, 28px)", lineHeight: 1.4 }}>{t("AXSO est une plateforme de commerce conçue pour l'Afrique. Elle réunit boutique en ligne, vente sur WhatsApp, caisse en magasin, paiement à la livraison, logistique, produits numériques et assistante IA, pour permettre à chaque commerçant de vendre partout depuis un seul outil.")}</p>
     </Section>

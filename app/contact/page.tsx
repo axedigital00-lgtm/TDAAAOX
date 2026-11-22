@@ -18,7 +18,7 @@ export default async function ContactPage() {
   ];
   return (
     <PageAxm>
-      <HeroPage
+      <HeroPage image={{ src: "/visuels/hero-contact.webp", alt: "" }}
         surtitre={t("Contact")}
         titre={t("Parlons de votre boutique")}
         lead={t("Écrivez-nous par email ou sur WhatsApp : notre équipe vous répond pendant les heures d’assistance.")}

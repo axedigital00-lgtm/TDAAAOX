@@ -11,7 +11,7 @@ const PAGES = [
   ...DOSSIERS.map(d => `/fonctionnalites/${d.slug}`),
   ...ARTICLES.map(a => `/blog/${a.slug}`),
   ...GUIDES.map(g => `/docs/${g.slug}`),
-  "/tarifs", "/outils", "/entreprises", "/nouveautes", "/migration",
+  "/tarifs", "/outils", "/transporteurs", "/entreprises", "/nouveautes", "/migration",
   "/blog", "/docs", "/tutorials", "/community", "/press", "/jobs",
   "/legal/cgu", "/legal/privacy", "/legal/cookies", "/legal/abonnements", "/legal/politique-prix",
 ];

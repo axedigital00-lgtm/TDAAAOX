@@ -1,0 +1,42 @@
+.axl { min-height: 100svh; background: #f4f4f3; color: #111; font-family: "Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.axl-page { max-width: 920px; margin: 0 auto; padding: 16px 16px 64px; display: grid; gap: 14px; }
+.axl-tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 6px 0; }
+.axl-tete > div:first-child { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.axl-tete img { height: 26px; width: auto; }
+.axl-tete h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.axl-tete__a { display: flex; align-items: center; gap: 8px; }
+.axl-dispo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid #d6d6d3; border-radius: 999px; background: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.axl-dispo i { width: 9px; height: 9px; border-radius: 50%; background: #a3a3a0; }
+.axl-dispo[aria-pressed="true"] i { background: #17a35c; box-shadow: 0 0 0 4px rgba(23, 163, 92, .16); }
+.axl-icone { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #d6d6d3; border-radius: 50%; background: #fff; cursor: pointer; }
+.axl-carte { display: grid; gap: 12px; padding: 18px; border: 1px solid #e6e6e3; border-radius: 16px; background: #fff; }
+.axl-carte h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 16px; font-weight: 650; }
+.axl-doux { margin: 0; color: #62625f; font-size: 14px; line-height: 1.45; }
+.axl-alerte { margin: 0; padding: 12px 14px; border-radius: 12px; background: #fff5dc; color: #6b4b00; font-size: 14px; }
+.axl-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.axl-kpis > div { display: grid; gap: 2px; padding: 14px; border: 1px solid #e6e6e3; border-radius: 14px; background: #fff; min-width: 0; }
+.axl-kpis small { color: #62625f; font-size: 12px; } .axl-kpis b { font-size: 21px; font-weight: 650; overflow-wrap: anywhere; } .axl-kpis span { color: #62625f; font-size: 12px; }
+@media (max-width: 680px) { .axl-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.axl-badges { display: flex; flex-wrap: wrap; gap: 6px; } .axl-badges span { padding: 5px 10px; border-radius: 999px; background: #111; color: #fff; font-size: 12px; font-weight: 600; }
+.axl-course { display: grid; gap: 8px; padding: 13px 0; border-top: 1px solid #eeeeec; }
+.axl-course:first-of-type { border-top: 0; padding-top: 0; }
+.axl-course header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.axl-course p { margin: 0; color: #3f3f3d; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.axl-etat { display: inline-flex; padding: 3px 9px; border-radius: 999px; background: #efefed; color: #3f3f3d; font-size: 12px; font-weight: 600; }
+.axl-etat[data-tone="success"] { background: #dff5e8; color: #0d6b3b; } .axl-etat[data-tone="critical"] { background: #fde4e3; color: #9e1c19; } .axl-etat[data-tone="warning"] { background: #fff1cf; color: #6b4b00; } .axl-etat[data-tone="info"] { background: #e2edfb; color: #164f96; }
+.axl-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.axl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 15px; border: 1px solid #d6d6d3; border-radius: 11px; background: #fff; color: #111; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.axl-btn--fort { background: #111; border-color: #111; color: #fff; } .axl-btn:disabled { opacity: .45; cursor: not-allowed; }
+.axl-gps { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-radius: 10px; background: #efefed; font-size: 13px; }
+.axl-gps span { flex: 1; } .axl-gps button { min-height: 32px; padding: 0 11px; border: 0; border-radius: 8px; background: #111; color: #fff; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.axl-gps[data-etat="actif"] { background: #dff5e8; color: #0d6b3b; } .axl-gps[data-etat="hors_ligne"], .axl-gps[data-etat="refuse"] { background: #fff1cf; color: #6b4b00; }
+.axl-preuve { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.axl label:not(.axl-btn):not(.axl-coche) { display: grid; gap: 5px; font-size: 13px; font-weight: 600; min-width: 0; }
+.axl input:not([type="checkbox"]), .axl select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid #d6d6d3; border-radius: 10px; background: #fff; color: #111; font: inherit; font-size: 16px; font-weight: 400; box-sizing: border-box; }
+.axl-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; align-items: end; }
+.axl-form fieldset { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 0; border: 0; } .axl-form legend { margin-bottom: 7px; font-size: 13px; font-weight: 600; }
+.axl-coche { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: 14px; }
+.axl-choix { display: flex; gap: 6px; flex-wrap: wrap; } .axl-choix button { min-height: 44px; padding: 0 15px; border: 1px solid #d6d6d3; border-radius: 11px; background: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; } .axl-choix button[aria-checked="true"] { background: #111; border-color: #111; color: #fff; }
+.axl-liste { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; } .axl-liste li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid #eeeeec; font-size: 14px; } .axl-liste li:first-child { border-top: 0; }
+.axl-depot { cursor: pointer; }
+.axl :focus-visible { outline: 2px solid #111; outline-offset: 2px; }

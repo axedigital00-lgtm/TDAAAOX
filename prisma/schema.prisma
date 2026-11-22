@@ -4335,3 +4335,510 @@ model CommissionParrainage {
   @@index([filleulTenantId])
   @@index([retraitId])
 }
+
+// ─── Réseau logistique AXSO (docs/logistique) ─────────────────────────────
+// Société ou livreur indépendant. `livreurId` relie un compte Livreur existant.
+model FournisseurLogistique {
+  id                String    @id @default(cuid())
+  type              String // societe | livreur
+  nom               String
+  slug              String    @unique
+  description       String?
+  raisonSociale     String?
+  registre          String?
+  identifiantFiscal String?
+  adresseLegale     String?
+  adresseOperation  String?
+  telephone         String
+  email             String?
+  pays              String    @default("CM")
+  devise            String    @default("XAF")
+  statutLegal       String    @default("en_attente") // en_attente | en_revue | verifie | rejete | expire | suspendu
+  assuranceVerifiee Boolean   @default(false)
+  identiteVerifiee  Boolean   @default(false)
+  suspendu          Boolean   @default(false)
+  motifSuspension   String?
+  disponible        Boolean   @default(false)
+  capaciteMax       Int       @default(3)
+  vehicules         String[]  @default([])
+  poidsMaxKg        Float?
+  horaires          Json      @default("{}")
+  reglement         String? // coordonnées de versement, chiffrées
+  societeParenteId  String?
+  livreurId         String?   @unique
+  proprietaireId    String
+  scoreGlobal       Int       @default(0)
+  score             Json      @default("{}")
+  scoreCalculeLe    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  membres    MembreFournisseur[]
+  documents  DocumentVerification[]
+  vehiculesFlotte VehiculeFlotte[]
+  zones      ZoneService[]
+  tarifs     RegleTarifFournisseur[]
+  historique HistoriqueScore[]
+  contrats   ContratTransporteur[]
+
+  @@index([statutLegal, suspendu, disponible])
+  @@index([societeParenteId])
+  @@index([proprietaireId])
+}
+
+model MembreFournisseur {
+  id            String   @id @default(cuid())
+  fournisseurId String
+  userId        String
+  role          String   @default("admin") // admin | dispatch
+  createdAt     DateTime @default(now())
+
+  fournisseur FournisseurLogistique @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@unique([fournisseurId, userId])
+  @@index([userId])
+}
+
+// Pièces légales : contenu chiffré, jamais exposé aux marchands.
+model DocumentVerification {
+  id             String    @id @default(cuid())
+  fournisseurId  String
+  type           String
+  statut         String    @default("en_revue")
+  nomFichier     String
+  mime           String
+  taille         Int
+  contenuChiffre String    @db.Text
+  expireLe       DateTime?
+  motifRejet     String?
+  relecteurId    String?
+  relueLe        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  fournisseur FournisseurLogistique @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@index([fournisseurId, type])
+  @@index([statut, expireLe])
+}
+
+model VehiculeFlotte {
+  id              String  @id @default(cuid())
+  fournisseurId   String
+  type            String
+  immatriculation String?
+  capaciteKg      Float?
+  actif           Boolean @default(true)
+
+  fournisseur FournisseurLogistique @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@index([fournisseurId])
+}
+
+model ZoneService {
+  id            String  @id @default(cuid())
+  fournisseurId String
+  pays          String
+  ville         String
+  quartier      String?
+  actif         Boolean @default(true)
+
+  fournisseur FournisseurLogistique @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@unique([fournisseurId, pays, ville, quartier])
+  @@index([pays, ville, actif])
+}
+
+model RegleTarifFournisseur {
+  id            String   @id @default(cuid())
+  fournisseurId String
+  version       Int
+  regle         Json
+  actif         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  fournisseur FournisseurLogistique @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@unique([fournisseurId, version])
+  @@index([fournisseurId, actif])
+}
+
+model PreferenceLogistique {
+  tenantId        String   @id
+  mode            String   @default("autonome")
+  autoCourses     Boolean  @default(false)
+  pause           Boolean  @default(false)
+  budgetMax       Float?
+  exigerVerifie   Boolean  @default(false)
+  preuves         String[] @default(["otp"])
+  adresseEnlevement String?
+  villeEnlevement String?
+  paysEnlevement  String?
+  latEnlevement   Float?
+  lngEnlevement   Float?
+  updatedAt       DateTime @updatedAt
+}
+
+model CourseLivraison {
+  id              String    @id @default(cuid())
+  reference       String    @unique
+  tenantId        String
+  commandeId      String
+  statut          String    @default("attente_fournisseur")
+  fournisseurId   String?
+  devisId         String?
+  tentatives      Int       @default(0)
+  poidsKg         Float?
+  express         Boolean   @default(false)
+  vehiculeRequis  String?
+  distanceKm      Float?
+  ville           String?
+  pays            String?
+  quartier        String?
+  latDepart       Float?
+  lngDepart       Float?
+  latArrivee      Float?
+  lngArrivee      Float?
+  preuvesRequises String[]  @default(["otp"])
+  devise          String    @default("XAF")
+  prixFournisseur Decimal?  @db.Decimal(14, 2)
+  commission      Decimal?  @db.Decimal(14, 2)
+  versement       Decimal?  @db.Decimal(14, 2)
+  creditApplique  Decimal   @default(0) @db.Decimal(14, 2)
+  prixMarchand    Decimal?  @db.Decimal(14, 2)
+  responsableIssue String?
+  finPrevue       DateTime?
+  livreeLe        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  assignations AssignationCourse[]
+  evenements   EvenementCourse[]
+  devis        DevisLivraison[]
+  positions    PositionCourse[]
+  incidents    IncidentCourse[]
+  preuve       PreuveLivraison?
+
+  @@index([tenantId, statut, createdAt])
+  @@index([fournisseurId, statut])
+  @@index([commandeId])
+}
+
+model DevisLivraison {
+  id              String   @id @default(cuid())
+  courseId        String
+  fournisseurId   String
+  regleVersion    Int
+  detail          Json
+  prixFournisseur Decimal  @db.Decimal(14, 2)
+  commission      Decimal  @db.Decimal(14, 2)
+  versement       Decimal  @db.Decimal(14, 2)
+  creditApplique  Decimal  @default(0) @db.Decimal(14, 2)
+  prixMarchand    Decimal  @db.Decimal(14, 2)
+  devise          String
+  empreinte       String
+  expireLe        DateTime
+  createdAt       DateTime @default(now())
+
+  course CourseLivraison @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, fournisseurId])
+}
+
+model AssignationCourse {
+  id             String    @id @default(cuid())
+  courseId       String
+  fournisseurId  String
+  statut         String    @default("proposee") // proposee | acceptee | refusee | expiree | annulee | terminee
+  expireLe       DateTime
+  cleIdempotence String    @unique
+  motif          String?
+  decisionId     String?
+  repondueLe     DateTime?
+  createdAt      DateTime  @default(now())
+
+  course CourseLivraison @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([statut, expireLe])
+  @@index([fournisseurId, statut])
+  @@index([courseId])
+}
+
+model EvenementCourse {
+  id         String   @id @default(cuid())
+  courseId   String
+  type       String
+  statut     String?
+  acteurType String
+  acteurId   String?
+  donnees    Json     @default("{}")
+  survenuLe  DateTime @default(now())
+
+  course CourseLivraison @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, survenuLe])
+}
+
+model PreuveLivraison {
+  id                 String   @id @default(cuid())
+  courseId           String   @unique
+  otpValide          Boolean  @default(false)
+  signature          String?  @db.Text
+  photoUrl           String?
+  photoChiffree String?
+  confirmationClient Boolean  @default(false)
+  lat                Float?
+  lng                Float?
+  acteurId           String?
+  createdAt          DateTime @default(now())
+
+  course CourseLivraison @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model PositionCourse {
+  id         String   @id
+  courseId   String
+  captureLe  DateTime
+  recuLe     DateTime @default(now())
+  lat        Float
+  lng        Float
+  precisionM Float?
+  vitesseMs  Float?
+  capDeg     Float?
+  suspect    Boolean  @default(false)
+
+  course CourseLivraison @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, captureLe])
+  @@index([captureLe])
+}
+
+model IncidentCourse {
+  id            String    @id @default(cuid())
+  courseId      String
+  tenantId      String
+  fournisseurId String?
+  type          String // incident | litige | contestation | anomalie
+  severite      String    @default("WARNING")
+  statut        String    @default("ouvert") // ouvert | en_revue | resolu | rejete
+  description   String
+  resolution    String?
+  responsable   String?
+  ouvertPar     String?
+  resoluPar     String?
+  resoluLe      DateTime?
+  createdAt     DateTime  @default(now())
+
+  course CourseLivraison @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([statut, createdAt])
+  @@index([tenantId, statut])
+  @@index([fournisseurId, statut])
+}
+
+model AvisFournisseur {
+  id            String   @id @default(cuid())
+  courseId      String   @unique
+  tenantId      String
+  fournisseurId String
+  note          Int
+  commentaire   String?
+  createdAt     DateTime @default(now())
+
+  @@index([fournisseurId, createdAt])
+}
+
+model HistoriqueScore {
+  id            String   @id @default(cuid())
+  fournisseurId String
+  global        Int
+  score         Json
+  motif         String
+  createdAt     DateTime @default(now())
+
+  fournisseur FournisseurLogistique @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@index([fournisseurId, createdAt])
+}
+
+model DroitLivraisonPlan {
+  plan            String   @id
+  creditsMensuels Float    @default(0)
+  montantMaxCourse Float?
+  poidsMaxKg      Float?
+  actif           Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+}
+
+// Registre immuable : une correction est une nouvelle écriture.
+model EcritureCredit {
+  id        String   @id @default(cuid())
+  tenantId  String
+  courseId  String?
+  type      String // attribution | achat | reservation | consommation | liberation | expiration | annulation
+  montant   Decimal  @db.Decimal(14, 2)
+  reference String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([courseId])
+}
+
+model EcritureFinanceCourse {
+  id        String   @id @default(cuid())
+  courseId  String
+  fournisseurId String?
+  tenantId  String
+  type      String // versement | commission | credit | contribution_marchand
+  montant   Decimal  @db.Decimal(14, 2)
+  devise    String
+  reference String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([courseId])
+  @@index([fournisseurId, type])
+}
+
+model LotReglement {
+  id            String    @id @default(cuid())
+  fournisseurId String
+  statut        String    @default("prepare") // prepare | paye | annule
+  total         Decimal   @db.Decimal(14, 2)
+  devise        String
+  referencePaiement String?
+  creePar       String
+  payePar       String?
+  payeLe        DateTime?
+  idVersement   String?   @unique
+  erreurVersement String?
+  tentativesVersement Int @default(0)
+  createdAt     DateTime  @default(now())
+
+  lignes LigneReglement[]
+
+  @@index([fournisseurId, statut])
+}
+
+model LigneReglement {
+  id       String  @id @default(cuid())
+  lotId    String
+  courseId String  @unique
+  montant  Decimal @db.Decimal(14, 2)
+
+  lot LotReglement @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  @@index([lotId])
+}
+
+model JournalLogistique {
+  id         String   @id @default(cuid())
+  acteurType String
+  acteurId   String?
+  action     String
+  entite     String
+  entiteId   String?
+  avant      Json?
+  apres      Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entite, entiteId])
+  @@index([createdAt])
+}
+
+model EvenementSortant {
+  id            String   @id @default(cuid())
+  type          String
+  donnees       Json
+  statut        String   @default("attente") // attente | publie | echec
+  essais        Int      @default(0)
+  prochainEssai DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([statut, prochainEssai])
+}
+
+model PolitiqueDispatch {
+  id        String   @id @default(cuid())
+  portee    String   @default("global")
+  version   Int
+  config    Json
+  actif     Boolean  @default(true)
+  creePar   String
+  createdAt DateTime @default(now())
+
+  @@unique([portee, version])
+}
+
+model DecisionDispatch {
+  id               String   @id @default(cuid())
+  courseId         String
+  action           String
+  fournisseurId    String?
+  explication      String
+  alternatives     Json     @default("[]")
+  ecartes          Json     @default("[]")
+  politiqueVersion Int
+  shadow           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([courseId, createdAt])
+}
+
+model AlerteLogistique {
+  id          String    @id @default(cuid())
+  cle         String    @unique
+  type        String
+  severite    String
+  explication String
+  preuves     Json      @default("{}")
+  action      String
+  confiance   String
+  shadow      Boolean   @default(true)
+  statut      String    @default("ouverte")
+  resoluPar   String?
+  resoluLe    DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([statut, createdAt])
+}
+
+model ScenarioSimulation {
+  id         String   @id @default(cuid())
+  nom        String
+  parametres Json
+  resultats  Json
+  creePar    String
+  createdAt  DateTime @default(now())
+}
+
+model ContratTransporteur {
+  id             String    @id @default(cuid())
+  fournisseurId  String
+  version        Int
+  conditions     String
+  texte          String
+  empreinte      String
+  tauxCommission Float
+  statut         String    @default("signe") // signe | remplace
+  autoVersement  Boolean   @default(false)
+  signataireNom  String
+  signataireId   String
+  signeLe        DateTime  @default(now())
+  revoqueLe      DateTime?
+
+  fournisseur FournisseurLogistique @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+
+  @@unique([fournisseurId, version])
+  @@index([fournisseurId, statut])
+}
+
+model VersionModele {
+  id        String   @id @default(cuid())
+  nom       String
+  version   Int
+  etat      String   @default("shadow") // shadow | actif | retire
+  metriques Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@unique([nom, version])
+}

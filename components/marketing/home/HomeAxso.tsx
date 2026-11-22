@@ -78,7 +78,7 @@ export async function HomeAxso() {
         { titre: t("Vos chiffres s’éclairent"), texte: t("Ventes, stock et clients se mettent à jour d’eux-mêmes."), scene: <Scene type="analyses" t={t} photo="/visuels/parcours-analyses.webp" grande /> },
       ]} />
 
-      <section className="axm-section">
+      <section className="axm-section axm-light axm-clair">
         <div className="axm-wrap">
           <div className="axm-story">
             <div className="axm-story__copy">
@@ -96,7 +96,7 @@ export async function HomeAxso() {
       </section>
 
       {/* ── La plateforme (bento) ────────────────────────────── */}
-      <section className="axm-section" style={{ paddingTop: 0 }}>
+      <section className="axm-section axm-light axm-clair" style={{ paddingTop: 0 }}>
         <div className="axm-wrap">
           <h2 className="axm-h2" style={{ maxWidth: 900 }}>{t("Une seule plateforme pour tout votre commerce")}</h2>
           <div className="axx-bento">
@@ -118,7 +118,7 @@ export async function HomeAxso() {
       </section>
 
       {/* ── Cas d'usage ──────────────────────────────────────── */}
-      <section className="axm-section">
+      <section className="axm-section axm-light axm-clair">
         <div className="axm-wrap">
           <h2 className="axm-h2">{t("Que vous démarriez ou que vous grandissiez")}</h2>
           <div className="axm-grid axm-g3" style={{ marginTop: 48 }}>
@@ -157,7 +157,7 @@ export async function HomeAxso() {
       </section>
 
       {/* ── Affiliation et partenaires ───────────────────────── */}
-      <section className="axm-section" style={{ paddingTop: 0 }}>
+      <section className="axm-section axm-light axm-clair" style={{ paddingTop: 0 }}>
         <div className="axm-wrap">
           <h2 className="axm-h2" style={{ maxWidth: 900 }}>{t("Grandissez avec l’écosystème AXSO")}</h2>
           <p className="axm-lead" style={{ marginTop: 20 }}>{t("Créateurs, revendeurs et partenaires vous aident à vendre plus loin.")}</p>
@@ -212,7 +212,7 @@ export async function HomeAxso() {
 
       {/* ── Témoignage (avis réel publié) ────────────────────── */}
       {/* ── Mur des moyens de paiement et canaux ─────────────── */}
-      <section className="axm-section--tight" style={{ borderTop: "1px solid var(--m-line)", borderBottom: "1px solid var(--m-line)" }}>
+      <section className="axm-section--tight axm-light axm-clair" style={{ borderTop: "1px solid var(--m-line)", borderBottom: "1px solid var(--m-line)" }}>
         <div className="axm-wrap">
           <p className="axm-eyebrow" style={{ textAlign: "center" }}>{t("Vos clients paient et commandent comme ils en ont l’habitude")}</p>
           <div className="axm-partners">
@@ -233,7 +233,7 @@ export async function HomeAxso() {
       <Suspense fallback={null}><AvisAccueil /></Suspense>
 
       {/* ── Démarrer en trois étapes ─────────────────────────── */}
-      <section id="trois-etapes" className="axm-section">
+      <section id="trois-etapes" className="axm-section axm-light axm-clair">
         <div className="axm-wrap">
           <h2 className="axm-h2">{t("Votre boutique en trois étapes")}</h2>
           <LaunchStory />

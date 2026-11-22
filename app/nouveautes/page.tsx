@@ -20,7 +20,7 @@ const NOUVEAUTES: { nom: string; titre: string; texte: string; h: string; scene:
 export default async function Nouveautes() {
   const t = await getT();
   return <PageAxm>
-    <HeroPage centre surtitre={t("Nouveautés")} titre={t("AXSO avance vite. Voici la preuve.")} lead={t("Les dernières fonctionnalités arrivées sur la plateforme, prêtes à être utilisées dans votre boutique.")} />
+    <HeroPage image={{ src: "/visuels/hero-nouveautes.webp", alt: "" }} centre surtitre={t("Nouveautés")} titre={t("AXSO avance vite. Voici la preuve.")} lead={t("Les dernières fonctionnalités arrivées sur la plateforme, prêtes à être utilisées dans votre boutique.")} />
     <Section serre><div className="axx-bento" style={{ marginTop: 0 }}>
       {NOUVEAUTES.map((n, i) => <Link key={n.h} href={`/fonctionnalites/${n.h}`} className={`axx-carte ${i % 4 === 0 || i % 4 === 3 ? "axx-carte--l" : "axx-carte--m"}`}>
         <Scene type={n.scene} t={t} photo={`/visuels/nouveaute-${n.h}.webp`} />

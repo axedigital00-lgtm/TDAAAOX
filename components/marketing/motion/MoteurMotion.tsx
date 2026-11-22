@@ -8,16 +8,32 @@ const PARALLAXE = ".axm-hero__image, .axm-case-img, [data-parallaxe]";
 const RELIEF = ".axm-card, .axx-carte, .axm-edition";
 const AIMANT = ".axm-btn--primary";
 
+const REPLIS = ["orbites", "vagues", "reseau", "colonnes"];
+
+/** Image introuvable : un film SVG de marque prend sa place. Seul `src` change, la structure React reste intacte. */
+function remplacerImage(img: HTMLImageElement) {
+  if (img.dataset.repli) return;
+  img.dataset.repli = "1";
+  const empreinte = [...img.getAttribute("src")!].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const calme = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  img.removeAttribute("srcset");
+  img.src = `/motion/${calme ? "fixe" : REPLIS[empreinte % REPLIS.length]}.svg`;
+}
+
 export function MoteurMotion() {
   const barre = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const racine = document.querySelector<HTMLElement>(".axm-page");
     if (!racine) return;
+    const erreurImage = (e: Event) => { if (e.target instanceof HTMLImageElement) remplacerImage(e.target); };
+    // Phase de capture : l'événement « error » d'une image ne remonte pas.
+    racine.addEventListener("error", erreurImage, true);
+    racine.querySelectorAll("img").forEach((img) => { if (img.complete && img.naturalWidth === 0 && img.getAttribute("src")) remplacerImage(img); });
     const scenes = new IntersectionObserver((es) => { for (const e of es) e.target.toggleAttribute("data-joue", e.isIntersecting); }, { rootMargin: "10% 0px" });
     racine.querySelectorAll(".axs").forEach((s) => scenes.observe(s));
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       racine.querySelectorAll<HTMLElement>("[data-compte]").forEach((el) => { el.textContent = el.dataset.compte ?? el.textContent; });
-      return () => scenes.disconnect();
+      return () => { scenes.disconnect(); racine.removeEventListener("error", erreurImage, true); };
     }
 
     const compteurs = new IntersectionObserver((es) => {
@@ -72,6 +88,7 @@ export function MoteurMotion() {
     if (fin) { racine.addEventListener("pointermove", bouge, { passive: true }); racine.addEventListener("pointerout", sort, { passive: true }); }
 
     return () => {
+      racine.removeEventListener("error", erreurImage, true);
       scenes.disconnect(); compteurs.disconnect(); para.disconnect(); cancelAnimationFrame(raf);
       window.removeEventListener("scroll", defile); window.removeEventListener("resize", defile);
       racine.removeEventListener("pointermove", bouge); racine.removeEventListener("pointerout", sort);

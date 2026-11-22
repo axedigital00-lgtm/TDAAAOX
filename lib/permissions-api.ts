@@ -14,6 +14,10 @@ const MODULES_API: [string, ModuleKey | null][] = [
   ["/api/commandes/digital-creer", null],
   ["/api/devis/public", null], // jeton du lien client
   ["/api/pro", null], // jeton du portail entreprise
+  ["/api/logistique/annuaire", null],
+  ["/api/logistique/fournisseurs", null], // transporteurs : droits vérifiés dans la route
+  ["/api/logistique/assignations", null],
+  ["/api/logistique/courses", null], // marchand, transporteur ou admin : acteurCourse
   ["/api/clients-acheteurs/retours", null], // session acheteur, vérifiée dans la route
   ["/api/commandes/whatsapp-creer", null],
   ["/api/commandes/whatsapp-redirect", null],
@@ -59,6 +63,7 @@ const MODULES_API: [string, ModuleKey | null][] = [
   // commandes et livraison
   ["/api/commandes", "commandes"],
   ["/api/devis", "commandes"],
+  ["/api/logistique/marchand", "commandes"],
   ["/api/entreprises", "clients"],
   ["/api/retours", "commandes"],
   ["/api/livraison-digitale", "commandes"],

@@ -45,7 +45,7 @@ export default async function AffiliationPage() {
 
   return (
     <PageAxm>
-      <HeroPage
+      <HeroPage image={{ src: "/visuels/hero-affiliation.webp", alt: "" }}
         surtitre={t("Programme d’affiliation")}
         titre={t("Gagnez de l'argent en recommandant des produits africains")}
         lead={t("Touchez une commission sur chaque vente payée en ligne grâce à votre lien, versée par Axso sur Mobile Money.")}
@@ -114,7 +114,8 @@ export default async function AffiliationPage() {
           </div>
           <div style={{ marginTop: 48 }}><Link href={VERS_CATALOGUE} className="axm-btn axm-btn--secondary">{t("Voir tout le catalogue")}</Link></div>
         </Section>
-      )}
+      )}
+
       <Section titre={<>{t("Ton lien te rapporte dès qu’un filleul s’abonne.")}</>} lead={t("Recommande AXSO à d'autres commerçants et touche une commission sur leurs abonnements, à vie.")}>
         <div className="axx-duo">
           <div><p className="axm-stat" style={{ fontSize: "clamp(72px, 12vw, 150px)", color: "#EBA900", margin: 0 }}>20 %</p><p className="axm-lead" style={{ marginTop: 10 }}>{t("de commission sur les abonnements de tes filleuls, à vie.")}</p><p style={{ marginTop: 24 }}><Link href="/affilie/parrainage" className="axm-btn axm-btn--primary">{t("Obtenir mon lien")}</Link></p></div>

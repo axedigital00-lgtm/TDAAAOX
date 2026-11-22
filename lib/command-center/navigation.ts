@@ -13,6 +13,7 @@ export const NAV: EntreeNav[] = [
   { section: "ia", href: "/admin/ia", nom: "Stella IA", icone: "Sparkles", mots: "ai intelligence axia tokens coût roi" },
   { section: "marketing", href: "/admin/marketing", nom: "Marketing", icone: "Megaphone", mots: "marketing campagnes cac roas canaux acquisition" },
   { section: "operations", href: "/admin/operations", nom: "Opérations", icone: "Truck", mots: "operations livraison fulfillment support incidents" },
+  { section: "operations", href: "/admin/logistique", nom: "Tour de contrôle", icone: "RadioTower", ceo: true, mots: "logistique transporteurs dispatch livraison flotte simulation" },
   { section: "paiements", href: "/admin/paiements", nom: "Paiements", icone: "CreditCard", mots: "payments paiements échecs remboursements mobile money" },
   { section: "geographie", href: "/admin/geographie", nom: "Géographie", icone: "Globe2", ceo: true, mots: "geography africa carte map pays marchés market opportunity" },
   { section: "produit", href: "/admin/produit", nom: "Produit", icone: "Boxes", mots: "product analytics fonctionnalités features adoption" },

@@ -1,5 +1,14 @@
 # Journal de la refonte
 
+## Réseau logistique AXSO
+
+**Fait**
+- Écrans marchand, portail transporteur, annuaire public et tour de contrôle admin.
+- Moteurs de vérification, score, dispatch, suivi, crédits, règlements, prévision et simulation.
+- Détail et limites : `docs/logistique/ETAT_IMPLEMENTATION.md`.
+
+**Vérifié** : `tsc --noEmit` sans erreur, 352 tests sur 353 (le test restant signale 23 images manquantes), parcours services 57/57, parcours navigateur 17/17. La tour de contrôle admin n'a pas été ouverte connectée.
+
 ## Lots 2, 3 (base) et 5 — Tokens, composants de base, shell
 
 **Fait**

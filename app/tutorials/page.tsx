@@ -18,7 +18,7 @@ const PARCOURS: { niveau: string; titre: string; texte: string; guides: string[]
 export default async function TutorialsPage() {
   const t = await getT();
   return <PageAxm>
-    <HeroPage surtitre={t("Tutoriels")} titre={t("De zéro à votre première vente.")} lead={t("Suivez un parcours, guide après guide, à votre rythme.")} principal={{ label: t("Commencer le parcours"), href: `/docs/${PARCOURS[0].guides[0]}` }} />
+    <HeroPage image={{ src: "/visuels/hero-tutorials.webp", alt: "" }} surtitre={t("Tutoriels")} titre={t("De zéro à votre première vente.")} lead={t("Suivez un parcours, guide après guide, à votre rythme.")} principal={{ label: t("Commencer le parcours"), href: `/docs/${PARCOURS[0].guides[0]}` }} />
     <Section serre><FilmBoutique /></Section>
     {PARCOURS.map((p) => {
       const guides = p.guides.map((s) => GUIDES.find((g) => g.slug === s)!);

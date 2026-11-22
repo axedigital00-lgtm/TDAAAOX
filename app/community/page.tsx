@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Communauté", description: "Les ress
 export default async function CommunityPage() {
   const t = await getT();
   return <PageAxm>
-    <HeroPage surtitre={t("Communauté")} titre={t("On va plus loin ensemble.")} lead={t("Stratégies, retours d'expérience et entraide entre commerçants. L'espace communautaire arrive bientôt ; en attendant, tout est déjà là pour vous aider.")} principal={{ label: t("Poser une question"), href: "https://wa.me/237698677355" }} secondaire={{ label: t("Lire le blog"), href: "/blog" }} />
+    <HeroPage image={{ src: "/visuels/hero-community.webp", alt: "" }} surtitre={t("Communauté")} titre={t("On va plus loin ensemble.")} lead={t("Stratégies, retours d'expérience et entraide entre commerçants. L'espace communautaire arrive bientôt ; en attendant, tout est déjà là pour vous aider.")} principal={{ label: t("Poser une question"), href: "https://wa.me/237698677355" }} secondaire={{ label: t("Lire le blog"), href: "/blog" }} />
     <Section serre titre={t("Disponible dès aujourd'hui")}>
       <CartesLiens items={[
         { titre: "WhatsApp", texte: t("Posez vos questions directement à notre équipe."), href: "https://wa.me/237698677355", lien: t("Écrire sur WhatsApp"), externe: true },

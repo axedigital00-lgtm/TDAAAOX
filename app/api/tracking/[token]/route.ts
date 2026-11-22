@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { STATUTS_COURSE_ACTIVE } from "@/lib/commandes";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { lirePosition, positionPartageable, vueSuiviClient } from "@/lib/logistique/position";
+
+const limitePosition = rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "position-lien" });
 
 // Lien livreur (livreurToken) : valable seulement pendant la course. Livrée ou
 // annulée, il ne donne plus ni l'adresse du client ni l'envoi de position.
@@ -13,7 +17,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ token: str
   const commande = await prisma.commande.findFirst({
     where: { OR: [{ trackingToken: token }, { livreurToken: token }] },
     select: {
-      id: true, numero: true, statut: true, livraisonStatut: true,
+      id: true, numero: true, statut: true, livraisonStatut: true, updatedAt: true,
       clientNom: true, clientTelephone: true, adresseExacte: true, adresseLivraison: true, ville: true,
       latitudeClient: true, longitudeClient: true, mapsLienClient: true,
       livreurPosition: true, livreurNom: true, livreurTelephone: true,
@@ -28,9 +32,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ token: str
   const isLivreurToken = commande.livreurToken === token;
   if (isLivreurToken && !STATUTS_COURSE_ACTIVE.includes(commande.statut)) return NextResponse.json(COURSE_TERMINEE, { status: 410 });
 
+  const vue = isLivreurToken ? commande : vueSuiviClient(commande, new Date());
   return NextResponse.json({
     commande: {
-      ...commande,
+      ...vue,
       livreurToken: isLivreurToken ? commande.livreurToken : undefined,
       // Jamais au lien livreur : avec le lien client il lirait le code de remise et se déclarerait livré sans voir le client.
       trackingToken: isLivreurToken ? undefined : commande.trackingToken,
@@ -46,8 +51,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ token: str
 export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await params;
-    const { lat, lng, nom, telephone } = await req.json();
-    if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) return NextResponse.json({ error: "lat/lng requis" }, { status: 400 });
+    const rl = limitePosition.check(token);
+    if (!rl.success) return rateLimitResponse(rl.reset);
+    const { lat: latBrute, lng: lngBrute, nom, telephone } = await req.json();
+    const position = lirePosition(latBrute, lngBrute);
+    if (!position) return NextResponse.json({ error: "Position invalide" }, { status: 400 });
+    const { lat, lng } = position;
 
     const commande = await prisma.commande.findFirst({
       where: { livreurToken: token },
@@ -61,7 +70,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     await prisma.commande.update({
       where: { id: commande.id },
       data: {
-        livreurPosition: { lat, lng, updatedAt: new Date().toISOString() },
+        // Avant le départ, la position n'est pas conservée.
+        ...(positionPartageable(commande.statut) ? { livreurPosition: { lat, lng, updatedAt: new Date().toISOString() } } : {}),
         ...(externe && nom && !commande.livreurNom ? { livreurNom: String(nom).slice(0, 60) } : {}),
         ...(externe && telephone && !commande.livreurTelephone ? { livreurTelephone: String(telephone).slice(0, 30) } : {}),
       },

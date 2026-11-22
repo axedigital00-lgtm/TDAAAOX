@@ -37,7 +37,7 @@ export function SceneMarches() {
 
 export function Campagnes() {
   const t = useT();
-  return <section className="axm-section axm-campaigns"><div className="axm-wrap">
+  return <section className="axm-section axm-campaigns axm-light axm-clair"><div className="axm-wrap">
     <h2 className="axm-h2">{t("Vendez partout où sont vos clients.")} <em>{t("En ligne, en conversation et en magasin.")}</em></h2>
     <div className="axm-campaign-grid">
       <article className="axm-campaign-main"><FilmAmbiance nom="campagne-mode" description="Collection de mode à la lumière du jour" />

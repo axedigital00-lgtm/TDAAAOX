@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normaliserTelephone } from "@/lib/devise-convert";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { vueSuiviClient } from "@/lib/logistique/position";
 
 // Public : limité pour qu'on ne puisse pas essayer des couples numéro/téléphone à la chaîne.
 const limite = rateLimit({ windowMs: 15 * 60_000, max: 30, keyPrefix: "suivi" });
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
       longitudeClient: true,
       createdAt: true,
       updatedAt: true,
+      livreeAt: true,
       tenant: {
         select: { nomBoutique: true, whatsapp: true, slug: true },
       },
@@ -60,7 +62,7 @@ export async function GET(req: Request) {
   }
 
   const { clientTelephone, ...reste } = commande;
-  return NextResponse.json({ commande: reste });
+  return NextResponse.json({ commande: vueSuiviClient(reste, new Date()) });
 }
 
 // Comparaison via l'indicatif du pays de la commande ; à défaut (numéro ancien mal
