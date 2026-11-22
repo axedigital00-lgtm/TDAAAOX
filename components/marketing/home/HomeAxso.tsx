@@ -12,7 +12,7 @@ import { ApercuStella, Campagnes, SceneMarches } from "./ScenesCommerce";
 import { Globe3D } from "../motion/Globe3D";
 import { MoteurMotion, TexteLumiere } from "../motion/MoteurMotion";
 import { ParcoursCommande } from "../motion/ParcoursCommande";
-import { Scene, type TypeScene } from "../motion/Scenes";
+import { Scene } from "../motion/Scenes";
 import "../motion/motion.css";
 import "./scenes.css";
 import { LaunchStory } from "./LaunchStory";
@@ -31,16 +31,6 @@ const PARTENAIRES: { nom: string; logo: string; large?: boolean; texte?: boolean
 ];
 
 const CANAUX = ["Boutique en ligne", "WhatsApp", "Caisse en magasin", "Mobile Money", "Paiement à la livraison", "Livreurs", "Stock unifié", "Vente en gros", "Multi-devises", "Stella", "Produits numériques", "Domaines"];
-
-const BENTO: { h: string; t: string; d: string; scene: TypeScene; taille: string }[] = [
-  { h: "/fonctionnalites/boutique-en-ligne", scene: "vitrine", taille: "axx-carte--l", t: "Une vitrine à votre image", d: "Thèmes, constructeur visuel et lancements planifiés." },
-  { h: "/fonctionnalites/stella", scene: "stella", taille: "axx-carte--m", t: "Stella, votre assistante", d: "Elle analyse, rédige et prépare. Vous décidez." },
-  { h: "/fonctionnalites/caisse", scene: "caisse", taille: "", t: "La caisse du magasin", d: "Scanner, ticket et même stock que votre site." },
-  { h: "/fonctionnalites/stock", scene: "stock", taille: "", t: "Un stock, partout", d: "Entrepôts, transferts et alertes." },
-  { h: "/fonctionnalites/promotions", scene: "promo", taille: "", t: "Des offres qui marchent", d: "Codes, limites et dates de fin." },
-  { h: "/fonctionnalites/vente-en-gros", scene: "gros", taille: "axx-carte--m", t: "Vendez aux pros", d: "Paliers, devis, paiement à terme." },
-  { h: "/fonctionnalites/automatisations", scene: "flux", taille: "axx-carte--l", t: "Votre commerce en pilote automatique", d: "Quand, si, alors : créez vos workflows sans code." },
-];
 
 async function AvisAccueil() {
   const [t, avis] = await Promise.all([getT(), avisPublies(8)]);
@@ -91,19 +81,6 @@ export async function HomeAxso() {
                 aria-label={t("Exemple de film produit")} />
               <span className="axm-story__message">{t("Bonjour, ce sac est-il disponible ?")}</span>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── La plateforme (bento) ────────────────────────────── */}
-      <section className="axm-section axm-light axm-clair" style={{ paddingTop: 0 }}>
-        <div className="axm-wrap">
-          <h2 className="axm-h2" style={{ maxWidth: 900 }}>{t("Une seule plateforme pour tout votre commerce")}</h2>
-          <div className="axx-bento">
-            {BENTO.map((c) => <Link key={c.h} href={c.h} className={`axx-carte ${c.taille}`}>
-              <Scene type={c.scene} t={t} photo={`/visuels/bento-${c.scene}.webp`} />
-              <div><h3>{t(c.t)}</h3><p>{t(c.d)}</p></div>
-            </Link>)}
           </div>
         </div>
       </section>
