@@ -5,6 +5,14 @@ export type Dico = Record<string, string>;
 export const ZONES = ["commun", "admin", "dashboard", "livreur", "boutique"] as const;
 export type Zone = (typeof ZONES)[number];
 
+/** Cookies à écrire : sur le domaine AXSO, le choix vaut pour www et tous les sous-domaines de boutiques.
+ *  L'ancien cookie limité à l'hôte est retiré d'abord, sinon il masquerait le nouveau. */
+export function cookiesLangue(langue: Langue, hote: string, domaine = "") {
+  const base = `langue=${langue}; path=/; max-age=31536000; samesite=lax`, d = domaine.split(":")[0].toLowerCase(), h = hote.toLowerCase();
+  if (!d || d === "localhost" || d.endsWith(".workers.dev") || (h !== d && !h.endsWith(`.${d}`))) return [base];
+  return ["langue=; path=/; max-age=0", `${base}; domain=.${d}`];
+}
+
 export interface T {
   (texte: string, ...valeurs: unknown[]): string;
   <V>(valeur: V): V;

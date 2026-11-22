@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sparkles, ShoppingCart, Store, Users } from "lucide-react";
 import { Sidebar, initiales } from "@/components/dashboard/Sidebar";
@@ -10,6 +10,7 @@ import { ModuleTutorial } from "@/components/dashboard/ModuleTutorial";
 import type { Palier } from "@/lib/plans";
 import type { ModuleKey, Niveau } from "@/lib/permissions";
 import { useT } from "@/components/I18nProvider";
+import { NavigationInstantanee, lienInterne } from "@/components/dashboard/NavigationInstantanee";
 import { CompteurPromoDashboard } from "@/components/promo/CompteurPromo";
 import { MobileTopBar } from "@/components/dashboard/design-system/layout/MobileTopBar";
 import { CommandPalette } from "@/components/dashboard/design-system/layout/CommandPalette";
@@ -116,10 +117,13 @@ export function DashboardShell({
       />
 
       <div className="ax-admin ax-dashboard-shell axd-shell" data-nav-open={navOuverte || undefined} data-nav={rail ? "rail" : undefined} data-axia={axiaOuvert || undefined}>
+        <Suspense fallback={null}><NavigationInstantanee /></Suspense>
         <a href="#axd-contenu" className="sr-only focus:not-sr-only">{t("Aller au contenu")}</a>
         {/* Tiroir : fermeture par glissement vers la gauche. */}
         <div
           style={{ display: "contents" }}
+          // Le tiroir se ferme au toucher, sans attendre la page suivante.
+          onClickCapture={(e) => { if (lienInterne(e, location.origin, location.pathname)) setNavOuverte(false); }}
           onTouchStart={(e) => { toucher.current = e.touches[0].clientX; }}
           onTouchEnd={(e) => { if (toucher.current !== null && e.changedTouches[0].clientX - toucher.current < -50) setNavOuverte(false); toucher.current = null; }}
         >

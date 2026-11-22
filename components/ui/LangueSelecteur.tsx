@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Check, ChevronDown, Globe } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import type { Langue } from "@/lib/i18n";
+import { cookiesLangue, type Langue } from "@/lib/i18n";
 
 export function choisirLangue(langue: Langue) {
-  document.cookie = `langue=${langue}; path=/; max-age=31536000; samesite=lax`;
+  for (const c of cookiesLangue(langue, location.hostname, process.env.NEXT_PUBLIC_AXSO_DOMAIN)) document.cookie = c;
   location.reload();
 }
 

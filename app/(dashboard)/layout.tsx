@@ -3,13 +3,10 @@ import "@/components/dashboard/design-system/tokens/tokens.css";
 import "@/components/dashboard/design-system/ds.css";
 import "@/components/dashboard/design-system/legacy.css";
 import { auth } from "@/lib/auth";
-import { ActivationPush } from "@/components/ActivationPush";
 import { MenusDeroulants } from "@/components/ui/MenusDeroulants";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { NotificationSound } from "@/components/ui/NotificationSound";
-import { AlerteCommande } from "@/components/dashboard/AlerteCommande";
-import { AxiaBulle } from "@/components/dashboard/AxiaBulle";
+import { ExtrasDashboard } from "@/components/dashboard/ExtrasDashboard";
 import { quotaCommandesAtteint, planActif } from "@/lib/abonnement";
 import { permissionsSession, estCaissierPur } from "@/lib/permissions-server";
 import { AbonnementOverlayProvider } from "@/components/dashboard/AbonnementOverlayProvider";
@@ -34,33 +31,31 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if ((session.user as any)?.role === "transporteur") redirect("/transporteur");
 
   const tenantId = (session.user as any)?.tenantId;
-  let boutique: { slug: string; nomBoutique: string; devise: string; url: string } | null = null;
-  if (tenantId) {
-    const t = await prisma.tenant.findUnique({
+  // Lectures indépendantes en parallèle : chaque aller-retour vers la base se ressent à chaque page.
+  const [t, quotaAtteint, planInfo, permissions, modeCaisse, modePos, commandesATraiter] = await Promise.all([
+    tenantId ? prisma.tenant.findUnique({
       where: { id: tenantId },
       select: { slug: true, nomBoutique: true, devise: true, sousDomaineAt: true, customDomain: true, domaineActifAt: true },
-    });
-    if (t) boutique = { slug: t.slug, nomBoutique: t.nomBoutique, devise: t.devise, url: urlBoutique(t) }; // adresse publique (nom.axsoafrica.com)
-  }
-
-  const quotaAtteint = tenantId ? await quotaCommandesAtteint(tenantId) : false;
-  const { plan: palier, promoFinLe } = tenantId ? await planActif(tenantId) : { plan: "palier0" as const, promoFinLe: await finPromo() };
+    }) : null,
+    tenantId ? quotaCommandesAtteint(tenantId) : false,
+    tenantId ? planActif(tenantId) : finPromo().then((promoFinLe) => ({ plan: "palier0" as const, promoFinLe })),
+    permissionsSession(session),
+    estCaissierPur(session),
+    // Mode de la caisse (simple | pro) : allège ou déploie le menu « Caisse & magasin ».
+    // Une boutique sans réglages — ou une base pas encore migrée — reste en mode simple.
+    tenantId
+      ? prisma.reglagesPos.findUnique({ where: { tenantId }, select: { mode: true } }).then((r) => (r?.mode === "pro" ? "pro" as const : "simple" as const), () => "simple" as const)
+      : "simple" as const,
+    // Compteur de l'item « Commandes » de la sidebar : commandes pas encore traitées.
+    tenantId ? prisma.commande.count({ where: { tenantId, statut: { in: ["en_attente", "confirmee"] } } }).catch(() => 0) : 0,
+  ]);
+  const boutique = t ? { slug: t.slug, nomBoutique: t.nomBoutique, devise: t.devise, url: urlBoutique(t) } : null; // adresse publique (nom.axsoafrica.com)
+  const { plan: palier, promoFinLe } = planInfo;
   const promo = promoFinLe ? { finLe: promoFinLe.toISOString(), maintenant: Date.now() } : null;
   // Essai Illimité (lib/essai.ts) : proposé, décompté et clos pour le propriétaire seulement.
   // Pendant la promo de lancement, tout le monde a déjà l'Illimité : l'essai attend la fin.
   const essai = tenantId && !promo && (await boutiquesDuCompte((session.user as any).id)).proprietaire.includes(tenantId)
     ? await etatEssai(tenantId) : null;
-  const permissions = await permissionsSession(session);
-  const modeCaisse = await estCaissierPur(session);
-  // Mode de la caisse (simple | pro) : allège ou déploie le menu « Caisse & magasin ».
-  // Une boutique sans réglages — ou une base pas encore migrée — reste en mode simple.
-  const modePos = tenantId
-    ? await prisma.reglagesPos.findUnique({ where: { tenantId }, select: { mode: true } }).then((r) => (r?.mode === "pro" ? "pro" as const : "simple" as const), () => "simple" as const)
-    : "simple" as const;
-  // Compteur de l'item « Commandes » de la sidebar : commandes pas encore traitées.
-  const commandesATraiter = tenantId
-    ? await prisma.commande.count({ where: { tenantId, statut: { in: ["en_attente", "confirmee"] } } }).catch(() => 0)
-    : 0;
 
   return (
     <I18nProvider langue={await getLangue()} dico={await dico("dashboard", "boutique")}>
@@ -68,15 +63,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DashboardShell session={session} boutique={boutique} quotaAtteint={quotaAtteint} palier={palier} permissions={permissions} modeCaisse={modeCaisse} modePos={modePos} promo={promo} commandesATraiter={commandesATraiter}>
         <DeviseProvider devise={boutique?.devise || "XAF"}>{children}</DeviseProvider>
       </DashboardShell>
-      {/* Son audio sur chaque notification toast */}
-      <NotificationSound />
-      {/* Nouvelle commande : alerte distincte (son de caisse + carte). */}
-      <AlerteCommande />
-      {/* Notifications push : alertes sur l'appareil, même appli fermée. */}
-      <ActivationPush espace="dashboard" />
+      <ExtrasDashboard />
       {essai && <EssaiIllimite phase={essai.phase} finLe={essai.finLe?.toISOString() ?? null} proposer={essai.proposer} montrerFin={essai.montrerFin} />}
-      {/* Stella prend la parole : constats, rappels, demandes d'accord. */}
-      <AxiaBulle />
       {/* Liste ouverte des menus déroulants, la même dans tous les navigateurs. */}
       <MenusDeroulants />
     </AbonnementOverlayProvider>

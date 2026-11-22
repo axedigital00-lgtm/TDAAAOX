@@ -687,3 +687,9 @@ button.axd-row { width: 100%; text-align: left; background: none; border-left: 0
 .axd-badge-carte { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-lg); box-shadow: inset 0 0 0 1px var(--color-border-secondary); }
 .axd-progress { height: 6px; border-radius: 999px; background: var(--color-surface-tertiary, #ebebeb); overflow: hidden; margin-top: 8px; }
 .axd-progress span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); transition: width .4s ease; }
+
+/* Retour immédiat pendant le chargement d'une page */
+.axd-nav-progress { position: fixed; inset: 0 0 auto; z-index: 200; height: 3px; overflow: hidden; pointer-events: none; }
+.axd-nav-progress i { display: block; width: 40%; height: 100%; border-radius: 0 3px 3px 0; background: #EDA900; animation: axd-nav-progress 1s cubic-bezier(.4, 0, .2, 1) infinite; }
+@keyframes axd-nav-progress { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+@media (prefers-reduced-motion: reduce) { .axd-nav-progress i { width: 100%; animation: none; } }
