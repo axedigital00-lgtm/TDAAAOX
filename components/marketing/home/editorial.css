@@ -21,7 +21,7 @@
 }
 .axm-cinema__content { width: 100%; padding-block: clamp(52px, 6vw, 88px); }
 .axm-cinema .axm-display { max-width: 12ch; font-size: clamp(52px, 6.4vw, 96px); text-wrap: balance; }
-.axm-cinema .axm-rotator { white-space: nowrap; color: #ffcf72; }
+.axm-cinema .axm-rotator { white-space: nowrap; color: #EDA900; }
 .axm-cinema .axm-lead { max-width: 48ch; color: #f4f1e9; margin-top: 24px; }
 .axm-cinema__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .axm-cinema__note { margin-top: 14px; color: #e4e0da; font-size: .875rem; }
