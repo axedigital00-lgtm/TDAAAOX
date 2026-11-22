@@ -5,6 +5,11 @@
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "routes": [
+    { "pattern": "axsoafrica.com/*", "zone_name": "axsoafrica.com" },
+    { "pattern": "www.axsoafrica.com/*", "zone_name": "axsoafrica.com" },
+    { "pattern": "*.axsoafrica.com/*", "zone_name": "axsoafrica.com" }
+  ],
   "vars": { "AXSO_RUNTIME": "workers", "AUTH_TRUST_HOST": "true" },
   "assets": { "binding": "ASSETS" },
   "services": [{ "binding": "SELF", "service": "axso-free" }],

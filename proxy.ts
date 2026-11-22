@@ -6,7 +6,7 @@ import { domainePrincipal, slugPourDomaine, sousDomainePret } from "@/lib/domain
 import { auth } from "@/lib/auth";
 import { requireNiveau, refusPalier } from "@/lib/permissions-server";
 import { moduleApi, palierApi } from "@/lib/permissions-api";
-import { SLUGS_RESERVES, SOUS_DOMAINES_ACTIFS } from "@/lib/utils";
+import { SLUGS_RESERVES, SOUS_DOMAINES_ACTIFS, slugDeSousDomaine } from "@/lib/utils";
 import { COOKIE_XP, OPTIONS_COOKIE_XP, cookieVisiteurXp } from "@/lib/builder/experiences";
 
 // Test A/B du Builder (lib/builder/experiences.ts) : un nouveau visiteur de vitrine reçoit sa
@@ -51,6 +51,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Adresse officielle en www sur Cloudflare (Vercel faisait cette redirection lui-même).
+  // Pas pour /api : un webhook configuré sur le domaine nu ne suit pas toujours une redirection.
+  if (process.env.AXSO_RUNTIME === "workers" && hostname === DOMAINE_APP && (request.method === "GET" || request.method === "HEAD") && !pathname.startsWith("/api/")) {
+    return NextResponse.redirect(`https://www.${DOMAINE_APP}${pathname}${request.nextUrl.search}`, 308);
+  }
+
   // Détecter si c'est un sous-domaine de boutique
   const estSousDomaine =
     hostname !== DOMAINE_APP &&
@@ -80,7 +86,7 @@ export async function proxy(request: NextRequest) {
   if (estSousDomaine || estDomainePropre) {
     // Domaine propre : le nom de domaine n'est PAS le slug — recherche en base
     // (boutique publiée dont customDomain = ce domaine, cache 60 s, voir lib/domaines.ts).
-    const slug = estSousDomaine ? hostname.replace(`.${DOMAINE_APP}`, "") : await slugPourDomaine(hostname);
+    const slug = estSousDomaine ? slugDeSousDomaine(hostname, DOMAINE_APP) : await slugPourDomaine(hostname);
     if (!slug) return new NextResponse("Aucune boutique n'est reliée à ce domaine.", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 
     // Sous-domaine AXSO d'une boutique dont le domaine personnalisé est actif : même redirection.
@@ -114,7 +120,7 @@ export async function proxy(request: NextRequest) {
     const domaine = await domainePrincipal(premier);
     if (domaine) return NextResponse.redirect(`https://${domaine}${pathname.slice(premier.length + 1) || "/"}${request.nextUrl.search}`, 308);
     // Sous-domaines actifs : axsoafrica.com/nom/… → nom.axsoafrica.com/… (anciens liens et QR codes compris).
-    if (SOUS_DOMAINES_ACTIFS && hostname === DOMAINE_APP && await sousDomainePret(premier)) {
+    if (SOUS_DOMAINES_ACTIFS && (hostname === DOMAINE_APP || hostname === `www.${DOMAINE_APP}`) && await sousDomainePret(premier)) {
       const proto = DOMAINE_APP.startsWith("localhost") ? "http" : "https";
       return NextResponse.redirect(`${proto}://${premier}.${DOMAINE_APP}${pathname.slice(premier.length + 1) || "/"}${request.nextUrl.search}`, 308);
     }

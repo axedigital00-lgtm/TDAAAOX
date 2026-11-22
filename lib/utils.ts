@@ -199,3 +199,11 @@ export const SLUGS_RESERVES = new Set([
 export function slugBoutiqueValide(slug: string): boolean {
   return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(slug) && !SLUGS_RESERVES.has(slug);
 }
+
+/** Boutique visée par nom.axsoafrica.com. Le DNS générique envoie tout ici : admin, api ou a.b ne sont jamais des boutiques. */
+export function slugDeSousDomaine(hote: string, domaine: string): string | null {
+  const h = hote.split(":")[0].toLowerCase(), d = domaine.split(":")[0].toLowerCase();
+  if (!h.endsWith(`.${d}`)) return null;
+  const slug = h.slice(0, -(d.length + 1));
+  return slugBoutiqueValide(slug) ? slug : null;
+}

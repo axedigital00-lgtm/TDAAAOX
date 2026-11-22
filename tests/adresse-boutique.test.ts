@@ -45,3 +45,10 @@ test("hrefBoutique : chemins propres et anciens formats mènent au même endroit
   assert.equal(h("  "), undefined);
   assert.equal(hrefBoutique("kiosque", null), undefined);
 });
+
+test("sous-domaine : seule une vraie boutique est servie", async () => {
+  const { slugDeSousDomaine } = await import("../lib/utils");
+  assert.equal(slugDeSousDomaine("ma-boutique.axsoafrica.com", "axsoafrica.com"), "ma-boutique");
+  assert.equal(slugDeSousDomaine("Ma-Boutique.axsoafrica.com:443", "axsoafrica.com"), "ma-boutique");
+  for (const h of ["admin.axsoafrica.com", "api.axsoafrica.com", "dashboard.axsoafrica.com", "www.axsoafrica.com", "a.b.axsoafrica.com", "axsoafrica.com", "ma-boutique.autre.com"]) assert.equal(slugDeSousDomaine(h, "axsoafrica.com"), null, h);
+});
