@@ -6,7 +6,7 @@ import "@/components/dashboard/design-system/ds.css";
 import "@/components/dashboard/design-system/legacy.css";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Link2, Wallet, User, type LucideIcon } from "lucide-react";
+import { Home, Search, Link2, Wallet, User, type LucideIcon, Gift } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { LangueSelecteur } from "@/components/ui/LangueSelecteur";
 
@@ -14,6 +14,7 @@ const ONGLETS: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/affilie", label: "Accueil", Icon: Home },
   { href: "/affilie/catalogue", label: "Catalogue", Icon: Search },
   { href: "/affilie/liens", label: "Mes liens", Icon: Link2 },
+  { href: "/affilie/parrainage", label: "Parrainage", Icon: Gift },
   { href: "/affilie/gains", label: "Gains", Icon: Wallet },
   { href: "/affilie/profil", label: "Profil", Icon: User },
 ];

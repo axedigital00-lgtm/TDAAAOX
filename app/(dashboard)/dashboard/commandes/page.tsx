@@ -193,5 +193,5 @@ export default async function CommandesPage({ searchParams }: { searchParams: Pr
 }
 
 function EmptyArtInline() {
-  return <img src="/admin/commandes-vide.svg" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />;
+  return <img src="/visuels/board-commandes.webp" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />;
 }

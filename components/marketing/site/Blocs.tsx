@@ -6,6 +6,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { NavbarMarketing } from "@/components/marketing/NavbarMarketing";
 import { FooterMarketing } from "@/components/marketing/FooterMarketing";
 import { Reveal } from "@/components/marketing/home/Reveal";
+import { MoteurMotion } from "@/components/marketing/motion/MoteurMotion";
+import "@/components/marketing/motion/motion.css";
 
 export function PageAxm({ children }: { children: ReactNode }) {
   return (
@@ -13,6 +15,7 @@ export function PageAxm({ children }: { children: ReactNode }) {
       <NavbarMarketing />
       <div className="axm axm-page">
         <Reveal />
+        <MoteurMotion />
         {children}
       </div>
       <FooterMarketing />

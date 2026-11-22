@@ -63,7 +63,7 @@ function OngletPopups({ creation, setCreation }: { creation: boolean; setCreatio
     <>
       {loading ? <p className="axd-fichiers__etat">{t("Chargement…")}</p> : popups.length === 0 ? (
         <div className="axd-empty">
-          <img src="/admin/campagnes-vide.svg" width={200} height={150} alt="" style={{ margin: "0 auto 8px", maxWidth: "100%" }} />
+          <img src="/visuels/board-campagnes.webp" width={200} height={150} alt="" style={{ margin: "0 auto 8px", maxWidth: "100%" }} />
           <h3>{t("Affichez une offre au bon moment")}</h3>
           <p>{t("Popup, bandeau ou fenêtre en coin : après un délai, au départ du visiteur, à mi-page ou à sa première visite.")}</p>
           <div className="axd-empty__actions"><Button variant="primary" onClick={() => setCreation(true)}>{t("Créer un popup")}</Button></div>

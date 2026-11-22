@@ -185,7 +185,7 @@ export default async function ProduitsPage({ searchParams }: { searchParams: Pro
             </div>
           ) : (
             <div className="axd-empty">
-              <img src="/admin/produits-vide.svg" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />
+              <img src="/visuels/board-produits.webp" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />
               <h3>Ajoutez vos produits</h3>
               <p>Commencez par ajouter un premier produit, ou importez votre catalogue depuis un fichier Excel.</p>
               <div className="axd-empty__actions"><Button href="/dashboard/produits/nouveau" variant="primary">Ajouter un produit</Button></div>

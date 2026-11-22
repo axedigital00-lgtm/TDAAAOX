@@ -55,7 +55,7 @@ export default async function CommandCenter({ searchParams }: { searchParams: Pr
         eyebrow={`Axso Command Center${titrePays}`}
         titre={ceo ? tx("Où en est Axso ?") : "Command Center"}
         sousTitre={<>Real-time intelligence for the Axso ecosystem · {dateLongue(t)} · <span className="cc-faint">{tx(f.libelle)} {tx(f.libelleComp)}</span></>}
-        actions={<><Fraicheur genereA={c.ds.genereA} source={c.ds.source} erreur={c.erreur} /><Link href={L("/admin/rapports/quotidien")} className="cc-btn cc-btn-sm">Daily brief</Link><BoutonPDF /></>}
+        actions={<><Fraicheur genereA={c.ds.genereA} source={c.ds.source} erreur={c.erreur} /><Link href={L("/admin/cockpit")} className="cc-btn cc-btn-primary cc-btn-sm">{tx("Ouvrir le Cockpit 3D")}</Link><Link href={L("/admin/rapports/quotidien")} className="cc-btn cc-btn-sm">Daily brief</Link><BoutonPDF /></>}
       />
       <Suspense fallback={null}><RefusAcces /></Suspense>
       {c.erreur && <Note ton="warn">{tx(c.erreur)}</Note>}

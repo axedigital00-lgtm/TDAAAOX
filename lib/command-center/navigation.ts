@@ -5,6 +5,7 @@ export interface EntreeNav { section: Section; href: string; nom: string; icone:
 
 export const NAV: EntreeNav[] = [
   { section: "cc", href: "/admin", nom: "Command Center", icone: "LayoutDashboard", ceo: true, mots: "accueil executive brief daily ceo" },
+  { section: "cc", href: "/admin/cockpit", nom: "Cockpit 3D", icone: "Orbit", ceo: true, mots: "globe 3d cockpit relief sankey cohortes heatmap analytics" },
   { section: "croissance", href: "/admin/croissance", nom: "Croissance", icone: "TrendingUp", ceo: true, mots: "growth acquisition activation retention cohortes funnel dau mau" },
   { section: "revenus", href: "/admin/revenus", nom: "Revenus", icone: "Wallet", ceo: true, mots: "revenue mrr arr arpu ltv plans waterfall prévisions forecast" },
   { section: "marchands", href: "/admin/marchands", nom: "Marchands", icone: "Store", mots: "merchants boutiques table santé health" },

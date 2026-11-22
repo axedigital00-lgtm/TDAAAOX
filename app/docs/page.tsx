@@ -1,38 +1,21 @@
-// Documentation : rubriques et guides prévus.
+// Documentation : tous les guides, par rubrique.
 import type { Metadata } from "next";
+import Link from "next/link";
+import { AppelFinal, HeroPage, PageAxm, Section } from "@/components/marketing/site/Blocs";
+import { Scene } from "@/components/marketing/motion/Scenes";
+import { GUIDES, RUBRIQUES } from "@/lib/contenu-site";
 import { getT } from "@/lib/i18n/serveur";
-import { PageAxm, HeroPage, Section, AppelFinal, Coches } from "@/components/marketing/site/Blocs";
 
-export const metadata: Metadata = {
-  title: "Documentation",
-  description: "Documentation AXSO : démarrage, boutique, paiements, livraison, IA.",
-};
-
-const SECTIONS = [
-  { titre: "Démarrage rapide", articles: ["Créer votre boutique en 3 étapes", "Choisir vos modes de paiement", "Ajouter vos premiers produits", "Personnaliser votre thème"] },
-  { titre: "Boutique et produits", articles: ["Produits physiques et numériques", "Gestion des variantes", "Livraison des produits numériques", "Import du catalogue depuis Excel"] },
-  { titre: "Paiements", articles: ["Paiement à la livraison", "Mobile Money à la livraison", "Gestion des remboursements"] },
-  { titre: "Livraison", articles: ["Zones et tarifs de livraison", "Gérer vos livreurs", "Suivi de commande"] },
-  { titre: "Stella", articles: ["Présentation de Stella", "Réponses aux clients", "Génération de fiches produits", "Démarrage de la boutique avec Stella"] },
-];
+export const metadata: Metadata = { title: "Documentation", description: "Documentation AXSO : démarrage, boutique, paiements, livraison, vente aux professionnels et Stella." };
 
 export default async function DocsPage() {
   const t = await getT();
-  return (
-    <PageAxm>
-      <HeroPage surtitre={t("Documentation")} titre={t("Tout ce qu’il faut savoir pour maîtriser AXSO")}
-        lead={t("Les guides détaillés sont en cours de rédaction. Voici les rubriques prévues.")} />
-      <Section serre>
-        <div className="axm-grid axm-g3">
-          {SECTIONS.map((s) => (
-            <div key={s.titre} className="axm-card">
-              <h3 className="axm-h4" style={{ marginBottom: 20 }}>{t(s.titre)}</h3>
-              <Coches items={s.articles.map((a) => t(a))} />
-            </div>
-          ))}
-        </div>
-      </Section>
-      <AppelFinal titre={t("Une question en attendant ?")} principal={{ label: t("Écrivez-nous"), href: "/contact" }} />
-    </PageAxm>
-  );
+  return <PageAxm>
+    <HeroPage surtitre={t("Documentation")} titre={t("Tout comprendre. Tout de suite.")} lead={t("Des guides courts, pas à pas, pour chaque étape de votre commerce.")} principal={{ label: t("Commencer par le début"), href: `/docs/${GUIDES[0].slug}` }} />
+    <Section serre><div className="axx-duo"><div><h2 className="axm-h2">{t("Votre boutique en ligne aujourd'hui.")}</h2><p className="axm-lead" style={{ marginTop: 16 }}>{t("Suivez les trois premiers guides : compte, produits, paiement. Le reste vient quand vous en avez besoin.")}</p></div><Scene type="vitrine" t={t} photo="/visuels/premiers-guides.webp" /></div></Section>
+    {RUBRIQUES.map((r) => <Section key={r} serre><h2 className="axm-h3" style={{ marginBottom: 22 }}>{t(r)}</h2>
+      <div className="axx-index">{GUIDES.filter((g) => g.rubrique === r).map((g) => <Link key={g.slug} href={`/docs/${g.slug}`} className="axx-lien"><b>{t(g.titre)}</b><span>{t(g.resume)}</span><em>{g.duree} min</em></Link>)}</div>
+    </Section>)}
+    <AppelFinal titre={t("Vous ne trouvez pas votre réponse ?")} principal={{ label: t("Écrivez-nous"), href: "/contact" }} secondaire={{ label: t("Voir le blog"), href: "/blog" }} />
+  </PageAxm>;
 }

@@ -3,6 +3,7 @@
 // • Seules les ventes PAYÉES EN LIGNE rapportent (aucun paiement en ligne pour l'instant : prestataire à venir).
 // • Disponible 48 h après la livraison (lib/affiliation-regles.ts), retirée par l'affilié, transfert
 //   fait à la main par Axso puis clos dans Admin › Affiliés (comme les retraits marchands).
+import { commissionsParrainageDuCompte } from "@/lib/parrainage";
 import { prisma } from "./prisma";
 import { EMAIL_RETRAITS, operateurCameroun } from "./wallet";
 import { pousserAdmins } from "./push";
@@ -87,18 +88,21 @@ export async function assurerPartenariat(userId: string, tenantId: string) {
 export interface CommissionDuCompte {
   id: string; montant: number; devise: string; etat: EtatCommission; createdAt: Date;
   boutique: string; tenantId: string; pays: string | null; numero: string | null;
+  /** Commission de parrainage d'abonnement (table CommissionParrainage). */
+  parrainage?: boolean;
 }
 
 /** Toutes les commissions d'un compte affilié, avec leur état (en attente, disponible, versée, annulée). */
 export async function commissionsDuCompte(userId: string): Promise<CommissionDuCompte[]> {
   const affs = await prisma.affilie.findMany({ where: { userId }, select: { id: true, tenantId: true, tenant: { select: { nomBoutique: true, devise: true, pays: true } } } });
-  if (!affs.length) return [];
+  const parrainage = await commissionsParrainageDuCompte(userId);
+  if (!affs.length) return parrainage;
   const parAffilie = new Map(affs.map((a) => [a.id, a]));
   const comms = await prisma.commissionAffilie.findMany({ where: { affilieId: { in: affs.map((a) => a.id) } }, orderBy: { createdAt: "desc" } });
   const ids = comms.map((c) => c.commandeId).filter((x): x is string => !!x);
   const commandes = new Map((await prisma.commande.findMany({ where: { id: { in: ids } }, select: { id: true, numero: true, statut: true, livreeAt: true } })).map((c) => [c.id, c]));
   const maintenant = new Date();
-  return comms.map((c) => {
+  const ventes: CommissionDuCompte[] = comms.map((c) => {
     const a = parAffilie.get(c.affilieId)!;
     const cmd = c.commandeId ? commandes.get(c.commandeId) : null;
     return {
@@ -106,6 +110,7 @@ export async function commissionsDuCompte(userId: string): Promise<CommissionDuC
       createdAt: c.createdAt, boutique: a.tenant.nomBoutique, tenantId: a.tenantId, pays: a.tenant.pays, numero: cmd?.numero ?? null,
     };
   });
+  return [...ventes, ...parrainage].sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
 }
 
 export type Soldes = Record<string, { enAttente: number; disponible: number; verse: number }>;
@@ -131,13 +136,15 @@ export async function demanderRetraitAffilie(p: { userId: string; devise: string
   if (montant < minimum) throw new Error(`Minimum de retrait : ${minimum.toLocaleString("fr-FR")} ${p.devise} disponibles`);
   const tel = normaliserTelephone(p.telephone, dispo[0]?.pays);
   if (!tel) throw new Error("Numéro Mobile Money invalide : vérifie-le, avec l'indicatif de ton pays.");
-  const ids = dispo.map((c) => c.id);
+  const ids = dispo.filter((c) => !c.parrainage).map((c) => c.id);
+  const idsParrainage = dispo.filter((c) => c.parrainage).map((c) => c.id);
 
   const retrait = await prisma.$transaction(async (tx) => {
     const r = await tx.retraitAffilie.create({ data: { userId: p.userId, montant, devise: p.devise, destinataire: tel, operateur: operateurCameroun(tel) } });
     // Conditionnel : deux demandes simultanées ne retirent pas deux fois les mêmes commissions.
     const pris = await tx.commissionAffilie.updateMany({ where: { id: { in: ids }, statut: "pending", retraitId: null }, data: { retraitId: r.id, statut: "payee" } });
-    if (pris.count !== ids.length) throw new Error("Un retrait est déjà en cours — recharge la page");
+    const prisP = await tx.commissionParrainage.updateMany({ where: { id: { in: idsParrainage }, parrainUserId: p.userId, statut: "pending", retraitId: null, disponibleLe: { lte: new Date() } }, data: { retraitId: r.id, statut: "payee" } });
+    if (pris.count !== ids.length || prisP.count !== idsParrainage.length) throw new Error("Un retrait est déjà en cours — recharge la page");
     return r;
   });
   await signalerRetraitAffilie(retrait.id).catch((e) => console.error("[affiliation] alerte retrait", retrait.id, e?.message));
@@ -171,6 +178,7 @@ export async function cloturerRetraitAffilie(retraitId: string, paye: boolean) {
   const r = await prisma.retraitAffilie.findUniqueOrThrow({ where: { id: retraitId }, include: { user: { select: { name: true, email: true } } } });
   if (!paye) {
     await prisma.commissionAffilie.updateMany({ where: { retraitId }, data: { retraitId: null, statut: "pending" } });
+    await prisma.commissionParrainage.updateMany({ where: { retraitId }, data: { retraitId: null, statut: "pending" } });
   }
   if (r.user.email) {
     const montant = `${r.montant.toLocaleString("fr-FR")} ${r.devise}`;

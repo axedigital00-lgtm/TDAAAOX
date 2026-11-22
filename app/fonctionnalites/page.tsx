@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppelFinal, Faq, PageAxm } from "@/components/marketing/site/Blocs";
 import { familles, lienSolution, solutions, texte } from "@/lib/catalogue-fonctionnalites";
-import { getLangue } from "@/lib/i18n/serveur";
+import { getLangue, getT } from "@/lib/i18n/serveur";
+import { AnnuaireModules } from "@/components/marketing/motion/Sections";
 import styles from "./[solution]/solution.module.css";
 
 const titre = texte("Les outils de votre commerce", "Tools for your commerce");
@@ -14,11 +15,11 @@ const description = texte(
 export async function generateMetadata(): Promise<Metadata> {
   const l = await getLangue();
   return { title: titre[l], description: description[l], alternates: { canonical: "/fonctionnalites" },
-    openGraph: { title: titre[l], description: description[l], images: ["/editorial/atelier.webp"] } };
+    openGraph: { title: titre[l], description: description[l], images: ["/visuels/plateforme.webp"] } };
 }
 
 export default async function FonctionnalitesPage() {
-  const l = await getLangue();
+  const [l, t] = await Promise.all([getLangue(), getT()]);
   return <PageAxm>
     <section className={`axm-wrap ${styles.hero}`}>
       <div>
@@ -30,7 +31,7 @@ export default async function FonctionnalitesPage() {
           <Link href="/tarifs" className="axm-link">{texte("Voir les forfaits", "View plans")[l]}</Link>
         </div>
       </div>
-      <img className={styles.heroImage} src="/editorial/atelier.webp" alt={texte("Un artisan au travail dans son atelier", "A maker at work in his studio")[l]} fetchPriority="high" />
+      <img className={styles.heroImage} src="/visuels/plateforme.webp" alt={texte("Vue aérienne d’un atelier de création", "Aerial view of a design workshop")[l]} fetchPriority="high" />
     </section>
     <div className="axm-wrap">
       <nav className={styles.jumpLinks} aria-label={texte("Familles de produits", "Product families")[l]}>
@@ -47,12 +48,15 @@ export default async function FonctionnalitesPage() {
         <ul className={styles.directory}>
           {solutions.filter(s => s.famille === f.id).map(s => <li key={s.slug} id={s.slug === "stock" ? "gerer" : undefined}>
             <Link href={lienSolution(s.slug)}>
-              <img loading="lazy" src={s.image} alt="" />
+              <img loading="lazy" src={`/visuels/annuaire-${s.slug}.webp`} alt="" />
               <div><h3>{s.nom[l]}</h3><p>{s.description[l]}</p></div>
             </Link>
           </li>)}
         </ul>
       </section>)}
+      </div>
+      <AnnuaireModules t={t} langue={l} />
+      <div className="axm-wrap">
       <section className={styles.faq}>
         <Faq titre={texte("Questions fréquentes", "Frequently asked questions")[l]} items={[
           { q: texte("Faut-il des compétences techniques ?", "Do I need technical skills?")[l], r: texte("Vous pouvez choisir un thème et modifier vos pages depuis le constructeur visuel.", "Choose a theme and edit your pages in the visual builder.")[l] },

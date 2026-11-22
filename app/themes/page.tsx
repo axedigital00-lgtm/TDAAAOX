@@ -35,7 +35,7 @@ export default async function ThemesPage({ searchParams }: { searchParams: Promi
           titre={t("Stella vous propose les thèmes adaptés à votre activité")}
           texte={t("À l’inscription, Stella sélectionne quatre designs selon ce que vous vendez. Vous les appliquez ensuite et les personnalisez depuis le constructeur : couleurs, logo, sections et pages.")}
           puces={[t("Vos vrais produits déjà affichés dans le thème"), t("Parfait sur téléphone"), t("Changement de thème sans perdre vos réglages")]}
-          visuel={<img src="/theme-ignite.webp" alt="" className="axm-img" style={{ aspectRatio: "4 / 3" }} loading="lazy" />}
+          visuel={<img src="/visuels/theme-construction.webp" alt="" className="axm-img" style={{ aspectRatio: "4 / 3" }} loading="lazy" />}
         />
       </Section>
       <AppelFinal

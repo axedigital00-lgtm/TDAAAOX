@@ -29,6 +29,9 @@ export function BoutiqueActionsPanel({ tenantId, statut, planType, certifie, dev
   const [loading, setLoading] = useState<string | null>(null);
   const [plan, setPlan] = useState(planType);
   const [jours, setJours] = useState("30");
+  const [paiementRecu, setPaiementRecu] = useState(false);
+  const [montantPaye, setMontantPaye] = useState("");
+  const [refPaiement, setRefPaiement] = useState(() => crypto.randomUUID());
   const [bonus, setBonus] = useState({ montant: "", raison: "", titre: "", emoji: "🏆" });
 
   async function appel(key: string, url: string, body: any, msg: string) {
@@ -39,8 +42,10 @@ export function BoutiqueActionsPanel({ tenantId, statut, planType, certifie, dev
       if (!res.ok) throw new Error(data.error);
       toast.success(t(msg));
       router.refresh();
+      return true;
     } catch (e: any) {
       toast.error(t(e.message || "Erreur"));
+      return false;
     } finally {
       setLoading(null);
     }
@@ -99,7 +104,9 @@ export function BoutiqueActionsPanel({ tenantId, statut, planType, certifie, dev
         {plan !== "palier0" && (
           <input type="number" placeholder={t("Durée (jours)")} value={jours} onChange={e => setJours(e.target.value)} className={inputCls} style={inputStyle} />
         )}
-        <button disabled={loading !== null} onClick={() => appel("plan", `/api/admin/tenants/${tenantId}/plan`, { plan, jours }, "Plan mis à jour")}
+        {plan !== "palier0" && <label className="flex items-center gap-2 text-xs" style={{ color: "#CCCCCC" }}><input type="checkbox" checked={paiementRecu} onChange={e => setPaiementRecu(e.target.checked)} />{t("Paiement reçu (crédite le parrain de 20 %)")}</label>}
+        {plan !== "palier0" && paiementRecu && <input type="number" min={1} placeholder={t("Montant reçu")} value={montantPaye} onChange={e => setMontantPaye(e.target.value)} className={inputCls} style={inputStyle} />}
+        <button disabled={loading !== null || (paiementRecu && !(Number(montantPaye) > 0))} onClick={async () => { if (await appel("plan", `/api/admin/tenants/${tenantId}/plan`, { plan, jours, paiementRecu, montant: Number(montantPaye), reference: refPaiement }, "Plan mis à jour")) { setPaiementRecu(false); setMontantPaye(""); setRefPaiement(crypto.randomUUID()); } }}
           className={btnBase} style={{ background: "linear-gradient(135deg,#F5A623,#D4911A)", color: "#111111" }}>
           {loading === "plan" ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />}{" "}{t("Appliquer le plan")}
         </button>

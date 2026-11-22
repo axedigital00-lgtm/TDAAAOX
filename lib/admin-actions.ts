@@ -2,6 +2,7 @@
 // app/api/admin/* (boutons de l'admin) et par Stella admin, pour que les deux
 // appliquent exactement les mêmes contrôles. Le contrôle du rôle (admin
 // complet) reste à la charge de l'appelant.
+import { crediterParrainSurAbonnement } from "@/lib/parrainage";
 import { prisma } from "@/lib/prisma";
 import { crediterBonusWallet, getPlatformTenantId, initierRetrait } from "@/lib/wallet";
 import { estRoleAdmin, type RoleAdmin } from "@/lib/command-center/rbac";
@@ -27,11 +28,13 @@ export async function changerStatutBoutique(id: string, statut: string) {
   return { statut };
 }
 
-export async function changerPlanBoutique(id: string, plan: string, jours?: number) {
+export async function changerPlanBoutique(id: string, plan: string, jours?: number, paiement?: { montant: number; reference: string } | null) {
   if (!PLANS.includes(plan as any)) throw new ErreurAdmin(`Plan invalide. Valeurs acceptées : ${PLANS.join(", ")}`);
   await boutiqueModifiable(id);
   const planExpiresAt = plan === "palier0" ? null : new Date(Date.now() + (Number(jours) || 30) * 24 * 3600 * 1000);
   await prisma.tenant.update({ where: { id }, data: { planType: plan, planExpiresAt, planPendingRef: null } });
+  // Seul un paiement déclaré reçu rapporte au parrain : un abonnement offert ne crée aucune commission.
+  if (paiement && plan !== "palier0") await crediterParrainSurAbonnement({ tenantId: id, plan, jours: Number(jours) || 30, montant: paiement.montant, reference: paiement.reference });
   return { plan, planExpiresAt };
 }
 

@@ -1,19 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check, MapPin, X } from "lucide-react";
+import { ArrowUpRight, Check, MapPin } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { FilmAmbiance } from "./FilmAmbiance";
 
-const CarteCommandes = dynamic(() => import("@/components/dashboard/features/analytics/CarteCommandes").then(m => m.CarteCommandes), { ssr: false });
 const marches = [
-  { pays: "Cameroun", drapeau: "cm", ville: "Douala", devise: "XAF", prix: "18 500", produit: "Tissu kente", photo: "/hero-kente.webp", lat: 4.05, lng: 9.7 },
-  { pays: "Sénégal", drapeau: "sn", ville: "Dakar", devise: "XOF", prix: "6 500", produit: "Huile d’argan", photo: "/hero-argan.webp", lat: 14.72, lng: -17.47 },
-  { pays: "Côte d’Ivoire", drapeau: "ci", ville: "Abidjan", devise: "XOF", prix: "5 500", produit: "Café en grains", photo: "/hero-coffee.webp", lat: 5.34, lng: -4.03 },
+  { pays: "Cameroun", drapeau: "cm", ville: "Douala", devise: "XAF", prix: "18 500", produit: "Tissu kente", photo: "/visuels/accueil-tissu.webp", lat: 4.05, lng: 9.7 },
+  { pays: "Sénégal", drapeau: "sn", ville: "Dakar", devise: "XOF", prix: "6 500", produit: "Huile d’argan", photo: "/visuels/accueil-argan.webp", lat: 14.72, lng: -17.47 },
+  { pays: "Côte d’Ivoire", drapeau: "ci", ville: "Abidjan", devise: "XOF", prix: "5 500", produit: "Café en grains", photo: "/visuels/accueil-cafe.webp", lat: 5.34, lng: -4.03 },
 ];
-const lieux = marches.map(m => ({ nom: m.ville, lat: m.lat, lng: m.lng, total: 1 }));
 
 export function SceneMarches() {
   const t = useT();
@@ -36,27 +33,6 @@ export function SceneMarches() {
       <p><Check size={16}/>{t("Paiement à la livraison")}</p>
     </div>
   </div>;
-}
-
-export function SceneMonde() {
-  const t = useT();
-  const dialogue = useRef<HTMLDialogElement>(null);
-  const [ouvert, setOuvert] = useState(false);
-  return <section className="axm-world">
-    <div className="axm-wrap axm-world-grid">
-      <FilmAmbiance nom="terre-nuit" description="Le continent africain de nuit" />
-      <div><h2 className="axm-h2">{t("Chaque commande a une destination.")}</h2>
-        <p className="axm-lead">{t("De Douala à Dakar, explorez les villes où vos colis prennent la route.")}</p>
-        <button className="axm-btn axm-btn--secondary" type="button" onClick={() => { setOuvert(true); dialogue.current?.showModal(); }}>
-          {t("Explorer le globe")} <ArrowUpRight size={17}/></button>
-      </div>
-    </div>
-    <dialog ref={dialogue} className="axm-world-dialog" aria-label={t("Explorer le globe")} onClose={() => setOuvert(false)}>
-      <div className="axm-world-toolbar"><h3>{t("Exemple de livraisons")}</h3>
-        <button type="button" aria-label={t("Fermer")} onClick={() => dialogue.current?.close()}><X size={20}/></button></div>
-      {ouvert && <CarteCommandes lieux={lieux}><p>{t("Trois commandes de démonstration en Afrique de l’Ouest et en Afrique centrale.")}</p></CarteCommandes>}
-    </dialog>
-  </section>;
 }
 
 export function Campagnes() {

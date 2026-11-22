@@ -120,7 +120,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 <p>Essayez de modifier les filtres ou le terme de recherche</p>
                 <div className="axd-empty__actions"><Button href="/dashboard/clients">Effacer les filtres</Button></div>
               </> : <>
-                <img src="/admin/clients-vide.svg" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />
+                <img src="/visuels/board-clients.webp" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />
                 <h3>Vos clients s’afficheront ici</h3>
                 <p>Chaque client qui commande sur votre boutique, par WhatsApp ou en caisse est ajouté automatiquement.</p>
               </>}

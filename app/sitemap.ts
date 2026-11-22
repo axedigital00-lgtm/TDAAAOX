@@ -1,13 +1,16 @@
 import { urlBoutique } from "@/lib/utils";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
-import { lienSolution, solutions } from "@/lib/catalogue-fonctionnalites";
+import { DOSSIERS } from "@/lib/dossiers-fonctionnalites";
+import { ARTICLES, GUIDES } from "@/lib/contenu-site";
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://axsoafrica.com";
 
 const PAGES = [
   "", "/fonctionnalites", "/themes", "/temoignages", "/affiliation", "/about", "/contact",
-  ...solutions.map(solution => lienSolution(solution.slug)),
+  ...DOSSIERS.map(d => `/fonctionnalites/${d.slug}`),
+  ...ARTICLES.map(a => `/blog/${a.slug}`),
+  ...GUIDES.map(g => `/docs/${g.slug}`),
   "/tarifs", "/outils", "/entreprises", "/nouveautes", "/migration",
   "/blog", "/docs", "/tutorials", "/community", "/press", "/jobs",
   "/legal/cgu", "/legal/privacy", "/legal/cookies", "/legal/abonnements", "/legal/politique-prix",

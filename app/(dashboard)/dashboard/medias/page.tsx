@@ -188,7 +188,7 @@ export default function MediasPage() {
                   aria-label={tr("Exemple de film produit")} style={{ width: "100%", borderRadius: 16 }} />
                 <figcaption>{tr("Exemple de film produit")}</figcaption>
               </figure>
-            ) : <img src="/editorial/mediatheque.webp" alt="" loading="lazy" width={320} height={160}
+            ) : <img src="/visuels/board-medias.webp" alt="" loading="lazy" width={320} height={160}
               style={{ width: "min(100%, 320px)", height: "auto", aspectRatio: "2 / 1", objectFit: "cover", margin: "0 auto 20px", borderRadius: 16 }} />}
             <h3>{tr("Créez vos premiers visuels avec l’IA")}</h3>
             <p>{tr("Photos produit, mises en situation et vidéos publicitaires, générées à partir d’une simple description.")}</p>

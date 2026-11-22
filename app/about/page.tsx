@@ -1,6 +1,7 @@
 // À propos : mission, ce qui nous guide, présence africaine, appel final.
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/serveur";
+import { Recits } from "@/components/marketing/motion/Sections";
 import { PageAxm, HeroPage, Section, AppelFinal, CartesLiens } from "@/components/marketing/site/Blocs";
 
 export const metadata: Metadata = {
@@ -28,7 +29,7 @@ export default async function AboutPage() {
       />
       <Section serre>
         <div className="axm-grid axm-g3">
-          {["/hero-market.webp", "/catalogue-atelier.webp", "/hero-moto.webp"].map((src) => (
+          {["/visuels/histoire-marche.webp", "/visuels/histoire-atelier.webp", "/visuels/histoire-route.webp"].map((src) => (
             <img key={src} src={src} alt="" className="axm-img" style={{ aspectRatio: "3 / 4" }} loading="lazy" />
           ))}
         </div>
@@ -46,6 +47,11 @@ export default async function AboutPage() {
           ))}
         </div>
       </Section>
+
+      <Recits t={t} items={[
+        { photo: "/visuels/recit-about-1.webp", titre: "Pensé pour la vraie vie du commerce africain.", texte: "Le paiement à la réception, WhatsApp, les coupures de réseau et les adresses sans numéro ne sont pas des exceptions : ce sont nos points de départ.", scene: "whatsapp", points: ["Paiement à la livraison sans commission AXSO", "Vente directement depuis WhatsApp", "Caisse qui continue hors ligne", "Livraison par quartier et position GPS", "Devises africaines prises en charge"] },
+        { photo: "/visuels/recit-about-2.webp", titre: "Un seul outil à la place de dix.", texte: "Boutique, caisse, stock, livraison, marketing, finance et IA parlent enfin le même langage.", scene: "stock", lien: ["Voir tous les modules", "/fonctionnalites"], points: ["Un seul stock", "Une seule base clients", "Des chiffres réunis", "Une équipe, avec des droits précis"] },
+      ]} />
 
       <Section serre titre={t("Conçu pour les marchés africains")}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>

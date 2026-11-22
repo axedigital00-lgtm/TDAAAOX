@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import { rattacherFilleul } from "@/lib/parrainage";
+import { COOKIE_PARRAIN } from "@/lib/parrainage-regles";
 import { aiLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { annoncerInscription } from "@/lib/push";
 import { NextResponse } from "next/server";
@@ -138,6 +141,7 @@ export async function POST(request: Request) {
       };
 
       // Transaction : créer tenant + user + produits
+      const codeParrain = (await cookies()).get(COOKIE_PARRAIN)?.value;
       const { tenant, produitsCreees } = await prisma.$transaction(async (tx) => {
         const tenant = await tx.tenant.create({
           data: {
@@ -202,6 +206,7 @@ export async function POST(request: Request) {
 
         return { tenant, produitsCreees };
       });
+      await rattacherFilleul(tenant.id, { email: compte.email, telephone: compte.whatsapp }, codeParrain);
 
       await annoncerInscription({ name: compte.name, email: compte.email, role: "owner", tenantId: tenant.id });
 

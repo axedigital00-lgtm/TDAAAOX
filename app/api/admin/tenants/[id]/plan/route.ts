@@ -10,11 +10,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!estAdminComplet(session)) return NextResponse.json({ error: "Lecture seule — action réservée au super-admin" }, { status: 403 });
 
   const { id } = await params;
-  const { plan, jours } = await req.json().catch(() => ({}));
+  const { plan, jours, paiementRecu, montant, reference } = await req.json().catch(() => ({}));
+  const paiement = paiementRecu === true && Number(montant) > 0 && typeof reference === "string" && /^[\w-]{8,80}$/.test(reference)
+    ? { montant: Number(montant), reference: `ADM-${id}-${reference}` } : null;
+  if (paiementRecu === true && !paiement) return NextResponse.json({ error: "Montant du paiement invalide" }, { status: 400 });
   try {
     const avant = await prisma.tenant.findUnique({ where: { id }, select: { planType: true, planExpiresAt: true } });
-    const r = await changerPlanBoutique(id, plan, jours);
-    await journaliser(session, "boutique.plan", "Tenant", id, avant, r);
+    const r = await changerPlanBoutique(id, plan, jours, paiement);
+    await journaliser(session, "boutique.plan", "Tenant", id, avant, { ...r, paiement });
     return NextResponse.json({ success: true, ...r });
   } catch (err) {
     return reponseErreur(err);

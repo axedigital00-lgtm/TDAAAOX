@@ -33,6 +33,12 @@ const FAQ = [
   { q: "Puis-je acheter avec mon propre lien ?", r: "Oui, mais ces achats ne donnent pas de commission." },
 ];
 
+const PARRAINAGE = [
+  ["Partage ton lien", "Envoie-le à un commerçant sur WhatsApp ou tes réseaux."],
+  ["Il crée sa boutique", "Il devient ton filleul dès son inscription avec ton lien."],
+  ["Tu gagnes à chaque paiement", "20 % de chaque abonnement payé, tant qu'il reste abonné."],
+];
+
 export default async function AffiliationPage() {
   const t = await getT();
   const { produits, total, boutiques, tauxMax } = await catalogueAffiliation({ take: 8 });
@@ -108,7 +114,14 @@ export default async function AffiliationPage() {
           </div>
           <div style={{ marginTop: 48 }}><Link href={VERS_CATALOGUE} className="axm-btn axm-btn--secondary">{t("Voir tout le catalogue")}</Link></div>
         </Section>
-      )}
+      )}
+      <Section titre={<>{t("Ton lien te rapporte dès qu’un filleul s’abonne.")}</>} lead={t("Recommande AXSO à d'autres commerçants et touche une commission sur leurs abonnements, à vie.")}>
+        <div className="axx-duo">
+          <div><p className="axm-stat" style={{ fontSize: "clamp(72px, 12vw, 150px)", color: "#EBA900", margin: 0 }}>20 %</p><p className="axm-lead" style={{ marginTop: 10 }}>{t("de commission sur les abonnements de tes filleuls, à vie.")}</p><p style={{ marginTop: 24 }}><Link href="/affilie/parrainage" className="axm-btn axm-btn--primary">{t("Obtenir mon lien")}</Link></p></div>
+          <ol className="axx-etapes" style={{ gridTemplateColumns: "1fr" }}>{PARRAINAGE.map(([a, b]) => <li key={a}><h3>{t(a)}</h3><p>{t(b)}</p></li>)}</ol>
+        </div>
+        <p className="axm-muted" style={{ fontSize: 13, marginTop: 24 }}>{t("Commission versée sur les paiements confirmés, tant que le filleul reste abonné. Abonnements offerts ou remboursés et auto-parrainage exclus.")}</p>
+      </Section>
 
       <Section clair>
         <Faq titre={t("Questions fréquentes")} items={FAQ.map(({ q, r }) => ({ q: t(q), r: t(r) }))} />

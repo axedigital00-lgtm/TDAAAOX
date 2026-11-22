@@ -81,7 +81,7 @@ export default async function AccueilPage() {
   const domaine = tenant?.slug ? `${tenant.slug}.cm` : undefined;
   const feed: FeedItem[] = [];
   if (droits.boutique !== "aucun") feed.push({
-    id: "conversion", art: <img src="/editorial/conversion.webp" className="axd-feed-photo" alt="" loading="lazy" />, task: { done: 0, total: 3 },
+    id: "conversion", art: <img src="/visuels/board-conversion.webp" className="axd-feed-photo" alt="" loading="lazy" />, task: { done: 0, total: 3 },
     title: "Améliorez votre taux de conversion",
     text: "Augmentez la part de visiteurs qui achètent sur votre boutique : fiches produits complètes, photos nettes et commande en quelques étapes.",
     action: { label: "Démarrer", href: "/dashboard/builder" },
@@ -93,7 +93,7 @@ export default async function AccueilPage() {
     action: { label: "Choisir un domaine", href: "/dashboard/parametres/domaine" },
   });
   if (droits.commandes !== "aucun") feed.push({
-    id: "livraison", art: <img src="/editorial/livraison.webp" className="axd-feed-photo" alt="" loading="lazy" />,
+    id: "livraison", art: <img src="/visuels/board-livraison.webp" className="axd-feed-photo" alt="" loading="lazy" />,
     title: "Vérifier les tarifs de livraison",
     text: "Passez en revue vos zones et vos tarifs pour Douala, Yaoundé et les villes secondaires avant vos prochaines commandes.",
     action: { label: "Vérifier les tarifs", href: "/dashboard/livraison" },
@@ -118,19 +118,19 @@ export default async function AccueilPage() {
     });
   }
   if (droits.clients !== "aucun") feed.push({
-    id: "whatsapp", art: <img src="/editorial/catalogue-chat.webp" className="axd-feed-photo" alt="" loading="lazy" />,
+    id: "whatsapp", art: <img src="/visuels/board-whatsapp.webp" className="axd-feed-photo" alt="" loading="lazy" />,
     title: "Vendez directement sur WhatsApp",
     text: "Recevez les commandes de vos clients WhatsApp directement dans AXSO, prêtes à être confirmées et livrées.",
     action: { label: "Connecter WhatsApp", href: "/dashboard/whatsapp" },
   });
   if (!programmeAffiliation?.actif && droits.marketing !== "aucun") feed.push({
-    id: "affiliation", art: <img src="/editorial/affiliation.webp" className="axd-feed-photo" alt="" loading="lazy" />,
+    id: "affiliation", art: <img src="/visuels/board-affiliation.webp" className="axd-feed-photo" alt="" loading="lazy" />,
     title: "Faites vendre vos produits par des affiliés",
     text: "Des créateurs et revendeurs partagent vos produits et touchent une commission sur chaque vente.",
     action: { label: "Lancer le programme", href: "/dashboard/affiliation" },
   });
   if (totalCommandes < 100) feed.push({
-    id: "100-ventes", art: <img src="/editorial/ventes.webp" className="axd-feed-photo" alt="" loading="lazy" />, task: { done: Math.min(totalCommandes, 100), total: 100 },
+    id: "100-ventes", art: <img src="/visuels/board-ventes.webp" className="axd-feed-photo" alt="" loading="lazy" />, task: { done: Math.min(totalCommandes, 100), total: 100 },
     title: "Réalisez vos 100 premières ventes",
     text: `Vous en êtes à ${nombre(totalCommandes)} commande${totalCommandes > 1 ? "s" : ""}. Partagez votre boutique, lancez une promotion et relancez vos clients pour y arriver.`,
     action: { label: "Démarrer", href: "/dashboard/marketing" },

@@ -182,3 +182,55 @@
   .cc *, .cc *::before, .cc *::after { animation: none !important; transition: none !important; }
 }
 }
+
+/* Charte AXSO : noir profond, actions neutres, jaune de marque pour la donnée mise en avant. */
+@layer components {
+.cc { --cc-bg: #000; --cc-surface: #0e0e0f; --cc-surface-2: #171718; --cc-surface-3: #212123; --cc-border: rgba(255,255,255,.08); --cc-border-strong: rgba(255,255,255,.16); --cc-accent: #EBA900; --cc-accent-text: #f4c033; --cc-accent-bg: rgba(235,169,0,.12); --cc-s1: #EBA900; --cc-s2: #5b9cf0; --cc-s3: #2fbf71; --cc-s4: #d55181; --cc-s5: #9085e9; --cc-radius: 16px; }
+.cc[data-cc-theme="light"] { --cc-bg: #f4f4f3; --cc-surface: #fff; --cc-surface-2: #f3f3f2; --cc-surface-3: #e9e9e7; --cc-accent-text: #8a5f00; --cc-s1: #b98500; }
+.cc-h1 { font-size: clamp(24px, 2.4vw, 32px); letter-spacing: -.025em; }
+.cc-h2 { letter-spacing: -.01em; }
+.cc-card { position: relative; background: linear-gradient(180deg, color-mix(in srgb, var(--cc-surface) 92%, #fff 8%), var(--cc-surface) 90px); transition: border-color .25s, transform .35s cubic-bezier(.16,1,.3,1), box-shadow .3s; }
+.cc-card:hover { border-color: var(--cc-border-strong); box-shadow: 0 14px 40px rgba(0,0,0,.28); }
+.cc[data-cc-theme="light"] .cc-card { background: var(--cc-surface); }
+.cc[data-cc-theme="light"] .cc-card:hover { box-shadow: 0 10px 28px rgba(0,0,0,.08); }
+.cc-btn-primary { background: #fff; border-color: #fff; color: #000; }
+.cc-btn-primary:hover { background: #e6e6e6; }
+.cc[data-cc-theme="light"] .cc-btn-primary { background: #000; border-color: #000; color: #fff; }
+.cc[data-cc-theme="light"] .cc-btn-primary:hover { background: #262626; }
+.cc-fade { animation: cc-monte .55s cubic-bezier(.16,1,.3,1) both; }
+@keyframes cc-monte { from { opacity: 0; transform: translate3d(0, 12px, 0); } }
+
+.ccx-globe { position: relative; height: clamp(380px, 46vw, 560px); overflow: hidden; border-radius: 0 0 var(--cc-radius) var(--cc-radius); background: #010204; color: #fff; }
+.ccx-globe:fullscreen { height: 100vh; border-radius: 0; }
+.ccx-globe canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: pan-y; opacity: 0; transition: opacity 1s; }
+.ccx-globe[data-etat="ok"] canvas { opacity: 1; }
+.ccx-vide { display: grid; place-items: center; height: 100%; color: var(--cc-text-3); font-size: 13px; }
+.ccx-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.ccx-labels button { position: absolute; left: 0; top: 0; width: 0; height: 0; padding: 0; border: 0; background: none; color: #fff; cursor: pointer; opacity: 0; will-change: transform; }
+.ccx-labels i { position: absolute; left: -1.5px; bottom: 0; width: 3px; border-radius: 3px 3px 0 0; background: linear-gradient(0deg, rgba(235,169,0,.15), #ffd96e); box-shadow: 0 0 10px rgba(235,169,0,.75); }
+.ccx-labels span { position: absolute; left: 6px; top: -18px; padding: 1px 5px; border-radius: 5px; background: rgba(8,10,16,.72); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); font-size: 10.5px; font-weight: 600; }
+.ccx-labels button:hover span, .ccx-labels button:focus-visible span { background: #EBA900; color: #111; }
+.ccx-info { position: absolute; left: 14px; bottom: 14px; width: 214px; padding: 12px 14px; border-radius: 13px; background: rgba(12,14,20,.68); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.ccx-info small { color: rgba(255,255,255,.58); font-size: 11px; } .ccx-info strong { display: block; font-size: 17px; font-weight: 600; }
+.ccx-info dl { display: grid; gap: 3px; margin: 7px 0 0; } .ccx-info dl div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; } .ccx-info dt { color: rgba(255,255,255,.58); } .ccx-info dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ccx-outils { position: absolute; right: 12px; top: 12px; display: flex; gap: 6px; }
+.ccx-outils button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: rgba(16,18,26,.74); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); color: #fff; cursor: pointer; }
+.ccx-outils button:hover { background: #fff; color: #000; }
+.ccx-relief { display: block; width: 100%; height: auto; max-height: 360px; }
+.ccx-heat { display: grid; gap: 3px; font-size: 10.5px; color: var(--cc-text-3); }
+.ccx-heat > div { display: grid; grid-template-columns: 30px repeat(24, minmax(0, 1fr)); gap: 3px; align-items: center; }
+.ccx-heat i { aspect-ratio: 1; border-radius: 3px; } .ccx-heat b { font-weight: 400; }
+.ccx-entonnoir { display: grid; gap: 11px; margin: 0; padding: 0; list-style: none; }
+.ccx-barre { height: 8px; margin-top: 4px; border-radius: 8px; overflow: hidden; background: var(--cc-surface-3); }
+.ccx-barre span { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, #EBA900, #ffe08a); transform-origin: left; animation: ccx-pousse .9s cubic-bezier(.16,1,.3,1) both; }
+@keyframes ccx-pousse { from { transform: scaleX(0); } }
+.ccx-treemap { position: relative; height: 290px; overflow: hidden; border-radius: 10px; }
+.ccx-treemap div { position: absolute; display: flex; flex-direction: column; justify-content: flex-end; padding: 8px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.45); color: #111; font-size: 12px; transition: filter .2s; }
+.ccx-treemap div:hover { filter: brightness(1.14); } .ccx-treemap b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ccx-cohortes { width: 100%; min-width: 480px; border-collapse: separate; border-spacing: 3px; font-size: 12px; text-align: center; }
+.ccx-cohortes th { color: var(--cc-text-3); font-weight: 500; white-space: nowrap; padding: 4px 6px; } .ccx-cohortes tbody th { text-align: left; color: var(--cc-text-2); }
+.ccx-cohortes td { padding: 8px 4px; border-radius: 5px; background: var(--cc-surface-2); font-variant-numeric: tabular-nums; }
+.ccx-radar { transform-origin: 130px 130px; animation: ccx-radar .9s cubic-bezier(.16,1,.3,1) both; }
+@keyframes ccx-radar { from { transform: scale(.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cc-fade, .ccx-barre span, .ccx-radar { animation: none; } .cc-card { transition: none; } }
+}

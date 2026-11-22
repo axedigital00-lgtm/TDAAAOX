@@ -8,7 +8,12 @@ import { Suspense } from "react";
 import { avisPublies } from "@/lib/avis-plateforme";
 import { FilmBoutique } from "../VideoSection";
 import { CinemaHero } from "./CinemaHero";
-import { ApercuStella, Campagnes, SceneMarches, SceneMonde } from "./ScenesCommerce";
+import { ApercuStella, Campagnes, SceneMarches } from "./ScenesCommerce";
+import { Globe3D } from "../motion/Globe3D";
+import { MoteurMotion, TexteLumiere } from "../motion/MoteurMotion";
+import { ParcoursCommande } from "../motion/ParcoursCommande";
+import { Scene, type TypeScene } from "../motion/Scenes";
+import "../motion/motion.css";
 import "./scenes.css";
 import { LaunchStory } from "./LaunchStory";
 import "./editorial.css";
@@ -23,6 +28,18 @@ const PARTENAIRES: { nom: string; logo: string; large?: boolean; texte?: boolean
   { nom: "Instagram", logo: "instagram.svg", texte: true },
   { nom: "TikTok", logo: "tiktok.svg", texte: true },
   { nom: "Google", logo: "google.png" },
+];
+
+const CANAUX = ["Boutique en ligne", "WhatsApp", "Caisse en magasin", "Mobile Money", "Paiement à la livraison", "Livreurs", "Stock unifié", "Vente en gros", "Multi-devises", "Stella", "Produits numériques", "Domaines"];
+
+const BENTO: { h: string; t: string; d: string; scene: TypeScene; taille: string }[] = [
+  { h: "/fonctionnalites/boutique-en-ligne", scene: "vitrine", taille: "axx-carte--l", t: "Une vitrine à votre image", d: "Thèmes, constructeur visuel et lancements planifiés." },
+  { h: "/fonctionnalites/stella", scene: "stella", taille: "axx-carte--m", t: "Stella, votre assistante", d: "Elle analyse, rédige et prépare. Vous décidez." },
+  { h: "/fonctionnalites/caisse", scene: "caisse", taille: "", t: "La caisse du magasin", d: "Scanner, ticket et même stock que votre site." },
+  { h: "/fonctionnalites/stock", scene: "stock", taille: "", t: "Un stock, partout", d: "Entrepôts, transferts et alertes." },
+  { h: "/fonctionnalites/promotions", scene: "promo", taille: "", t: "Des offres qui marchent", d: "Codes, limites et dates de fin." },
+  { h: "/fonctionnalites/vente-en-gros", scene: "gros", taille: "axx-carte--m", t: "Vendez aux pros", d: "Paliers, devis, paiement à terme." },
+  { h: "/fonctionnalites/automatisations", scene: "flux", taille: "axx-carte--l", t: "Votre commerce en pilote automatique", d: "Quand, si, alors : créez vos workflows sans code." },
 ];
 
 async function AvisAccueil() {
@@ -48,8 +65,18 @@ export async function HomeAxso() {
   return (
     <div className="axm axm-page axm-editorial">
       <Reveal />
+      <MoteurMotion />
       <CinemaHero />
+      <div className="axx-defile" aria-hidden><div>{[0, 1].map((k) => <span key={k}>{CANAUX.map((c) => <span key={c}>{t(c)}</span>)}</span>)}</div></div>
+      <section className="axx-manifeste"><div className="axm-wrap"><TexteLumiere texte={t("Une vitrine, une conversation, un comptoir, une livraison. AXSO réunit tout ce que votre commerce fait déjà, pour que chaque client compte et que chaque colis arrive.")} /></div></section>
       <Campagnes />
+      <ParcoursCommande surtitre={t("Le voyage d’une commande")} etapes={[
+        { titre: t("Votre vitrine attire"), texte: t("Un thème soigné, vos produits, votre adresse."), scene: <Scene type="vitrine" t={t} photo="/visuels/parcours-vitrine.webp" grande /> },
+        { titre: t("La conversation convertit"), texte: t("Le client commande, le récapitulatif arrive sur WhatsApp."), scene: <Scene type="whatsapp" t={t} photo="/visuels/parcours-whatsapp.webp" grande /> },
+        { titre: t("Le paiement rassure"), texte: t("À la réception, en espèces ou en Mobile Money."), scene: <Scene type="paiement" t={t} photo="/visuels/parcours-paiement.webp" grande /> },
+        { titre: t("Le colis prend la route"), texte: t("Votre livreur suit la course, votre client aussi."), scene: <Scene type="livraison" t={t} photo="/visuels/parcours-livraison.webp" grande /> },
+        { titre: t("Vos chiffres s’éclairent"), texte: t("Ventes, stock et clients se mettent à jour d’eux-mêmes."), scene: <Scene type="analyses" t={t} photo="/visuels/parcours-analyses.webp" grande /> },
+      ]} />
 
       <section className="axm-section">
         <div className="axm-wrap">
@@ -72,22 +99,11 @@ export async function HomeAxso() {
       <section className="axm-section" style={{ paddingTop: 0 }}>
         <div className="axm-wrap">
           <h2 className="axm-h2" style={{ maxWidth: 900 }}>{t("Une seule plateforme pour tout votre commerce")}</h2>
-          <div className="axm-platform">
-            <article><FilmBoutique />
-              <h3>{t("Boutiques en ligne")}</h3><p>{t("Choisissez un thème, ajoutez vos produits et personnalisez votre vitrine.")}</p>
-              <Link href="/fonctionnalites/boutique-en-ligne" className="axm-link">{t("Découvrir le constructeur")} →</Link>
-            </article>
-            <article><div className="axm-platform-admin">
-              <img src="/editorial/ventes.webp" alt="" loading="lazy" />
-              <div><small>{t("Centre de gestion")}</small><b>{t("Commandes")}</b><span>{t("À préparer")} <i>03</i></span><span>{t("En livraison")} <i>02</i></span></div>
-            </div><h3>{t("Tout votre commerce en vue")}</h3><p>{t("Retrouvez commandes, clients et stock dans un seul tableau de bord.")}</p>
-              <Link href="/fonctionnalites#gerer" className="axm-link">{t("Explorer les outils")} →</Link>
-            </article>
-            <article><div className="axm-platform-social"><img src="/hero-bags.webp" alt="" loading="lazy" />
-              <span>{t("Bonjour, ce sac est-il disponible ?")}</span></div>
-              <h3>{t("Du message à la commande")}</h3><p>{t("Partagez un article et poursuivez la vente sur WhatsApp.")}</p>
-              <Link href="/fonctionnalites/whatsapp" className="axm-link">{t("Voir les canaux")} →</Link>
-            </article>
+          <div className="axx-bento">
+            {BENTO.map((c) => <Link key={c.h} href={c.h} className={`axx-carte ${c.taille}`}>
+              <Scene type={c.scene} t={t} photo={`/visuels/bento-${c.scene}.webp`} />
+              <div><h3>{t(c.t)}</h3><p>{t(c.d)}</p></div>
+            </Link>)}
           </div>
         </div>
       </section>
@@ -109,7 +125,7 @@ export async function HomeAxso() {
             {[
               { img: "/editorial/colis.webp", t: "Lancez-vous", d: "Ouvrez votre boutique gratuitement, partagez votre lien sur WhatsApp et recevez vos premières commandes dès aujourd’hui.", l: "Créer ma boutique", h: "/inscription" },
               { img: "/catalogue-atelier.webp", t: "Vendez plus", d: "Promotions, relances WhatsApp, affiliés et analyses : les outils pour transformer vos visiteurs en clients fidèles.", l: "Voir les fonctionnalités", h: "/fonctionnalites" },
-              { img: "/hero-market.webp", t: "Ouvrez votre magasin", d: "La caisse AXSO encaisse en boutique physique et partage le même stock que votre site.", l: "Découvrir la caisse", h: "/fonctionnalites/caisse" },
+              { img: "/visuels/accueil-magasin.webp", t: "Ouvrez votre magasin", d: "La caisse AXSO encaisse en boutique physique et partage le même stock que votre site.", l: "Découvrir la caisse", h: "/fonctionnalites/caisse" },
             ].map((c) => (
               <div key={c.t} className="axm-card" style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 280 }}>
                 <img src={c.img} alt="" loading="lazy" className="axm-case-img" />
@@ -148,8 +164,8 @@ export async function HomeAxso() {
           <div className="axm-grid axm-g3" style={{ marginTop: 48 }}>
             {[
               { img: "/editorial/affiliation.webp", t: "Programme d’affiliation", d: "Des créateurs partagent vos produits et touchent une commission sur chaque vente.", h: "/affiliation" },
-              { img: "/theme-pop.webp", t: "Thèmes et constructeur", d: "Des vitrines prêtes à vendre, modifiables sans écrire une ligne de code.", h: "/themes" },
-              { img: "/theme-codex.webp", t: "Documentation", d: "Guides pas à pas pour connecter vos outils et automatiser votre boutique.", h: "/docs" },
+              { img: "/visuels/accueil-themes.webp", t: "Thèmes et constructeur", d: "Des vitrines prêtes à vendre, modifiables sans écrire une ligne de code.", h: "/themes" },
+              { img: "/visuels/accueil-documentation.webp", t: "Documentation", d: "Guides pas à pas pour connecter vos outils et automatiser votre boutique.", h: "/docs" },
             ].map((c) => (
               <Link key={c.t} href={c.h} className="axm-card" style={{ display: "block", color: "inherit", textDecoration: "none" }}>
                 <img src={c.img} alt="" className="axm-case-img" loading="lazy" style={{ marginBottom: 18 }} />
@@ -173,19 +189,19 @@ export async function HomeAxso() {
             <span className="axm-partner axm-partner--wide axm-partner--sombre" style={{ height: 60 }}><img src="/brand/partenaires/mtn-momo.png" alt="MTN MoMo" /></span>
           </div>
           </div><figure className="axm-recu">
-            <img src="/hero-headphones.webp" loading="lazy" alt="" />
+            <img src="/visuels/accueil-casque.webp" loading="lazy" alt="" />
             <figcaption><small>{t("Aperçu de commande")}</small><strong>{t("Casque sans fil")}</strong>
               <dl><div><dt>{t("Quantité")}</dt><dd>1</dd></div><div><dt>{t("Total")}</dt><dd>24 900 FCFA</dd></div></dl>
               <span>{t("Paiement à la livraison")}</span></figcaption>
           </figure></div>
           <div className="axm-grid axm-g3" style={{ marginTop: 56 }}>
             {[
-              { v: "0 %", d: "de commission AXSO sur les ventes payées à la livraison" },
-              { v: "3 min", d: "pour mettre votre boutique en ligne" },
-              { v: "1", d: "seul stock pour votre site, WhatsApp et votre magasin" },
+              { v: "0 %", n: 0, u: " %", d: "de commission AXSO sur les ventes payées à la livraison" },
+              { v: "3 min", n: 3, u: " min", d: "pour mettre votre boutique en ligne" },
+              { v: "1", n: 1, u: "", d: "seul stock pour votre site, WhatsApp et votre magasin" },
             ].map((s) => (
               <div key={s.d}>
-                <div className="axm-stat">{s.v}</div>
+                <div className="axm-stat" data-compte={s.n} data-suffixe={s.u}>{s.v}</div>
                 <p className="axm-muted" style={{ marginTop: 12, fontSize: 18 }}>{t(s.d)}</p>
               </div>
             ))}
@@ -213,7 +229,7 @@ export async function HomeAxso() {
         </div>
       </section>
 
-      <SceneMonde />
+      <Globe3D />
       <Suspense fallback={null}><AvisAccueil /></Suspense>
 
       {/* ── Démarrer en trois étapes ─────────────────────────── */}

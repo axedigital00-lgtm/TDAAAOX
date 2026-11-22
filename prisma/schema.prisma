@@ -703,6 +703,7 @@ model User {
   abonnementsPush AbonnementPush[]
   affiliations    Affilie[]
   retraitsAffilie RetraitAffilie[]
+  codeParrain CodeParrain?
 }
 
 // Appareil abonné aux notifications push (Web Push) : la notification s'affiche comme une
@@ -4288,4 +4289,49 @@ model LancementBoutique {
 
   @@index([tenantId, createdAt])
   @@index([statut, debut])
+}
+
+// Parrainage des abonnements : code personnel du parrain.
+model CodeParrain {
+  userId    String   @id
+  code      String   @unique
+  clics     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Une boutique n'a qu'un parrain, fixé à son inscription.
+model Parrainage {
+  id              String   @id @default(cuid())
+  parrainUserId   String
+  filleulTenantId String   @unique
+  createdAt       DateTime @default(now())
+
+  commissions CommissionParrainage[]
+
+  @@index([parrainUserId, createdAt])
+}
+
+// 20 % d'un paiement d'abonnement confirmé. `reference` unique : un paiement ne compte qu'une fois.
+model CommissionParrainage {
+  id                String    @id @default(cuid())
+  parrainageId      String
+  parrainUserId     String
+  filleulTenantId   String
+  reference         String    @unique
+  montantAbonnement Float
+  taux              Float
+  montant           Float
+  devise            String
+  statut            String    @default("pending") // pending | payee | annulee
+  disponibleLe      DateTime
+  retraitId         String?
+  createdAt         DateTime  @default(now())
+
+  parrainage Parrainage @relation(fields: [parrainageId], references: [id], onDelete: Restrict)
+
+  @@index([parrainUserId, createdAt])
+  @@index([filleulTenantId])
+  @@index([retraitId])
 }

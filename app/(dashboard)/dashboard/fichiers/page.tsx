@@ -167,7 +167,7 @@ export default function FichiersPage() {
             <p className="axd-fichiers__etat">{t("Chargement…")}</p>
           ) : !visibles.length ? (
             <div className="axd-empty">
-              <img src="/admin/fichiers-vide.svg" alt="" width={200} height={150} style={{ margin: "0 auto 8px", maxWidth: "100%" }} />
+              <img src="/visuels/board-fichiers.webp" alt="" width={200} height={150} style={{ margin: "0 auto 8px", maxWidth: "100%" }} />
               <h3>{recherche ? t("Aucun fichier ne correspond") : t("Importez et gérez vos fichiers")}</h3>
               <p>{recherche ? t("Essayez un autre nom de fichier.") : t("Les images, vidéos et documents de votre boutique, réutilisables partout : constructeur, pages, liens.")}</p>
             </div>

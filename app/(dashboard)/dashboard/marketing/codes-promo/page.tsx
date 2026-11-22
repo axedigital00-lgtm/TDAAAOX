@@ -11,7 +11,6 @@ import { IndexFilters, IndexTable } from "@/components/dashboard/design-system/c
 import { Modal } from "@/components/dashboard/design-system/components/Modal";
 import { Button, IconButton } from "@/components/dashboard/design-system/components/Button";
 import { Field } from "@/components/dashboard/design-system/components/primitives";
-import { EmptyArt } from "@/components/dashboard/design-system/illustrations/Illustration";
 import { dateRelativeAdmin, nombre } from "@/components/dashboard/design-system/format";
 
 type CodePromo = {
@@ -99,7 +98,7 @@ export default function CodesPromoPage() {
 
       {!loading && codes.length === 0 ? (
         <div className="axd-card"><div className="axd-empty">
-          <EmptyArt name="campaign" />
+          <img src="/visuels/board-reductions.webp" alt="" width={200} height={150} style={{ objectFit: "cover", borderRadius: 12 }} />
           <h3>{t("Gérez vos réductions et promotions")}</h3>
           <p>{t("Créez des codes de réduction à partager sur WhatsApp, Facebook ou en boutique, et suivez leur utilisation.")}</p>
           <div className="axd-empty__actions"><Button variant="primary" onClick={() => setCreation(true)}>{t("Créer une réduction")}</Button></div>
