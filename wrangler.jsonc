@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   // La base Neon est aux États-Unis : le Worker s'exécute près d'elle pour limiter les allers-retours.
-  "placement": { "mode": "smart" },
+  "placement": { "mode": "targeted", "region": "aws:us-east-1" },
   "routes": [
     { "pattern": "axsoafrica.com/*", "zone_name": "axsoafrica.com" },
     { "pattern": "www.axsoafrica.com/*", "zone_name": "axsoafrica.com" },
