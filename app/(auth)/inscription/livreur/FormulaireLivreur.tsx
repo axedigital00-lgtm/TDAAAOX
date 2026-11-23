@@ -24,7 +24,7 @@ const TYPES: { value: "livreur" | "societe"; label: string; desc: string; Icon: 
 ];
 const ETAPES_RESEAU = [
   ["Créez votre compte", "Quelques informations suffisent."],
-  ["Envoyez vos documents", "Ils restent privés et ne sont jamais montrés aux marchands."],
+  ["Envoyez vos documents", "Un administrateur AXSO valide votre compte sous 24 h maximum. Vos documents restent privés."],
   ["Recevez vos courses", "Le montant net est affiché avant que vous acceptiez."],
 ];
 
@@ -123,11 +123,9 @@ export function FormulaireLivreur({ pays }: { pays: string | null }) {
           {cree ? <>
             <div className="axa-alerte axa-alerte--ok" role="status" style={{ display: "flex", gap: 8 }}>
               <ShieldCheck size={16} style={{ flex: "none", marginTop: 2 }} />
-              <span>{t("Compte créé. Saisissez le code reçu par e-mail pour compléter votre profil.")}</span>
+              <span><b>{t("Demande d'inscription enregistrée.")}</b> {t("Un administrateur AXSO valide votre compte sous 24 h maximum avant activation. En attendant, saisissez le code reçu par e-mail pour compléter votre dossier.")}</span>
             </div>
-            <div className="axa" style={{ all: "unset", display: "block" }}>
-              <EcranCode email={cree.email} erreurInitiale={cree.erreurEnvoi} onValider={(code) => connecter(cree.email, code)} onRenvoyer={async () => { await demanderCodeConnexion(cree.email, form.password); }} />
-            </div>
+            <EcranCode email={cree.email} erreurInitiale={cree.erreurEnvoi} onValider={(code) => connecter(cree.email, code)} onRenvoyer={async () => { await demanderCodeConnexion(cree.email, form.password); }} />
           </> : <form onSubmit={soumettre} noValidate>
             <ol className="axi-progres" aria-label={t("Progression")}>
               {titres.map((x, i) => <li key={x} data-etat={i < etape ? "fait" : i === etape ? "actif" : "attente"} aria-current={i === etape ? "step" : undefined}><i>{i < etape ? <Check size={12} strokeWidth={3} /> : i + 1}</i><span>{t(x)}</span></li>)}

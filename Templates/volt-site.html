@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOLT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--couleur-fond:#fbfbfd;--couleur-texte:#111316;--couleur-accent:#2447ff;--couleur-surface:#eef0f4;--police-titre:'Space Grotesk',sans-serif;--police-corps:'Inter',sans-serif;--doux:color-mix(in srgb,var(--couleur-texte) 62%,transparent);--trait:color-mix(in srgb,var(--couleur-texte) 12%,transparent);--r:22px;--w:1320px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--couleur-fond);color:var(--couleur-texte);font-family:var(--police-corps);font-size:16px;line-height:1.6;overflow-x:hidden}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{font-family:var(--police-titre);font-weight:600;letter-spacing:-.03em;line-height:1.02;text-wrap:balance}
+.view{display:none}.view.active{display:block}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 20px}
+svg{flex:none}
+
+/* Boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:50px;padding:0 28px;border-radius:999px;font-family:var(--police-titre);font-weight:600;font-size:16px;letter-spacing:-.01em;border:1.5px solid var(--couleur-texte);background:transparent;color:var(--couleur-texte);transition:background .25s,color .25s,border-color .25s,transform .25s}
+.btn:hover{background:var(--couleur-texte);color:var(--couleur-fond)}
+.btn-primary{background:var(--couleur-accent);border-color:var(--couleur-accent);color:var(--couleur-fond)}
+.btn-primary:hover{background:var(--couleur-texte);border-color:var(--couleur-texte)}
+.btn-primary::after{content:"\2192";display:inline-block;transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+.btn-primary:hover::after{transform:translateX(5px)}
+.btn-light{border-color:var(--couleur-fond);color:var(--couleur-fond)}
+.btn-light:hover{background:var(--couleur-fond);color:var(--couleur-texte)}
+.link{display:inline-flex;align-items:center;gap:8px;font-family:var(--police-titre);font-weight:600;color:var(--couleur-accent);background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;padding-bottom:2px;transition:background-size .3s}
+.link:hover{background-size:100% 1.5px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--police-titre);font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--couleur-accent)}
+.kicker{display:block;font-family:var(--police-titre);font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--couleur-accent);margin-bottom:14px}
+
+/* En-tête */
+header{background:var(--couleur-fond);border-bottom:1px solid var(--trait)}
+.announce{background:var(--couleur-texte);color:var(--couleur-fond);font-size:13px;font-weight:500;letter-spacing:.01em;overflow:hidden}
+.marquee{display:flex;width:max-content;animation:defile 38s linear infinite}
+.announce:hover .marquee{animation-play-state:paused}
+.marquee span{display:inline-flex;align-items:center;gap:40px;padding:10px 0 10px 40px;white-space:nowrap}
+.marquee span::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--couleur-accent)}
+@keyframes defile{to{transform:translateX(-50%)}}
+::selection{background:var(--couleur-accent);color:var(--couleur-fond)}
+.bar{display:flex;align-items:center;gap:28px;max-width:var(--w);margin:0 auto;padding:16px 20px}
+.logo{font-family:var(--police-titre);font-weight:700;font-size:26px;letter-spacing:-.05em;display:inline-flex;align-items:center;gap:8px}
+.logo::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--couleur-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--couleur-accent) 22%,transparent)}
+header nav{display:flex;gap:30px;margin:0 auto}
+header nav a{font-size:15px;font-weight:500;color:var(--doux);transition:color .2s;background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;padding:6px 0;transition:color .2s,background-size .3s}
+header nav a:hover{color:var(--couleur-texte);background-size:100% 1.5px}
+.actions{display:flex;align-items:center;gap:6px}
+.actions a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:999px;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s}
+.actions a:hover{background:var(--couleur-surface)}
+.actions .cart-btn{background:var(--couleur-texte);color:var(--couleur-fond);padding:0 18px}
+.actions .cart-btn:hover{background:var(--couleur-accent)}
+
+/* Bannière */
+.hero{padding:20px 0 0}
+.hero-card{position:relative;display:grid;grid-template-columns:1fr 1.05fr;align-items:stretch;background:var(--couleur-surface);border-radius:32px;overflow:hidden;min-height:620px}
+.hero-txt{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:22px;padding:64px 56px 64px 64px}
+.hero h1{font-size:clamp(46px,6.4vw,96px);font-weight:700;letter-spacing:-.055em;line-height:.95;overflow-wrap:anywhere;max-width:11ch}
+.hero p{font-size:19px;color:var(--doux);max-width:30em}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.hero-media{position:relative}
+.hero-media img{width:100%;height:100%;object-fit:cover}
+.hero-tag{position:absolute;left:24px;bottom:24px;display:inline-flex;align-items:center;gap:10px;padding:12px 18px;border-radius:999px;background:color-mix(in srgb,var(--couleur-fond) 82%,transparent);backdrop-filter:blur(10px);font-family:var(--police-titre);font-weight:600;font-size:14px}
+.hero-tag::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--couleur-accent)}
+.hero-perks{display:flex;flex-wrap:wrap;gap:10px 28px;padding:22px 4px 0}
+.hero-perks li{list-style:none;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--doux)}
+.hero-perks svg{color:var(--couleur-accent)}
+
+/* Sections */
+.sec{padding:110px 0 0}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:40px}
+.sec-head h2{font-size:clamp(34px,4.4vw,60px);max-width:14ch}
+.sec-head p{color:var(--doux);max-width:26em}
+
+/* Catégories */
+/* Carrousels */
+.cats,.rail{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;padding-bottom:4px}
+.cats::-webkit-scrollbar,.rail::-webkit-scrollbar{display:none}
+.cats{anchor-name:--cats}
+.rail{anchor-name:--rail}
+.cat{flex:0 0 calc((100% - 64px)/4.35);scroll-snap-align:start;display:flex;flex-direction:column;background:var(--couleur-surface);border-radius:var(--r);overflow:hidden}
+.use{flex:0 0 calc((100% - 32px)/2.6);scroll-snap-align:start;position:relative;border-radius:var(--r);overflow:hidden;color:var(--couleur-fond);background:var(--couleur-texte)}
+.use-media{aspect-ratio:4/5;overflow:hidden}
+.use-media img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+.use-media::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,color-mix(in srgb,var(--couleur-texte) 78%,transparent),transparent 55%)}
+.use-txt{position:absolute;left:0;right:0;bottom:0;padding:28px;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.use-k{display:block;font-family:var(--police-titre);font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb,var(--couleur-accent) 45%,var(--couleur-fond));margin-bottom:8px}
+.use-txt h3{font-size:clamp(22px,2.2vw,30px);max-width:13ch}
+.cat-media{aspect-ratio:4/5;overflow:hidden}
+.cat-media img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+.cat-label{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 18px 18px}
+.cat-label span{font-family:var(--police-titre);font-weight:600;font-size:18px;letter-spacing:-.02em}
+.cat-label svg{color:var(--couleur-accent);transition:transform .3s}
+
+/* Cartes produit */
+.product-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:28px 18px}
+.pcard{display:flex;flex-direction:column;gap:6px}
+.pcard-media{aspect-ratio:1/1;background:var(--couleur-surface);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.pcard-media img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+.pcard-name{font-size:18px;font-weight:600;letter-spacing:-.02em;line-height:1.2;padding:0 4px}
+.pcard-price{font-size:15px;font-weight:500;color:var(--doux);padding:0 4px}
+.pcard-cta{align-self:flex-start;margin:8px 4px 0;font-family:var(--police-titre);font-size:14px;font-weight:600;color:var(--couleur-accent);background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;transition:background-size .3s}
+.featured-foot{display:flex;justify-content:center;margin-top:48px}
+
+/* Pourquoi acheter ici */
+.benefits-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.benefit{background:var(--couleur-surface);border-radius:var(--r);padding:32px 28px 34px;display:flex;flex-direction:column;gap:12px}
+.benefit-ico{width:52px;height:52px;border-radius:16px;background:var(--couleur-fond);color:var(--couleur-accent);display:grid;place-items:center;margin-bottom:12px}
+.benefit h3{font-size:22px;line-height:1.15}
+.benefit p{font-size:15px;color:var(--doux)}
+
+/* Éditorial */
+.story-card{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.story-media{border-radius:32px;overflow:hidden;min-height:560px;position:relative}
+.story-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.story-txt{background:var(--couleur-surface);border-radius:32px;padding:64px 56px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:20px}
+.story-txt h2{font-size:clamp(34px,4vw,56px);max-width:12ch}
+.story-txt p{color:var(--doux);font-size:17px;max-width:32em}
+.steps{display:grid;gap:0;width:100%;margin:8px 0 10px;border-top:1px solid var(--trait)}
+.steps li{list-style:none;display:flex;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--trait);font-weight:500}
+.steps li::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid var(--couleur-accent);flex:none}
+
+/* Bandeau sombre */
+.spotlight-card{position:relative;border-radius:32px;overflow:hidden;background:var(--couleur-texte);color:var(--couleur-fond);display:grid;grid-template-columns:1.1fr 1fr;min-height:520px}
+.spotlight-txt{padding:72px 64px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:20px}
+.spotlight-txt .kicker{margin:0;color:color-mix(in srgb,var(--couleur-accent) 55%,var(--couleur-fond))}
+.spotlight-txt h2{font-size:clamp(38px,5vw,72px);max-width:11ch}
+.spotlight-txt p{color:color-mix(in srgb,var(--couleur-fond) 70%,transparent);font-size:17px;max-width:28em}
+.spotlight-media{position:relative}
+.spotlight-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+/* FAQ */
+.faq-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:64px;align-items:start}
+.faq-grid h2{font-size:clamp(34px,4.4vw,60px)}
+.faq-aside p{color:var(--doux);margin:18px 0 26px;max-width:24em}
+.faq-list{border-top:1px solid var(--trait)}
+.faq-list details{border-bottom:1px solid var(--trait)}
+.faq-list summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:24px 0;font-family:var(--police-titre);font-size:20px;font-weight:600;letter-spacing:-.02em}
+.faq-list summary::-webkit-details-marker{display:none}
+.faq-list summary::after{content:"+";flex:none;width:36px;height:36px;border-radius:50%;background:var(--couleur-surface);display:grid;place-items:center;font-size:22px;font-weight:400;transition:transform .3s,background .3s,color .3s}
+.faq-list details[open] summary::after{transform:rotate(45deg);background:var(--couleur-accent);color:var(--couleur-fond)}
+.faq-list details p{color:var(--doux);padding:0 56px 26px 0;max-width:40em}
+@supports (interpolate-size:allow-keywords){
+  .faq-list{interpolate-size:allow-keywords}
+  .faq-list details::details-content{height:0;overflow:hidden;transition:height .45s cubic-bezier(.2,.7,.2,1),content-visibility .45s allow-discrete}
+  .faq-list details[open]::details-content{height:auto}
+}
+
+/* Newsletter */
+.newsletter{padding:110px 0}
+.news-card{background:var(--couleur-accent);color:var(--couleur-fond);border-radius:32px;padding:72px 64px;display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center;position:relative;overflow:hidden}
+.news-card::after{content:"";position:absolute;right:-120px;top:-120px;width:420px;height:420px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--couleur-fond) 30%,transparent);box-shadow:0 0 0 70px color-mix(in srgb,var(--couleur-fond) 6%,transparent)}
+.news-card h2{font-size:clamp(34px,4.4vw,60px);max-width:12ch}
+.news-card p{color:color-mix(in srgb,var(--couleur-fond) 82%,transparent);margin-top:16px;max-width:28em}
+.news-form{position:relative;z-index:1;display:flex;gap:10px;background:var(--couleur-fond);border-radius:999px;padding:6px}
+.news-form input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:16px;color:var(--couleur-texte);padding:0 20px;min-height:50px;outline:none}
+.news-form .btn{background:var(--couleur-texte);border-color:var(--couleur-texte);color:var(--couleur-fond)}
+.news-form .btn:hover{background:var(--couleur-accent);border-color:var(--couleur-accent)}
+.news-note{position:relative;z-index:1;font-size:13px;margin-top:12px;color:color-mix(in srgb,var(--couleur-fond) 75%,transparent)}
+
+/* Catalogue */
+.plp-head{max-width:var(--w);margin:0 auto;padding:72px 20px 8px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.plp-head h1{font-size:clamp(44px,6vw,88px);font-weight:700;letter-spacing:-.055em}
+.plp-head span{font-family:var(--police-titre);font-weight:500;color:var(--doux);padding-bottom:10px}
+.plp{max-width:var(--w);margin:0 auto;padding:28px 20px 0}
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:36px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:999px;background:var(--couleur-surface);font-size:14px;font-weight:500;cursor:pointer;transition:background .2s,color .2s}
+.chip:hover{background:color-mix(in srgb,var(--couleur-texte) 12%,var(--couleur-surface))}
+.chip.active{background:var(--couleur-texte);color:var(--couleur-fond)}
+.plp-help{padding:96px 0 110px}
+.help-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.help-item{display:flex;gap:16px;align-items:flex-start;padding:28px;border:1px solid var(--trait);border-radius:var(--r)}
+.help-item svg{color:var(--couleur-accent);margin-top:2px}
+.help-item h3{font-size:19px;line-height:1.2;margin-bottom:6px}
+.help-item p{font-size:15px;color:var(--doux)}
+.help-title{font-size:clamp(28px,3vw,40px);margin-bottom:28px}
+
+.page-vide{max-width:var(--w);margin:0 auto;padding:120px 20px}
+.page-vide h1{font-size:56px}
+
+/* Pied de page */
+footer{background:var(--couleur-texte);color:var(--couleur-fond);margin-top:0}
+.foot{max-width:var(--w);margin:0 auto;padding:80px 20px 32px}
+.foot-top{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px;padding-bottom:56px;border-bottom:1px solid color-mix(in srgb,var(--couleur-fond) 16%,transparent)}
+.foot-brand{font-family:var(--police-titre);font-weight:700;font-size:44px;letter-spacing:-.05em;line-height:1}
+.foot-top p{color:color-mix(in srgb,var(--couleur-fond) 62%,transparent);font-size:15px;margin-top:16px;max-width:24em}
+.foot-col h4{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb,var(--couleur-fond) 55%,transparent);margin-bottom:18px}
+.foot-col ul{list-style:none;display:grid;gap:4px}
+.foot-col li{color:color-mix(in srgb,var(--couleur-fond) 80%,transparent);font-size:15px;padding:4px 0}
+.foot-col a{display:inline-block;padding:4px 0;font-size:15px;color:color-mix(in srgb,var(--couleur-fond) 80%,transparent);transition:color .2s}
+.foot-col a:hover{color:var(--couleur-fond)}
+.foot-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:28px;font-size:14px;color:color-mix(in srgb,var(--couleur-fond) 55%,transparent)}
+.foot-bottom small{font-size:14px}
+.pay{display:flex;gap:8px;flex-wrap:wrap}
+.pay span{border:1px solid color-mix(in srgb,var(--couleur-fond) 22%,transparent);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:500;color:color-mix(in srgb,var(--couleur-fond) 75%,transparent)}
+
+/* Survol */
+@media (hover:hover){
+  .cat:hover .cat-media img,.pcard:hover .pcard-media img,.use:hover .use-media img{transform:scale(1.06)}
+  .cat:hover .cat-label svg{transform:translateX(4px)}
+  .pcard:hover .pcard-cta,.pcard:hover .pcard-name{background-size:100% 1.5px}
+  .pcard-name{background:linear-gradient(currentColor,currentColor) 4px 100%/0 1px no-repeat;transition:background-size .4s}
+  .use:hover .use-txt{transform:translateY(-8px)}
+}
+
+/* Flèches et points natifs */
+
+
+/* Effets au défilement */
+@supports (animation-timeline:view()){
+  .hero-media{overflow:hidden}
+  .hero-media img,.story-media img,.spotlight-media img{height:116%;top:-8%;animation:parallaxe linear both;animation-timeline:view();animation-range:cover}
+  .hero-media img{position:relative}
+  .sec-head h2,.sec-head p,.story-txt h2,.story-txt p,.steps,.spotlight-txt h2,.faq-aside h2,.news-card h2,.help-title,.cat-label,.use-txt h3{animation:apparition linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
+  @keyframes parallaxe{from{transform:translateY(-7%)}to{transform:translateY(7%)}}
+  @keyframes apparition{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+}
+
+/* Tablette */
+@media (max-width:1080px){
+  .cat{flex-basis:calc((100% - 32px)/2.6)}
+  .use{flex-basis:calc((100% - 16px)/1.6)}
+  .product-grid,.benefits-grid{grid-template-columns:repeat(2,1fr)}
+  .hero-card,.story-card,.spotlight-card,.news-card,.faq-grid{grid-template-columns:minmax(0,1fr)}
+  .hero-card{min-height:0}
+  .hero-media{aspect-ratio:4/3}
+  .story-media{min-height:0;aspect-ratio:4/3}
+  .spotlight-media{aspect-ratio:16/10}
+  .foot-top{grid-template-columns:1fr 1fr}
+  .help-strip{grid-template-columns:1fr}
+  .faq-grid{gap:32px}
+}
+/* Mobile */
+@media (max-width:760px){
+  .wrap{padding:0 16px}
+  .bar{flex-wrap:wrap;gap:10px 12px;padding:12px 16px}
+  .logo{font-size:22px}
+  .actions{margin-left:auto;gap:2px}
+  .actions a{padding:0 10px}
+  .actions a span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .actions .cart-btn{padding:0 14px}
+  .actions .cart-btn span{position:static;width:auto;height:auto;overflow:visible;clip:auto}
+  header nav{order:3;width:100%;margin:0 -16px;padding:2px 16px 4px;gap:24px;overflow-x:auto;scrollbar-width:none;width:calc(100% + 32px)}
+  header nav::-webkit-scrollbar{display:none}
+  header nav a{flex:none;font-size:15px;padding:10px 0}
+  .hero{padding:12px 0 0}
+  .hero-card{border-radius:24px}
+  .hero-txt{padding:36px 24px 32px;gap:16px}
+  .hero h1{font-size:clamp(40px,12vw,56px)}
+  .hero p{font-size:16px}
+  .hero-cta .btn{flex:1 1 auto}
+  .hero-perks{gap:8px 18px;padding:16px 4px 0}
+  .sec{padding:72px 0 0}
+  .sec-head{flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:28px}
+  .cats,.rail{gap:12px;margin:0 -16px;padding:0 16px 6px;scroll-padding-inline:16px}
+  .cat{flex:0 0 44%}
+  .use{flex:0 0 76%}
+  .use-txt{padding:22px}
+  .cat-label{padding:12px 14px 14px}
+  .cat-label span{font-size:16px}
+  .product-grid{gap:24px 12px}
+  .pcard-media{border-radius:16px;margin-bottom:8px}
+  .pcard-name{font-size:15px;padding:0 2px}
+  .pcard-price{font-size:14px;padding:0 2px}
+  .benefits-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .benefit{padding:22px 18px 24px;gap:8px}
+  .benefit-ico{width:44px;height:44px;border-radius:12px;margin-bottom:6px}
+  .benefit h3{font-size:17px}
+  .benefit p{font-size:14px}
+  .story-media,.story-txt,.spotlight-card,.news-card{border-radius:24px}
+  .story-txt{padding:36px 24px}
+  .story-txt p,.spotlight-txt p{font-size:16px}
+  .spotlight-txt{padding:40px 24px}
+  .faq-list summary{font-size:17px;padding:20px 0}
+  .faq-list details p{padding:0 0 22px}
+  .newsletter{padding:72px 0}
+  .news-card{padding:40px 22px;gap:24px}
+  .news-form .btn{padding:0 18px}
+  .plp-head{padding:40px 16px 0}
+  .plp{padding:20px 16px 0}
+  .filters{margin:0 -16px 24px;padding:0 16px 6px}
+  .plp-help{padding:64px 0 72px}
+  .foot{padding:56px 16px 28px}
+  .foot-top{grid-template-columns:1fr 1fr;gap:32px 20px}
+  .foot-top .foot-col:first-child{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none;animation:none;scroll-behavior:auto}
+  .marquee{animation:none;flex-wrap:wrap;width:auto;justify-content:center}
+  .cats,.rail{scroll-behavior:auto}
+  .marquee span[aria-hidden]{display:none}
+  .cat-media img,.pcard-media img,.use-media img,.use-txt{transform:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="announce"><div class="marquee">
+    <span>Commande en quelques clics</span><span>Paiement à la livraison possible</span><span>Une question ? Écris-nous sur WhatsApp</span><span>Paiement sécurisé</span>
+    <span aria-hidden="true">Commande en quelques clics</span><span aria-hidden="true">Paiement à la livraison possible</span><span aria-hidden="true">Une question ? Écris-nous sur WhatsApp</span><span aria-hidden="true">Paiement sécurisé</span>
+  </div></div>
+  <div class="bar">
+    <a class="logo" data-axso-nom href="#" onclick="go('home')">VOLT</a>
+    <nav>
+      <a href="#" onclick="go('home')">Accueil</a>
+      <a href="#" onclick="go('boutique')">Boutique</a>
+      <a href="#" onclick="go('apropos')">À propos</a>
+      <a href="#" onclick="go('contact')">Contact</a>
+    </nav>
+    <div class="actions">
+      <a><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Rechercher</span></a>
+      <a href="#" onclick="go('compte')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span>Mon compte</span></a>
+      <a href="#" class="cart-btn" onclick="go('panier')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 11.1a2 2 0 0 1-2 1.9H8.2a2 2 0 0 1-2-1.9z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span>Panier</span></a>
+    </div>
+  </div>
+</header>
+
+<div class="view active" id="view-home">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-card">
+        <div class="hero-txt">
+          <span class="eyebrow">Nouvelle collection</span>
+          <h1>La tech, sans compromis.</h1>
+          <p>Téléphones, audio, ordinateurs et accessoires choisis avec soin, pour ton quotidien connecté.</p>
+          <div class="hero-cta">
+            <a href="#" class="btn btn-primary" onclick="go('boutique')">Découvrir la boutique</a>
+            <a href="#" class="btn" onclick="go('contact')">Demander conseil</a>
+          </div>
+        </div>
+        <div class="hero-media">
+          <img src="https://images.unsplash.com/photo-1580910051074-3eb694886505?auto=format&fit=crop&w=1600&q=80" alt="Smartphone blanc posé sur fond clair, vue sur les objectifs photo">
+          <span class="hero-tag">Les nouveautés sont arrivées</span>
+        </div>
+      </div>
+      <ul class="hero-perks">
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span>Paiement à la livraison possible</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span>Paiement sécurisé</span></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span>Conseils sur WhatsApp</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="categories sec">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Explore par univers.</h2>
+        <a href="#" class="link" onclick="go('boutique')">Tout voir</a>
+      </div>
+      <div class="cats">
+        <a href="#" class="cat" onclick="go('boutique')"><div class="cat-media"><img src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80" alt="Smartphone posé à côté d'un ordinateur portable" loading="lazy"></div><div class="cat-label"><span>Téléphones</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></a>
+        <a href="#" class="cat" onclick="go('boutique')"><div class="cat-media"><img src="https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80" alt="Casque audio gris sur fond blanc" loading="lazy"></div><div class="cat-label"><span>Audio</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></a>
+        <a href="#" class="cat" onclick="go('boutique')"><div class="cat-media"><img src="https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=800&q=80" alt="Ordinateur portable entrouvert dans la pénombre" loading="lazy"></div><div class="cat-label"><span>Ordinateurs</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></a>
+        <a href="#" class="cat" onclick="go('boutique')"><div class="cat-media"><img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80" alt="Montre connectée blanche sur fond gris clair" loading="lazy"></div><div class="cat-label"><span>Accessoires</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></a>
+        <a href="#" class="cat" onclick="go('boutique')"><div class="cat-media"><img src="https://images.unsplash.com/photo-1558089687-f282ffcbc126?auto=format&fit=crop&w=800&q=80" alt="Enceinte connectée et objets de maison intelligente" loading="lazy"></div><div class="cat-label"><span>Maison connectée</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="featured sec">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Les incontournables.</h2>
+        <p>Une sélection d'appareils et d'accessoires pour bien t'équiper, au quotidien comme en déplacement.</p>
+      </div>
+      <div id="homeGrid" class="product-grid">
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1567581935884-3349723552ca?auto=format&fit=crop&w=800&q=80" alt="Smartphone écran bord à bord" loading="lazy"></div><h3 class="pcard-name">Smartphone écran bord à bord</h3><span class="pcard-price">189 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3?auto=format&fit=crop&w=800&q=80" alt="Casque sans fil rose poudré" loading="lazy"></div><h3 class="pcard-name">Casque sans fil rose poudré</h3><span class="pcard-price">74 500 FCFA</span><span class="pcard-cta">Commander</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=800&q=80" alt="Écouteurs sans fil blancs" loading="lazy"></div><h3 class="pcard-name">Écouteurs sans fil blancs</h3><span class="pcard-price">32 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1625948515291-69613efd103f?auto=format&fit=crop&w=800&q=80" alt="Clavier mécanique crème" loading="lazy"></div><h3 class="pcard-name">Clavier mécanique crème</h3><span class="pcard-price">45 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+      </div>
+      <div class="featured-foot"><a href="#" class="btn" onclick="go('boutique')">Voir toute la boutique</a></div>
+    </div>
+  </section>
+
+  <section class="benefits sec">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Pourquoi acheter ici.</h2>
+        <p>Acheter un appareil doit rester simple. On t'accompagne de la question à la commande.</p>
+      </div>
+      <div class="benefits-grid">
+        <div class="benefit"><div class="benefit-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10h6M9 13h4"/></svg></div><h3>Conseils avant achat</h3><p>Une question de compatibilité ou de choix ? Écris-nous sur WhatsApp.</p></div>
+        <div class="benefit"><div class="benefit-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/></svg></div><h3>Paiement à la livraison</h3><p>Possible selon ta zone : tu règles quand tu reçois ta commande.</p></div>
+        <div class="benefit"><div class="benefit-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3 5 13h6l-1 8 8-10h-6z"/></svg></div><h3>Commande simple</h3><p>Choisis ton appareil, indique ton adresse, c'est fait en quelques clics.</p></div>
+        <div class="benefit"><div class="benefit-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><h3>Paiement sécurisé</h3><p>Mobile money ou carte : ton paiement en ligne passe par une plateforme sécurisée.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="story sec">
+    <div class="wrap">
+      <div class="story-card">
+        <div class="story-media"><img src="https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?auto=format&fit=crop&w=1000&q=80" alt="Smartphone et écouteurs sans fil posés sur une table en bois" loading="lazy"></div>
+        <div class="story-txt">
+          <span class="kicker">Guide d'achat</span>
+          <h2>Trouve l'appareil qui te ressemble.</h2>
+          <p>Photo, musique, travail ou jeu : chacun a ses priorités. Dis-nous comment tu utilises ton appareil, on t'aide à choisir le bon modèle et les bons accessoires.</p>
+          <ul class="steps">
+            <li>Tu nous dis ce que tu cherches</li>
+            <li>On te propose les modèles adaptés</li>
+            <li>Tu commandes en toute sérénité</li>
+          </ul>
+          <a href="#" class="btn btn-primary" onclick="go('contact')">Écrire sur WhatsApp</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="usages sec">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Pensé pour chaque usage.</h2>
+        <p>Glisse pour explorer les univers et trouve l'équipement qui suit ton rythme.</p>
+      </div>
+      <div class="rail">
+        <a href="#" class="use" onclick="go('boutique')"><div class="use-media"><img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80" alt="Casque audio noir sur fond jaune" loading="lazy"></div><div class="use-txt"><span class="use-k">Musique</span><h3>Le son qui te suit partout</h3></div></a>
+        <a href="#" class="use" onclick="go('boutique')"><div class="use-media"><img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80" alt="Joueur équipé d'un casque devant un écran de jeu" loading="lazy"></div><div class="use-txt"><span class="use-k">Jeu</span><h3>Des réflexes sans latence</h3></div></a>
+        <a href="#" class="use" onclick="go('boutique')"><div class="use-media"><img src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?auto=format&fit=crop&w=800&q=80" alt="Ordinateur portable sur un bureau lumineux" loading="lazy"></div><div class="use-txt"><span class="use-k">Travail</span><h3>Un bureau qui tient dans un sac</h3></div></a>
+        <a href="#" class="use" onclick="go('boutique')"><div class="use-media"><img src="https://images.unsplash.com/photo-1512054502232-10a0a035d672?auto=format&fit=crop&w=800&q=80" alt="Smartphone posé sur une table blanche entre une plante et des accessoires" loading="lazy"></div><div class="use-txt"><span class="use-k">Photo</span><h3>Chaque instant, en détail</h3></div></a>
+        <a href="#" class="use" onclick="go('boutique')"><div class="use-media"><img src="https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=800&q=80" alt="Casque audio argenté posé sur un bureau" loading="lazy"></div><div class="use-txt"><span class="use-k">Écoute</span><h3>Le calme, à la demande</h3></div></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="spotlight sec">
+    <div class="wrap">
+      <div class="spotlight-card">
+        <div class="spotlight-txt">
+          <span class="kicker">Univers audio</span>
+          <h2>Le son, sans fil.</h2>
+          <p>Casques, écouteurs et enceintes pour profiter de ta musique partout, de la maison au trajet.</p>
+          <a href="#" class="btn btn-light" onclick="go('boutique')">Découvrir l'audio</a>
+        </div>
+        <div class="spotlight-media"><img src="https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=1000&q=80" alt="Écouteurs sans fil noirs et leur boîtier sur fond rouge" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq sec">
+    <div class="wrap">
+      <div class="faq-grid">
+        <div class="faq-aside">
+          <h2>Questions fréquentes.</h2>
+          <p>Tu ne trouves pas ta réponse ? Une question ? Écris-nous sur WhatsApp.</p>
+          <a href="#" class="btn" onclick="go('contact')">Nous contacter</a>
+        </div>
+        <div class="faq-list">
+          <details open><summary>Comment savoir si un accessoire est compatible avec mon appareil ?</summary><p>Indique-nous le modèle de ton téléphone ou de ton ordinateur sur WhatsApp avant de commander : on vérifie avec toi la compatibilité de l'accessoire.</p></details>
+          <details><summary>Comment passer commande ?</summary><p>Ajoute le produit à ton panier, renseigne ton nom, ton numéro et ton adresse, puis valide. Tu reçois ensuite la confirmation de ta commande.</p></details>
+          <details><summary>Quels sont les moyens de paiement ?</summary><p>Tu peux payer en ligne de façon sécurisée, ou régler à la livraison lorsque cette option est proposée pour ta zone.</p></details>
+          <details><summary>Puis-je être conseillé avant d'acheter ?</summary><p>Oui. Dis-nous ce que tu cherches et ton usage, on t'oriente vers les modèles qui te correspondent.</p></details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="newsletter">
+    <div class="wrap">
+      <div class="news-card">
+        <div>
+          <h2>Reste branché.</h2>
+          <p>Reçois les nouveautés et les arrivages avant tout le monde.</p>
+        </div>
+        <div>
+          <div class="news-form"><input type="email" placeholder="Ton adresse e-mail" aria-label="Adresse e-mail"><a href="#" class="btn" onclick="go('home')">S'inscrire</a></div>
+          <p class="news-note">Pas de spam. Désinscription en un clic.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="view" id="view-boutique">
+  <section class="plp-head"><h1>Toute la collection</h1><span id="plpCount">8 produits</span></section>
+  <section class="plp"><div class="filters"><span class="chip active" data-cat="all">Tout</span><span class="chip" data-cat="telephones">Téléphones</span><span class="chip" data-cat="audio">Audio</span><span class="chip" data-cat="ordinateurs">Ordinateurs</span><span class="chip" data-cat="accessoires">Accessoires</span></div><div id="plpGrid" class="product-grid">
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1567581935884-3349723552ca?auto=format&fit=crop&w=800&q=80" alt="Smartphone écran bord à bord" loading="lazy"></div><h3 class="pcard-name">Smartphone écran bord à bord</h3><span class="pcard-price">189 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3?auto=format&fit=crop&w=800&q=80" alt="Casque sans fil rose poudré" loading="lazy"></div><h3 class="pcard-name">Casque sans fil rose poudré</h3><span class="pcard-price">74 500 FCFA</span><span class="pcard-cta">Commander</span></a>
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=800&q=80" alt="Écouteurs sans fil blancs" loading="lazy"></div><h3 class="pcard-name">Écouteurs sans fil blancs</h3><span class="pcard-price">32 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1625948515291-69613efd103f?auto=format&fit=crop&w=800&q=80" alt="Clavier mécanique crème" loading="lazy"></div><h3 class="pcard-name">Clavier mécanique crème</h3><span class="pcard-price">45 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=800&q=80" alt="Casque filaire noir" loading="lazy"></div><h3 class="pcard-name">Casque filaire noir</h3><span class="pcard-price">18 500 FCFA</span><span class="pcard-cta">Commander</span></a>
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80" alt="Enceinte de bibliothèque" loading="lazy"></div><h3 class="pcard-name">Enceinte de bibliothèque</h3><span class="pcard-price">96 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80" alt="Tablette tactile avec stylet" loading="lazy"></div><h3 class="pcard-name">Tablette tactile avec stylet</h3><span class="pcard-price">245 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+    <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80" alt="Montre connectée blanche" loading="lazy"></div><h3 class="pcard-name">Montre connectée blanche</h3><span class="pcard-price">58 000 FCFA</span><span class="pcard-cta">Commander</span></a>
+  </div></section>
+  <section class="plp-help">
+    <div class="wrap">
+      <h2 class="help-title">Acheter en toute simplicité.</h2>
+      <div class="help-strip">
+        <div class="help-item"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg><div><h3>Un doute sur un modèle ?</h3><p>Une question ? Écris-nous sur WhatsApp.</p></div></div>
+        <div class="help-item"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg><div><h3>Paiement à la livraison</h3><p>Paiement à la livraison possible.</p></div></div>
+        <div class="help-item"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><div><h3>Paiement sécurisé</h3><p>Commande en quelques clics, paiement protégé.</p></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="view" id="view-produit"><section class="page-vide"><h1>Produit</h1></section></div>
+<div class="view" id="view-panier"><section class="page-vide"><h1>Panier</h1></section></div>
+<div class="view" id="view-commande"><section class="page-vide"><h1>Commande</h1></section></div>
+<div class="view" id="view-confirmation"><section class="page-vide"><h1>Merci</h1></section></div>
+
+<footer>
+  <div class="foot">
+    <div class="foot-top">
+      <div class="foot-col">
+        <span class="foot-brand" data-axso-nom>VOLT</span>
+        <p>Téléphones, audio, ordinateurs et accessoires pour ton quotidien connecté.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Boutique</h4>
+        <ul>
+          <li><a href="#" onclick="go('boutique')">Boutique</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>La maison</h4>
+        <ul>
+          <li><a href="#" onclick="go('apropos')">À propos</a></li>
+          <li><a href="#" onclick="go('contact')">Contact</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Aide</h4>
+        <ul>
+          <li>Commande en quelques clics</li>
+          <li>Paiement à la livraison possible</li>
+          <li>Une question ? Écris-nous sur WhatsApp</li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p><span>© 2026</span> <span data-axso-nom>VOLT</span></p>
+      <small>Confidentialité — Conditions générales</small>
+      <div class="pay"><span>Mobile money</span><span>Carte bancaire</span><span>À la livraison</span></div>
+    </div>
+  </div>
+</footer>
+<script>function go(v){document.querySelectorAll('.view').forEach(function(e){e.classList.toggle('active',e.id==='view-'+v)});window.scrollTo(0,0)}</script>
+</body>
+</html>

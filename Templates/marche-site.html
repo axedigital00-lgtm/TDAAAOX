@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MARCHÉ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--couleur-fond:#ffffff;--couleur-texte:#141821;--couleur-accent:#ff6a13;--couleur-surface:#f3f4f6;--police-titre:'Outfit',sans-serif;--police-corps:'Inter',sans-serif;
+--doux:color-mix(in srgb,var(--couleur-texte) 64%,var(--couleur-fond));
+--trait:color-mix(in srgb,var(--couleur-texte) 10%,var(--couleur-fond));
+--accent-pale:color-mix(in srgb,var(--couleur-accent) 14%,var(--couleur-fond));
+--r:20px;--r-s:14px;--ease:cubic-bezier(.2,.7,.2,1);--page:1320px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{background:var(--couleur-fond);color:var(--couleur-texte);font-family:var(--police-corps);font-size:16px;line-height:1.6;overflow-x:hidden}
+::selection{background:var(--couleur-accent);color:var(--couleur-texte)}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+svg{flex:none}
+h1,h2,h3,h4{font-family:var(--police-titre);line-height:1.1;letter-spacing:-.02em;text-wrap:balance}
+.view{display:none}.view.active{display:block}
+.wrap{max-width:var(--page);margin:0 auto;padding:0 16px}
+section{padding:40px 0}
+.sec-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.sec-head h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:700}
+.kicker{display:inline-block;font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--doux);margin-bottom:8px}
+.more{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:.95rem;white-space:nowrap;min-height:44px;background-image:linear-gradient(currentColor,currentColor);background-size:0 2px;background-repeat:no-repeat;background-position:0 78%;transition:background-size .35s var(--ease)}
+.more:hover{background-size:100% 2px}
+
+/* boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:50px;padding:0 26px;border-radius:999px;font-family:var(--police-titre);font-weight:600;font-size:1rem;background:var(--couleur-texte);color:var(--couleur-fond);transition:background .3s var(--ease),color .3s var(--ease),transform .3s var(--ease);cursor:pointer}
+.btn::after{content:"→";display:inline-block;transition:transform .35s var(--ease)}
+.btn:hover::after{transform:translateX(5px)}
+.btn-primary{background:var(--couleur-accent);color:var(--couleur-texte)}
+.btn-primary:hover{background:var(--couleur-texte);color:var(--couleur-fond)}
+.btn-light{background:var(--couleur-fond);color:var(--couleur-texte)}
+.btn-light:hover{background:var(--couleur-accent)}
+
+/* en-tête */
+header{background:var(--couleur-fond);border-bottom:1px solid var(--trait)}
+.annonce{background:var(--couleur-texte);color:var(--couleur-fond);overflow:hidden;font-size:.85rem;font-weight:500}
+.annonce-track{display:flex;width:max-content;animation:defile 38s linear infinite}
+.annonce:hover .annonce-track{animation-play-state:paused}
+.annonce-track span{display:inline-flex;align-items:center;gap:14px;padding:9px 22px;white-space:nowrap}
+.annonce-track span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--couleur-accent)}
+@keyframes defile{to{transform:translateX(-50%)}}
+.bar{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px 20px;padding:14px 16px;max-width:var(--page);margin:0 auto}
+.logo{font-family:var(--police-titre);font-weight:800;font-size:1.6rem;letter-spacing:-.03em;display:inline-flex;align-items:center;gap:8px}
+.logo::before{content:"";width:12px;height:12px;border-radius:4px;background:var(--couleur-accent);transform:rotate(45deg)}
+.search{grid-column:1/-1;grid-row:2;display:flex;align-items:center;gap:10px;min-height:46px;padding:0 18px;border-radius:999px;background:var(--couleur-surface);color:var(--doux);font-size:.95rem;cursor:pointer;border:1px solid transparent;transition:border-color .3s}
+.search:hover{border-color:var(--couleur-accent)}
+.actions{display:flex;justify-content:flex-end;align-items:center;gap:4px}
+.actions a{display:inline-flex;align-items:center;gap:8px;min-height:44px;min-width:44px;justify-content:center;padding:0 8px;border-radius:999px;font-size:.92rem;font-weight:500;transition:background .25s}
+.actions a:hover{background:var(--couleur-surface)}
+.actions .lbl{display:none}
+.cart-btn{background:var(--couleur-accent)}
+.actions .cart-btn:hover{background:var(--couleur-texte);color:var(--couleur-fond)}
+nav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 16px 10px;max-width:var(--page);margin:0 auto}
+nav::-webkit-scrollbar{display:none}
+nav a{position:relative;display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-weight:500;white-space:nowrap;font-size:.95rem}
+nav a::after{content:"";position:absolute;left:12px;right:12px;bottom:8px;height:2px;background:var(--couleur-accent);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
+nav a:hover::after{transform:scaleX(1)}
+
+/* bannière */
+.hero{padding:12px 0 24px}
+.hero-inner{display:grid;gap:12px}
+.hero-media{position:relative;overflow:hidden;border-radius:var(--r);aspect-ratio:4/4.4;background:var(--couleur-surface)}
+.hero-media img{width:100%;height:116%;margin-top:-8%;object-fit:cover;object-position:50% 25%}
+.hero-card{position:relative;overflow:hidden;background:var(--couleur-surface);border-radius:var(--r);padding:32px 24px 30px;display:flex;flex-direction:column;align-items:flex-start;gap:16px}
+.hero-card::before{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;background:var(--accent-pale)}
+.hero-card>*{position:relative}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:var(--couleur-fond);font-size:.82rem;font-weight:600}
+.eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--couleur-accent)}
+.hero h1{font-size:clamp(2.5rem,6vw,4.6rem);font-weight:800;letter-spacing:-.035em;overflow-wrap:anywhere;max-width:12ch}
+.hero p{font-size:1.06rem;color:var(--doux);max-width:40ch}
+.hero .btn{margin-top:6px}
+
+/* rayons (carrousel) */
+.carousel{position:relative}
+.track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;padding:4px 16px 6px;scroll-padding:0 16px;margin:0 auto;max-width:var(--page)}
+.track::-webkit-scrollbar{display:none}
+.track>*{scroll-snap-align:start}
+.rayon{flex:0 0 27%;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.rayon-media{width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--couleur-surface);outline:2px solid transparent;outline-offset:3px;transition:outline-color .3s}
+.rayon:hover .rayon-media{outline-color:var(--couleur-accent)}
+.rayon h3{font-size:.98rem;font-weight:600;letter-spacing:0;transition:transform .35s var(--ease)}
+.rayon:hover h3{transform:translateY(-3px)}
+.zoom{overflow:hidden}
+.zoom img,.rayon-media img,.pcard-media img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease),filter .8s var(--ease)}
+
+/* grilles produits */
+.product-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 12px}
+.pcard{display:flex;flex-direction:column;gap:6px}
+.pcard-media{aspect-ratio:4/5;border-radius:var(--r-s);overflow:hidden;background:var(--couleur-surface);margin-bottom:6px}
+.pcard-name{font-family:var(--police-corps);font-weight:500;font-size:.95rem;letter-spacing:0;line-height:1.35;background-image:linear-gradient(currentColor,currentColor);background-size:0 1px;background-repeat:no-repeat;background-position:0 100%;transition:background-size .4s var(--ease);justify-self:start;width:fit-content}
+.pcard:hover .pcard-name{background-size:100% 1px}
+.pcard-price{font-family:var(--police-titre);font-weight:700;font-size:1.06rem}
+
+/* promos */
+.promo-row{display:grid;gap:12px}
+.promo{position:relative;overflow:hidden;border-radius:var(--r);min-height:340px;display:flex;align-items:flex-end;color:var(--couleur-fond)}
+.promo .promo-media{position:absolute;inset:0}
+.promo .promo-media::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,color-mix(in srgb,var(--couleur-texte) 78%,transparent),transparent 62%)}
+.promo-body{position:relative;padding:24px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.promo h3{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700}
+.promo p{opacity:.92;max-width:34ch}
+.promo-tag{display:inline-block;padding:5px 12px;border-radius:999px;background:var(--couleur-accent);color:var(--couleur-texte);font-size:.78rem;font-weight:600}
+
+/* réassurance */
+.benefits{background:var(--couleur-surface)}
+.benefits .sec-head{justify-content:center;text-align:center}
+.ben-list{display:grid;gap:10px;list-style:none}
+.ben{background:var(--couleur-fond);border-radius:var(--r-s);padding:18px;display:grid;grid-template-columns:46px 1fr;gap:2px 14px;align-items:center}
+.ben-ico{grid-row:span 2}
+.ben-ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:var(--accent-pale);color:var(--couleur-texte)}
+.ben h3{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+.ben p{font-size:.9rem;color:var(--doux)}
+
+/* inspirations (carrousel) */
+.idee{flex:0 0 78%;display:flex;flex-direction:column;gap:10px}
+.idee-media{aspect-ratio:4/5;border-radius:var(--r);background:var(--couleur-surface)}
+.idee h3{font-size:1.2rem;font-weight:600}
+.idee span{font-size:.92rem;color:var(--doux)}
+
+/* éditorial */
+.story-inner{display:grid;gap:20px;align-items:center}
+.story-media{border-radius:var(--r);aspect-ratio:5/4;position:relative}
+.story-media img{height:116%;margin-top:-8%}
+.story-text{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.story-text h2{font-size:clamp(1.8rem,3.6vw,2.8rem);font-weight:700}
+.story-text p{color:var(--doux);max-width:52ch}
+
+/* étapes */
+.steps-list{display:grid;gap:12px;list-style:none;counter-reset:etape}
+.step{counter-increment:etape;border:1px solid var(--trait);border-radius:var(--r);padding:24px;display:flex;flex-direction:column;gap:8px;position:relative;transition:border-color .3s}
+.step:hover{border-color:var(--couleur-accent)}
+.step::before{content:counter(etape,decimal-leading-zero);font-family:var(--police-titre);font-weight:800;font-size:2.2rem;color:var(--couleur-accent);line-height:1}
+.step h3{font-size:1.2rem;font-weight:600}
+.step p{color:var(--doux);font-size:.95rem}
+
+/* faq */
+.faq-inner{display:grid;gap:12px}
+.faq-intro h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:700;margin-bottom:10px}
+.faq-intro p{color:var(--doux)}
+.faq-list{display:flex;flex-direction:column;gap:10px}
+details{background:var(--couleur-surface);border-radius:var(--r-s);padding:0 20px}
+summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:60px;font-family:var(--police-titre);font-weight:600;font-size:1.05rem}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--couleur-fond);font-size:1.3rem;font-weight:400;transition:transform .35s var(--ease),background .3s}
+details[open] summary::after{transform:rotate(45deg);background:var(--couleur-accent)}
+details p{padding:0 0 20px;color:var(--doux);max-width:62ch}
+
+/* newsletter */
+.news-box{background:var(--couleur-texte);color:var(--couleur-fond);border-radius:var(--r);padding:36px 22px;display:grid;gap:18px;position:relative;overflow:hidden}
+.news-box::before{content:"";position:absolute;width:150px;height:150px;border-radius:50%;border:22px solid var(--couleur-accent);right:-95px;top:-108px;opacity:.85}
+.news-box>*{position:relative}
+.news-box h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:700;margin-bottom:8px}
+.news-box p{opacity:.8;max-width:44ch}
+.news-form{display:flex;flex-direction:column;gap:10px}
+.news-form input{min-height:50px;border-radius:999px;border:1px solid color-mix(in srgb,var(--couleur-fond) 30%,transparent);background:color-mix(in srgb,var(--couleur-fond) 8%,transparent);color:var(--couleur-fond);padding:0 22px;font:inherit}
+.news-form input::placeholder{color:color-mix(in srgb,var(--couleur-fond) 70%,transparent)}
+
+/* catalogue */
+.plp-head{padding:28px 0 8px}
+.plp-head .wrap{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px 20px}
+.plp-head h1{font-size:clamp(2rem,4.6vw,3.2rem);font-weight:800}
+#plpCount{color:var(--doux);font-weight:500}
+.plp{padding-top:12px}
+.filters{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px 0 22px;margin-bottom:6px}
+.filters::-webkit-scrollbar{display:none}
+.chip{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:var(--couleur-surface);font-weight:500;font-size:.93rem;white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:border-color .25s,background .25s}
+.chip:hover{border-color:var(--couleur-texte)}
+.chip.active{background:var(--couleur-texte);color:var(--couleur-fond)}
+.plp-aide .ben{background:var(--couleur-surface)}
+.plp-aide h2{font-size:1.4rem;font-weight:700;margin-bottom:16px}
+.page-vide{min-height:40vh;display:grid;place-items:center}
+
+/* pied de page */
+footer{background:var(--couleur-surface);margin-top:40px;padding:48px 0 24px}
+.foot-cols{display:grid;gap:28px}
+.foot-brand p{color:var(--doux);max-width:36ch;margin-top:10px;font-size:.95rem}
+footer h4{font-size:1rem;font-weight:600;margin-bottom:12px}
+footer ul{list-style:none;display:flex;flex-direction:column;gap:2px}
+footer li a{display:inline-flex;min-height:40px;align-items:center;color:var(--doux);transition:color .25s}
+footer li a:hover{color:var(--couleur-texte)}
+footer li{color:var(--doux);font-size:.95rem}
+.foot-legal{border-top:1px solid var(--trait);margin-top:36px;padding-top:20px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;color:var(--doux);font-size:.88rem}
+
+/* survol */
+@media (hover:hover){
+.zoom:hover img,.rayon:hover .rayon-media img,.pcard:hover .pcard-media img,.idee:hover .idee-media img{transform:scale(1.06)}
+.promo:hover .promo-media img{transform:scale(1.05);filter:brightness(.95)}
+}
+
+/* carrousels : flèches et points natifs */
+
+
+/* effets au défilement */
+@supports (animation-timeline: view()){
+.hero-media img,.story-media img{animation:parallaxe linear both;animation-timeline:view();animation-range:cover}
+.reveal{animation:apparait linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
+}
+@keyframes parallaxe{from{transform:translateY(-7%)}to{transform:translateY(7%)}}
+@keyframes apparait{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
+@supports (interpolate-size: allow-keywords){
+:root{interpolate-size:allow-keywords}
+details::details-content{height:0;overflow:hidden;transition:height .4s var(--ease),content-visibility .4s allow-discrete}
+details[open]::details-content{height:auto}
+}
+
+/* tablette / bureau */
+@media (min-width:720px){
+section{padding:56px 0}
+.wrap{padding:0 28px}
+.track{padding:4px 28px 6px;scroll-padding:0 28px}
+.product-grid{gap:30px 18px}
+.ben-list{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.ben{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:24px 20px}
+.promo-row{grid-template-columns:1fr 1fr;gap:18px}
+.promo{min-height:440px}
+.promo-body{padding:34px}
+.rayon{flex:0 0 17%}
+.idee{flex:0 0 40%}
+.steps-list{grid-template-columns:repeat(3,1fr);gap:18px}
+.news-box{padding:56px;grid-template-columns:1.1fr 1fr;align-items:center}
+.news-form{flex-direction:row}
+.news-box::before{width:240px;height:240px;border-width:30px;top:auto;right:-130px;bottom:-195px}
+.news-form input{flex:1}
+.foot-cols{grid-template-columns:2fr 1fr 1fr 1.3fr}
+.actions .lbl{display:inline}
+}
+@media (min-width:1024px){
+.bar{grid-template-columns:auto 1fr auto;padding:18px 28px}
+.search{grid-column:auto;grid-row:auto;max-width:560px;width:100%;justify-self:center}
+nav{padding:0 16px 8px}
+.hero{padding:16px 0 32px}
+.hero-inner{grid-template-columns:1fr 1.25fr;gap:18px;min-height:600px}
+.hero-media{aspect-ratio:auto;height:100%;order:2}
+.hero-card{padding:56px 52px;justify-content:center;gap:22px}
+.hero-card::before{width:340px;height:340px;right:-110px;top:-110px}
+.product-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.rayon{flex:0 0 calc((100% - 98px)/8)}
+.idee{flex:0 0 calc((100% - 42px)/3.4)}
+.story-inner{grid-template-columns:1.1fr 1fr;gap:64px}
+.faq-inner{grid-template-columns:1fr 1.6fr;gap:64px;align-items:start}
+section{padding:72px 0}
+}
+
+@media (prefers-reduced-motion:reduce){
+*,*::before,*::after{animation:none;transition:none;scroll-behavior:auto}
+html,.track{scroll-behavior:auto}
+.annonce-track{animation:none}
+.hero-media img,.story-media img,.reveal{animation:none;opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="annonce"><div class="annonce-track">
+    <span>Commande en quelques clics</span><span>Paiement à la livraison possible</span><span>Une question ? Écris-nous sur WhatsApp</span><span>Paiement sécurisé</span><span>Tout pour toi, ta maison et ta famille</span>
+    <span>Commande en quelques clics</span><span>Paiement à la livraison possible</span><span>Une question ? Écris-nous sur WhatsApp</span><span>Paiement sécurisé</span><span>Tout pour toi, ta maison et ta famille</span>
+  </div></div>
+  <div class="bar">
+    <a class="logo" data-axso-nom href="#" onclick="go('home')">MARCHÉ</a>
+    <a class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Rechercher</span></a>
+    <div class="actions">
+      <a href="#" onclick="go('compte')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span class="lbl">Mon compte</span></a>
+      <a href="#" class="cart-btn" onclick="go('panier')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span class="lbl">Panier</span></a>
+    </div>
+  </div>
+  <nav>
+    <a href="#" onclick="go('home')">Accueil</a>
+    <a href="#" onclick="go('boutique')">Boutique</a>
+    <a href="#" onclick="go('apropos')">À propos</a>
+    <a href="#" onclick="go('contact')">Contact</a>
+  </nav>
+</header>
+
+<div class="view active" id="view-home">
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-media"><img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1600&q=80" alt="Femme souriante en tenue colorée"></div>
+      <div class="hero-card">
+        <span class="eyebrow">Nouvelle collection</span>
+        <h1>Tout ce qu'il te faut, au même endroit</h1>
+        <p>Mode, maison, beauté, high-tech : choisis, commande, on s'occupe du reste.</p>
+        <a href="#" class="btn btn-primary" onclick="go('boutique')">Découvrir la boutique</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="categories">
+    <div class="wrap sec-head"><div><span class="kicker">Nos rayons</span><h2 class="reveal">Explore par envie</h2></div><a href="#" class="more" onclick="go('boutique')">Tout voir</a></div>
+    <div class="carousel"><div class="track">
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80" alt="Portant de vêtements" loading="lazy"></div><h3>Mode</h3></a>
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=800&q=80" alt="Produits de maquillage" loading="lazy"></div><h3>Beauté</h3></a>
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80" alt="Salon lumineux" loading="lazy"></div><h3>Maison</h3></a>
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=800&q=80" alt="Appareils électroniques" loading="lazy"></div><h3>Électronique</h3></a>
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80" alt="Enfant joyeux" loading="lazy"></div><h3>Enfants</h3></a>
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=800&q=80" alt="Séance de sport à la maison" loading="lazy"></div><h3>Sport</h3></a>
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80" alt="Rayon de fruits et légumes" loading="lazy"></div><h3>Épicerie</h3></a>
+      <a href="#" class="rayon" onclick="go('boutique')"><div class="rayon-media"><img src="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&q=80" alt="Paquet cadeau" loading="lazy"></div><h3>Cadeaux</h3></a>
+    </div></div>
+  </section>
+
+  <section class="featured">
+    <div class="wrap">
+      <div class="sec-head"><div><span class="kicker">Sélection</span><h2 class="reveal">Les plus demandés</h2></div><a href="#" class="more" onclick="go('boutique')">Voir tout le catalogue</a></div>
+      <div id="homeGrid" class="product-grid">
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80" alt="Montre minimaliste" loading="lazy"></div><h3 class="pcard-name">Montre minimaliste</h3><span class="pcard-price">24 900 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=800&q=80" alt="Appareil photo instantané" loading="lazy"></div><h3 class="pcard-name">Appareil photo instantané</h3><span class="pcard-price">45 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80" alt="Sac à main rouge" loading="lazy"></div><h3 class="pcard-name">Sac à main rouge</h3><span class="pcard-price">32 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80" alt="Sac à dos urbain" loading="lazy"></div><h3 class="pcard-name">Sac à dos urbain</h3><span class="pcard-price">18 500 FCFA</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="promos">
+    <div class="wrap">
+      <div class="sec-head"><h2 class="reveal">À ne pas manquer</h2></div>
+      <div class="promo-row">
+        <a href="#" class="promo" onclick="go('boutique')"><div class="promo-media zoom"><img src="https://images.unsplash.com/photo-1601924994987-69e26d50dc26?auto=format&fit=crop&w=800&q=80" alt="Vêtements colorés sur un portant" loading="lazy"></div><div class="promo-body"><span class="promo-tag">Tout juste arrivé</span><h3>Nouveautés de la semaine</h3><p>Les dernières pièces entrées en rayon, à découvrir avant tout le monde.</p><span class="btn btn-light">Voir les nouveautés</span></div></a>
+        <a href="#" class="promo" onclick="go('boutique')"><div class="promo-media zoom"><img src="https://images.unsplash.com/photo-1513885535751-8b9238bd345a?auto=format&fit=crop&w=800&q=80" alt="Cadeaux emballés" loading="lazy"></div><div class="promo-body"><span class="promo-tag">Pour faire plaisir</span><h3>Idées cadeaux</h3><p>Pour un anniversaire, une fête ou juste pour dire merci.</p><span class="btn btn-light">Trouver une idée</span></div></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="benefits">
+    <div class="wrap">
+      <div class="sec-head"><h2 class="reveal">Acheter l'esprit tranquille</h2></div>
+      <ul class="ben-list">
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="m9 13 2 2 4-4"/></svg></span><h3>Commande simple</h3><p>Commande en quelques clics, depuis ton téléphone.</p></li>
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v5M18 9.5v5"/></svg></span><h3>Paiement à la livraison</h3><p>Paiement à la livraison possible : tu paies quand tu reçois.</p></li>
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10h6M9 13.5h4"/></svg></span><h3>Aide sur WhatsApp</h3><p>Une question ? Écris-nous sur WhatsApp.</p></li>
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><path d="M12 14.5v2"/></svg></span><h3>Paiement sécurisé</h3><p>Paiement sécurisé pour tes achats en ligne.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="lookbook">
+    <div class="wrap sec-head"><div><span class="kicker">Inspirations</span><h2 class="reveal">Des idées pour chaque jour</h2></div><a href="#" class="more" onclick="go('boutique')">Explorer</a></div>
+    <div class="carousel"><div class="track">
+      <a href="#" class="idee" onclick="go('boutique')"><div class="idee-media zoom"><img src="https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&w=800&q=80" alt="Femme en chemise blanche en ville" loading="lazy"></div><h3>Un style simple et sûr</h3><span>Des basiques qui vont avec tout</span></a>
+      <a href="#" class="idee" onclick="go('boutique')"><div class="idee-media zoom"><img src="https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=800&q=80" alt="Salon chaleureux et décoré" loading="lazy"></div><h3>Une maison qui te ressemble</h3><span>Déco, linge et petits détails</span></a>
+      <a href="#" class="idee" onclick="go('boutique')"><div class="idee-media zoom"><img src="https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=800&q=80" alt="Soins de beauté sur une table" loading="lazy"></div><h3>Ta routine bien-être</h3><span>Soins, parfums et douceurs</span></a>
+      <a href="#" class="idee" onclick="go('boutique')"><div class="idee-media zoom"><img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80" alt="Casque audio sur fond jaune" loading="lazy"></div><h3>Le son partout avec toi</h3><span>Casques, enceintes, accessoires</span></a>
+      <a href="#" class="idee" onclick="go('boutique')"><div class="idee-media zoom"><img src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=800&q=80" alt="Étal de fruits et légumes frais" loading="lazy"></div><h3>Le panier de la semaine</h3><span>L'essentiel pour la cuisine</span></a>
+      <a href="#" class="idee" onclick="go('boutique')"><div class="idee-media zoom"><img src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80" alt="Tenue décontractée posée à plat" loading="lazy"></div><h3>Le week-end détente</h3><span>Confort du matin au soir</span></a>
+    </div></div>
+  </section>
+
+  <section class="story">
+    <div class="wrap story-inner">
+      <div class="story-media zoom"><img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80" alt="T-shirts verts sur des cintres" loading="lazy"></div>
+      <div class="story-text">
+        <span class="kicker">Notre façon de faire</span>
+        <h2 class="reveal">Un seul magasin pour toute la famille</h2>
+        <p>Nous choisissons chaque article avec soin pour que tu trouves vite ce qu'il te faut, au juste prix, sans courir d'une boutique à l'autre.</p>
+        <p>Et si tu hésites, écris-nous : on te répond avec plaisir pour t'aider à choisir.</p>
+        <a href="#" class="btn" onclick="go('apropos')">Mieux nous connaître</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="steps">
+    <div class="wrap">
+      <div class="sec-head"><div><span class="kicker">Simple et rapide</span><h2 class="reveal">Comment commander</h2></div></div>
+      <ol class="steps-list">
+        <li class="step"><h3>Choisis tes articles</h3><p>Parcours les rayons et ajoute au panier ce qui te plaît.</p></li>
+        <li class="step"><h3>Valide ta commande</h3><p>Indique ton adresse et ton numéro, puis choisis ton mode de paiement.</p></li>
+        <li class="step"><h3>Reçois et profite</h3><p>On prépare ta commande et on te tient informé jusqu'à la livraison.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="faq">
+    <div class="wrap faq-inner">
+      <div class="faq-intro"><h2 class="reveal">Questions fréquentes</h2><p>Tu ne trouves pas ta réponse ? Écris-nous sur WhatsApp, on t'aide.</p></div>
+      <div class="faq-list">
+        <details><summary>Comment passer une commande ?</summary><p>Ajoute tes articles au panier, puis valide ta commande en indiquant ton nom, ton numéro et ton adresse. C'est tout.</p></details>
+        <details><summary>Puis-je payer à la livraison ?</summary><p>Oui, le paiement à la livraison est possible. Tu peux aussi payer en ligne de façon sécurisée.</p></details>
+        <details><summary>Comment suivre ma commande ?</summary><p>Après ta commande, tu reçois une confirmation. Pour toute question, écris-nous sur WhatsApp.</p></details>
+        <details><summary>Et si l'article ne me convient pas ?</summary><p>Contacte-nous dès réception : nous chercherons ensemble la meilleure solution.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="newsletter">
+    <div class="wrap">
+      <div class="news-box">
+        <div><h2 class="reveal">Ne rate aucune nouveauté</h2><p>Laisse ton e-mail pour recevoir les arrivages et les idées du moment.</p></div>
+        <div class="news-form"><input type="email" placeholder="Ton adresse e-mail" aria-label="Adresse e-mail"><a href="#" class="btn btn-primary" onclick="go('contact')">Je m'inscris</a></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="view" id="view-boutique">
+  <section class="plp-head"><div class="wrap"><h1>Toute la collection</h1><span id="plpCount">8 produits</span></div></section>
+  <section class="plp">
+    <div class="wrap">
+      <div class="filters"><span class="chip active" data-cat="all">Tout</span><span class="chip" data-cat="mode">Mode</span><span class="chip" data-cat="beaute">Beauté</span><span class="chip" data-cat="maison">Maison</span><span class="chip" data-cat="electronique">Électronique</span><span class="chip" data-cat="enfants">Enfants</span><span class="chip" data-cat="sport">Sport</span><span class="chip" data-cat="cadeaux">Cadeaux</span></div>
+      <div id="plpGrid" class="product-grid">
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80" alt="Montre minimaliste" loading="lazy"></div><h3 class="pcard-name">Montre minimaliste</h3><span class="pcard-price">24 900 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=800&q=80" alt="Appareil photo instantané" loading="lazy"></div><h3 class="pcard-name">Appareil photo instantané</h3><span class="pcard-price">45 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80" alt="Sac à main rouge" loading="lazy"></div><h3 class="pcard-name">Sac à main rouge</h3><span class="pcard-price">32 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80" alt="Sac à dos urbain" loading="lazy"></div><h3 class="pcard-name">Sac à dos urbain</h3><span class="pcard-price">18 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1560343090-f0409e92791a?auto=format&fit=crop&w=800&q=80" alt="Chaussures en daim vert" loading="lazy"></div><h3 class="pcard-name">Chaussures en daim vert</h3><span class="pcard-price">27 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=800&q=80" alt="Tasse en céramique" loading="lazy"></div><h3 class="pcard-name">Tasse en céramique</h3><span class="pcard-price">4 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=800&q=80" alt="Plante en pot" loading="lazy"></div><h3 class="pcard-name">Plante en pot</h3><span class="pcard-price">7 900 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=800&q=80" alt="Oreiller moelleux" loading="lazy"></div><h3 class="pcard-name">Oreiller moelleux</h3><span class="pcard-price">9 500 FCFA</span></a>
+      </div>
+    </div>
+  </section>
+  <section class="plp-aide">
+    <div class="wrap">
+      <h2>Commander, c'est simple</h2>
+      <ul class="ben-list">
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="m9 13 2 2 4-4"/></svg></span><h3>Commande simple</h3><p>Commande en quelques clics.</p></li>
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></span><h3>À la livraison</h3><p>Paiement à la livraison possible.</p></li>
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg></span><h3>Sur WhatsApp</h3><p>Une question ? Écris-nous.</p></li>
+        <li class="ben"><span class="ben-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></span><h3>Sécurisé</h3><p>Paiement sécurisé.</p></li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<div class="view" id="view-produit"><section class="page-vide"><h1>Produit</h1></section></div>
+<div class="view" id="view-panier"><section class="page-vide"><h1>Panier</h1></section></div>
+<div class="view" id="view-commande"><section class="page-vide"><h1>Commande</h1></section></div>
+<div class="view" id="view-confirmation"><section class="page-vide"><h1>Merci</h1></section></div>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-cols">
+      <div class="foot-brand"><a class="logo" data-axso-nom href="#" onclick="go('home')">MARCHÉ</a><p>Mode, maison, beauté, high-tech et cadeaux : tout ce qu'il te faut, réuni dans une seule boutique.</p></div>
+      <div><h4>Navigation</h4><ul><li><a href="#" onclick="go('boutique')">Boutique</a></li><li><a href="#" onclick="go('apropos')">À propos</a></li><li><a href="#" onclick="go('contact')">Contact</a></li></ul></div>
+      <div><h4>Rayons</h4><ul><li>Mode et beauté</li><li>Maison</li><li>Électronique</li><li>Enfants et sport</li></ul></div>
+      <div><h4>Besoin d'aide ?</h4><ul><li>Une question ? Écris-nous sur WhatsApp</li><li>Paiement à la livraison possible</li><li>Paiement sécurisé</li></ul></div>
+    </div>
+    <div class="foot-legal"><div class="copy"><span>© 2026</span> <span data-axso-nom>MARCHÉ</span></div><small>Confidentialité — Conditions générales</small></div>
+  </div>
+</footer>
+<script>function go(v){document.querySelectorAll('.view').forEach(function(e){e.classList.toggle('active',e.id==='view-'+v)});window.scrollTo(0,0)}</script>
+</body>
+</html>

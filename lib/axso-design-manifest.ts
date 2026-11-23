@@ -22,12 +22,82 @@ export interface EntreeLibrairie {
   couleurs: { fond?: string; accent?: string; texte?: string; surface?: string };
   polices: { titre?: string; corps?: string };
   ambiance: string[];
+  /** Thème premium (nov. 2026) : textes vrais pour tout le secteur, l'accueil garde toutes ses sections (voir personnaliserAccueilLibrairie). */
+  accueilComplet?: boolean;
 }
 
 // Figé le 2026-09-12 par app/api/internal/build-library-manifest — 15/15
 // fichiers de Templates/ analysés avec succès. CODEX, NOIR ATELIER et PULSE
 // ajoutés à la main (2026-09-29) : cartes écrites d'après leur CSS.
 export const MANIFESTE_LIBRAIRIE: EntreeLibrairie[] = [
+  // ─── Thèmes premium (nov. 2026) — en tête : choisis en priorité pour leur secteur ───
+  // >>> PREMIUM
+  {
+    fichier: "saveur-site.html", nom: "SAVEUR", categories: ["food", "agriculture"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span><span class="pcard-cta">Commander</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#f7f0e3", accent: "#a8470f", texte: "#3b1418", surface: "#ede0c6" },
+    polices: { titre: "fraunces", corps: "dm-sans" },
+    ambiance: ["gourmand", "chaleureux", "épicerie fine"],
+  },
+  {
+    fichier: "savoir-site.html", nom: "SAVOIR", categories: ["services", "books"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span><span class="pcard-cta">Accéder</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#fbfaf7", accent: "#4338ca", texte: "#16152b", surface: "#eef0fb" },
+    polices: { titre: "sora", corps: "inter" },
+    ambiance: ["moderne", "inspirant", "pédagogique"],
+  },
+  {
+    fichier: "demeure-site.html", nom: "DEMEURE", categories: ["home", "artisan"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#f5f0e8", accent: "#9c4f2e", texte: "#2e2621", surface: "#e9e0d2" },
+    polices: { titre: "cormorant", corps: "jost" },
+    ambiance: ["calme", "chaleureux", "éditorial"],
+  },
+  {
+    fichier: "lisiere-site.html", nom: "LISIÈRE", categories: ["fashion"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#f6f1ea", accent: "#8a3324", texte: "#1a1612", surface: "#ece3d6" },
+    polices: { titre: "cormorant", corps: "jost" },
+    ambiance: ["éditorial", "élégant", "minimaliste"],
+  },
+  {
+    fichier: "volt-site.html", nom: "VOLT", categories: ["tech", "auto"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span><span class="pcard-cta">Commander</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#fbfbfd", accent: "#2447ff", texte: "#111316", surface: "#eef0f4" },
+    polices: { titre: "space-grotesk", corps: "inter" },
+    ambiance: ["tech", "épuré", "lumineux"],
+  },
+  {
+    fichier: "carat-site.html", nom: "CARAT", categories: ["jewelry"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#faf7f2", accent: "#a8844c", texte: "#1b1916", surface: "#f1ebe1" },
+    polices: { titre: "cormorant", corps: "jost" },
+    ambiance: ["luxe", "raffiné", "éditorial"],
+  },
+  {
+    fichier: "marche-site.html", nom: "MARCHÉ", categories: ["general", "kids", "sport"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#ffffff", accent: "#ff6a13", texte: "#141821", surface: "#f3f4f6" },
+    polices: { titre: "outfit", corps: "inter" },
+    ambiance: ["généraliste", "joyeux", "efficace"],
+  },
+  {
+    fichier: "eclat-site.html", nom: "ÉCLAT", categories: ["beauty", "health"], accueilComplet: true,
+    carteTemplate: `<a href="{{LIEN}}" class="pcard"><div class="pcard-media"><img src="{{IMAGE}}" alt="{{NOM}}"></div><h3 class="pcard-name">{{NOM}}</h3><span class="pcard-price">{{PRIX}}</span></a>`,
+    selecteurVisuelPdp: ".pcard-media",
+    couleurs: { fond: "#f7efea", accent: "#9c5b4b", texte: "#3b2925", surface: "#efe0d8" },
+    polices: { titre: "fraunces", corps: "dm-sans" },
+    ambiance: ["doux", "poudré", "sensoriel"],
+  },
+  // <<< PREMIUM
+  // ─── Designs historiques ───
   {
     fichier: "aube-site.html", nom: "AUBE", categories: ["jewelry"],
     carteTemplate: `<a href="{{LIEN}}" class="pcard">
@@ -240,23 +310,25 @@ export function detecterCategorie(vente: string): string {
 export function choisir4Themes(vente: string, planThemeId?: string, digital = false): string[] {
   let cat = detecterCategorie(vente);
   if (digital && !["books", "tech", "services"].includes(cat)) cat = "services";
+  // Thèmes premium uniquement (nov. 2026) : le 1er est celui du secteur, les 3 autres des styles voisins.
+  const L = (...n: string[]) => n.map((x) => `${x}-site.html`);
   const parCat: Record<string, string[]> = {
-    fashion:     ["ndop-site.html","noir-atelier-site.html","aube-site.html","pulse-site.html"],
-    books:       ["codex-site.html","pop-site.html","aube-site.html","halle-site.html"],
-    jewelry:     ["aube-site.html","cadran-site.html","halle-site.html","ndop-site.html"],
-    beauty:      ["clarte-site.html","aube-site.html","equilibre-site.html","halle-site.html"],
-    sport:       ["grind-site.html","pulse-site.html","onze-site.html","circuit-site.html"],
-    tech:        ["nexus-site.html","opal-site.html","circuit-site.html","ignite-site.html"],
-    food:        ["ignite-site.html","sentier-site.html","halle-site.html","pop-site.html"],
-    artisan:     ["ndop-site.html","halle-site.html","aube-site.html","sentier-site.html"],
-    home:        ["halle-site.html","equilibre-site.html","clarte-site.html","aube-site.html"],
-    services:    ["opal-site.html","nexus-site.html","equilibre-site.html","cadran-site.html"],
-    agriculture: ["sentier-site.html","clarte-site.html","equilibre-site.html","ndop-site.html"],
-    general:     ["ndop-site.html","noir-atelier-site.html","halle-site.html","pop-site.html"],
+    fashion:     L("lisiere", "carat", "eclat", "marche"),
+    books:       L("savoir", "demeure", "lisiere", "marche"),
+    jewelry:     L("carat", "lisiere", "eclat", "demeure"),
+    beauty:      L("eclat", "carat", "lisiere", "demeure"),
+    sport:       L("marche", "volt", "lisiere", "savoir"),
+    tech:        L("volt", "marche", "savoir", "carat"),
+    food:        L("saveur", "marche", "demeure", "eclat"),
+    artisan:     L("demeure", "lisiere", "carat", "saveur"),
+    home:        L("demeure", "eclat", "saveur", "marche"),
+    services:    L("savoir", "volt", "demeure", "lisiere"),
+    agriculture: L("saveur", "demeure", "marche", "eclat"),
+    general:     L("marche", "lisiere", "volt", "saveur"),
   };
   let themes = [...(parCat[cat] || parCat.general)];
-  // Mettre le thème suggéré par l'IA en premier
-  if (planThemeId) {
+  // Le design suggéré par l'IA passe en premier s'il fait partie de la sélection (jamais un ancien design).
+  if (planThemeId && themes.includes(planThemeId)) {
     themes = [planThemeId, ...themes.filter(t => t !== planThemeId)];
   }
   return themes.slice(0, 4);

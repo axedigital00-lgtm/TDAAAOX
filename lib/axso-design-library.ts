@@ -79,7 +79,7 @@ export async function provisionerThemeDepuisLibrairie(params: {
   const boutique_ = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { nomBoutique: true, categorie: true, description: true } });
   const accueil = personnaliserAccueilLibrairie(vues.home, {
     nom: boutique_?.nomBoutique || nomBoutique || entree.nom, accroche: boutique_?.categorie, description: boutique_?.description,
-  });
+  }, !!entree.accueilComplet);
   const home = injecterGrilleLibrairie({ vueHtml: accueil, idConteneur: "homeGrid", carteTemplate: entree.carteTemplate, produits, slug });
   const boutique = injecterGrilleLibrairie({ vueHtml: vues.boutique, idConteneur: "plpGrid", carteTemplate: entree.carteTemplate, produits, slug });
 

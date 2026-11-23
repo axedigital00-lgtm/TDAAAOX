@@ -13,6 +13,9 @@ import { parse, type HTMLElement as El } from "node-html-parser";
 import type { BlockNode, ThemeConfig } from "./theme-config";
 import { MANIFESTE_LIBRAIRIE } from "./axso-design-manifest";
 
+// ponytail: lib/politiques.ts n'existe pas sur cette branche ; réimporter ce type quand elle sera fusionnée.
+type TypePolitique = "livraison" | "retours" | "confidentialite" | "cgv";
+
 // Nom d'origine des designs (« HALLE », « CIRCUIT »…), comparé sans accents, casse ni ponctuation.
 const cleNom = (s: string) => s.normalize("NFD").replace(/[^\p{L}\p{N}]/gu, "").toUpperCase();
 const NOMS_DESIGNS = new Set(MANIFESTE_LIBRAIRIE.map((e) => cleNom(e.nom)));
@@ -104,13 +107,74 @@ function corrigerEntete(header: El, slug: string, digital?: boolean) {
 // repère masqué qui garde les id du bouton (les scripts du design les
 // cherchent) et sert d'ancre au lien Favoris (NavigationDesign).
 function retirerPanier(racine: El, slug: string) {
-  for (const a of racine.querySelectorAll(`header a[href="/${slug}/panier"], header [onclick="go('panier')"]`)) {
+  for (const a of racine.querySelectorAll(SELECTEUR_PANIER(slug))) {
     const ids = a.querySelectorAll("[id]").map((el) => `<span id="${el.id}"></span>`).join("");
     a.replaceWith(`<span data-axs-panier-retire style="display:none">${ids}</span>`);
   }
 }
 
+const SELECTEUR_PANIER = (slug: string) => `header a[href="/${slug}/panier"], header [onclick="go('panier')"]`;
+
+// Mode d'achat « panier » (lib/mode-achat.ts) : le bouton Panier de l'en-tête reste, vers la page
+// panier ; components/storefront/Panier.tsx l'ouvre en panier latéral et y affiche le nombre d'articles.
+const SAC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" width="20" height="20"><path d="M5 8h14l-1 13H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>`;
+
+function garderPanier(racine: El, slug: string) {
+  for (const a of racine.querySelectorAll(SELECTEUR_PANIER(slug))) {
+    a.removeAttribute("onclick");
+    a.setAttribute("href", `/${slug}/panier`);
+    a.setAttribute("data-axs-panier", "");
+  }
+  // Bouton déjà retiré par un rendu en mode « commande directe » (enregistré ainsi par le Constructeur) :
+  // recréé dans le style du lien voisin de l'en-tête (Mon compte…), avec les id d'origine.
+  for (const repere of racine.querySelectorAll("header [data-axs-panier-retire]")) {
+    const voisin = [repere.previousElementSibling, repere.nextElementSibling].find((e) => e?.tagName === "A") as El | undefined;
+    const a = voisin ? lienVers(voisin, "", `/${slug}/panier`) : parse(`<a href="/${slug}/panier"></a>`).querySelector("a")!;
+    a.removeAttribute("onclick");
+    a.setAttribute("data-axs-panier", "");
+    a.setAttribute("aria-label", "Panier");
+    const texte = voisin?.querySelector("span") ? "<span>Panier</span>" : "";
+    a.set_content(SAC + texte + repere.innerHTML);
+    repere.replaceWith(a.outerHTML);
+  }
+}
+
 export interface CollectionLien { slug: string; nom: string }
+
+// Pages d'information du pied de page : FAQ et politiques validées par le marchand
+// (lib/politiques.ts). Libellés courts, dans le style des autres liens du pied.
+export const LIBELLES_POLITIQUES: Record<TypePolitique, string> = {
+  livraison: "Livraison", retours: "Retours et remboursements", confidentialite: "Confidentialité", cgv: "Conditions de vente",
+};
+// Mentions « Confidentialité — Conditions générales » des designs : liens vers les pages d'Axso,
+// remplacés par celles de la boutique quand elle les a publiées.
+const MENTIONS_AXSO: [TypePolitique, string][] = [["confidentialite", "/legal/privacy"], ["cgv", "/legal/cgu"]];
+
+function liensInformation(footer: El, slug: string, politiques: TypePolitique[] | undefined, faq: boolean | undefined) {
+  const href = (a: El) => a.getAttribute("href") ?? "";
+  if (politiques) {
+    for (const [type, axso] of MENTIONS_AXSO) {
+      if (!politiques.includes(type)) continue;
+      footer.querySelectorAll(`a[href="${axso}"]`).forEach((a) => { a.setAttribute("href", `/${slug}/politiques/${type}`); a.setAttribute("data-axs-mention", axso); });
+    }
+    // Liens posés lors d'un rendu précédent (enregistrés par le Constructeur) vers une politique qui n'est plus publiée.
+    for (const a of footer.querySelectorAll(`a[href^="/${slug}/politiques/"]`)) {
+      if (politiques.includes(href(a).split("/").pop() as TypePolitique)) continue;
+      const axso = a.getAttribute("data-axs-mention");
+      if (axso) { a.setAttribute("href", axso); a.removeAttribute("data-axs-mention"); } else retirer(a);
+    }
+  }
+  if (faq === false) footer.querySelectorAll(`a[href="/${slug}/faq"]`).forEach(retirer);
+  const liens = footer.querySelectorAll("a[href]");
+  let ref = liens.find((a) => href(a) === `/${slug}/mon-compte`) ?? liens.find((a) => href(a) === `/${slug}/contact`);
+  if (!ref) return;
+  if (faq && !footer.querySelector(`a[href="/${slug}/faq"]`)) ref = ajouterApres(ref, "FAQ", `/${slug}/faq`);
+  for (const type of politiques ?? []) {
+    const cible = `/${slug}/politiques/${type}`;
+    if (footer.querySelector(`a[href="${cible}"]`)) continue;
+    ref = ajouterApres(ref, LIBELLES_POLITIQUES[type], cible);
+  }
+}
 
 const MENTIONS = /Confidentialit[ée]\s*[—–-]\s*Conditions g[ée]n[ée]rales/;
 
@@ -204,9 +268,15 @@ function adapterDigital(racine: El, slug: string) {
 // `options.slug` : indispensable pour une section de pied de page seule sans
 // aucun lien (Aube, Cadran), d'où l'adresse ne peut pas se déduire.
 // `options.nom` / `options.logoUrl` : nom et logo de la boutique, à la place du nom du design (logo, copyright).
-export interface OptionsLiens { slug?: string; collections?: CollectionLien[]; digital?: boolean; nom?: string; logoUrl?: string | null }
+// `options.panier` : mode d'achat « panier » (bouton Panier gardé dans l'en-tête).
+// `options.politiques` / `options.faq` : pages d'information à lier dans le pied (vitrine uniquement :
+// non fournis, les liens déjà présents ne sont pas touchés).
+export interface OptionsLiens {
+  slug?: string; collections?: CollectionLien[]; digital?: boolean; nom?: string; logoUrl?: string | null;
+  panier?: boolean; politiques?: TypePolitique[]; faq?: boolean;
+}
 
-export function corrigerLiensHtml(html: string | undefined, { slug: slugConnu, collections, digital, nom, logoUrl }: OptionsLiens = {}): string | undefined {
+export function corrigerLiensHtml(html: string | undefined, { slug: slugConnu, collections, digital, nom, logoUrl, panier, politiques, faq }: OptionsLiens = {}): string | undefined {
   if (!html) return html;
   const avecChrome = /<(header|footer)\b/.test(html);
   if (!avecChrome && !digital) return html;
@@ -214,9 +284,11 @@ export function corrigerLiensHtml(html: string | undefined, { slug: slugConnu, c
   if (!slug) return html;
   const racine = parse(html);
   racine.querySelectorAll("header").forEach((h) => corrigerEntete(h, slug, digital));
-  racine.querySelectorAll("footer").forEach((f) => corrigerPied(f, slug, collections));
+  // Boutique digitale : rien à livrer, pas de page Livraison (l'accès aux achats est dans « Mes achats »).
+  const infos = politiques && (digital ? politiques.filter((t) => t !== "livraison") : politiques);
+  racine.querySelectorAll("footer").forEach((f) => { corrigerPied(f, slug, collections); liensInformation(f, slug, infos, faq); });
   // Boutique digitale : le bouton devient « Mes achats » (adapterDigital), il reste.
-  if (digital) adapterDigital(racine, slug); else retirerPanier(racine, slug);
+  if (digital) adapterDigital(racine, slug); else if (panier) garderPanier(racine, slug); else retirerPanier(racine, slug);
   if (nom?.trim()) nommerBoutique(racine, nom.trim(), logoUrl);
   return racine.toString();
 }
@@ -247,4 +319,32 @@ export function corrigerLiensDesign<T extends ThemeConfig>(cfg: T, options: Opti
   for (const k of CHAMPS_HTML) if (typeof out[k] === "string") out[k] = corrigerLiensHtml(out[k], options);
   if (cfg.builderTree?.length) out.builderTree = corrigerArbre(cfg.builderTree, options);
   return out;
+}
+
+// ─── FAQ de la boutique (/{slug}/faq) ────────────────────────────────────────
+// Rien d'inventé : les questions de la section FAQ de l'accueil (sections visibles d'un design :
+// <details><summary>Question</summary>Réponse</details>, ou section FAQ du thème si activée).
+// Aucune question : pas de page FAQ ni de lien.
+export interface QuestionFaq { question: string; reponse: string }
+
+export function extraireFaq(html: string | undefined): QuestionFaq[] {
+  if (!html || !/<details\b/i.test(html)) return [];
+  return parse(html).querySelectorAll("details").map((d) => {
+    const summary = d.querySelector("summary");
+    const question = summary?.text.replace(/\s+/g, " ").trim() ?? "";
+    summary?.remove();
+    return { question, reponse: d.text.replace(/\s+/g, " ").trim() };
+  }).filter((q) => q.question && q.reponse);
+}
+
+function htmlVisible(nodes: BlockNode[]): string {
+  return nodes.filter((n) => n.actif !== false).map((n) => (n.type === "embed-html" ? n.config?.html || "" : "") + htmlVisible(n.children ?? [])).join("");
+}
+
+export function faqBoutique(cfg: ThemeConfig): QuestionFaq[] {
+  const arbre = htmlVisible(cfg.builderTree ?? []);
+  const design = extraireFaq(arbre || cfg.builderHtml);
+  if (design.length) return design;
+  const f = cfg.sections?.faq;
+  return f?.actif ? (f.items ?? []).filter((q) => q.question?.trim() && q.reponse?.trim()) : [];
 }

@@ -194,19 +194,23 @@ export function PortailTransporteur() {
   const [actif, setActif] = useState(0);
   const [vue, setVue] = useState<any>(null);
   const [compte, setCompte] = useState<any>(null);
+  const [erreurChargement, setErreurChargement] = useState("");
   const f = liste?.[actif];
   const charger = useCallback(async () => {
-    const d = await api("/api/logistique/fournisseurs"); setCompte(d.compte); setListe(d.fournisseurs);
+    const d = await api("/api/logistique/fournisseurs"); setCompte(d.compte); setListe(d.fournisseurs); setErreurChargement("");
     const x = d.fournisseurs[actif];
     if (x) setVue(await api(`/api/logistique/fournisseurs/${x.id}`));
   }, [actif]);
-  useEffect(() => { charger().catch((e) => toast.error(t(e.message))); const i = setInterval(() => { if (!document.hidden) charger().catch(() => {}); }, 15_000); return () => clearInterval(i); }, [charger, t]);
+  useEffect(() => { charger().catch((e) => setErreurChargement(e.message || "Action impossible")); const i = setInterval(() => { if (!document.hidden) charger().catch(() => {}); }, 15_000); return () => clearInterval(i); }, [charger, t]);
   const repondre = async (id: string, accepter: boolean) => { try { await api(`/api/logistique/assignations/${id}`, "POST", { accepter, motif: accepter ? null : "Indisponible" }); toast.success(t(accepter ? "Course acceptée" : "Course refusée")); charger(); } catch (e: any) { toast.error(t(e.message)); charger(); } };
   const dispo = async () => { try { await api(`/api/logistique/fournisseurs/${f.id}`, "PATCH", { disponible: !f.disponible }); charger(); } catch (e: any) { toast.error(t(e.message)); } };
 
   return <main className="axl"><div className="axl-page">
     <header className="axl-tete"><div><img src="/logo.png" alt="AXSO" /><h1>{f ? f.nom : t("Portail transporteur")}</h1></div>{compte?.role === "livreur" && !f && <a className="axl-btn" href="/livreur">{t("Mes livraisons")}</a>}{f && <div className="axl-tete__a">{compte?.role === "livreur" && <a className="axl-btn" href="/livreur">{t("Mes livraisons")}</a>}<button type="button" className="axl-dispo" aria-pressed={f.disponible} onClick={dispo}><i />{t(f.disponible ? "Disponible" : "Hors service")}</button><button type="button" className="axl-icone" aria-label={t("Actualiser")} onClick={() => charger()}><RefreshCw size={16} /></button></div>}</header>
-    {liste === null ? <p className="axl-doux">{t("Chargement…")}</p> : !f ? <Inscription key={compte?.email ?? "x"} compte={compte} onFait={charger} /> : <>
+    {liste !== null && f?.statutLegal !== "verifie" && <p className="axl-alerte" role="status"><b>{t("Demande d'inscription enregistrée.")}</b> {t("Votre compte est en attente de validation par un administrateur AXSO, sous 24 h maximum. Cette page se met à jour automatiquement dès qu'il est validé.")}</p>}
+    {liste === null ? (erreurChargement
+      ? <div className="axl-carte"><p className="axl-doux">{t("Impossible de charger votre espace pour le moment.")} {t(erreurChargement)}</p><button type="button" className="axl-btn" onClick={() => charger().catch((e) => setErreurChargement(e.message || "Action impossible"))}><RefreshCw size={15} /> {t("Réessayer")}</button></div>
+      : <p className="axl-doux">{t("Chargement…")}</p>) : !f ? <Inscription key={compte?.email ?? "x"} compte={compte} onFait={charger} /> : <>
       {liste.length > 1 && <div className="axl-choix">{liste.map((x, i) => <button key={x.id} type="button" aria-checked={i === actif} role="radio" onClick={() => setActif(i)}>{x.nom}</button>)}</div>}
       {f.suspendu && <p className="axl-alerte">{t("Compte suspendu")} : {f.motifSuspension}</p>}
       <Activation f={f} />

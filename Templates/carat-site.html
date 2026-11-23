@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CARAT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--couleur-fond:#faf7f2;--couleur-texte:#1b1916;--couleur-accent:#a8844c;--couleur-surface:#f1ebe1;--police-titre:'Cormorant Garamond',serif;--police-corps:'Jost',sans-serif;--ease:cubic-bezier(.2,.7,.2,1);--doux:color-mix(in srgb,var(--couleur-texte) 68%,var(--couleur-fond));--trait:color-mix(in srgb,var(--couleur-accent) 45%,transparent);--ligne:color-mix(in srgb,var(--couleur-texte) 12%,transparent)}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--couleur-fond);color:var(--couleur-texte);font-family:var(--police-corps);font-weight:300;font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:var(--couleur-accent);color:var(--couleur-fond)}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{font-family:var(--police-titre);font-weight:300;line-height:1.08;margin:0;text-wrap:balance;letter-spacing:.01em}
+p{margin:0}
+.view{display:none}.view.active{display:block}
+.wrap{max-width:1320px;margin:0 auto;padding:0 20px}
+.kicker,.eyebrow{display:inline-block;font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:var(--couleur-accent);font-weight:400}
+.sec{padding:88px 0}
+.sec-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:48px}
+.sec-head h2{font-size:clamp(2.1rem,4.6vw,3.4rem)}
+.sec-head::after{content:"";width:56px;height:1px;background:var(--couleur-accent);margin-top:6px}
+.sec-head p{max-width:520px;color:var(--doux);font-size:.98rem}
+/* boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:14px;min-height:50px;padding:0 34px;border:1px solid var(--couleur-texte);font-size:.74rem;letter-spacing:.24em;text-transform:uppercase;font-weight:400;transition:background .5s var(--ease),color .5s var(--ease),border-color .5s var(--ease)}
+.btn::after{content:"\2192";font-size:.95rem;letter-spacing:0;transition:transform .5s var(--ease)}
+.btn:hover{background:var(--couleur-texte);color:var(--couleur-fond)}
+.btn:hover::after{transform:translateX(5px)}
+.btn-primary{background:var(--couleur-texte);color:var(--couleur-fond)}
+.btn-primary:hover{background:var(--couleur-accent);border-color:var(--couleur-accent)}
+.lien{display:inline-block;font-size:.74rem;letter-spacing:.24em;text-transform:uppercase;padding:12px 0;background:linear-gradient(var(--couleur-accent),var(--couleur-accent)) left bottom/100% 1px no-repeat;transition:background-size .5s var(--ease)}
+.lien:hover{background-size:30% 1px}
+/* en-tête */
+header{background:var(--couleur-fond);border-bottom:1px solid var(--ligne)}
+.announce{background:var(--couleur-texte);color:var(--couleur-fond);overflow:hidden;font-size:.7rem;letter-spacing:.26em;text-transform:uppercase}
+.marquee{display:flex;width:max-content;animation:defile 38s linear infinite}
+.announce:hover .marquee{animation-play-state:paused}
+.marquee span{display:inline-flex;align-items:center;padding:11px 0;white-space:nowrap}
+.marquee span::after{content:"";width:5px;height:5px;margin:0 34px;border:1px solid var(--couleur-accent);transform:rotate(45deg)}
+@keyframes defile{to{transform:translateX(-50%)}}
+.bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;padding:22px 20px;max-width:1320px;margin:0 auto}
+.logo{grid-column:2;font-family:var(--police-titre);font-weight:400;font-size:1.9rem;letter-spacing:.42em;margin-right:-.42em;text-transform:uppercase;line-height:1}
+nav{grid-column:1;grid-row:1;display:flex;gap:30px}
+nav a,.actions a{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;font-weight:400;padding:12px 0;background:linear-gradient(var(--couleur-accent),var(--couleur-accent)) left 80%/0 1px no-repeat;transition:background-size .5s var(--ease);cursor:pointer;white-space:nowrap}
+nav a:hover,.actions a:hover{background-size:100% 1px}
+.actions{grid-column:3;display:flex;justify-content:flex-end;align-items:center;gap:22px}
+.actions a{display:inline-flex;align-items:center;gap:8px;min-height:44px}
+.actions svg{width:18px;height:18px;flex:none}
+/* bannière */
+.hero{padding:0}
+.hero-inner{display:grid;grid-template-columns:5fr 6fr;min-height:min(88vh,860px)}
+.hero-text{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:26px;padding:64px 64px 64px max(20px,calc((100vw - 1320px)/2 + 20px))}
+.hero-text .eyebrow{display:inline-flex;align-items:center;gap:16px}
+.hero-text .eyebrow::before{content:"";width:40px;height:1px;background:var(--couleur-accent)}
+.hero h1{font-size:clamp(2.8rem,5.8vw,5.6rem);overflow-wrap:anywhere;hyphens:auto}
+.hero-text p{max-width:430px;color:var(--doux);font-size:1.05rem}
+.hero-media{position:relative;overflow:hidden;background:var(--couleur-surface)}
+.hero-media img{position:absolute;inset:-6% 0;width:100%;height:112%;object-fit:cover;object-position:50% 25%}
+.hero-note{position:absolute;left:28px;bottom:26px;z-index:1;color:var(--couleur-fond);font-size:.68rem;letter-spacing:.3em;text-transform:uppercase}
+/* carrousels */
+.rail{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;padding:0 20px;scroll-padding:0 20px}
+.rail::-webkit-scrollbar{display:none}
+.rail>*{scroll-snap-align:start}
+.rail-wrap{position:relative;max-width:1320px;margin:0 auto}
+
+/* tuiles */
+.tile{flex:0 0 calc((100% - 4*18px)/4.35);display:flex;flex-direction:column;gap:16px}
+.tile-media{overflow:hidden;aspect-ratio:3/4;background:var(--couleur-surface)}
+.tile-media img,.pcard-media img,.look img{width:100%;height:100%;object-fit:cover;transition:transform .9s var(--ease),filter .9s var(--ease)}
+.tile-txt{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;transition:transform .6s var(--ease)}
+.tile h3{font-size:1.55rem}
+.tile span{font-size:.68rem;letter-spacing:.26em;text-transform:uppercase;color:var(--couleur-accent);opacity:0;transition:opacity .6s var(--ease)}
+/* produits */
+.product-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:48px 24px}
+.pcard{display:flex;flex-direction:column;gap:6px;text-align:center}
+.pcard-media{overflow:hidden;aspect-ratio:4/5;background:var(--couleur-surface);margin-bottom:14px}
+.pcard-name{font-size:1.3rem;font-weight:400;align-self:center;background:linear-gradient(currentColor,currentColor) center bottom/0 1px no-repeat;transition:background-size .5s var(--ease)}
+.pcard-price{font-size:.8rem;letter-spacing:.16em;color:var(--doux)}
+.featured-foot{display:flex;justify-content:center;margin-top:56px}
+@media (hover:hover){
+.tile:hover .tile-media img,.pcard:hover .pcard-media img,.look:hover img{transform:scale(1.06)}
+.look:hover img{filter:brightness(.9)}
+.tile:hover .tile-txt{transform:translateY(-6px)}
+.tile:hover span{opacity:1}
+.pcard:hover .pcard-name{background-size:100% 1px}
+}
+/* éditorial */
+.story-inner{display:grid;grid-template-columns:1fr 1fr;gap:clamp(40px,7vw,110px);align-items:center}
+.story-media{position:relative;overflow:hidden;aspect-ratio:4/5;background:var(--couleur-surface)}
+.story-media img{position:absolute;inset:-6% 0;width:100%;height:112%;object-fit:cover}
+.story-media::after{content:"";position:absolute;inset:18px;border:1px solid color-mix(in srgb,var(--couleur-fond) 55%,transparent);pointer-events:none}
+.story-text{display:flex;flex-direction:column;align-items:flex-start;gap:22px;max-width:480px}
+.story-text h2{font-size:clamp(2.4rem,5vw,4rem)}
+.story-text p{color:var(--doux)}
+/* entretien */
+.care{background:var(--couleur-surface)}
+.care-inner{display:grid;grid-template-columns:5fr 7fr;gap:clamp(32px,6vw,90px);align-items:center}
+.care-inner>*,.story-inner>*{min-width:0}
+.care-media{overflow:hidden;aspect-ratio:4/5}
+.care-media img{width:100%;height:100%;object-fit:cover}
+.care-side .sec-head{align-items:flex-start;text-align:left;margin-bottom:28px}
+.tips{display:flex;flex-direction:column;gap:0}
+.tip{display:grid;grid-template-columns:64px 1fr;gap:4px 18px;padding:26px 0;border-top:1px solid var(--trait)}
+.tip-num{grid-row:span 2;font-family:var(--police-titre);font-size:2.2rem;line-height:1;color:var(--couleur-accent)}
+.tip h3{font-size:1.5rem}
+.tip p{color:var(--doux);font-size:.95rem}
+/* lookbook */
+.lookbook{padding-bottom:72px}
+.look{flex:0 0 clamp(240px,26vw,360px);aspect-ratio:3/4;overflow:hidden;background:var(--couleur-surface)}
+/* réassurance */
+.benefits{border-top:1px solid var(--ligne);border-bottom:1px solid var(--ligne);padding:64px 0}
+.benefits .sec-head{margin-bottom:40px}
+.benefits .sec-head h2{font-size:clamp(1.7rem,3vw,2.3rem)}
+.benefit-list{display:flex;justify-content:space-between;gap:28px;list-style:none;margin:0;padding:0}
+.benefit{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+.benefit svg{width:30px;height:30px;color:var(--couleur-accent);margin-bottom:6px}
+.benefit h3{font-size:1.35rem;font-weight:400}
+.benefit p{font-size:.9rem;color:var(--doux);max-width:260px}
+/* FAQ */
+.faq-list{max-width:820px;margin:0 auto}
+.faq details{border-bottom:1px solid var(--ligne)}
+.faq details:first-child{border-top:1px solid var(--ligne)}
+.faq summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:24px 0;cursor:pointer;min-height:44px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary span{font-family:var(--police-titre);font-size:1.4rem;line-height:1.3}
+.faq summary::after{content:"+";flex:none;font-size:1.4rem;font-weight:300;color:var(--couleur-accent);transition:transform .5s var(--ease)}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{padding:0 40px 26px 0;color:var(--doux)}
+@supports (interpolate-size: allow-keywords){
+:root{interpolate-size:allow-keywords}
+.faq details::details-content{height:0;overflow:clip;transition:height .5s var(--ease),content-visibility .5s allow-discrete}
+.faq details[open]::details-content{height:auto}
+}
+/* contact */
+.contact{background:var(--couleur-texte);color:var(--couleur-fond);text-align:center}
+.contact-inner{display:flex;flex-direction:column;align-items:center;gap:22px;max-width:640px;margin:0 auto}
+.contact h2{font-size:clamp(2.3rem,5vw,3.8rem)}
+.contact p{color:color-mix(in srgb,var(--couleur-fond) 75%,transparent)}
+.contact .btn{border-color:var(--couleur-fond)}
+.contact .btn-primary{background:var(--couleur-fond);color:var(--couleur-texte)}
+.contact .btn-primary:hover{background:var(--couleur-accent);border-color:var(--couleur-accent);color:var(--couleur-fond)}
+.contact .btn:not(.btn-primary):hover{background:var(--couleur-fond);color:var(--couleur-texte)}
+.contact-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:8px}
+.contact-line{width:1px;height:56px;background:var(--couleur-accent)}
+/* catalogue */
+.plp-head{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:80px 20px 40px}
+.plp-head h1{font-size:clamp(2.6rem,6vw,4.6rem)}
+.plp-head #plpCount{font-size:.72rem;letter-spacing:.3em;text-transform:uppercase;color:var(--doux)}
+.plp{padding-bottom:96px}
+.filters{display:flex;justify-content:center;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 0 48px;padding:0 0 4px}
+.filters::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:0 22px;border:1px solid var(--ligne);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:border-color .4s var(--ease),background .4s var(--ease),color .4s var(--ease)}
+.chip:hover{border-color:var(--couleur-accent)}
+.chip.active{background:var(--couleur-texte);color:var(--couleur-fond);border-color:var(--couleur-texte)}
+.page-vide{padding:120px 20px;text-align:center}
+.page-vide h1{font-size:3rem}
+/* pied */
+footer{background:var(--couleur-surface);padding:80px 0 32px;font-size:.92rem}
+.foot-cols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:40px;padding-bottom:56px;border-bottom:1px solid var(--trait)}
+.foot-brand{display:flex;flex-direction:column;gap:16px;align-items:flex-start}
+.foot-logo{font-family:var(--police-titre);font-size:2rem;letter-spacing:.42em;text-transform:uppercase;line-height:1}
+.foot-brand p{max-width:340px;color:var(--doux)}
+footer h4{margin:0 0 18px;font-weight:400;font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:var(--couleur-accent)}
+footer ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+footer ul a{display:inline-block;padding:6px 0;background:linear-gradient(currentColor,currentColor) left 85%/0 1px no-repeat;transition:background-size .5s var(--ease)}
+footer ul a:hover{background-size:100% 1px}
+footer li{color:var(--doux)}
+.foot-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding-top:26px;font-size:.78rem;letter-spacing:.08em;color:var(--doux)}
+.foot-copy{display:flex;gap:6px}
+/* défilement */
+@supports (animation-timeline: view()){
+.hero-media img,.story-media img{animation:parallaxe linear both;animation-timeline:view();animation-range:cover 0% cover 100%}
+.sec-head,.story-text,.care-media,.tip,.contact-inner,.benefit{animation:apparait linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
+@keyframes parallaxe{from{transform:translateY(-5%)}to{transform:translateY(5%)}}
+@keyframes apparait{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+}
+/* tablette / mobile */
+@media (max-width:960px){
+.bar{grid-template-columns:auto 1fr;padding:16px 20px 6px;gap:6px 16px}
+.logo{grid-column:1;font-size:1.5rem}
+.actions{grid-column:2;gap:14px}
+nav{grid-column:1/-1;grid-row:2;gap:26px;overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:0 20px}
+nav::-webkit-scrollbar{display:none}
+.hero-inner{grid-template-columns:1fr;min-height:0}
+.hero-media{order:-1;aspect-ratio:4/5;max-height:78vh;width:100%}
+.hero-text{padding:40px 20px 56px;gap:20px}
+.tile{flex-basis:calc((100% - 2*18px)/2.4)}
+.product-grid{grid-template-columns:repeat(2,1fr);gap:36px 14px}
+.story-inner,.care-inner{grid-template-columns:1fr}
+.care-media{aspect-ratio:16/10}
+.foot-cols{grid-template-columns:1fr 1fr}
+.foot-brand{grid-column:1/-1}
+}
+@media (max-width:600px){
+.sec{padding:64px 0}
+.sec-head{margin-bottom:34px}
+.actions .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.actions a{min-width:44px;justify-content:center}
+.tile{flex-basis:68%}
+.tile h3{font-size:1.35rem}
+.tile span{opacity:1}
+.pcard-name{font-size:1.1rem}
+.pcard-price{font-size:.75rem;letter-spacing:.1em}
+.tips{flex-direction:row;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;gap:14px;margin:0 -20px;padding:0 20px;scroll-padding:0 20px}
+.tips::-webkit-scrollbar{display:none}
+.tip{flex:0 0 82%;scroll-snap-align:start;grid-template-columns:1fr;background:var(--couleur-fond);border:1px solid var(--trait);padding:24px}
+.tip-num{grid-row:auto}
+.look{flex-basis:72%}
+.benefit-list{flex-wrap:wrap;gap:36px 16px}
+.benefit{flex:0 0 calc(50% - 8px)}
+.faq summary span{font-size:1.2rem}
+.faq details p{padding-right:0}
+.contact-btns .btn{width:100%}
+.foot-cols{grid-template-columns:1fr}
+.filters{justify-content:flex-start;margin:0 -20px 36px;padding:0 20px 4px}
+}
+@media (prefers-reduced-motion:reduce){
+*,*::before,*::after{animation:none;transition:none;scroll-behavior:auto}
+.marquee{animation:none}
+.rail,.tips{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<header>
+<div class="announce"><div class="marquee"><span>Conseils personnalisés sur WhatsApp</span><span>Paiement à la livraison possible</span><span>Paiement sécurisé</span><span>Commande en quelques clics</span><span aria-hidden="true">Conseils personnalisés sur WhatsApp</span><span aria-hidden="true">Paiement à la livraison possible</span><span aria-hidden="true">Paiement sécurisé</span><span aria-hidden="true">Commande en quelques clics</span></div></div>
+<div class="bar">
+<a class="logo" data-axso-nom href="#" onclick="go('home')">CARAT</a>
+<nav><a href="#" onclick="go('home')">Accueil</a><a href="#" onclick="go('boutique')">Boutique</a><a href="#" onclick="go('apropos')">À propos</a><a href="#" onclick="go('contact')">Contact</a></nav>
+<div class="actions">
+<a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span class="lbl">Rechercher</span></a>
+<a href="#" onclick="go('compte')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c1.2-3.8 4-5.6 7.5-5.6s6.3 1.8 7.5 5.6"/></svg><span class="lbl">Mon compte</span></a>
+<a href="#" class="cart-btn" onclick="go('panier')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M5 8h14l-1.2 12.5H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="lbl">Panier</span></a>
+</div>
+</div>
+</header>
+
+<div class="view active" id="view-home">
+<section class="hero">
+<div class="hero-inner">
+<div class="hero-text">
+<span class="eyebrow">Nouvelle collection</span>
+<h1>Carat</h1>
+<p>Des bijoux choisis avec soin, pour souligner chaque jour et sublimer les grandes occasions.</p>
+<a href="#" class="btn btn-primary" onclick="go('boutique')">Découvrir la boutique</a>
+</div>
+<div class="hero-media"><img src="https://images.unsplash.com/photo-1631346543932-ce110c10dbec?auto=format&fit=crop&w=1600&q=80" alt="Femme souriante parée de boucles d'oreilles, d'un collier et de bracelets dorés"></div>
+</div>
+</section>
+
+<section class="categories sec">
+<div class="wrap"><div class="sec-head"><span class="kicker">Les collections</span><h2>Trouver sa pièce</h2></div></div>
+<div class="rail-wrap"><div class="rail">
+<a href="#" class="tile" onclick="go('boutique')"><div class="tile-media"><img src="https://images.unsplash.com/photo-1608042314453-ae338d80c427?auto=format&fit=crop&w=800&q=80" alt="Bagues posées sur un galet" loading="lazy"></div><div class="tile-txt"><h3>Bagues</h3><span>Découvrir</span></div></a>
+<a href="#" class="tile" onclick="go('boutique')"><div class="tile-media"><img src="https://images.unsplash.com/photo-1590548784585-643d2b9f2925?auto=format&fit=crop&w=800&q=80" alt="Colliers fins superposés" loading="lazy"></div><div class="tile-txt"><h3>Colliers</h3><span>Découvrir</span></div></a>
+<a href="#" class="tile" onclick="go('boutique')"><div class="tile-media"><img src="https://images.unsplash.com/photo-1608508644127-ba99d7732fee?auto=format&fit=crop&w=800&q=80" alt="Boucles d'oreilles créoles dans une coupelle" loading="lazy"></div><div class="tile-txt"><h3>Boucles d'oreilles</h3><span>Découvrir</span></div></a>
+<a href="#" class="tile" onclick="go('boutique')"><div class="tile-media"><img src="https://images.unsplash.com/photo-1633810543462-77c4a3b13f07?auto=format&fit=crop&w=800&q=80" alt="Bracelet maille porté au poignet" loading="lazy"></div><div class="tile-txt"><h3>Bracelets</h3><span>Découvrir</span></div></a>
+<a href="#" class="tile" onclick="go('boutique')"><div class="tile-media"><img src="https://images.unsplash.com/photo-1612817159949-195b6eb9e31a?auto=format&fit=crop&w=800&q=80" alt="Montre au cadran sombre" loading="lazy"></div><div class="tile-txt"><h3>Montres</h3><span>Découvrir</span></div></a>
+</div></div>
+</section>
+
+<section class="featured sec">
+<div class="wrap">
+<div class="sec-head"><span class="kicker">Sélection</span><h2>Pièces choisies</h2></div>
+<div id="homeGrid" class="product-grid">
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1598560917807-1bae44bd2be8?auto=format&fit=crop&w=800&q=80" alt="Bague solitaire" loading="lazy"></div><h3 class="pcard-name">Bague solitaire</h3><span class="pcard-price">45 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80" alt="Collier pendentif lune" loading="lazy"></div><h3 class="pcard-name">Collier pendentif lune</h3><span class="pcard-price">28 500 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=80" alt="Créoles torsadées" loading="lazy"></div><h3 class="pcard-name">Créoles torsadées</h3><span class="pcard-price">19 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=800&q=80" alt="Bracelet maille ronde" loading="lazy"></div><h3 class="pcard-name">Bracelet maille ronde</h3><span class="pcard-price">32 000 FCFA</span></a>
+</div>
+<div class="featured-foot"><a href="#" class="btn" onclick="go('boutique')">Voir toute la collection</a></div>
+</div>
+</section>
+
+<section class="story sec">
+<div class="wrap story-inner">
+<div class="story-media"><img src="https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=80" alt="Collier de perles présenté dans un écrin" loading="lazy"></div>
+<div class="story-text">
+<span class="kicker">Idées cadeaux</span>
+<h2>L'art d'offrir</h2>
+<p>Un bijou se garde, se porte et se transmet. C'est un cadeau qui accompagne les souvenirs : une naissance, un diplôme, un anniversaire, ou simplement l'envie de faire plaisir.</p>
+<p>Vous hésitez entre deux pièces ? Décrivez-nous la personne à qui vous pensez, nous vous aidons à choisir.</p>
+<a href="#" class="btn" onclick="go('boutique')">Choisir un cadeau</a>
+</div>
+</div>
+</section>
+
+<section class="care sec">
+<div class="wrap care-inner">
+<div class="care-media"><img src="https://images.unsplash.com/photo-1590439471364-192aa70c0b53?auto=format&fit=crop&w=800&q=80" alt="Chiffon doux, brosse et coupelle pour l'entretien des bijoux" loading="lazy"></div>
+<div class="care-side">
+<div class="sec-head"><span class="kicker">Conseils</span><h2>Entretenir ses bijoux</h2></div>
+<div class="tips">
+<div class="tip"><span class="tip-num">I</span><h3>La dernière touche</h3><p>Mettez vos bijoux après le parfum, la crème et le maquillage : ils resteront plus longtemps éclatants.</p></div>
+<div class="tip"><span class="tip-num">II</span><h3>Loin de l'eau</h3><p>Retirez-les pour la douche, la baignade, le sport ou le ménage, puis essuyez-les avec un chiffon doux et sec.</p></div>
+<div class="tip"><span class="tip-num">III</span><h3>Chaque pièce à sa place</h3><p>Rangez-les séparément, dans une pochette ou une boîte douce, à l'abri de l'humidité, pour éviter rayures et nœuds.</p></div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="lookbook sec">
+<div class="wrap"><div class="sec-head"><span class="kicker">Inspirations</span><h2>Portés avec élégance</h2></div></div>
+<div class="rail-wrap"><div class="rail">
+<a href="#" class="look" onclick="go('boutique')"><img src="https://images.unsplash.com/photo-1742029561055-a7baf0289e69?auto=format&fit=crop&w=800&q=80" alt="Femme portant un collier de perles et une boucle d'oreille" loading="lazy"></a>
+<a href="#" class="look" onclick="go('boutique')"><img src="https://images.unsplash.com/photo-1614999612412-3b1dbcd68e40?auto=format&fit=crop&w=800&q=80" alt="Collier plastron porté sur peau" loading="lazy"></a>
+<a href="#" class="look" onclick="go('boutique')"><img src="https://images.unsplash.com/photo-1552793084-49132af00ff1?auto=format&fit=crop&w=800&q=80" alt="Portrait avec grandes boucles d'oreilles géométriques" loading="lazy"></a>
+<a href="#" class="look" onclick="go('boutique')"><img src="https://images.unsplash.com/photo-1707162741681-d210ac07c67f?auto=format&fit=crop&w=800&q=80" alt="Mains ornées de bagues" loading="lazy"></a>
+<a href="#" class="look" onclick="go('boutique')"><img src="https://images.unsplash.com/photo-1785088602245-6fa5177aa7e2?auto=format&fit=crop&w=800&q=80" alt="Femme portant des bracelets et des créoles" loading="lazy"></a>
+<a href="#" class="look" onclick="go('boutique')"><img src="https://images.unsplash.com/photo-1583292650898-7d22cd27ca6f?auto=format&fit=crop&w=800&q=80" alt="Poignets ornés de joncs superposés" loading="lazy"></a>
+</div></div>
+</section>
+
+<section class="benefits">
+<div class="wrap">
+<div class="sec-head"><span class="kicker">À votre écoute</span><h2>Acheter en toute sérénité</h2></div>
+<ul class="benefit-list">
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M6 25.5 7.6 20A10.5 10.5 0 1 1 12 24.4z"/><path d="M12 13.5h8M12 17h5"/></svg><h3>Conseils personnalisés</h3><p>Une question sur une pièce ou une taille ? Écrivez-nous sur WhatsApp.</p></li>
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x="4" y="9" width="24" height="15" rx="1.5"/><path d="M4 14h24M9 19.5h5"/></svg><h3>Paiement à la livraison</h3><p>Selon votre zone, réglez votre commande au moment de la recevoir.</p></li>
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x="7" y="14" width="18" height="13" rx="1.5"/><path d="M11 14v-3.5a5 5 0 0 1 10 0V14M16 19v3"/></svg><h3>Paiement sécurisé</h3><p>Vos paiements en ligne sont protégés, du panier à la confirmation.</p></li>
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M16 4l3 7 7 .7-5.3 4.8 1.6 7.2L16 20l-6.3 3.7 1.6-7.2L6 11.7l7-.7z"/></svg><h3>Commande simple</h3><p>Commandez en quelques clics, depuis votre téléphone.</p></li>
+</ul>
+</div>
+</section>
+
+<section class="faq sec">
+<div class="wrap">
+<div class="sec-head"><span class="kicker">Questions fréquentes</span><h2>Bon à savoir</h2></div>
+<div class="faq-list">
+<details><summary><span>Comment connaître ma taille de bague ?</span></summary><p>Mesurez le tour intérieur d'une bague que vous portez déjà au bon doigt, puis comparez avec les tailles indiquées sur la fiche du produit. En cas de doute, écrivez-nous sur WhatsApp : nous vous aidons à choisir.</p></details>
+<details><summary><span>Comment passer commande ?</span></summary><p>Choisissez votre pièce, ajoutez-la au panier puis indiquez vos coordonnées de livraison. La commande se fait en quelques clics, depuis votre téléphone ou votre ordinateur.</p></details>
+<details><summary><span>Quels moyens de paiement acceptez-vous ?</span></summary><p>Vous pouvez payer en ligne de façon sécurisée ou, selon votre zone, régler à la livraison. Les options disponibles s'affichent au moment de valider votre commande.</p></details>
+<details><summary><span>Où trouver les matières et dimensions ?</span></summary><p>Chaque fiche produit précise les informations de la pièce. Pour un détail qui n'y figure pas, posez-nous la question avant de commander.</p></details>
+<details><summary><span>Puis-je demander conseil avant d'acheter ?</span></summary><p>Bien sûr. Écrivez-nous sur WhatsApp avec l'occasion, le style recherché ou une photo d'inspiration : nous vous orientons vers les pièces qui conviennent.</p></details>
+</div>
+</div>
+</section>
+
+<section class="contact sec">
+<div class="wrap contact-inner">
+<span class="contact-line" aria-hidden="true"></span>
+<span class="kicker">Contact</span>
+<h2>Une question ? Écrivez-nous</h2>
+<p>Pour choisir une pièce, trouver la bonne taille ou préparer un cadeau, nous vous répondons sur WhatsApp.</p>
+<div class="contact-btns"><a href="#" class="btn btn-primary" onclick="go('contact')">Nous écrire</a><a href="#" class="btn" onclick="go('boutique')">Voir la collection</a></div>
+</div>
+</section>
+</div>
+
+<div class="view" id="view-boutique">
+<section class="plp-head"><span class="kicker">La boutique</span><h1>Toute la collection</h1><span id="plpCount">8 produits</span></section>
+<section class="plp">
+<div class="wrap">
+<div class="filters"><span class="chip active" data-cat="all">Tout</span><span class="chip" data-cat="bagues">Bagues</span><span class="chip" data-cat="colliers">Colliers</span><span class="chip" data-cat="boucles">Boucles d'oreilles</span><span class="chip" data-cat="bracelets">Bracelets</span><span class="chip" data-cat="montres">Montres</span></div>
+<div id="plpGrid" class="product-grid">
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1598560917807-1bae44bd2be8?auto=format&fit=crop&w=800&q=80" alt="Bague solitaire" loading="lazy"></div><h3 class="pcard-name">Bague solitaire</h3><span class="pcard-price">45 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80" alt="Collier pendentif lune" loading="lazy"></div><h3 class="pcard-name">Collier pendentif lune</h3><span class="pcard-price">28 500 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=80" alt="Créoles torsadées" loading="lazy"></div><h3 class="pcard-name">Créoles torsadées</h3><span class="pcard-price">19 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=800&q=80" alt="Bracelet maille ronde" loading="lazy"></div><h3 class="pcard-name">Bracelet maille ronde</h3><span class="pcard-price">32 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1588444650733-d0767b753fc8?auto=format&fit=crop&w=800&q=80" alt="Puces d'oreilles brillantes" loading="lazy"></div><h3 class="pcard-name">Puces d'oreilles brillantes</h3><span class="pcard-price">24 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1619119069152-a2b331eb392a?auto=format&fit=crop&w=800&q=80" alt="Bracelet rivière" loading="lazy"></div><h3 class="pcard-name">Bracelet rivière</h3><span class="pcard-price">38 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1594576722512-582bcd46fba3?auto=format&fit=crop&w=800&q=80" alt="Montre bracelet bois" loading="lazy"></div><h3 class="pcard-name">Montre bracelet bois</h3><span class="pcard-price">52 000 FCFA</span></a>
+<a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1622398925373-3f91b1e275f5?auto=format&fit=crop&w=800&q=80" alt="Duo d'alliances" loading="lazy"></div><h3 class="pcard-name">Duo d'alliances</h3><span class="pcard-price">60 000 FCFA</span></a>
+</div>
+</div>
+</section>
+<section class="benefits">
+<div class="wrap">
+<div class="sec-head"><span class="kicker">À votre écoute</span><h2>Acheter en toute sérénité</h2></div>
+<ul class="benefit-list">
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M6 25.5 7.6 20A10.5 10.5 0 1 1 12 24.4z"/><path d="M12 13.5h8M12 17h5"/></svg><h3>Conseils personnalisés</h3><p>Une question sur une pièce ou une taille ? Écrivez-nous sur WhatsApp.</p></li>
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x="4" y="9" width="24" height="15" rx="1.5"/><path d="M4 14h24M9 19.5h5"/></svg><h3>Paiement à la livraison</h3><p>Selon votre zone, réglez votre commande au moment de la recevoir.</p></li>
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x="7" y="14" width="18" height="13" rx="1.5"/><path d="M11 14v-3.5a5 5 0 0 1 10 0V14M16 19v3"/></svg><h3>Paiement sécurisé</h3><p>Vos paiements en ligne sont protégés, du panier à la confirmation.</p></li>
+<li class="benefit"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M16 4l3 7 7 .7-5.3 4.8 1.6 7.2L16 20l-6.3 3.7 1.6-7.2L6 11.7l7-.7z"/></svg><h3>Commande simple</h3><p>Commandez en quelques clics, depuis votre téléphone.</p></li>
+</ul>
+</div>
+</section>
+</div>
+<div class="view" id="view-produit"><section class="page-vide"><h1>Produit</h1></section></div>
+<div class="view" id="view-panier"><section class="page-vide"><h1>Panier</h1></section></div>
+<div class="view" id="view-commande"><section class="page-vide"><h1>Commande</h1></section></div>
+<div class="view" id="view-confirmation"><section class="page-vide"><h1>Merci</h1></section></div>
+
+<footer>
+<div class="wrap">
+<div class="foot-cols">
+<div class="foot-brand"><span class="foot-logo" data-axso-nom>CARAT</span><p>Bijoux, montres et accessoires choisis avec soin, à porter chaque jour comme aux grandes occasions.</p></div>
+<div><h4>La maison</h4><ul><li><a href="#" onclick="go('boutique')">Boutique</a></li><li><a href="#" onclick="go('apropos')">À propos</a></li><li><a href="#" onclick="go('contact')">Contact</a></li></ul></div>
+<div><h4>Service</h4><ul><li>Conseils sur WhatsApp</li><li>Paiement à la livraison possible</li><li>Paiement sécurisé</li></ul></div>
+</div>
+<div class="foot-bottom"><p class="foot-copy"><span>© 2026</span><span data-axso-nom>CARAT</span></p><small>Confidentialité — Conditions générales</small></div>
+</div>
+</footer>
+<script>function go(v){document.querySelectorAll('.view').forEach(function(e){e.classList.toggle('active',e.id==='view-'+v)});window.scrollTo(0,0)}</script>
+</body>
+</html>
