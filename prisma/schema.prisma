@@ -4370,6 +4370,10 @@ model FournisseurLogistique {
   scoreGlobal       Int       @default(0)
   score             Json      @default("{}")
   scoreCalculeLe    DateTime?
+  certifie          Boolean   @default(false) // mis en avant par AXSO
+  certifieLe        DateTime?
+  certifiePar       String?
+  motifCertification String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -4382,6 +4386,7 @@ model FournisseurLogistique {
   contrats   ContratTransporteur[]
 
   @@index([statutLegal, suspendu, disponible])
+  @@index([certifie])
   @@index([societeParenteId])
   @@index([proprietaireId])
 }

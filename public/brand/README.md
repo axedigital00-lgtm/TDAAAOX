@@ -21,3 +21,7 @@ Images de flagcdn.com (domaine public), stockées localement.
 - `snapchat`, `dhl` : Simple Icons sur la tuile de couleur officielle de la marque.
 - `google-ads`, `google` (G), `gmail`, `youtube`, `messenger`, `linkedin` : logos multicolores officiels, Wikimedia Commons, commentaires retirés.
 
+## Assistants IA (`ia/`)
+Utilisés uniquement dans Contrôle IA pour indiquer avec quels assistants AXSO se connecte, sans suggérer de partenariat.
+- `claude.svg` (#D97757), `googlegemini.svg` (#8E75B2) : Simple Icons 16.38.0 (CC0 1.0), couleurs officielles des marques.
+- ChatGPT : logo retiré de Simple Icons à la demande d'OpenAI ; utiliser le fichier officiel du kit de marque OpenAI.

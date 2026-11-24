@@ -58,6 +58,7 @@ export type Candidat = {
   prix: number | null;
   etaMinutes?: number | null;
   distanceKm?: number | null;
+  certifie?: boolean;
 };
 
 export type BesoinLivraison = {

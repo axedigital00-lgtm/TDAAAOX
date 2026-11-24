@@ -17,14 +17,31 @@ const dureeMoyenneMin = (l: { createdAt: Date; livreeLe: Date | null }[]) => {
 };
 
 /** Profil public : ni document, ni téléphone, ni coordonnées de versement. */
-export const profilPublic = (f: { id: string; slug: string; type: string; nom: string; description: string | null; statutLegal: string; disponible: boolean; vehicules: string[]; score: unknown; zones?: { ville: string; quartier: string | null; actif: boolean }[] }) => {
+export const profilPublic = (f: { id: string; slug: string; type: string; nom: string; certifie?: boolean; description: string | null; statutLegal: string; disponible: boolean; vehicules: string[]; score: unknown; zones?: { ville: string; quartier: string | null; actif: boolean }[] }) => {
   const s = f.score as Partial<IndicateursScore>;
-  return { id: f.id, slug: f.slug, type: f.type, nom: f.nom, description: f.description, verifie: f.statutLegal === "verifie", disponible: f.disponible, vehicules: f.vehicules, niveau: s.niveau ?? null, probation: s.probation ?? true, global: s.probation === false ? s.global ?? null : null, volume: s.volume ?? 0, tauxReussite: s.probation === false ? s.tauxReussite ?? null : null, badges: s.badges ?? [], zones: [...new Set((f.zones ?? []).filter((z) => z.actif).map((z) => z.ville))] };
+  return { id: f.id, slug: f.slug, type: f.type, nom: f.nom, description: f.description, certifie: !!f.certifie, verifie: f.statutLegal === "verifie", disponible: f.disponible, vehicules: f.vehicules, niveau: s.niveau ?? null, probation: s.probation ?? true, global: s.probation === false ? s.global ?? null : null, volume: s.volume ?? 0, tauxReussite: s.probation === false ? s.tauxReussite ?? null : null, badges: s.badges ?? [], zones: [...new Set((f.zones ?? []).filter((z) => z.actif).map((z) => z.ville))] };
 };
 
 export async function annuaire(ville?: string | null) {
-  const l = await prisma.fournisseurLogistique.findMany({ where: { suspendu: false, statutLegal: { notIn: ["rejete", "suspendu"] }, ...(ville ? { zones: { some: { actif: true, ville: { equals: ville, mode: "insensitive" } } } } : {}) }, include: { zones: true }, orderBy: [{ scoreGlobal: "desc" }, { createdAt: "asc" }], take: 100 });
+  const l = await prisma.fournisseurLogistique.findMany({ where: { suspendu: false, statutLegal: { notIn: ["rejete", "suspendu"] }, ...(ville ? { zones: { some: { actif: true, ville: { equals: ville, mode: "insensitive" } } } } : {}) }, include: { zones: true }, orderBy: [{ certifie: "desc" }, { scoreGlobal: "desc" }, { createdAt: "asc" }], take: 100 });
   return l.map(profilPublic);
+}
+
+/** Fiche détaillée : indicateurs de crédibilité et derniers avis, sans identité des clients. */
+export async function ficheTransporteur(id: string) {
+  if (!/^[a-z0-9]{8,40}$/i.test(id)) return null;
+  const f = await prisma.fournisseurLogistique.findFirst({ where: { id, suspendu: false, statutLegal: { notIn: ["rejete", "suspendu"] } }, include: { zones: true } });
+  if (!f) return null;
+  const [agg, derniers] = await Promise.all([
+    prisma.avisFournisseur.aggregate({ where: { fournisseurId: id }, _avg: { note: true }, _count: true }),
+    prisma.avisFournisseur.findMany({ where: { fournisseurId: id }, orderBy: { createdAt: "desc" }, take: 5, select: { note: true, commentaire: true, createdAt: true } }),
+  ]);
+  const s = f.score as Partial<IndicateursScore>;
+  return {
+    ...profilPublic(f), fiabilite: s.fiabilite ?? null, operationnel: s.operationnel ?? null, satisfaction: s.satisfaction ?? null, confiance: s.confiance ?? "insuffisante",
+    tauxReussite: s.tauxReussite ?? null, tauxATemps: s.tauxATemps ?? null, volume: s.volume ?? 0, certifieLe: f.certifieLe,
+    avis: { moyenne: agg._avg.note ?? 0, nombre: agg._count, derniers: derniers.map((a) => ({ note: a.note, commentaire: a.commentaire?.slice(0, 280) ?? null, le: a.createdAt })) },
+  };
 }
 
 export async function vueMarchand(tenantId: string) {
@@ -136,7 +153,7 @@ export async function tourDeControle() {
     kpis: { actives: actives.length, livrees: livrees.length, echecs: echecs.length, tauxReussite: fin ? livrees.length / fin : null, delaiMoyenMin: dureeMoyenneMin(livrees), societes: compteType("societe"), livreurs: compteType("livreur"), disponibles: fournisseurs.filter((f) => f.disponible && !f.suspendu).length, verifies: fournisseurs.filter((f) => f.statutLegal === "verifie").length },
     finance: { versements: somme("versement"), commissions: somme("commission"), subvention: somme("credit"), contributionMarchands: somme("contribution_marchand"), contributionNette: somme("commission") - somme("credit") },
     credits: credits.map((c) => ({ type: c.type, montant: Number(c._sum.montant ?? 0) })),
-    fournisseurs: fournisseurs.map((f) => ({ id: f.id, nom: f.nom, type: f.type, statutLegal: f.statutLegal, suspendu: f.suspendu, disponible: f.disponible, scoreGlobal: f.scoreGlobal, probation: (f.score as Partial<IndicateursScore>).probation ?? true, zones: [...new Set(f.zones.map((x) => x.ville))] })),
+    fournisseurs: fournisseurs.map((f) => ({ id: f.id, nom: f.nom, certifie: f.certifie, type: f.type, statutLegal: f.statutLegal, suspendu: f.suspendu, disponible: f.disponible, scoreGlobal: f.scoreGlobal, probation: (f.score as Partial<IndicateursScore>).probation ?? true, zones: [...new Set(f.zones.map((x) => x.ville))] })),
     documents, incidents, alertes, journal,
     lots: lots.map((l) => ({ ...l, total: Number(l.total) })),
     actives: actives.slice(0, 50).map((c) => ({ ...c, prixFournisseur: n(c.prixFournisseur) })),

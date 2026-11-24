@@ -383,6 +383,30 @@ export async function envoyerAlerteRetrait(p: {
   });
 }
 
+// Décision sur la candidature d'un transporteur ou d'un livreur.
+export async function envoyerDecisionTransporteur(p: { a: string; nom: string; valide: boolean; document?: string; motif?: string | null; lien: string }): Promise<boolean> {
+  const resend = getResendClient();
+  if (!resend) return false;
+  const e = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const titre = p.valide ? "Ton compte AXSO est validé" : "Un document est à renvoyer";
+  const texte = p.valide
+    ? "Ton dossier a été vérifié par l'équipe AXSO. Tu peux maintenant te mettre disponible et recevoir des courses dans tes zones."
+    : `Ton document « ${e(p.document ?? "")} » n'a pas pu être validé${p.motif ? ` : ${e(p.motif)}` : "."} Envoie une nouvelle version depuis ton espace pour que l'équipe AXSO reprenne la vérification.`;
+  return envoyer(resend, {
+    from: "Axso <noreply@axsoafrica.com>",
+    to: p.a,
+    subject: titre,
+    html: `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;color:#111">
+        <h2 style="margin:0 0 12px">${titre}</h2>
+        <p style="margin:0 0 6px">Bonjour ${e(p.nom)},</p>
+        <p style="color:#444;line-height:1.55;margin:0 0 20px">${texte}</p>
+        <p style="text-align:center;margin:24px 0"><a href="${e(p.lien)}" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;border-radius:10px;text-decoration:none;font-weight:bold">${p.valide ? "Ouvrir mon espace" : "Renvoyer le document"}</a></p>
+      </div>
+    `,
+  });
+}
+
 // Candidature d'un transporteur : tout ce qu'il faut pour la traiter, avec un bouton vers la validation.
 export async function envoyerAlerteTransporteur(p: {
   a: string; etape: "inscription" | "dossier"; nom: string; type: string; email: string | null; telephone: string | null; zones: string | null; detail: string | null; lien: string;

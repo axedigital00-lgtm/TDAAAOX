@@ -22,6 +22,9 @@ export function motifsInegibilite(c: Candidat, b: BesoinLivraison = {}): string[
 
 const normaliser = (v: number | null | undefined, min: number, max: number) => (v == null ? 0.5 : max === min ? 1 : 1 - (v - min) / (max - min));
 
+/** Bonus des transporteurs certifiés par AXSO : mis en avant sans passer devant un écart de qualité important. */
+export const BONUS_CERTIFIE = 5;
+
 export type Classe = { candidat: Candidat; note: number; raisons: string[] };
 
 export function classer(candidats: Candidat[], b: BesoinLivraison = {}, poids = POIDS_CLASSEMENT) {
@@ -37,13 +40,14 @@ export function classer(candidats: Candidat[], b: BesoinLivraison = {}, poids = 
     // Nouveau fournisseur : fiabilité prudente, ni avantagé ni présenté comme établi.
     const fiabilite = (c.score.probation ? Math.min(c.score.fiabilite, 70) : c.score.fiabilite) / 100;
     const note = fiabilite * poids.fiabilite + normaliser(c.prix, pMin, pMax) * poids.prix + normaliser(c.etaMinutes, eMin, eMax) * poids.delai + charge * poids.charge + (c.statutLegal === "verifie" ? 1 : 0) * poids.legal;
-    return { candidat: c, note: Math.round(note * 1000) / 10, raisons: expliquer(c, pMin) };
+    return { candidat: c, note: Math.round(note * 1000) / 10 + (c.certifie ? BONUS_CERTIFIE : 0), raisons: expliquer(c, pMin) };
   }).sort((a, b2) => b2.note - a.note || (a.candidat.prix ?? 0) - (b2.candidat.prix ?? 0) || a.candidat.id.localeCompare(b2.candidat.id));
   return { classes, ecartes, categories: categories(classes) };
 }
 
 function expliquer(c: Candidat, prixMin: number) {
   const r: string[] = [];
+  if (c.certifie) r.push("certifié par AXSO");
   if (c.statutLegal === "verifie") r.push("documents légaux vérifiés");
   if (c.score.probation) r.push(`nouveau fournisseur (${c.score.volume} livraison${c.score.volume > 1 ? "s" : ""})`);
   else if (c.score.tauxReussite != null) r.push(`${Math.round(c.score.tauxReussite * 100)} % de livraisons réussies sur ${c.score.volume}`);

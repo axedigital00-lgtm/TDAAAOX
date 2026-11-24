@@ -149,6 +149,7 @@ export async function recalculerStatutLegal(fournisseurId: string, db: Tx | type
 export async function deciderDocument(adminId: string, id: string, statut: "verifie" | "rejete" | "suspendu", motif?: string | null, expireLe?: string | null) {
   const doc = await prisma.documentVerification.findUnique({ where: { id }, select: { id: true, statut: true, fournisseurId: true, type: true, expireLe: true } });
   if (!doc) throw new ErreurLogistique("Document introuvable", 404);
+  const avant = await prisma.fournisseurLogistique.findUnique({ where: { id: doc.fournisseurId }, select: { statutLegal: true } });
   if (!transitionPermise(doc.statut as StatutVerification, statut)) throw new ErreurLogistique(`Transition interdite : ${doc.statut} vers ${statut}`, 409);
   if (statut !== "verifie" && !motif?.trim()) throw new ErreurLogistique("Motif requis");
   const fin = expireLe ? new Date(expireLe) : doc.expireLe;
@@ -160,7 +161,22 @@ export async function deciderDocument(adminId: string, id: string, statut: "veri
     await journal(tx, { type: "admin", id: adminId }, "document.decision", "DocumentVerification", id, { statut: doc.statut }, { statut, motif, legal });
     await emettre(tx, "verification.changed", { fournisseurId: doc.fournisseurId, statut: legal });
   });
+  // Le transporteur est prévenu : dossier validé, ou document refusé avec le motif.
+  const apres = await prisma.fournisseurLogistique.findUnique({ where: { id: doc.fournisseurId }, select: { statutLegal: true } });
+  const decision = statut === "rejete" ? { type: "rejete" as const, document: doc.type, motif: motif?.trim() ?? null } : apres?.statutLegal === "verifie" && avant?.statutLegal !== "verifie" ? { type: "valide" as const } : null;
+  if (decision) await import("./alertes").then((a) => a.prevenirTransporteurDecision(doc.fournisseurId, decision)).catch((e) => console.error("[transporteur] e-mail décision", e?.message));
   await recalculerScore(doc.fournisseurId, "verification");
+}
+
+export async function certifierFournisseur(adminId: string, id: string, certifie: boolean, motif?: string | null) {
+  if (certifie && !motif?.trim()) throw new ErreurLogistique("Indiquez pourquoi ce transporteur est certifié");
+  const f = await prisma.fournisseurLogistique.findUnique({ where: { id }, select: { certifie: true, statutLegal: true, suspendu: true } });
+  if (!f) throw new ErreurLogistique("Transporteur introuvable", 404);
+  if (certifie && (f.statutLegal !== "verifie" || f.suspendu)) throw new ErreurLogistique("Seul un transporteur vérifié et actif peut être certifié", 409);
+  await prisma.$transaction(async (tx) => {
+    await tx.fournisseurLogistique.update({ where: { id }, data: certifie ? { certifie: true, certifieLe: new Date(), certifiePar: adminId, motifCertification: motif!.trim().slice(0, 300) } : { certifie: false, certifieLe: null, certifiePar: null, motifCertification: motif?.trim().slice(0, 300) || null } });
+    await journal(tx, { type: "admin", id: adminId }, certifie ? "fournisseur.certifie" : "fournisseur.decertifie", "FournisseurLogistique", id, { certifie: f.certifie }, { certifie, motif });
+  });
 }
 
 export async function suspendreFournisseur(adminId: string, id: string, suspendu: boolean, motif?: string | null) {
@@ -271,7 +287,7 @@ export async function candidatsPour(course: CourseDb) {
       id: f.id, type: f.type as Candidat["type"], nom: f.nom, societeParenteId: f.societeParenteId, statutLegal: f.statutLegal as StatutVerification,
       documentsObligatoiresValides: obligatoires.every((t) => docs.some((d) => d.type === t && documentValide(d, maintenant))), suspendu: f.suspendu,
       couvreZone: true, disponible: f.disponible, capaciteRestante: Math.max(0, f.capaciteMax - charge), chargeActive: charge, vehicules: f.vehicules as Vehicule[], poidsMaxKg: f.poidsMaxKg,
-      score: stocke?.badges ? stocke : scoreVide(), prix: q?.eligible ? q.prixFournisseur : null, etaMinutes: null, distanceKm: course.distanceKm,
+      score: stocke?.badges ? stocke : scoreVide(), prix: q?.eligible ? q.prixFournisseur : null, etaMinutes: null, distanceKm: course.distanceKm, certifie: f.certifie,
     };
   });
   return { candidats, devis };

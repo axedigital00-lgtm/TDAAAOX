@@ -24,7 +24,8 @@ interface Builder {
 interface Webhook { id: string; url: string; evenements: string[]; actif: boolean; echecs: number }
 interface Service { type: string; nom?: string; compte?: string | null; statut: string; expireLe?: string | null }
 
-const FOURNISSEURS = [["claude", "Claude"], ["chatgpt", "ChatGPT"], ["gemini", "Gemini"]] as const;
+// Logos de marque (public/brand/ia) : seulement pour indiquer la compatibilité. ChatGPT : fichier officiel OpenAI à fournir.
+const FOURNISSEURS = [["claude", "Claude", "/brand/ia/claude.svg"], ["chatgpt", "ChatGPT", null], ["gemini", "Gemini", "/brand/ia/googlegemini.svg"]] as const;
 
 const MODES: Record<string, { label: string; aide: string }> = {
   assistant: { label: "Assistant", aide: "Il consulte et prépare ; chaque modification attend ton accord." },
@@ -124,11 +125,11 @@ export default function ControleIAPage() {
       <div className="ax-card p-4 sm:p-6 space-y-4">
         <h2 className="font-bold text-gray-900">{tr("Relier un assistant")}</h2>
         <div className="grid grid-cols-3 gap-2">
-          {FOURNISSEURS.map(([id, nom]) => {
+          {FOURNISSEURS.map(([id, nom, logo]) => {
             const relie = connexions.some((c) => c.fournisseur === id);
             return (
               <div key={id} className="border border-gray-100 rounded-xl p-2.5 sm:p-3 min-w-0">
-                <p className="font-semibold text-gray-900 text-sm truncate">{nom}</p>
+                <div className="flex items-center gap-2 min-w-0">{logo ? <img src={logo} alt="" width={22} height={22} className="shrink-0" /> : <span aria-hidden className="shrink-0 w-[22px] h-[22px] rounded-md bg-gray-900 text-white text-[11px] font-bold grid place-items-center">AI</span>}<p className="font-semibold text-gray-900 text-sm truncate">{nom}</p></div>
                 <p className="text-xs" style={{ color: relie ? "#10b981" : "#9ca3af" }}>{relie ? tr("Relié") : tr("Non relié")}</p>
               </div>
             );

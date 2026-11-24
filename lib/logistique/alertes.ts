@@ -1,6 +1,6 @@
 // Prévient l'équipe AXSO d'une candidature de transporteur, par e-mail et sur les appareils admin.
 // Jamais bloquant : une alerte en échec n'empêche ni l'inscription ni le dépôt d'un document.
-import { envoyerAlerteTransporteur } from "@/lib/email";
+import { envoyerAlerteTransporteur, envoyerDecisionTransporteur } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { pousserAdmins } from "@/lib/push";
 import { EMAIL_RETRAITS } from "@/lib/wallet";
@@ -32,4 +32,15 @@ export async function signalerDossierAValider(fournisseurId: string) {
     a: EMAIL_RETRAITS, etape: "dossier", nom: f.nom, type: nomType(f.type), email: f.email, telephone: f.telephone, zones,
     detail: f.documents.map((d) => DOCUMENTS[d.type] ?? d.type).join(", "), lien: `${SITE}${lien}`,
   });
+}
+
+/** E-mail au transporteur : compte validé, ou document refusé avec le motif. */
+export async function prevenirTransporteurDecision(fournisseurId: string, d: { type: "valide" } | { type: "rejete"; document: string; motif: string | null }) {
+  const f = await prisma.fournisseurLogistique.findUnique({ where: { id: fournisseurId }, select: { nom: true, email: true, proprietaireId: true } });
+  if (!f) return;
+  const proprio = await prisma.user.findUnique({ where: { id: f.proprietaireId }, select: { email: true } });
+  const a = f.email || proprio?.email;
+  if (!a) return;
+  const ok = await envoyerDecisionTransporteur(d.type === "valide" ? { a, nom: f.nom, valide: true, lien: `${SITE}/transporteur` } : { a, nom: f.nom, valide: false, document: DOCUMENTS[d.document] ?? d.document, motif: d.motif, lien: `${SITE}/transporteur` });
+  if (!ok) console.error("[transporteur] e-mail de décision non envoyé", fournisseurId);
 }

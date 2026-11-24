@@ -146,3 +146,10 @@ test("jumeau : la tension d'une zone vient des courses et de la capacité réell
   assert.equal(z.find((x) => x.ville === "Kribi")?.niveau, "sans_capacite");
   assert.equal(z.find((x) => x.ville === "Yaoundé")?.niveau, "calme");
 });
+
+test("certification : mise en avant mesurée", () => {
+  const base = (id: string, fiabilite: number, certifie: boolean) => ({ id, type: "livreur" as const, nom: id, statutLegal: "verifie" as const, documentsObligatoiresValides: true, suspendu: false, couvreZone: true, disponible: true, capaciteRestante: 2, chargeActive: 0, vehicules: ["moto" as const], score: { legal: 100, operationnel: 80, fiabilite, satisfaction: 80, global: 80, niveau: "verifie" as const, confiance: "moyenne" as const, probation: false, volume: 40, tauxReussite: .9, tauxATemps: .9, badges: [] }, prix: 2000, certifie });
+  assert.equal(classer([base("a", 80, false), base("b", 80, true)]).classes[0].candidat.id, "b");
+  assert.ok(classer([base("b", 80, true)]).classes[0].raisons.includes("certifié par AXSO"));
+  assert.equal(classer([base("a", 100, false), base("b", 50, true)]).classes[0].candidat.id, "a");
+});

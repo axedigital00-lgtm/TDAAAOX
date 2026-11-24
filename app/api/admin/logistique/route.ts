@@ -4,12 +4,13 @@ import { z } from "zod";
 import { getAdminSessionPour } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { reponseErreur, refus } from "@/lib/logistique/api";
-import { deciderDocument, marquerLotPaye, preparerLotReglement, rendreCreditsCourse, resoudreIncident, suspendreFournisseur } from "@/lib/logistique/service";
+import { certifierFournisseur, deciderDocument, marquerLotPaye, preparerLotReglement, rendreCreditsCourse, resoudreIncident, suspendreFournisseur } from "@/lib/logistique/service";
 import { lancerSimulation, tourDeControle } from "@/lib/logistique/vues";
 import { changerEtatModele } from "@/lib/logistique/pilotage";
 
 const action = z.discriminatedUnion("action", [
   z.object({ action: z.literal("document"), id: z.string(), statut: z.enum(["verifie", "rejete", "suspendu"]), motif: z.string().max(300).nullish(), expireLe: z.string().nullish() }),
+  z.object({ action: z.literal("certifier"), id: z.string(), certifie: z.boolean(), motif: z.string().max(300).nullish() }),
   z.object({ action: z.literal("suspendre"), id: z.string(), suspendu: z.boolean(), motif: z.string().max(300).nullish() }),
   z.object({ action: z.literal("incident"), id: z.string(), statut: z.enum(["resolu", "rejete"]), resolution: z.string().min(3).max(1000), responsable: z.enum(["fournisseur", "marchand", "client", "externe", "inconnu"]).nullish(), issue: z.enum(["livree", "echec", "retournee"]).nullish() }),
   z.object({ action: z.literal("lot"), fournisseurId: z.string() }),
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
   try {
     if (d.action === "document") await deciderDocument(a.userId, d.id, d.statut, d.motif, d.expireLe);
     else if (d.action === "suspendre") await suspendreFournisseur(a.userId, d.id, d.suspendu, d.motif);
+    else if (d.action === "certifier") await certifierFournisseur(a.userId, d.id, d.certifie, d.motif);
     else if (d.action === "incident") await resoudreIncident(a.userId, d.id, d);
     else if (d.action === "lot") return NextResponse.json({ lot: await preparerLotReglement(a.userId, d.fournisseurId) });
     else if (d.action === "payer") await marquerLotPaye(a.userId, d.id, d.reference);

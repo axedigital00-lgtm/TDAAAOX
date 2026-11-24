@@ -60,7 +60,7 @@ export function ReseauMarchand() {
   const kpi: [string, string][] = [["En cours", String(k.actives)], ["Livrées", String(k.livrees)], ["Échecs", String(k.echecs)], ["Taux de réussite", k.tauxReussite == null ? "—" : `${Math.round(k.tauxReussite * 100)} %`], ["Délai moyen", k.delaiMoyenMin == null ? "—" : `${k.delaiMoyenMin} min`], ["Dépenses", formatMontant(k.depenses, dev)]];
 
   return <Page>
-    <PageHeader icon="truck" title={t("Réseau de livraison")} backHref="/dashboard/logistique" />
+    <PageHeader icon="truck" title={t("Réseau de livraison")} backHref="/dashboard/logistique" secondaryActions={[{ content: t("Voir les transporteurs"), href: "/dashboard/logistique/reseau/transporteurs" }]} />
     <div className="axd-stack">
       <div style={grille(150)}>{kpi.map(([l, v]) => <Card key={l}><p className="axd-muted" style={{ margin: 0, fontSize: 12 }}>{t(l)}</p><p style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 650 }}>{v}</p></Card>)}</div>
 
@@ -105,8 +105,8 @@ export function ReseauMarchand() {
             {options && (options.classes.length === 0 ? <Banner tone="warning">{t("Aucun transporteur éligible dans cette zone pour le moment.")}</Banner> : <div style={{ display: "grid", gap: 10 }}>{options.classes.slice(0, 4).map((o: any) => {
               const cats = Object.entries(options.categories).filter(([, id]) => id === o.id).map(([c]) => CATEGORIES[c]);
               return <div key={o.id} style={{ border: "1px solid var(--color-border, #e3e3e3)", borderRadius: 12, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><b>{o.nom}</b><b>{formatMontant(o.prix, "XAF")}</b></div>
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", margin: "6px 0" }}>{cats.map((c) => <Badge key={c} tone="success">{t(c)}</Badge>)}{o.probation ? <Badge>{t("Nouveau")}</Badge> : o.niveau && <Badge tone="info">{NIVEAUX[o.niveau]}</Badge>}{o.badges.slice(0, 2).map((b: string) => <Badge key={b}>{t(BADGES[b])}</Badge>)}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><a href={`/dashboard/logistique/reseau/transporteurs/${o.id}`} style={{ fontWeight: 650, color: "inherit" }}>{o.nom}</a><b>{formatMontant(o.prix, "XAF")}</b></div>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", margin: "6px 0" }}>{o.certifie && <Badge tone="success">{t("Certifié AXSO")}</Badge>}{cats.map((c) => <Badge key={c} tone="success">{t(c)}</Badge>)}{o.probation ? <Badge>{t("Nouveau")}</Badge> : o.niveau && <Badge tone="info">{NIVEAUX[o.niveau]}</Badge>}{o.badges.slice(0, 2).map((b: string) => <Badge key={b}>{t(BADGES[b])}</Badge>)}</div>
                 <p className="axd-muted" style={{ margin: "0 0 8px", fontSize: 12.5 }}>{o.raisons.join(" · ")}</p>
                 {o.lignes.length > 0 && <p className="axd-muted" style={{ margin: "0 0 8px", fontSize: 12 }}>{o.lignes.map((l: any) => `${t(l.libelle)} ${l.montant.toLocaleString("fr-FR")}`).join(" + ")}</p>}
                 <Button size="sm" variant="primary" loading={envoi} onClick={() => agir(() => api(`/api/logistique/courses/${course.id}`, "POST", { action: "assigner", fournisseurId: o.id, cle: crypto.randomUUID() }), "Transporteur sollicité")}>{t("Choisir")}</Button>

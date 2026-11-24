@@ -23,7 +23,7 @@ export default async function TransporteursPage({ searchParams }: { searchParams
       </form>
       {liste.length === 0 ? <div className="axm-card"><h2 className="axm-h4">{t("Le réseau s'ouvre.")}</h2><p className="axm-muted" style={{ marginTop: 8 }}>{t("Aucun transporteur n'est encore listé ici. Soyez parmi les premiers à rejoindre AXSO.")}</p></div> : <div className="axx-index">
         {liste.map((f) => <article key={f.id} className="axx-lien" style={{ minHeight: 230 }}>
-          <small>{t(f.type === "societe" ? "Société de livraison" : "Livreur indépendant")}{f.verifie ? ` · ${t("Vérifié")}` : ""}</small>
+          <small>{t(f.type === "societe" ? "Société de livraison" : "Livreur indépendant")}{f.verifie ? ` · ${t("Vérifié")}` : ""}{f.certifie ? ` · ${t("Certifié AXSO")}` : ""}</small>
           <b>{f.nom}</b>
           {f.description && <span>{f.description}</span>}
           <span>{f.probation ? t("Nouveau sur le réseau") : `${f.niveau ? NIVEAUX[f.niveau] : ""} · ${f.global}/100 · ${f.volume} ${t("livraisons")}`}</span>

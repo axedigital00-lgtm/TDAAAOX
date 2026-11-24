@@ -114,6 +114,11 @@ export async function changerActivationLivreur(id: string, actif: boolean) {
   const livreur = await prisma.livreur.findUnique({ where: { id }, select: { actif: true, valideAt: true } });
   if (!livreur) throw new ErreurAdmin("Livreur introuvable", 404);
   await prisma.livreur.update({ where: { id }, data: { actif, ...((actif || livreur.actif) && !livreur.valideAt ? { valideAt: new Date() } : {}) } });
+  // Première validation : le livreur est prévenu par e-mail. Jamais bloquant.
+  if (actif && !livreur.valideAt) {
+    const l = await prisma.livreur.findUnique({ where: { id }, select: { nom: true, user: { select: { email: true } } } });
+    if (l?.user?.email) await import("./email").then((m) => m.envoyerDecisionTransporteur({ a: l.user!.email!, nom: l.nom, valide: true, lien: "https://www.axsoafrica.com/livreur" })).catch((e) => console.error("[livreur] e-mail validation", e?.message));
+  }
   return { actif };
 }
 

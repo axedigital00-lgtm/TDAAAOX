@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!vue) return refus(404, "Course introuvable");
   if (a.type !== "fournisseur" && req.nextUrl.searchParams.get("options") === "1" && vue.statut === "attente_fournisseur") {
     const r = await recommandations(id);
-    return NextResponse.json({ course: vue, options: { classes: r.classes.map((x) => ({ id: x.candidat.id, nom: x.candidat.nom, type: x.candidat.type, verifie: x.candidat.statutLegal === "verifie", niveau: x.candidat.score.niveau, probation: x.candidat.score.probation, badges: x.candidat.score.badges, score: x.candidat.score.global, note: x.note, prix: x.candidat.prix, raisons: x.raisons, lignes: x.devis?.lignes ?? [], credit: x.devis?.creditApplique ?? 0 })), categories: r.categories, ecartes: r.ecartes.length } });
+    return NextResponse.json({ course: vue, options: { classes: r.classes.map((x) => ({ id: x.candidat.id, nom: x.candidat.nom, type: x.candidat.type, verifie: x.candidat.statutLegal === "verifie", certifie: !!x.candidat.certifie, niveau: x.candidat.score.niveau, probation: x.candidat.score.probation, badges: x.candidat.score.badges, score: x.candidat.score.global, note: x.note, prix: x.candidat.prix, raisons: x.raisons, lignes: x.devis?.lignes ?? [], credit: x.devis?.creditApplique ?? 0 })), categories: r.categories, ecartes: r.ecartes.length } });
   }
   return NextResponse.json({ course: vue });
 }
