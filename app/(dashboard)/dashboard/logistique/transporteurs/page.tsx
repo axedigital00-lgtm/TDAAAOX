@@ -1,100 +1,57 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Truck, ToggleRight, KeyRound, Settings } from "lucide-react";
-import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
-
-import { useDevise } from "@/components/dashboard/DeviseProvider";
+// Partenaires de livraison : uniquement les agences du réseau AXSO, vérifiées et validées par AXSO.
+// Les certifiées sont présentées en premier. Les anciens réglages de transporteurs génériques restent en base.
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useT } from "@/components/I18nProvider";
 import { Page, PageHeader } from "@/components/dashboard/design-system/components/PageHeader";
-import { Field, Toggle } from "@/components/dashboard/design-system/components/primitives";
+import { Card, EmptyState } from "@/components/dashboard/design-system/components/primitives";
 import { Badge } from "@/components/dashboard/design-system/components/Badge";
 import { Button } from "@/components/dashboard/design-system/components/Button";
-const TRANSPORTEURS_TUTORIAL_STEPS = [
-  { Icon: Truck,        titre: "Tes partenaires de livraison", description: "Chaque transporteur est listé avec ses zones de couverture et son logo." },
-  { Icon: ToggleRight,  titre: "Active un transporteur",       description: "Bascule l'interrupteur pour le rendre disponible lors de la création d'une livraison." },
-  { Icon: KeyRound,     titre: "Configure la clé API",         description: "Ajoute la clé API du transporteur pour synchroniser le suivi des colis automatiquement." },
-  { Icon: Settings,     titre: "Fixe un tarif",                description: "Renseigne un tarif fixe optionnel pour standardiser le coût de livraison de ce partenaire." },
-];
-
-type Transporteur = {
-  code: string; nom: string; zones: string[]; logo: string;
-  actif: boolean; apiKey: string; tarif: number | null;
-};
+import { NIVEAUX, VEHICULES } from "@/lib/logistique/libelles";
 
 export default function TransporteursPage() {
   const tr = useT();
-  const { devise } = useDevise();
-  const [liste, setListe] = useState<Transporteur[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [tarif, setTarif] = useState("");
-  const [saving, setSaving] = useState(false);
-
+  const [liste, setListe] = useState<any[] | null>(null);
+  const [ville, setVille] = useState("");
   useEffect(() => {
-    fetch("/api/transporteurs").then(r => r.json()).then(d => { setListe(d.transporteurs ?? []); setLoading(false); });
+    fetch("/api/logistique/annuaire").then((r) => r.json()).then((d) => setListe((d.fournisseurs ?? []).filter((f: any) => f.type === "societe" && f.verifie))).catch(() => setListe([]));
   }, []);
-
-  async function toggle(code: string, current: boolean) {
-    setSaving(true);
-    await fetch("/api/transporteurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, actif: !current }) });
-    setListe(l => l.map(t => t.code === code ? { ...t, actif: !current } : t));
-    setSaving(false);
-  }
-
-  async function saveConfig(code: string) {
-    setSaving(true);
-    await fetch("/api/transporteurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, apiKey, tarif: tarif ? parseFloat(tarif) : null }) });
-    setEditing(null); setApiKey(""); setTarif(""); setSaving(false);
-    const d = await fetch("/api/transporteurs").then(r => r.json());
-    setListe(d.transporteurs ?? []);
-  }
-
-  const entete = (
-    <PageHeader icon="truck" backHref="/dashboard/logistique"
-      title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{tr("Transporteurs")}<BoutonRevoirTutoriel moduleKey="transporteurs" /></span>} />
-  );
-  if (loading) return <Page width="narrow">{entete}<div className="axd-card"><p className="axd-fichiers__etat">{tr("Chargement…")}</p></div></Page>;
+  const agences = useMemo(() => {
+    const v = ville.trim().toLowerCase();
+    return (liste ?? []).filter((f) => !v || f.zones.some((z: string) => z.toLowerCase().includes(v))).sort((a, b) => Number(b.certifie) - Number(a.certifie));
+  }, [liste, ville]);
 
   return (
     <Page width="narrow">
-      <ModuleTutorial moduleKey="transporteurs" titre={tr("Transporteurs")} sousTitre={tr("Partenaires de livraison")} steps={TRANSPORTEURS_TUTORIAL_STEPS} />
-      {entete}
-      <div className="axd-card" style={{ overflow: "hidden" }}>
-        <div className="axd-card__head" style={{ padding: "var(--space-300) var(--space-400)" }}>
-          <div>
-            <h2 className="axd-card__title">{tr("Partenaires de livraison")}</h2>
-            <p className="axd-muted" style={{ margin: "2px 0 0", fontSize: 12 }}>{tr("Les transporteurs actifs sont proposés à la création d’une livraison.")}</p>
-          </div>
-        </div>
-        {liste.map(t => (
-          <div key={t.code} className="axd-livreur">
-            <div className="axd-livreur__ligne">
-              <span className="axd-thumb" aria-hidden style={{ fontSize: 18 }}>{t.logo}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <b style={{ color: "var(--color-text-strong)" }}>{tr(t.nom)}</b>
-                  {t.actif && <Badge tone="success">{tr("Actif")}</Badge>}
+      <PageHeader icon="truck" backHref="/dashboard/logistique" title={tr("Partenaires de livraison")}
+        primaryAction={{ content: tr("Demander une livraison"), href: "/dashboard/logistique/reseau" }} />
+      <div className="axd-stack">
+        <Card>
+          <p style={{ margin: "0 0 10px", fontSize: 14 }}>{tr("Seules les agences de livraison vérifiées par AXSO apparaissent ici. Celles marquées « Certifiée AXSO » ont été sélectionnées par notre équipe pour leur fiabilité.")}</p>
+          <input className="axd-input" value={ville} onChange={(e) => setVille(e.target.value)} placeholder={tr("Filtrer par ville")} aria-label={tr("Ville")} />
+        </Card>
+        {liste === null ? <Card><p className="axd-muted" style={{ margin: 0 }}>{tr("Chargement…")}</p></Card>
+          : !agences.length ? <Card><EmptyState heading={tr("Aucune agence validée pour l'instant")}>{tr("Les agences de livraison vérifiées par AXSO apparaîtront ici. Vous pouvez déjà demander une livraison : AXSO propose les livreurs disponibles de votre zone.")}</EmptyState></Card>
+          : <div className="axd-card" style={{ overflow: "hidden" }}>{agences.map((f) => (
+            <div key={f.id} className="axd-livreur">
+              <div className="axd-livreur__ligne">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <b style={{ color: "var(--color-text-strong)" }}>{f.nom}</b>
+                    {f.certifie && <Badge tone="success">{tr("Certifiée AXSO")}</Badge>}
+                    {!f.probation && f.niveau && <Badge tone="info">{NIVEAUX[f.niveau]}</Badge>}
+                    {f.probation && <Badge>{tr("Nouvelle")}</Badge>}
+                    <Badge tone={f.disponible ? "success" : "neutral"}>{tr(f.disponible ? "Disponible" : "Indisponible")}</Badge>
+                  </div>
+                  <div className="axd-muted" style={{ fontSize: 12 }}>
+                    {f.zones.slice(0, 4).join(", ")}{f.vehicules.length ? ` · ${f.vehicules.map((v: string) => tr(VEHICULES[v] ?? v)).join(", ")}` : ""}{!f.probation ? ` · ${tr("Score")} ${f.global}/100` : ""}
+                  </div>
                 </div>
-                <div className="axd-muted" style={{ fontSize: 12 }}>
-                  {t.zones.join(", ")}{t.tarif ? ` · ${tr("Tarif fixe :")} ${t.tarif.toLocaleString(tr.loc)} ${devise === "XAF" ? "FCFA" : devise}` : ""}
-                </div>
+                <Link href={`/dashboard/logistique/reseau/transporteurs/${f.id}`}><Button size="sm">{tr("Voir la fiche")}</Button></Link>
               </div>
-              <Button size="sm" variant="plain" onClick={() => { setEditing(editing === t.code ? null : t.code); setApiKey(""); setTarif(t.tarif?.toString() ?? ""); }}>{tr("Configurer")}</Button>
-              <Toggle checked={t.actif} onChange={() => toggle(t.code, t.actif)} disabled={saving} label={tr("Activer {0}", t.nom)} />
             </div>
-            {editing === t.code && (
-              <div className="axd-grid axd-g2" style={{ gap: "var(--space-300)", alignItems: "end" }}>
-                <Field label={tr("Clé API")} help={tr("Laisser vide pour ne pas changer")}>{(p) => <input {...p} className="axd-input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} />}</Field>
-                <Field label={tr("Tarif fixe {0} (optionnel)", devise === "XAF" ? "FCFA" : devise)}>{(p) => <input {...p} className="axd-input" type="number" value={tarif} onChange={e => setTarif(e.target.value)} />}</Field>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Button size="sm" variant="primary" onClick={() => saveConfig(t.code)} loading={saving}>{tr("Enregistrer")}</Button>
-                  <Button size="sm" onClick={() => setEditing(null)}>{tr("Annuler")}</Button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+          ))}</div>}
       </div>
     </Page>
   );

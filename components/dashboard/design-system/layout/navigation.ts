@@ -46,7 +46,7 @@ export const NAV: NavSection[] = [
       { label: "Livraisons", href: "/dashboard/logistique", moduleKey: "commandes" },
       { label: "Réseau de livraison", href: "/dashboard/logistique/reseau", moduleKey: "commandes" },
       { label: "Livreurs", href: "/dashboard/livreurs", moduleKey: "commandes", match: ["/dashboard/logistique/livreurs"] },
-      { label: "Transporteurs", href: "/dashboard/transporteurs", moduleKey: "commandes", match: ["/dashboard/logistique/transporteurs"] },
+      { label: "Partenaires de livraison", href: "/dashboard/transporteurs", moduleKey: "commandes", match: ["/dashboard/logistique/transporteurs"] },
     ],
   },
   {
