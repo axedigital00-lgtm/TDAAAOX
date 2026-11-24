@@ -287,8 +287,6 @@ export function BoutiqueBuilder(p: Props) {
               <Icon size={20} />
             </button>
           ))}
-          <span className="w-px h-6 bg-[#E5E5E5] mx-1" />
-          <RechercheConstructeur tree={tree} reglages={p.reglages} onChoisir={ouvrirResultat} />
         </div>
 
         <div className="flex items-center gap-3 text-[14px] min-w-0">
@@ -359,6 +357,9 @@ export function BoutiqueBuilder(p: Props) {
       <div className="flex-1 flex min-h-0">
         {/* ── Panneau de gauche ── */}
         <aside className="relative w-[320px] flex-shrink-0 flex flex-col bg-white border-r border-[#E5E5E5]">
+          <div className="px-3 py-3 border-b border-[#EEEEEE]">
+            <RechercheConstructeur tree={tree} reglages={p.reglages} onChoisir={ouvrirResultat} />
+          </div>
           {onglet === "sections" && !avecSections && (
             p.panneauxPages[page]
               ? <div className="flex-1 flex flex-col min-h-0">

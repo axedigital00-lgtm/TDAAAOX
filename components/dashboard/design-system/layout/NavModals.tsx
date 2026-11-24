@@ -15,7 +15,7 @@ import { MORE_APPS, autorise, type NavSection } from "./navigation";
 const CANAUX: { icon: IconName; logos?: Plateforme[]; label: string; description: string; href: string; installe: boolean }[] = [
   { icon: "store", label: "Boutique en ligne", description: "Votre site de vente, thèmes et constructeur.", href: "/dashboard/boutique", installe: true },
   { icon: "whatsapp", logos: ["whatsapp"], label: "WhatsApp Business", description: "Catalogue, commandes et messages WhatsApp.", href: "/dashboard/whatsapp", installe: true },
-  { icon: "sparkle", label: "Agentique", description: "Vos produits dans les assistants IA.", href: "/dashboard/controle-ia", installe: true },
+  { icon: "sparkle", label: "Contrôle IA", description: "Vos produits dans les assistants IA.", href: "/dashboard/controle-ia", installe: true },
   { icon: "monitor", label: "Point de vente", description: "Encaissez en boutique physique.", href: "/dashboard/pos/caisse", installe: true },
   { icon: "meta", logos: ["facebook", "instagram", "tiktok"], label: "Facebook, Instagram et TikTok", description: "Flux produits pour vos catalogues publicitaires.", href: "/dashboard/feeds", installe: false },
   { icon: "link", label: "Autres connecteurs", description: "Marketplaces et outils externes.", href: "/dashboard/connecteurs", installe: false },

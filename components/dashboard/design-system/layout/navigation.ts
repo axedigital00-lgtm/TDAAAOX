@@ -97,7 +97,7 @@ export const CHANNELS: NavSection[] = [
       { label: "Flux produits", href: "/dashboard/feeds", moduleKey: "boutique" },
     ],
   },
-  { id: "agentic", icon: "sparkle", label: "Agentique", href: "/dashboard/controle-ia", requiresPalier: PRO, messageVerrou: MSG_PRO },
+  { id: "agentic", icon: "sparkle", label: "Contrôle IA", href: "/dashboard/controle-ia", requiresPalier: PRO, messageVerrou: MSG_PRO },
   { id: "whatsapp", icon: "whatsapp", label: "WhatsApp Business", href: "/dashboard/whatsapp", moduleKey: "clients" },
 ];
 

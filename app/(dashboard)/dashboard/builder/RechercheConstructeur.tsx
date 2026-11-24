@@ -102,7 +102,7 @@ export function RechercheConstructeur({ tree, reglages, onChoisir }: {
   };
 
   return (
-    <div className="relative flex-1 min-w-0 max-w-[260px]">
+    <div className="relative w-full">
       <label className="flex items-center gap-2 h-10 px-3 rounded-lg bg-[#F3F3F3] border border-transparent focus-within:bg-white focus-within:border-[#F5A623] focus-within:ring-2 focus-within:ring-[#F5A623]/20 transition-colors">
         <Search size={18} className="text-[#888888] flex-shrink-0" />
         <input ref={champ} value={q} placeholder={tr("Rechercher")} aria-label={tr("Rechercher dans la boutique")}
