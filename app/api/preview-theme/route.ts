@@ -5,15 +5,12 @@
 // - devise/fmt correcte
 // - &digital=1 : adapté à une boutique digitale (lib/liens-design.ts)
 // - Vue "home" forcée, navigations désactivées pour le mode aperçu
-import { readFileSync } from "fs";
-import { join } from "path";
+import { lireTemplate } from "@/lib/templates-design";
 import { NextResponse } from "next/server";
 import { MANIFESTE_LIBRAIRIE } from "@/lib/axso-design-manifest";
 import { remplacerTokensCarte } from "@/lib/theme-import-clone";
 import { formatMontant } from "@/lib/utils";
 import { adapterDocument } from "@/lib/liens-design";
-
-const TEMPLATES_DIR = join(process.cwd(), "Templates");
 
 // Même approche pour `function fmt(n){…}` (peut être multi-lignes).
 function replaceFmt(html: string, newFmt: string): string {
@@ -41,12 +38,9 @@ export async function GET(request: Request) {
     return new NextResponse("Fichier invalide", { status: 400 });
   }
 
-  let html: string;
-  try {
-    html = readFileSync(join(TEMPLATES_DIR, fichier), "utf-8");
-  } catch {
-    return new NextResponse("Template introuvable", { status: 404 });
-  }
+  const lu = lireTemplate(fichier);
+  if (lu == null) return new NextResponse("Template introuvable", { status: 404 });
+  let html: string = lu;
 
   // Vrais produits de la boutique (voir components/dashboard/ApercuDesign.tsx::parametresApercu)
   let produits: { id?: string; nom: string; prix: number; image?: string }[] = [];

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "check:cloudflare": "vinext check",
-    "build:cloudflare": "prisma generate && vite build",
+    "build:cloudflare": "prisma generate && node scripts/generer-templates.mjs && vite build",
     "preview:cloudflare": "vite preview",
     "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy",
     "dev": "next dev",

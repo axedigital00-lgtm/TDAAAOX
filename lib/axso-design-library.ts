@@ -6,8 +6,7 @@
 // (données pures, importable côté client) vit dans lib/axso-design-manifest.ts
 // — CE fichier lit `fs` (Templates/*.html) et écrit en base (prisma), donc
 // server-only : ne jamais l'importer depuis un composant "use client".
-import { readFileSync } from "fs";
-import path from "path";
+import { lireTemplate } from "./templates-design";
 import { prisma } from "./prisma";
 import { resolveThemeConfig, type ThemeConfig } from "./theme-config";
 import { prixClient } from "./pricing";
@@ -71,7 +70,8 @@ export async function provisionerThemeDepuisLibrairie(params: {
   const entree = fichier
     ? MANIFESTE_LIBRAIRIE.find((e) => e.fichier === fichier) ?? selectionnerGabaritLibrairie(categorie)
     : selectionnerGabaritLibrairie(categorie);
-  const htmlBrut = readFileSync(path.join(process.cwd(), "Templates", entree.fichier), "utf-8");
+  const htmlBrut = lireTemplate(entree.fichier);
+  if (htmlBrut == null) throw new Error(`Bibliothèque AXSO Design : modèle ${entree.fichier} introuvable.`);
   const vues = extraireVuesLibrairie({ htmlBrut, slug });
   if (!vues) throw new Error(`Bibliothèque AXSO Design : ${entree.fichier} ne suit pas la convention à 6 vues attendue.`);
 
