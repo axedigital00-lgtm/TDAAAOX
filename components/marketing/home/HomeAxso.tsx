@@ -23,11 +23,6 @@ import { Reveal } from "./Reveal";
 const PARTENAIRES: { nom: string; logo: string; large?: boolean; texte?: boolean; sombre?: boolean }[] = [
   { nom: "Orange Money", logo: "orange-money.png", large: true, sombre: true },
   { nom: "MTN MoMo", logo: "mtn-momo.png", large: true, sombre: true },
-  { nom: "WhatsApp", logo: "whatsapp.svg", texte: true },
-  { nom: "Facebook", logo: "facebook.svg", texte: true },
-  { nom: "Instagram", logo: "instagram.svg", texte: true },
-  { nom: "TikTok", logo: "tiktok.svg", texte: true },
-  { nom: "Google", logo: "google.png" },
 ];
 
 const CANAUX = ["Boutique en ligne", "WhatsApp", "Caisse en magasin", "Mobile Money", "Paiement à la livraison", "Livreurs", "Stock unifié", "Vente en gros", "Multi-devises", "Stella", "Produits numériques", "Domaines"];
