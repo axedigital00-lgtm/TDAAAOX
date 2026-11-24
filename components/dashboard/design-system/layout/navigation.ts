@@ -98,6 +98,7 @@ export const CHANNELS: NavSection[] = [
     ],
   },
   { id: "agentic", icon: "sparkle", label: "Contrôle IA", href: "/dashboard/controle-ia", requiresPalier: PRO, messageVerrou: MSG_PRO },
+  { id: "coins", icon: "sparkle", label: "Coins IA", href: "/dashboard/coins" },
   { id: "whatsapp", icon: "whatsapp", label: "WhatsApp Business", href: "/dashboard/whatsapp", moduleKey: "clients" },
 ];
 

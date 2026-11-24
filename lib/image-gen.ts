@@ -16,6 +16,8 @@ export interface ImageGenOptions {
 }
 
 /** Upload une image générée (data: URL) vers Vercel Blob si configuré, sinon la garde en data: URL. */
+export async function persisterImageGeneree(dataUrl: string, tenantId?: string) { return persistGeneratedImage(dataUrl, tenantId); }
+
 async function persistGeneratedImage(dataUrl: string, tenantId?: string): Promise<string> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return dataUrl;
   try {

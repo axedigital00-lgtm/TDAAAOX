@@ -4837,6 +4837,51 @@ model ContratTransporteur {
   @@index([fournisseurId, statut])
 }
 
+model EcritureCoins {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String // bienvenue | mensuel | achat | consommation | remboursement | expiration | ajustement
+  source    String // inclus | achete
+  montant   Int
+  action    String?
+  reference String   @unique
+  motif     String?
+  creePar   String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([type, createdAt])
+}
+
+model DepenseIa {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  action      String
+  fournisseur String
+  modele      String
+  entree      Int      @default(0)
+  sortie      Int      @default(0)
+  images      Int      @default(0)
+  coutUsd     Decimal  @db.Decimal(12, 6)
+  coins       Int      @default(0)
+  statut      String   @default("ok")
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model ReglageIa {
+  id               String   @id
+  budgetMensuelUsd Float?
+  alertePct        Int      @default(80)
+  plafondDur       Boolean  @default(true)
+  tauxXaf          Float    @default(600)
+  actionsActives   Boolean  @default(true)
+  alerteMois       String?
+  updatedAt        DateTime @updatedAt
+}
+
 model VersionModele {
   id        String   @id @default(cuid())
   nom       String

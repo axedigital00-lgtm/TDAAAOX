@@ -11,6 +11,7 @@ export const NAV: EntreeNav[] = [
   { section: "marchands", href: "/admin/marchands", nom: "Marchands", icone: "Store", mots: "merchants boutiques table santé health" },
   { section: "commerce", href: "/admin/commerce", nom: "Commerce", icone: "ShoppingBag", mots: "commerce gmv commandes orders panier aov remboursements" },
   { section: "ia", href: "/admin/ia", nom: "Stella IA", icone: "Sparkles", mots: "ai intelligence axia tokens coût roi" },
+  { section: "ia", href: "/admin/ia/coins", nom: "Coins et gains IA", icone: "Coins", ceo: true, mots: "coins crédits ia gains marge budget openai gpt dépenses" },
   { section: "marketing", href: "/admin/marketing", nom: "Marketing", icone: "Megaphone", mots: "marketing campagnes cac roas canaux acquisition" },
   { section: "operations", href: "/admin/operations", nom: "Opérations", icone: "Truck", mots: "operations livraison fulfillment support incidents" },
   { section: "operations", href: "/admin/logistique", nom: "Tour de contrôle", icone: "RadioTower", ceo: true, mots: "logistique transporteurs dispatch livraison flotte simulation" },
