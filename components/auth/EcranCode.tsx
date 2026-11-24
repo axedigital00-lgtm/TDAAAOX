@@ -1,4 +1,5 @@
 "use client";
+import "@fontsource-variable/inter/wght.css";
 import "./auth.css";
 import { useState } from "react";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -36,7 +37,7 @@ export function EcranCode({ email, titre, onValider, onRenvoyer, onRetour, erreu
   }
 
   return (
-    <div>
+    <div className="axa-code">
       {onRetour && <button type="button" onClick={onRetour} className="axa-retour"><ArrowLeft size={14} />{t("Retour")}</button>}
       <h1 className="axa-titre">{t(titre || "Vérifie ton email")}</h1>
       <p className="axa-sous" style={{ overflowWrap: "anywhere" }}>{t("Code envoyé à")}{" "}<strong style={{ color: "#0b0b0b" }}>{email}</strong>{" "}{t("— valable 10 minutes.")}</p>

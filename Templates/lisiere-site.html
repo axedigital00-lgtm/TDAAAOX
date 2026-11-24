@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LISIÈRE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--couleur-fond:#f6f1ea;--couleur-texte:#1a1612;--couleur-accent:#8a3324;--couleur-surface:#ece3d6;--police-titre:'Cormorant Garamond',serif;--police-corps:'Jost',sans-serif;
+--doux:color-mix(in srgb,var(--couleur-texte) 64%,var(--couleur-fond));
+--trait:color-mix(in srgb,var(--couleur-texte) 14%,transparent);
+--ease:cubic-bezier(.2,.7,.2,1);--gout:clamp(16px,4vw,56px);--max:1440px}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--couleur-fond);color:var(--couleur-texte);font-family:var(--police-corps);font-weight:400;font-size:16px;line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::selection{background:var(--couleur-accent);color:var(--couleur-fond)}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{font-family:var(--police-titre);font-weight:400;line-height:1.05;margin:0;text-wrap:balance;letter-spacing:-.01em}
+p{margin:0}
+.view{display:none}.view.active{display:block}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gout)}
+.eyebrow,.label{display:inline-block;font-family:var(--police-corps);line-height:1.6;font-size:12px;font-weight:500;letter-spacing:.28em;text-transform:uppercase}
+.label{color:var(--doux)}
+
+/* Boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.8em;min-height:50px;padding:0 2.2em;border:1px solid var(--couleur-texte);background:transparent;color:var(--couleur-texte);font-family:var(--police-corps);font-size:13px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;position:relative;overflow:hidden;isolation:isolate;transition:color .5s var(--ease),border-color .5s var(--ease)}
+.btn::before{content:"";position:absolute;inset:0;background:var(--couleur-texte);transform:scaleX(0);transform-origin:right;transition:transform .6s var(--ease);z-index:-1}
+.btn::after{content:"→";font-size:15px;letter-spacing:0;transition:transform .5s var(--ease)}
+.btn:hover{color:var(--couleur-fond)}
+.btn:hover::before{transform:scaleX(1);transform-origin:left}
+.btn:hover::after{transform:translateX(5px)}
+.btn-primary{background:var(--couleur-texte);color:var(--couleur-fond)}
+.btn-primary::before{background:var(--couleur-accent)}
+.btn-primary:hover{border-color:var(--couleur-accent)}
+.lien{display:inline-block;font-size:13px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;padding:6px 0;background:linear-gradient(currentColor,currentColor) left bottom/100% 1px no-repeat;transition:background-size .5s var(--ease),color .3s}
+.lien:hover{background-size:30% 1px;color:var(--couleur-accent)}
+
+/* En-tête */
+header{background:var(--couleur-fond);border-bottom:1px solid var(--trait);position:relative;z-index:5}
+.annonce{background:var(--couleur-texte);color:var(--couleur-fond);overflow:hidden;white-space:nowrap}
+.annonce-piste{display:inline-flex;width:max-content;animation:defile 38s linear infinite}
+.annonce:hover .annonce-piste{animation-play-state:paused}
+.annonce span{display:inline-block;padding:11px 0;font-size:11px;letter-spacing:.3em;text-transform:uppercase}
+.annonce span::after{content:"✦";display:inline-block;margin:0 2.4em;color:color-mix(in srgb,var(--couleur-fond) 55%,var(--couleur-accent))}
+@keyframes defile{to{transform:translateX(-50%)}}
+.barre{display:grid;grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr);align-items:center;gap:16px;max-width:var(--max);margin:0 auto;padding:22px var(--gout)}
+.barre .logo{max-width:100%}
+.logo{grid-column:2;font-family:var(--police-titre);font-size:clamp(20px,2vw,28px);font-weight:500;letter-spacing:.16em;text-transform:uppercase;margin-right:-.16em;white-space:nowrap;line-height:1}
+header nav{grid-column:1;grid-row:1;display:flex;gap:30px}
+header nav a,.actions a{position:relative;font-size:12px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;padding:8px 0;white-space:nowrap}
+header nav a::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:1px;background:currentColor;transform:scaleX(0);transform-origin:right;transition:transform .5s var(--ease)}
+header nav a:hover::after{transform:scaleX(1);transform-origin:left}
+.actions{grid-column:3;display:flex;justify-content:flex-end;align-items:center;gap:22px}
+.actions a{display:inline-flex;align-items:center;gap:8px;cursor:pointer;min-height:44px}
+.actions svg{width:19px;height:19px;flex:none}
+.actions a:hover{color:var(--couleur-accent)}
+
+/* Bannière */
+.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);min-height:min(88vh,900px);border-bottom:1px solid var(--trait)}
+.hero-texte{display:flex;flex-direction:column;justify-content:flex-end;gap:28px;padding:clamp(40px,6vw,96px) var(--gout) clamp(48px,6vw,96px)}
+.hero .eyebrow{color:var(--couleur-accent)}
+.hero h1{font-size:clamp(52px,7vw,112px);font-weight:400;line-height:.95;overflow-wrap:anywhere}
+.hero p{max-width:30ch;font-size:clamp(16px,1.3vw,18px);color:var(--doux);font-weight:300}
+.hero-cta{display:flex;flex-wrap:wrap;align-items:center;gap:28px;margin-top:8px}
+.hero-media{position:relative;overflow:hidden;background:var(--couleur-surface)}
+.hero-media img{position:absolute;left:0;top:-6%;width:100%;height:112%;object-fit:cover;object-position:50% 40%}
+
+/* En-têtes de section */
+.sec{padding:clamp(64px,9vw,128px) 0}
+.sec-tete{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:clamp(28px,4vw,52px)}
+.sec-tete h2{font-size:clamp(36px,4.6vw,68px)}
+.sec-tete .label{margin-bottom:14px}
+.sec-tete-texte{display:flex;flex-direction:column}
+
+/* Rails (scroll-snap) */
+.rail{display:flex;gap:clamp(12px,1.6vw,24px);overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;padding:0 var(--gout);scroll-padding:0 var(--gout)}
+.rail::-webkit-scrollbar{display:none}
+.rail>*{scroll-snap-align:start}
+.rail::after{content:"";flex:0 0 1px;margin-left:calc(var(--gout) - clamp(12px,1.6vw,24px) - 1px)}
+
+/* Tuiles catégories */
+.categories{position:relative}
+.tuile{flex:0 0 calc((100% - 2*clamp(12px,1.6vw,24px)) / 3);position:relative;overflow:hidden;background:var(--couleur-surface);color:#fff;display:block}
+.tuile-media{aspect-ratio:3/4;overflow:hidden}
+.tuile img,.look-item img,.story-media img,.pcard-media img{transition:transform .9s var(--ease),filter .9s var(--ease)}
+.tuile img{width:100%;height:100%;object-fit:cover}
+.tuile::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.5),rgba(0,0,0,0) 48%);pointer-events:none}
+.tuile-texte{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:clamp(20px,2.4vw,36px);display:flex;justify-content:space-between;align-items:flex-end;gap:12px;transition:transform .6s var(--ease)}
+.tuile h3{font-size:clamp(32px,3.4vw,52px);font-weight:400}
+.tuile span{font-size:12px;letter-spacing:.24em;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.7);white-space:nowrap}
+
+/* Produits */
+.featured{border-top:1px solid var(--trait)}
+.product-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(28px,3vw,44px) clamp(12px,1.6vw,24px)}
+.pcard{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pcard-media{aspect-ratio:3/4;overflow:hidden;background:var(--couleur-surface);margin-bottom:12px}
+.pcard-media img{width:100%;height:100%;object-fit:cover}
+.pcard-name{font-family:var(--police-corps);font-size:15px;font-weight:400;letter-spacing:.02em;line-height:1.4;width:fit-content;max-width:100%;background:linear-gradient(currentColor,currentColor) left bottom/0 1px no-repeat;transition:background-size .5s var(--ease)}
+.pcard-price{font-size:14px;color:var(--doux);letter-spacing:.04em}
+.featured-pied{display:flex;justify-content:center;margin-top:clamp(40px,5vw,72px)}
+
+/* Lookbook */
+.lookbook{background:var(--couleur-surface);position:relative}
+.look-item{flex:0 0 clamp(260px,30vw,460px);margin:0}
+.look-item.large{flex-basis:clamp(300px,42vw,640px)}
+.look-media{overflow:hidden;aspect-ratio:4/5;background:var(--couleur-fond)}
+.look-item.large .look-media{aspect-ratio:5/6}
+.look-item.decale{padding-top:clamp(0px,6vw,96px)}
+.look-media img{width:100%;height:100%;object-fit:cover}
+.look-item figcaption{display:flex;justify-content:space-between;gap:12px;padding-top:14px;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--doux)}
+
+/* Éditorial */
+.story-in{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:clamp(32px,7vw,120px);align-items:center}
+.story-media{overflow:hidden;aspect-ratio:4/5;background:var(--couleur-surface);position:relative}
+.story-media img{position:absolute;left:0;top:-6%;width:100%;height:112%;object-fit:cover}
+.story-texte{display:flex;flex-direction:column;gap:24px;max-width:520px}
+.story-texte .label{color:var(--couleur-accent)}
+.story-texte h2{font-size:clamp(40px,5vw,76px)}
+.story-texte h3{font-size:clamp(22px,2vw,28px);font-style:italic;color:var(--doux)}
+.story-texte p{color:var(--doux);font-weight:300;font-size:17px}
+.story-texte .lien{align-self:flex-start;margin-top:8px}
+
+/* Réassurance */
+.benefits{border-top:1px solid var(--trait);border-bottom:1px solid var(--trait);padding:clamp(40px,5vw,64px) 0}
+.benefits-titre{font-size:clamp(26px,2.6vw,36px);text-align:center;margin-bottom:clamp(28px,4vw,48px)}
+.benefits-liste{display:flex;margin:0;padding:0;list-style:none}
+.benefice{flex:1 1 0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:8px 24px;border-left:1px solid var(--trait)}
+.benefice:first-child{border-left:0}
+.benefice svg{width:30px;height:30px;color:var(--couleur-accent);margin-bottom:4px}
+.benefice h3{font-family:var(--police-corps);font-size:13px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;line-height:1.5}
+.benefice p{font-size:14px;color:var(--doux);max-width:26ch}
+
+/* FAQ */
+.faq-in{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:clamp(32px,6vw,96px)}
+.faq-tete h2{font-size:clamp(36px,4.2vw,60px);margin:14px 0 20px}
+.faq-tete p{color:var(--doux);font-weight:300;max-width:34ch}
+.faq details{border-top:1px solid var(--trait)}
+.faq details:last-child{border-bottom:1px solid var(--trait)}
+.faq summary{display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:72px;padding:18px 0;cursor:pointer;list-style:none;font-family:var(--police-titre);font-size:clamp(20px,1.8vw,26px)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-family:var(--police-corps);font-weight:300;font-size:26px;line-height:1;transition:transform .5s var(--ease);flex:none}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{padding:0 0 26px;color:var(--doux);font-weight:300;max-width:62ch}
+
+/* Contact */
+.newsletter{background:var(--couleur-texte);color:var(--couleur-fond);text-align:center}
+.newsletter-in{display:flex;flex-direction:column;align-items:center;gap:22px;max-width:760px;margin:0 auto}
+.newsletter .label{color:color-mix(in srgb,var(--couleur-fond) 70%,transparent)}
+.newsletter h2{font-size:clamp(40px,5.4vw,80px)}
+.newsletter p{color:color-mix(in srgb,var(--couleur-fond) 75%,transparent);font-weight:300;max-width:46ch}
+.newsletter .btn{border-color:var(--couleur-fond);color:var(--couleur-fond);margin-top:10px}
+.newsletter .btn::before{background:var(--couleur-fond)}
+.newsletter .btn:hover{color:var(--couleur-texte)}
+
+/* Catalogue */
+.plp-head{position:relative;overflow:hidden;min-height:clamp(220px,26vw,360px);display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding:clamp(28px,4vw,56px) var(--gout);color:#fff;background:var(--couleur-texte)}
+.plp-head img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 45%;opacity:.5}
+.plp-head h1,.plp-head span,.plp-head small{position:relative}
+.plp-head small{font-size:12px;letter-spacing:.3em;text-transform:uppercase}
+.plp-head h1{font-size:clamp(44px,6vw,96px)}
+.plp-head span{font-size:13px;letter-spacing:.2em;text-transform:uppercase}
+.plp{padding:clamp(28px,4vw,48px) 0 clamp(64px,8vw,120px)}
+.filters{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-bottom:clamp(28px,4vw,48px)}
+.filters::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:0 22px;border:1px solid var(--trait);border-radius:999px;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:border-color .3s,background .3s,color .3s}
+.chip:hover{border-color:var(--couleur-texte)}
+.chip.active{background:var(--couleur-texte);border-color:var(--couleur-texte);color:var(--couleur-fond)}
+
+.page-vide{min-height:50vh;display:flex;align-items:center;justify-content:center;padding:80px var(--gout)}
+.page-vide h1{font-size:clamp(40px,6vw,80px)}
+
+/* Pied de page */
+footer{background:var(--couleur-surface);padding:clamp(56px,7vw,96px) 0 32px}
+.foot-cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:40px;padding-bottom:clamp(40px,6vw,72px);border-bottom:1px solid var(--trait)}
+.foot-marque{font-family:var(--police-titre);font-size:clamp(34px,3.6vw,52px);letter-spacing:.28em;text-transform:uppercase;line-height:1}
+.foot-intro{display:flex;flex-direction:column;gap:20px}
+.foot-intro p{color:var(--doux);font-weight:300;max-width:38ch}
+footer h4{font-family:var(--police-corps);font-size:12px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;margin-bottom:18px}
+footer ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+footer li{color:var(--doux);font-size:15px}
+footer ul a{display:inline-block;padding:6px 0;color:var(--doux);transition:color .3s}
+footer ul a:hover{color:var(--couleur-accent)}
+.foot-bas{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-top:28px;font-size:13px;color:var(--doux)}
+.foot-bas p span{margin-right:.35em}
+
+/* Survol */
+@media (hover:hover){
+.tuile:hover img,.look-item:hover img,.story-media:hover img,.pcard:hover .pcard-media img{transform:scale(1.06)}
+.tuile:hover img{filter:brightness(.88)}
+.tuile:hover .tuile-texte{transform:translateY(-8px)}
+.pcard:hover .pcard-name{background-size:100% 1px}
+}
+
+/* Flèches et points natifs */
+
+
+/* Défilement */
+@supports (animation-timeline:view()){
+.hero-media img{animation:parallaxe linear both;animation-timeline:scroll(root);animation-range:0 100vh}
+.story-media img{animation:parallaxe-vue linear both;animation-timeline:view();animation-range:cover 0% cover 100%}
+.apparait,.tuile-media,.look-media{animation:monte linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
+@keyframes parallaxe{from{transform:translateY(0)}to{transform:translateY(8%)}}
+@keyframes parallaxe-vue{from{transform:translateY(-5%)}to{transform:translateY(5%)}}
+@keyframes monte{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+}
+@supports (interpolate-size:allow-keywords){
+.faq{interpolate-size:allow-keywords}
+.faq details::details-content{height:0;overflow:hidden;transition:height .5s var(--ease),content-visibility .5s allow-discrete}
+.faq details[open]::details-content{height:auto}
+}
+
+/* Tablette */
+@media (max-width:1024px){
+.product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.benefits-liste{flex-wrap:wrap;row-gap:32px}
+.benefice{flex:1 1 50%}
+.benefice:nth-child(3){border-left:0}
+}
+/* Mobile */
+@media (max-width:760px){
+.barre{grid-template-columns:minmax(0,1fr) auto;padding:16px var(--gout) 0;gap:4px 12px}
+.logo{grid-column:1;grid-row:1;font-size:22px;letter-spacing:.12em}
+.actions{grid-column:2;grid-row:1;gap:14px}
+.actions a span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.actions svg{width:21px;height:21px}
+header nav{grid-column:1/-1;grid-row:2;overflow-x:auto;scrollbar-width:none;gap:26px;margin:0 calc(-1*var(--gout));padding:4px var(--gout) 6px}
+header nav::-webkit-scrollbar{display:none}
+header nav a{min-height:44px;display:inline-flex;align-items:center}
+.hero{grid-template-columns:1fr;min-height:0}
+.hero-media{order:-1;aspect-ratio:4/5}
+.hero-texte{gap:20px;padding-top:36px}
+.hero h1{font-size:clamp(46px,13vw,64px)}
+.sec-tete{flex-direction:column;align-items:flex-start}
+.tuile{flex-basis:78%}
+.look-item,.look-item.large{flex-basis:78%}
+.look-item.decale{padding-top:0}
+.look-item.large .look-media{aspect-ratio:4/5}
+.story-in{grid-template-columns:1fr}
+.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 12px}
+.pcard-name{font-size:14px}
+.benefice{flex:1 1 100%;border-left:0;padding:0 8px}
+.faq-in{grid-template-columns:1fr}
+.foot-cols{grid-template-columns:1fr 1fr}
+.foot-intro{grid-column:1/-1}
+
+}
+@media (prefers-reduced-motion:reduce){
+*,*::before,*::after{animation:none;transition:none;scroll-behavior:auto}
+html,.rail{scroll-behavior:auto}
+.annonce-piste{animation:none}
+.hero-media img,.story-media img,.apparait,.tuile-media,.look-media{animation:none;opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="annonce"><div class="annonce-piste"><span>Commande en quelques clics</span><span>Paiement à la livraison possible</span><span>Une question ? Écrivez-nous sur WhatsApp</span><span>Paiement sécurisé</span><span>Commande en quelques clics</span><span>Paiement à la livraison possible</span><span>Une question ? Écrivez-nous sur WhatsApp</span><span>Paiement sécurisé</span></div></div>
+  <div class="barre">
+    <a class="logo" data-axso-nom href="#" onclick="go('home')">LISIÈRE</a>
+    <nav><a href="#" onclick="go('home')">Accueil</a><a href="#" onclick="go('boutique')">Boutique</a><a href="#" onclick="go('apropos')">À propos</a><a href="#" onclick="go('contact')">Contact</a></nav>
+    <div class="actions">
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span>Rechercher</span></a>
+      <a href="#" onclick="go('compte')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6"/></svg><span>Mon compte</span></a>
+      <a href="#" class="cart-btn" onclick="go('panier')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M5 8h14l-1 13H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span>Panier</span></a>
+    </div>
+  </div>
+</header>
+
+<div class="view active" id="view-home">
+  <section class="hero">
+    <div class="hero-texte">
+      <span class="eyebrow">Nouvelle collection</span>
+      <h1>Lisière</h1>
+      <p>Des pièces choisies avec soin, pensées pour durer et pour se porter avec assurance.</p>
+      <div class="hero-cta"><a href="#" class="btn btn-primary" onclick="go('boutique')">Découvrir la boutique</a><a href="#" class="lien" onclick="go('apropos')">Notre univers</a></div>
+    </div>
+    <div class="hero-media"><img src="https://images.unsplash.com/photo-1614251055880-ee96e4803393?auto=format&fit=crop&w=1600&q=80" alt="Femme en chemise imprimée et pantalon ample beige dans un paysage ouvert"></div>
+  </section>
+
+  <section class="categories sec">
+    <div class="wrap sec-tete"><div class="sec-tete-texte apparait"><span class="label">Explorer</span><h2>Choisissez votre univers</h2></div></div>
+    <div class="rail">
+      <a href="#" class="tuile" onclick="go('boutique')"><div class="tuile-media"><img src="https://images.unsplash.com/photo-1619086303291-0ef7699e4b31?auto=format&fit=crop&w=800&q=80" alt="Femme en long manteau camel dans la rue" loading="lazy"></div><div class="tuile-texte"><h3>Femme</h3><span>Découvrir</span></div></a>
+      <a href="#" class="tuile" onclick="go('boutique')"><div class="tuile-media"><img src="https://images.unsplash.com/photo-1506634572416-48cdfe530110?auto=format&fit=crop&w=800&q=80" alt="Homme en pull rouge sur fond sombre" loading="lazy"></div><div class="tuile-texte"><h3>Homme</h3><span>Découvrir</span></div></a>
+      <a href="#" class="tuile" onclick="go('boutique')"><div class="tuile-media"><img src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=800&q=80" alt="Sac à main en osier et cuir" loading="lazy"></div><div class="tuile-texte"><h3>Accessoires</h3><span>Découvrir</span></div></a>
+    </div>
+  </section>
+
+  <section class="featured sec">
+    <div class="wrap">
+      <div class="sec-tete"><div class="sec-tete-texte apparait"><span class="label">À l'instant</span><h2>Nouveautés</h2></div><a href="#" class="lien" onclick="go('boutique')">Tout voir</a></div>
+      <div id="homeGrid" class="product-grid">
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=800&q=80" alt="Blouson léger terracotta" loading="lazy"></div><h3 class="pcard-name">Blouson léger terracotta</h3><span class="pcard-price">24 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80" alt="Robe portefeuille imprimée" loading="lazy"></div><h3 class="pcard-name">Robe portefeuille imprimée</h3><span class="pcard-price">18 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fit=crop&w=800&q=80" alt="Chemise en coton bleu ciel" loading="lazy"></div><h3 class="pcard-name">Chemise en coton bleu ciel</h3><span class="pcard-price">12 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=800&q=80" alt="Bottines en cuir brun" loading="lazy"></div><h3 class="pcard-name">Bottines en cuir brun</h3><span class="pcard-price">32 000 FCFA</span></a>
+      </div>
+      <div class="featured-pied"><a href="#" class="btn" onclick="go('boutique')">Voir toute la collection</a></div>
+    </div>
+  </section>
+
+  <section class="lookbook sec">
+    <div class="wrap sec-tete"><div class="sec-tete-texte apparait"><span class="label">Lookbook</span><h2>Façons de porter</h2></div></div>
+    <div class="rail">
+      <figure class="look-item large"><div class="look-media"><img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=800&q=80" alt="Portrait d'une femme en col blanc et imprimé bleu" loading="lazy"></div><figcaption><span>Imprimés</span><span>01</span></figcaption></figure>
+      <figure class="look-item decale"><div class="look-media"><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80" alt="Femme en ensemble jaune vif" loading="lazy"></div><figcaption><span>Couleur</span><span>02</span></figcaption></figure>
+      <figure class="look-item"><div class="look-media"><img src="https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&w=800&q=80" alt="Femme en chemise blanche au-dessus de la ville" loading="lazy"></div><figcaption><span>En ville</span><span>03</span></figcaption></figure>
+      <figure class="look-item large decale"><div class="look-media"><img src="https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=800&q=80" alt="Homme en béret et pull sombre" loading="lazy"></div><figcaption><span>Allure</span><span>04</span></figcaption></figure>
+    </div>
+  </section>
+
+  <section class="story sec">
+    <div class="wrap story-in">
+      <div class="story-media"><img src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=800&q=80" alt="Pièces en maille aux tons naturels sur un portant" loading="lazy"></div>
+      <div class="story-texte apparait">
+        <span class="label">Notre univers</span>
+        <h2>L'élégance sans effort</h2>
+        <h3>Des vêtements qui vous ressemblent.</h3>
+        <p>Chaque pièce est choisie pour sa coupe, sa matière et sa façon de traverser les saisons. Une garde-robe simple, juste, qui se mélange facilement.</p>
+        <p>Choisissez votre taille, nous nous occupons du reste.</p>
+        <a href="#" class="lien" onclick="go('apropos')">En savoir plus</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="benefits">
+    <div class="wrap">
+      <h2 class="benefits-titre">Acheter en toute sérénité</h2>
+      <ul class="benefits-liste">
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M7 11h18l-1.4 16H8.4L7 11Z"/><path d="M12 11V9a4 4 0 0 1 8 0v2"/></svg><h3>Commande simple</h3><p>Commande en quelques clics, depuis votre téléphone.</p></li>
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="4" y="9" width="24" height="15" rx="1.5"/><circle cx="16" cy="16.5" r="3.5"/><path d="M8 13v7M24 13v7"/></svg><h3>Paiement à la livraison</h3><p>Paiement à la livraison possible, ou paiement sécurisé en ligne.</p></li>
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M6 25.5 7.6 21A10 10 0 1 1 11 24.4L6 25.5Z"/><path d="M12 14h8M12 18h5"/></svg><h3>Conseils sur WhatsApp</h3><p>Une question ? Écrivez-nous sur WhatsApp.</p></li>
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="3" y="11" width="26" height="10" rx="1"/><path d="M8 11v4M13 11v6M18 11v4M23 11v6"/></svg><h3>Guide des tailles</h3><p>Un doute sur votre taille ? Nous vous aidons à choisir.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="faq sec">
+    <div class="wrap faq-in">
+      <div class="faq-tete apparait"><span class="label">Questions fréquentes</span><h2>Bon à savoir</h2><p>Vous ne trouvez pas votre réponse ? Écrivez-nous, nous répondons avec plaisir.</p></div>
+      <div>
+        <details open><summary>Comment choisir ma taille ?</summary><p>Chaque fiche produit indique les tailles disponibles. En cas de doute entre deux tailles, écrivez-nous sur WhatsApp : nous vous conseillons selon la coupe du vêtement.</p></details>
+        <details><summary>Puis-je payer à la livraison ?</summary><p>Le paiement à la livraison est possible. Les moyens de paiement proposés s'affichent au moment de valider votre commande.</p></details>
+        <details><summary>Comment suivre ma commande ?</summary><p>Après votre commande, vous recevez une confirmation. Nous restons joignables sur WhatsApp pour toute question.</p></details>
+        <details><summary>Et si l'article ne me va pas ?</summary><p>Contactez-nous rapidement : nous cherchons ensemble la meilleure solution.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="newsletter sec">
+    <div class="wrap newsletter-in apparait">
+      <span class="label">Restons proches</span>
+      <h2>Une question, un conseil de style ?</h2>
+      <p>Écrivez-nous : nous vous aidons à composer votre tenue et à choisir la bonne taille.</p>
+      <a href="#" class="btn" onclick="go('contact')">Nous écrire</a>
+    </div>
+  </section>
+</div>
+
+<div class="view" id="view-boutique">
+  <section class="plp-head">
+    <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80" alt="Vêtements aux tons naturels sur un portant">
+    <small>La collection</small>
+    <h1>Toute la collection</h1>
+    <span id="plpCount">8 produits</span>
+  </section>
+  <section class="plp">
+    <div class="wrap">
+      <h2 class="label">Filtrer par catégorie</h2>
+      <div class="filters"><span class="chip active" data-cat="all">Tout</span><span class="chip" data-cat="femme">Femme</span><span class="chip" data-cat="homme">Homme</span><span class="chip" data-cat="accessoires">Accessoires</span></div>
+      <div id="plpGrid" class="product-grid">
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=800&q=80" alt="Blouson léger terracotta" loading="lazy"></div><h3 class="pcard-name">Blouson léger terracotta</h3><span class="pcard-price">24 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80" alt="Robe portefeuille imprimée" loading="lazy"></div><h3 class="pcard-name">Robe portefeuille imprimée</h3><span class="pcard-price">18 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fit=crop&w=800&q=80" alt="Chemise en coton bleu ciel" loading="lazy"></div><h3 class="pcard-name">Chemise en coton bleu ciel</h3><span class="pcard-price">12 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=800&q=80" alt="Bottines en cuir brun" loading="lazy"></div><h3 class="pcard-name">Bottines en cuir brun</h3><span class="pcard-price">32 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=800&q=80" alt="Pantalon fluide rose poudré" loading="lazy"></div><h3 class="pcard-name">Pantalon fluide rose poudré</h3><span class="pcard-price">15 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=800&q=80" alt="Sweat en coton blanc" loading="lazy"></div><h3 class="pcard-name">Sweat en coton blanc</h3><span class="pcard-price">14 000 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80" alt="Sac à main rouge vernis" loading="lazy"></div><h3 class="pcard-name">Sac à main rouge vernis</h3><span class="pcard-price">27 500 FCFA</span></a>
+        <a href="#" class="pcard"><div class="pcard-media"><img src="https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=800&q=80" alt="Bracelet doré ciselé" loading="lazy"></div><h3 class="pcard-name">Bracelet doré ciselé</h3><span class="pcard-price">9 500 FCFA</span></a>
+      </div>
+    </div>
+  </section>
+  <section class="benefits">
+    <div class="wrap">
+      <h2 class="benefits-titre">Acheter en toute sérénité</h2>
+      <ul class="benefits-liste">
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M7 11h18l-1.4 16H8.4L7 11Z"/><path d="M12 11V9a4 4 0 0 1 8 0v2"/></svg><h3>Commande simple</h3><p>Commande en quelques clics, depuis votre téléphone.</p></li>
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="4" y="9" width="24" height="15" rx="1.5"/><circle cx="16" cy="16.5" r="3.5"/><path d="M8 13v7M24 13v7"/></svg><h3>Paiement à la livraison</h3><p>Paiement à la livraison possible, ou paiement sécurisé en ligne.</p></li>
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M6 25.5 7.6 21A10 10 0 1 1 11 24.4L6 25.5Z"/><path d="M12 14h8M12 18h5"/></svg><h3>Conseils sur WhatsApp</h3><p>Une question ? Écrivez-nous sur WhatsApp.</p></li>
+        <li class="benefice"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="3" y="11" width="26" height="10" rx="1"/><path d="M8 11v4M13 11v6M18 11v4M23 11v6"/></svg><h3>Guide des tailles</h3><p>Un doute sur votre taille ? Nous vous aidons à choisir.</p></li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<div class="view" id="view-produit"><section class="page-vide"><h1>Produit</h1></section></div>
+<div class="view" id="view-panier"><section class="page-vide"><h1>Panier</h1></section></div>
+<div class="view" id="view-commande"><section class="page-vide"><h1>Commande</h1></section></div>
+<div class="view" id="view-confirmation"><section class="page-vide"><h1>Merci</h1></section></div>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-cols">
+      <div class="foot-intro"><span class="foot-marque" data-axso-nom>LISIÈRE</span><p>Une sélection de vêtements et d'accessoires pensés pour durer, à porter chaque jour avec assurance.</p></div>
+      <div><h4>Explorer</h4><ul><li><a href="#" onclick="go('boutique')">Boutique</a></li><li><a href="#" onclick="go('apropos')">À propos</a></li><li><a href="#" onclick="go('contact')">Contact</a></li></ul></div>
+      <div><h4>Service</h4><ul><li>Paiement à la livraison possible</li><li>Paiement sécurisé</li><li>Conseils sur WhatsApp</li></ul></div>
+    </div>
+    <div class="foot-bas"><p><span>© 2026</span><span data-axso-nom>LISIÈRE</span></p><small>Confidentialité — Conditions générales</small></div>
+  </div>
+</footer>
+<script>function go(v){document.querySelectorAll('.view').forEach(function(e){e.classList.toggle('active',e.id==='view-'+v)});window.scrollTo(0,0)}</script>
+</body>
+</html>

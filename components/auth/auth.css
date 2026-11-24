@@ -1,9 +1,15 @@
 /* Charte des écrans de compte (connexion, code, mot de passe, équipe) :
    fond sombre du site public, carte blanche centrée, champs et bouton noirs.
    Portée : `.axa`. */
-.axa {
+/* Variables partagées : aussi sur `.axa-code`, l'écran du code placé hors de `.axa`
+   (inscription boutique, affilié, livreur). */
+.axa, .axa-code {
   --a-text: #0b0b0b; --a-muted: #5c5c5c; --a-line: #8a8a8a; --a-line-soft: #e3e3e3;
   --a-font: "Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.axa-code, .axa-code * { font-family: var(--a-font) !important; }
+.axa-code { color: var(--a-text); -webkit-font-smoothing: antialiased; }
+.axa {
   min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 32px 16px; font-family: var(--a-font); color: var(--a-text); -webkit-font-smoothing: antialiased;
   background: radial-gradient(1200px 600px at 15% -10%, rgba(235, 169, 0, .16), transparent 60%), radial-gradient(900px 500px at 110% 110%, rgba(255, 255, 255, .08), transparent 60%), #000;

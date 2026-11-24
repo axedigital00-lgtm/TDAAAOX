@@ -125,9 +125,7 @@ export function FormulaireLivreur({ pays }: { pays: string | null }) {
               <ShieldCheck size={16} style={{ flex: "none", marginTop: 2 }} />
               <span><b>{t("Demande d'inscription enregistrée.")}</b> {t("Un administrateur AXSO valide votre compte sous 24 h maximum avant activation. En attendant, saisissez le code reçu par e-mail pour compléter votre dossier.")}</span>
             </div>
-            <div className="axa" style={{ all: "unset", display: "block" }}>
-              <EcranCode email={cree.email} erreurInitiale={cree.erreurEnvoi} onValider={(code) => connecter(cree.email, code)} onRenvoyer={async () => { await demanderCodeConnexion(cree.email, form.password); }} />
-            </div>
+            <EcranCode email={cree.email} erreurInitiale={cree.erreurEnvoi} onValider={(code) => connecter(cree.email, code)} onRenvoyer={async () => { await demanderCodeConnexion(cree.email, form.password); }} />
           </> : <form onSubmit={soumettre} noValidate>
             <ol className="axi-progres" aria-label={t("Progression")}>
               {titres.map((x, i) => <li key={x} data-etat={i < etape ? "fait" : i === etape ? "actif" : "attente"} aria-current={i === etape ? "step" : undefined}><i>{i < etape ? <Check size={12} strokeWidth={3} /> : i + 1}</i><span>{t(x)}</span></li>)}
