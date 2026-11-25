@@ -16,6 +16,7 @@ import { MobileTopBar } from "@/components/dashboard/design-system/layout/Mobile
 import { CommandPalette } from "@/components/dashboard/design-system/layout/CommandPalette";
 import { AxiaDock } from "@/components/dashboard/design-system/layout/AxiaDock";
 import { MobileRubriques, MobileTabBar } from "@/components/dashboard/design-system/layout/MobileTabBar";
+import { VisitePage } from "@/components/dashboard/VisitePage";
 import { SettingsSidebar, estRouteParametres, memoriserRetour } from "@/components/dashboard/design-system/layout/SettingsSidebar";
 
 /** Écrans plein cadre : pas de conteneur de page ni de dock Stella. */
@@ -159,6 +160,7 @@ export function DashboardShell({
         </main>
 
         {dock && <AxiaDock />}
+        <VisitePage />
         {avecOnglets && <MobileTabBar pathname={pathname} permissions={permissions} palier={palier} commandesATraiter={commandesATraiter} onMenu={() => setNavOuverte(true)} />}
         <CommandPalette permissions={permissions} palier={palier} />
       </div>

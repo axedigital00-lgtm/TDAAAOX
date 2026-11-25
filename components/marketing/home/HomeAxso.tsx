@@ -18,6 +18,8 @@ import "./scenes.css";
 import { LaunchStory } from "./LaunchStory";
 import "./editorial.css";
 import { Reveal } from "./Reveal";
+import { TableauPaysCouverts } from "@/components/paiement/TableauPaysCouverts";
+import { paysCouverts, type PaysCouvert } from "@/lib/paiements/pays-couverts";
 
 /** Logos officiels des services partenaires (public/brand/partenaires). */
 const PARTENAIRES: { nom: string; logo: string; large?: boolean; texte?: boolean; sombre?: boolean }[] = [
@@ -201,6 +203,8 @@ export async function HomeAxso() {
         </div>
       </section>
 
+      <Suspense fallback={null}><PaysMobileMoney /></Suspense>
+
       <Globe3D />
       <Suspense fallback={null}><AvisAccueil /></Suspense>
 
@@ -213,5 +217,22 @@ export async function HomeAxso() {
         </div>
       </section>
     </div>
+  );
+}
+
+// Pays où l'on paie un produit numérique par Mobile Money sur AXSO, lus en direct (jamais plus de 3 s
+// d'attente : sans réponse, la section ne s'affiche pas).
+async function PaysMobileMoney() {
+  const t = await getT();
+  const pays = await Promise.race([paysCouverts().catch(() => [] as PaysCouvert[]), new Promise<PaysCouvert[]>((ok) => setTimeout(() => ok([]), 3000))]);
+  if (!pays.length) return null;
+  return (
+    <section className="axm-section axm-light axm-clair" id="pays-couverts">
+      <div className="axm-wrap" style={{ maxWidth: 980 }}>
+        <h2 className="axm-h2" suppressHydrationWarning>{t("Payé par Mobile Money dans {0} pays", String(pays.length))}</h2>
+        <p className="axm-lead" style={{ marginTop: 16, marginBottom: 32 }} suppressHydrationWarning>{t("Vos produits numériques se vendent partout où vos clients ont un compte Mobile Money. Ils paient en monnaie locale, vous êtes crédité dans la vôtre.")}</p>
+        <TableauPaysCouverts pays={pays} />
+      </div>
+    </section>
   );
 }

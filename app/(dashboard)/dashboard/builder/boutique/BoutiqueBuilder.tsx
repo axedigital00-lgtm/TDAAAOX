@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { LogOut, LayoutList, Settings2, LayoutTemplate, Monitor, Tablet, Smartphone, Undo2, Redo2, ExternalLink, Save, Check, RefreshCw, Rocket, EyeOff, ChevronRight, ArrowLeft, LifeBuoy, X, type LucideIcon } from "lucide-react";
+import { LogOut, LayoutList, Settings2, LayoutTemplate, Monitor, Tablet, Smartphone, Undo2, Redo2, ExternalLink, Save, Check, RefreshCw, Rocket, EyeOff, ChevronRight, ArrowLeft, LifeBuoy, X, HelpCircle, type LucideIcon } from "lucide-react";
 import { lienSignalement } from "@/lib/signalements";
 import type { BlockNode, ThemeConfig } from "@/lib/theme-config";
 import {
@@ -33,7 +33,7 @@ import { StyleCss } from "@/components/storefront/StyleCss";
 import { CSS_MENUS_DEROULANTS } from "../menusDeroulants";
 import { majStyleElement, type ElementStyles } from "@/lib/element-styles";
 import { useT } from "@/components/I18nProvider";
-import { VisiteGuidee } from "@/components/dashboard/VisiteGuidee";
+import { VisiteGuidee, relancerVisite } from "@/components/dashboard/VisiteGuidee";
 import { urlBoutique } from "@/lib/utils";
 
 type Device = "desktop" | "tablet" | "mobile";
@@ -345,6 +345,7 @@ export function BoutiqueBuilder(p: Props) {
               <ExternalLink size={19} />
             </a>
           )}
+          <span className="axc-pc contents"><BoutonBarre titre={tr("Guide du constructeur")} onClick={() => relancerVisite("builder")}><HelpCircle size={19} /></BoutonBarre></span>
           {/* Nouvel onglet : le Constructeur reste ouvert avec ses modifications. */}
           <a href={lienSignalement("/dashboard/builder")} target="_blank" rel="noopener noreferrer" title={tr("Signaler un problème")} aria-label={tr("Signaler un problème")}
             className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors axc-pc">
@@ -571,6 +572,7 @@ export function BoutiqueBuilder(p: Props) {
         {tenant.statut === "active"
           ? <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer"><ExternalLink size={21} /><span>{tr("Voir")}</span></a>
           : <button type="button" onClick={p.redo} disabled={!p.peutRetablir}><Redo2 size={21} /><span>{tr("Rétablir")}</span></button>}
+        <button type="button" onClick={() => relancerVisite("builder")}><HelpCircle size={21} /><span>{tr("Guide")}</span></button>
       </nav>
 
       <AxiaBuilderPanel onSyncWithServer={p.onSyncWithServer} decalageDroite={selection || elPage ? 340 : 0} contexte={[

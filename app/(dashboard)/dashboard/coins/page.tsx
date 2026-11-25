@@ -1,6 +1,7 @@
 "use client";
 // Coins IA : solde, studio premium (visuels, publicités) et historique.
 import { PaiementMobileMoney } from "@/components/dashboard/PaiementMobileMoney";
+import { TableauPaysCouverts } from "@/components/paiement/TableauPaysCouverts";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
@@ -81,6 +82,7 @@ export default function CoinsPage() {
         {packChoisi && <div style={{ maxWidth: 360, marginTop: 12 }}><PaiementMobileMoney key={packChoisi} libelle="Payer par Mobile Money" onPayer={(tel) => acheter(packChoisi, tel)} /></div>}
         {attente && <p style={{ margin: "12px 0 0", fontSize: 13.5 }}>{t("En attente de ta validation sur le téléphone… Tes coins arrivent dès la confirmation.")}</p>}
         {d.lienAutorisation && <div style={{ marginTop: 10 }}><Button variant="primary" href={d.lienAutorisation}>{t("Valider dans mon application Mobile Money")}</Button></div>}
+        {d.achatOuvert && <div style={{ marginTop: 14 }}><TableauPaysCouverts repliable /></div>}
         <p className="axd-muted" style={{ margin: "10px 0 0", fontSize: 12.5 }}>{d.achatOuvert ? (d.achatTest ? t("Mode test : aucun argent réel n'est débité.") + " " : "") : t("Paiement Mobile Money bientôt disponible.") + " "}{t("Forfait Pro : {0} coins par mois. Illimité : {1} coins par mois. Les coins du forfait expirent à la fin du mois.", String(d.inclus.mensuels.palier1), String(d.inclus.mensuels.palier2))}</p>
       </Card>
       <Card title={t("Historique")} padding="none">{!d.historique.length ? <div style={{ padding: 16 }}><p className="axd-muted" style={{ margin: 0 }}>{t("Aucun mouvement.")}</p></div> : <table className="axd-ix"><tbody>{d.historique.map((e: any) => <tr key={e.id}><td>{t(TYPES[e.type] ?? e.type)}{e.action && d.actions[e.action] ? ` · ${t(d.actions[e.action].nom)}` : ""}{e.motif ? ` · ${e.motif}` : ""}</td><td><Badge tone={e.source === "achete" ? "info" : "neutral"}>{t(e.source === "achete" ? "Acheté" : "Forfait")}</Badge></td><td style={{ textAlign: "right", fontWeight: 600 }}>{e.montant > 0 ? `+${e.montant}` : e.montant}</td><td className="axd-muted" style={{ textAlign: "right", fontSize: 12.5 }}>{new Date(e.createdAt).toLocaleDateString(t.loc)}</td></tr>)}</tbody></table>}</Card>

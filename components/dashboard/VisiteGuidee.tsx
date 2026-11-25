@@ -1,16 +1,19 @@
 "use client";
-// Visite guidée : éclaire l'élément à toucher (repéré par data-guide), pointe
-// dessus avec une flèche animée et explique quoi faire dans une bulle.
+// Visite guidée : éclaire l'élément à toucher (repéré par data-guide, ou par un sélecteur CSS
+// « css:… »), pointe dessus avec une flèche animée et explique quoi faire dans une bulle.
 // Démarre une seule fois par visite (clé localStorage) ou à la demande avec ?guide=1.
-// Une étape dont la cible est absente ou cachée s'affiche au centre de l'écran.
+// Une étape dont la cible est absente s'affiche au centre de l'écran, sauf si elle est
+// facultative : elle est alors sautée.
 
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/components/I18nProvider";
 
 export type EtapeGuide = {
-  /** Valeur de l'attribut data-guide de l'élément visé ; absent : bulle centrée. */
+  /** Valeur de l'attribut data-guide de l'élément visé, ou « css:sélecteur » ; absent : bulle centrée. */
   cible?: string;
+  /** Sautée si sa cible n'est pas sur la page (visites communes à plusieurs pages). */
+  facultative?: boolean;
   titre: string;
   texte: string;
 };
@@ -20,9 +23,12 @@ const BULLE = 300;
 
 function cibleVisible(nom?: string): HTMLElement | null {
   if (!nom) return null;
-  for (const el of document.querySelectorAll<HTMLElement>(`[data-guide="${nom}"]`)) {
+  let liste: NodeListOf<HTMLElement>;
+  try { liste = document.querySelectorAll<HTMLElement>(nom.startsWith("css:") ? nom.slice(4) : `[data-guide="${nom}"]`); } catch { return null; }
+  for (const el of liste) {
     const r = el.getBoundingClientRect(), s = getComputedStyle(el);
-    if (r.width > 0 && r.height > 0 && s.visibility !== "hidden") return el;
+    // Visible et dans l'écran (un tiroir replié hors de l'écran compte comme absent).
+    if (r.width > 0 && r.height > 0 && s.visibility !== "hidden" && r.right > 0 && r.left < window.innerWidth) return el;
   }
   return null;
 }
@@ -34,12 +40,18 @@ export function relancerVisite(cle: string) {
 
 export function VisiteGuidee({ cle, etapes, auto = true }: { cle: string; etapes: EtapeGuide[]; auto?: boolean }) {
   const t = useT();
-  const [i, setI] = useState<number | null>(null);
+  const [i, setIBrut] = useState<number | null>(null);
+  // Étapes retenues au démarrage : les facultatives sans cible sur la page sont sautées.
+  const [actives, setActives] = useState<EtapeGuide[]>(etapes);
+  const setI = useCallback((n: number | null) => {
+    if (n === 0) setActives(etapes.filter((e) => !e.facultative || cibleVisible(e.cible)));
+    setIBrut(n);
+  }, [etapes]);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const stockage = `axso:visite:${cle}`;
 
   const terminer = useCallback(() => {
-    setI(null);
+    setIBrut(null);
     try { localStorage.setItem(stockage, "1"); } catch { /* stockage indisponible */ }
   }, [stockage]);
 
@@ -58,9 +70,9 @@ export function VisiteGuidee({ cle, etapes, auto = true }: { cle: string; etapes
     const relance = (e: Event) => { if ((e as CustomEvent).detail === cle) setI(0); };
     window.addEventListener("axso:visite", relance);
     return () => { clearTimeout(minuteur); window.removeEventListener("axso:visite", relance); };
-  }, [auto, cle, stockage]);
+  }, [auto, cle, stockage, setI]);
 
-  const etape = i === null ? null : etapes[i];
+  const etape = i === null ? null : actives[i] ?? null;
 
   // Position de la cible, suivie au défilement et au redimensionnement.
   useLayoutEffect(() => {
@@ -76,7 +88,7 @@ export function VisiteGuidee({ cle, etapes, auto = true }: { cle: string; etapes
   }, [etape, terminer]);
 
   if (!etape || typeof document === "undefined") return null;
-  const derniere = i === etapes.length - 1;
+  const derniere = i === actives.length - 1;
   const vw = window.innerWidth, vh = window.innerHeight;
   const largeur = Math.min(BULLE, vw - 24);
 
@@ -104,7 +116,7 @@ export function VisiteGuidee({ cle, etapes, auto = true }: { cle: string; etapes
         </svg>
       )}
       <div className="axd-guide__bulle" role="dialog" aria-label={t(etape.titre)} style={bulle}>
-        <div className="axd-guide__pas">{t("Étape {0} sur {1}", String(i! + 1), String(etapes.length))}<i><b style={{ width: `${((i! + 1) / etapes.length) * 100}%` }} /></i></div>
+        <div className="axd-guide__pas">{t("Étape {0} sur {1}", String(i! + 1), String(actives.length))}<i><b style={{ width: `${((i! + 1) / actives.length) * 100}%` }} /></i></div>
         <h3>{t(etape.titre)}</h3>
         <p>{t(etape.texte)}</p>
         <div className="axd-guide__actions">

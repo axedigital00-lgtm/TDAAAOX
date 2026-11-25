@@ -6,6 +6,7 @@ import { PAYS_DEVISES } from "@/lib/ai-agent";
 import { planActif } from "@/lib/abonnement";
 import { NOMS_PALIERS } from "@/lib/plans";
 import { PlansGrid } from "@/components/dashboard/PlansGrid";
+import { TableauPaysCouverts } from "@/components/paiement/TableauPaysCouverts";
 import { etatEssai } from "@/lib/essai";
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -30,5 +31,10 @@ export default async function AbonnementPage() {
   const pays   = tenant?.pays ?? "CM";
   const devise = tenant?.devise ?? PAYS_DEVISES[pays] ?? "XAF";
 
-  return <PlansGrid planActuel={planActuel} nomPlan={NOMS_PALIERS[planActuel]} devise={devise} essai={{ phase: essai.phase, finLe: essai.finLe?.toISOString() ?? null }} promo={!!promoFinLe} />;
+  return (
+    <>
+      <PlansGrid planActuel={planActuel} nomPlan={NOMS_PALIERS[planActuel]} devise={devise} essai={{ phase: essai.phase, finLe: essai.finLe?.toISOString() ?? null }} promo={!!promoFinLe} />
+      <div style={{ maxWidth: 1100, margin: "24px auto 0", padding: "0 16px" }}><TableauPaysCouverts repliable /></div>
+    </>
+  );
 }

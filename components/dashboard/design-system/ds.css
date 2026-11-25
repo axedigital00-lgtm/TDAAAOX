@@ -815,7 +815,7 @@ button.axd-store-carte__img { display: block; width: 100%; padding: 0; border: 0
 }
 
 /* ───────────── Visite guidée ───────────── */
-.axd-guide { position: fixed; inset: 0; z-index: 600; pointer-events: none; --font-sans: "Inter Variable", Inter, -apple-system, "Segoe UI", sans-serif; --guide-marque: #EBA900; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+.axd-guide { position: fixed; inset: 0; z-index: 10050; pointer-events: none; --font-sans: "Inter Variable", Inter, -apple-system, "Segoe UI", sans-serif; --guide-marque: #EBA900; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 .axd-guide__voile { position: fixed; inset: 0; background: rgba(10,26,51,.55); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); pointer-events: auto; }
 .axd-guide__trou {
   position: fixed; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(10,26,51,.55), 0 0 0 2px var(--guide-marque) inset, 0 0 24px 2px rgba(235,169,0,.45);
@@ -919,4 +919,19 @@ button.axd-store-carte__img { display: block; width: 100%; padding: 0; border: 0
   .axd-main [class*="overflow-x-auto"] { -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
   /* Titres de page : lisibles, sans césure disgracieuse. */
   .axd-main h1 { text-wrap: balance; }
+}
+
+/* ───────────── Bouton « Guide de la page » (components/dashboard/VisitePage.tsx) ───────────── */
+.axd-aide-page {
+  position: fixed; right: 20px; bottom: 20px; z-index: 45; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 11px;
+  border-radius: 19px; border: 1px solid var(--color-border-secondary); background: var(--color-bg); color: var(--color-text-strong);
+  font: 600 13px/18px var(--font-admin); box-shadow: 0 6px 20px rgba(10,26,51,.12); cursor: pointer; transition: transform .12s ease, box-shadow .15s ease;
+}
+.axd-aide-page:hover { box-shadow: 0 8px 26px rgba(10,26,51,.18); }
+.axd-aide-page:active { transform: scale(.96); }
+.axd-aide-page svg { color: #8A6400; }
+.axd-shell[data-axia] .axd-aide-page { display: none; }
+@media (max-width: 820px) {
+  .axd-aide-page { right: 12px; bottom: calc(var(--tabbar-h, 58px) + 12px + env(safe-area-inset-bottom)); width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 22px; }
+  .axd-aide-page span { display: none; }
 }

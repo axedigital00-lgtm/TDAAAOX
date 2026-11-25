@@ -18,6 +18,7 @@ import { useT } from "@/components/I18nProvider";
 import { PAYS_OPTIONS, exempleTelephone, exempleVille, codePays } from "@/lib/devise-convert";
 import { moyensPhysique, type ReglagesPaiement } from "@/lib/paiement-pays";
 import { memoriserRef, lireRef, oublierRef } from "@/lib/ref-affiliation";
+import { TableauPaysCouverts } from "@/components/paiement/TableauPaysCouverts";
 
 export interface ParametresCommande {
   demanderEmail?: boolean;
@@ -863,6 +864,7 @@ function CheckoutNumerique({ theme, slug, devise, tenantId, items, total, codePr
       </button>
       <p className="flex items-center justify-center gap-1.5 text-xs opacity-60"><Shield size={13} />{t("Paiement sécurisé AXSO · accès envoyé par e-mail dès la confirmation")}</p>
       {choisi && choisi.devise !== devise && <p className="text-center text-xs opacity-60">{t("Le montant sera converti en {0} au taux du jour.", choisi.devise)}</p>}
+      {!!pays?.length && <TableauPaysCouverts pays={pays as any} repliable />}
     </form>
   );
 }
