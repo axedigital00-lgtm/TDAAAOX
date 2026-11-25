@@ -1,4 +1,5 @@
 // Bande de métriques (MASTERPROMPT §7.6) et sparkline (§7.8).
+import { Traduit, LibelleDefini } from "./Traduit";
 import Link from "next/link";
 import { Icon } from "../icons/Icon";
 import { PERIODES, pourcentage, type Periode } from "../format";
@@ -42,18 +43,18 @@ export function MetricsStrip({ periode, periodeHref, metrics }: { periode?: Peri
       {label && (
         periodeHref ? (
           <details className="axd-mstrip__per">
-            <summary><Icon name="calendar" />{label}</summary>
+            <summary><Icon name="calendar" /><Traduit>{label}</Traduit></summary>
             <div className="axd-popover axd-mstrip__menu" role="menu">
               {PERIODES.map((p) => (
-                <Link key={p.id} href={periodeHref(p.id)} className="axd-menu-item" data-active={p.id === periode || undefined} role="menuitem">{p.label}</Link>
+                <Link key={p.id} href={periodeHref(p.id)} className="axd-menu-item" data-active={p.id === periode || undefined} role="menuitem"><Traduit>{p.label}</Traduit></Link>
               ))}
             </div>
           </details>
-        ) : <div className="axd-mstrip__per"><span className="axd-mstrip__sum"><Icon name="calendar" />{label}</span></div>
+        ) : <div className="axd-mstrip__per"><span className="axd-mstrip__sum"><Icon name="calendar" /><Traduit>{label}</Traduit></span></div>
       )}
       {metrics.map((m) => (
         <div key={m.label} className="axd-mstrip__m">
-          <div className="axd-mstrip__t"><span className="axd-dotted" title={m.definition}>{m.label}</span></div>
+          <div className="axd-mstrip__t"><LibelleDefini label={m.label} definition={m.definition} /></div>
           <div className="axd-mstrip__v">
             <span className="axd-mstrip__val">{m.value}</span>
             <Delta value={m.delta} />

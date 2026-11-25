@@ -114,7 +114,7 @@ ${config.messageAccueil ? `Message d'accueil: ${config.messageAccueil}` : ""}`;
         <div>
           <p className="text-sm font-semibold text-amber-800">{t("WhatsApp Business requis")}</p>
           <p className="text-xs text-amber-600 mt-0.5">
-            {t("Connectez votre compte WhatsApp Business dans")}{" "}<a href="/dashboard/connecteurs" className="underline font-bold">{t("Connecteurs")}</a> pour activer le chatbot.
+            {t("Connectez votre compte WhatsApp Business dans")}{" "}<a href="/dashboard/connecteurs" className="underline font-bold">{t("Connecteurs")}</a> {t("pour activer le chatbot.")}
           </p>
         </div>
       </div>

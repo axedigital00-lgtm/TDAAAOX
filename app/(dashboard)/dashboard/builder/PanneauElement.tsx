@@ -88,7 +88,7 @@ export function PanneauElement({ titre, sousTitre, contenu, onContenu, styles, d
         {extra}
         {aContenu && etat === "base" && onContenu && (
           <Groupe titre={t("Contenu")}>
-            {contenu!.texteEnLigne && <p className="text-[13px] leading-relaxed text-[#666666] bg-[#F7F7F8] rounded-lg px-3 py-2.5">{t("Ce texte contient une mise en forme :")}{" "}<strong className="text-[#111111]">{t("clique dessus dans l'aperçu")}</strong> pour le modifier directement.</p>}
+            {contenu!.texteEnLigne && <p className="text-[13px] leading-relaxed text-[#666666] bg-[#F7F7F8] rounded-lg px-3 py-2.5">{t("Ce texte contient une mise en forme :")}{" "}<strong className="text-[#111111]">{t("clique dessus dans l'aperçu")}</strong> {t("pour le modifier directement.")}</p>}
             {contenu!.texte != null && <Champ label={t("Texte")}><textarea value={contenu!.texte} rows={3} onChange={(e) => onContenu({ texte: e.target.value })} className={INPUT + " h-auto py-2 resize-y"} /></Champ>}
             {contenu!.lien != null && <Champ label={t("Lien (URL ou page)")}><ChampLien value={contenu!.lien} onChange={(lien) => onContenu({ lien })} collections={collections} /></Champ>}
             {contenu!.image != null && <>

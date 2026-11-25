@@ -86,7 +86,7 @@ export default function DomainePage() {
           <Card title={t("Connecter un domaine")}>
             <form onSubmit={enregistrer} style={{ display: "grid", gap: "var(--space-300)" }}>
               <Field label={t("Votre domaine")} help={t("Conseil : un sous-domaine (boutique.…, shop.…) est le plus simple. Vous devez déjà posséder ce domaine chez un registraire (OVH, Namecheap, GoDaddy…).")}>
-                {(p) => <input {...p} className="axd-input" value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="boutique.mondomaine.com" inputMode="url" autoCapitalize="none" />}
+                {(p) => <input {...p} className="axd-input" value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder={t("boutique.mondomaine.com")} inputMode="url" autoCapitalize="none" />}
               </Field>
               {!d.publiee && <Banner tone="warning">{t("Votre boutique est en brouillon : le domaine l'affichera une fois la boutique publiée.")}</Banner>}
               <div><Button variant="primary" type="submit" loading={envoi} disabled={!saisie.trim()}>{t("Connecter ce domaine")}</Button></div>

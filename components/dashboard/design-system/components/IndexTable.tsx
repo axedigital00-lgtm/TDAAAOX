@@ -3,6 +3,7 @@
 // Les lignes arrivent prêtes du serveur (cellules en ReactNode) ; filtres,
 // recherche, tri et page vivent dans l'URL (§6).
 
+import { useT } from "@/components/I18nProvider";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -41,6 +42,7 @@ export function IndexFilters({
   const pathname = usePathname();
   const params = useSearchParams();
   const vue = params.get("view") ?? views[0]?.id;
+  const t = useT();
   const [q, setQ] = useState(params.get("q") ?? "");
   const [tri, setTri] = useState(false);
   const zoneTri = useRef<HTMLDivElement>(null);
@@ -75,23 +77,23 @@ export function IndexFilters({
         {views.map((v) => (
           <Link key={v.id} href={url({ view: v.id === views[0].id ? null : v.id })} role="tab" aria-selected={v.id === vue}
             className="axd-ix-tab" scroll={false}>
-            {v.label}{v.id === vue && <Icon name="chevronUpDown" size={14} />}
+            {t(v.label)}{v.id === vue && <Icon name="chevronUpDown" size={14} />}
           </Link>
         ))}
       </div>
       <label className="axd-ix-search">
         <Icon name="search" />
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} />
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t(searchPlaceholder)} aria-label={t(searchPlaceholder)} />
       </label>
       {sortOptions && (
         <div ref={zoneTri} style={{ position: "relative" }}>
-          <button type="button" className="axd-icon-btn" aria-label="Trier" title="Trier" aria-expanded={tri} onClick={() => setTri((v) => !v)}><Icon name="sort" /></button>
+          <button type="button" className="axd-icon-btn" aria-label={t("Trier")} title={t("Trier")} aria-expanded={tri} onClick={() => setTri((v) => !v)}><Icon name="sort" /></button>
           {tri && (
             <div className="axd-popover axd-ix-pop" role="menu">
-              <div className="axd-menu-label">Trier par</div>
+              <div className="axd-menu-label">{t("Trier par")}</div>
               {sortOptions.flatMap((o) => [
-                { v: `${o.key}:desc`, l: `${o.label} (décroissant)` },
-                { v: `${o.key}:asc`, l: `${o.label} (croissant)` },
+                { v: `${o.key}:desc`, l: `${t(o.label)} (${t("décroissant")})` },
+                { v: `${o.key}:asc`, l: `${t(o.label)} (${t("croissant")})` },
               ]).map((o) => (
                 <Link key={o.v} href={url({ sort: o.v })} className="axd-menu-item" data-active={sortActuel === o.v || undefined} onClick={() => setTri(false)} scroll={false}>{o.l}</Link>
               ))}
@@ -119,6 +121,7 @@ export function IndexTable({
 }) {
   const router = useRouter();
   const params = useSearchParams();
+  const t = useT();
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [enCours, setEnCours] = useState(false);
   const ids = useMemo(() => rows.map((r) => r.id), [rows]);
@@ -146,26 +149,26 @@ export function IndexTable({
             {selection.size > 0 ? (
               <tr className="axd-ix-bulk">
                 <th className="axd-ix-cb">
-                  <Checkbox checked={tout} indeterminate={partiel} onChange={() => setSelection(tout ? new Set() : new Set(ids))} label="Tout sélectionner" />
+                  <Checkbox checked={tout} indeterminate={partiel} onChange={() => setSelection(tout ? new Set() : new Set(ids))} label={t("Tout sélectionner")} />
                 </th>
                 <th colSpan={columns.length}>
                   <div className="axd-ix-bulk__bar">
                     <span>{selection.size} sélectionné{selection.size > 1 ? "s" : ""}</span>
                     {bulkActions.map((a) => (
-                      <button key={a.id} type="button" disabled={enCours} className={`axd-btn axd-btn--sm${a.destructive ? " axd-btn--critical" : ""}`} onClick={() => executer(a.id)}>{a.content}</button>
+                      <button key={a.id} type="button" disabled={enCours} className={`axd-btn axd-btn--sm${a.destructive ? " axd-btn--critical" : ""}`} onClick={() => executer(a.id)}>{t(a.content)}</button>
                     ))}
                   </div>
                 </th>
               </tr>
             ) : (
               <tr>
-                {selectable && <th className="axd-ix-cb"><Checkbox checked={false} onChange={() => setSelection(new Set(ids))} label="Tout sélectionner" /></th>}
+                {selectable && <th className="axd-ix-cb"><Checkbox checked={false} onChange={() => setSelection(new Set(ids))} label={t("Tout sélectionner")} /></th>}
                 {columns.map((c) => {
                   const actif = c.sortKey && sort?.startsWith(c.sortKey + ":");
                   return (
                     <th key={c.id} scope="col" className={c.numeric ? "axd-ix-num" : undefined} style={c.width ? { width: c.width } : undefined}
                       aria-sort={actif ? (sort!.endsWith(":asc") ? "ascending" : "descending") : undefined}>
-                      {c.header}{actif ? (sort!.endsWith(":asc") ? " ↑" : " ↓") : ""}
+                      {t(c.header)}{actif ? (sort!.endsWith(":asc") ? " ↑" : " ↓") : ""}
                     </th>
                   );
                 })}
@@ -181,7 +184,7 @@ export function IndexTable({
                 }}
                 className={r.href ? "axd-ix-link" : undefined}>
                 {selectable && (
-                  <td className="axd-ix-cb"><Checkbox checked={selection.has(r.id)} onChange={() => basculer(r.id)} label="Sélectionner" /></td>
+                  <td className="axd-ix-cb"><Checkbox checked={selection.has(r.id)} onChange={() => basculer(r.id)} label={t("Sélectionner")} /></td>
                 )}
                 {columns.map((c) => (
                   <td key={c.id}
@@ -196,10 +199,10 @@ export function IndexTable({
       </div>
       {pagination && (
         <div className="axd-ix-pager">
-          {pagination.previousHref ? <Link href={pagination.previousHref} className="axd-ix-pager__btn" aria-label="Page précédente"><Icon name="chevronLeft" /></Link>
+          {pagination.previousHref ? <Link href={pagination.previousHref} className="axd-ix-pager__btn" aria-label={t("Page précédente")}><Icon name="chevronLeft" /></Link>
             : <span className="axd-ix-pager__btn" aria-disabled><Icon name="chevronLeft" /></span>}
           <span>{pagination.label}</span>
-          {pagination.nextHref ? <Link href={pagination.nextHref} className="axd-ix-pager__btn" aria-label="Page suivante"><Icon name="chevronRight" /></Link>
+          {pagination.nextHref ? <Link href={pagination.nextHref} className="axd-ix-pager__btn" aria-label={t("Page suivante")}><Icon name="chevronRight" /></Link>
             : <span className="axd-ix-pager__btn" aria-disabled><Icon name="chevronRight" /></span>}
         </div>
       )}

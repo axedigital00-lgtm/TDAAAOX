@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/components/I18nProvider";
 import Link from "next/link";
 import { Icon, type IconName } from "../icons/Icon";
 
@@ -38,11 +39,12 @@ export function Button({
   variant, size, icon, iconPosition = "start", disclosure, loading, disabled, fullWidth,
   href, external, onClick, type = "button", children, ...aria
 }: ButtonProps) {
+  const t = useT();
   const cls = buttonClass({ variant, size, fullWidth, loading });
   const contenu = (
     <>
       {icon && iconPosition === "start" && <Icon name={icon} />}
-      {children !== undefined && <span>{children}</span>}
+      {children !== undefined && <span>{t(children)}</span>}
       {icon && iconPosition === "end" && <Icon name={icon} />}
       {disclosure && <Icon name="chevronDown" />}
       {loading && <span className="axd-spinner" aria-hidden />}

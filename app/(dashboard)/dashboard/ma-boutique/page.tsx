@@ -1,6 +1,7 @@
 // Ma boutique : la page d'arrivée de l'espace boutique. Elle guide le marchand
 // jusqu'à sa première vente (parcours de lancement) puis présente toutes les
 // fonctions de la boutique, rangées par besoin.
+import { getT } from "@/lib/i18n/serveur";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -58,6 +59,7 @@ export default async function MaBoutiquePage() {
   ]);
   if (!tenant) redirect("/inscription");
 
+  const t = await getT();
   const livraison = lireReglagesLivraison(tenant.parametresLivraison);
   const enLigne = tenant.statut === "active";
   const etapes: Etape[] = [
@@ -86,7 +88,7 @@ export default async function MaBoutiquePage() {
         <div className="axd-mb__logo">{tenant.logoUrl ? <img src={tenant.logoUrl} alt="" /> : <Icon name="store" size={20} />}</div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h1>{tenant.nomBoutique}</h1>
-          <span className={`axd-mb__statut${enLigne ? " axd-mb__statut--ok" : ""}`}>{enLigne ? "En ligne" : "Pas encore en ligne"}</span>
+          <span className={`axd-mb__statut${enLigne ? " axd-mb__statut--ok" : ""}`}>{t(enLigne ? "En ligne" : "Pas encore en ligne")}</span>
         </div>
       </header>
 
@@ -95,8 +97,8 @@ export default async function MaBoutiquePage() {
       {faites < etapes.length && (
         <section className="axd-mb__lancement" data-guide="mb-lancement" aria-labelledby="mb-lancement">
           <div className="axd-mb__lancement-tete">
-            <h2 id="mb-lancement">Lancez votre boutique</h2>
-            <span>{faites} sur {etapes.length}</span>
+            <h2 id="mb-lancement">{t("Lancez votre boutique")}</h2>
+            <span>{t("{0} sur {1}", faites, etapes.length)}</span>
           </div>
           <div className="axd-mb__barre" role="progressbar" aria-valuemin={0} aria-valuemax={etapes.length} aria-valuenow={faites}>
             <i style={{ width: `${(faites / etapes.length) * 100}%` }} />
@@ -108,16 +110,16 @@ export default async function MaBoutiquePage() {
                 <li key={e.id} className={`axd-mb__etape${e.fait ? " is-fait" : ""}${active ? " is-active" : ""}`}>
                   <span className="axd-mb__num" aria-hidden>{e.fait ? <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 10.5 8.5 14.5 15.5 6" /></svg> : n + 1}</span>
                   <div className="axd-mb__etape-corps">
-                    <h3>{e.titre}{e.fait && <span className="sr-only"> (fait)</span>}</h3>
-                    {active && <p>{e.texte}</p>}
+                    <h3>{t(e.titre)}{e.fait && <span className="sr-only"> ({t("fait")})</span>}</h3>
+                    {active && <p>{t(e.texte)}</p>}
                     {active && (
                       <div className="axd-mb__etape-actions">
-                        <Link href={e.href} className="axd-mb__cta" data-guide="mb-prochaine">{e.action}<Icon name="arrowRight" size={16} /></Link>
+                        <Link href={e.href} className="axd-mb__cta" data-guide="mb-prochaine">{t(e.action)}<Icon name="arrowRight" size={16} /></Link>
                         {e.guide && <BoutonGuider href={e.href} />}
                       </div>
                     )}
                   </div>
-                  {!active && !e.fait && <Link href={e.href} className="axd-mb__lien" aria-label={e.action}><Icon name="chevronRight" size={18} /></Link>}
+                  {!active && !e.fait && <Link href={e.href} className="axd-mb__lien" aria-label={t(e.action)}><Icon name="chevronRight" size={18} /></Link>}
                 </li>
               );
             })}
@@ -127,12 +129,12 @@ export default async function MaBoutiquePage() {
 
       {FONCTIONS.map((g, k) => (
         <section key={g.titre} className="axd-mb__groupe" data-guide={k === 0 ? "mb-fonctions" : undefined}>
-          <h2>{g.titre}</h2>
+          <h2>{t(g.titre)}</h2>
           <div className="axd-mb__tuiles">
             {g.liens.map((l) => (
               <Link key={l.href} href={l.href} className="axd-mb__tuile">
                 <span className="axd-mb__tuile-ic"><Icon name={l.icon} size={20} /></span>
-                <span className="axd-mb__tuile-txt"><b>{l.label}</b><small>{l.desc}</small></span>
+                <span className="axd-mb__tuile-txt"><b>{t(l.label)}</b><small>{t(l.desc)}</small></span>
               </Link>
             ))}
           </div>

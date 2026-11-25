@@ -55,7 +55,7 @@ export function ContactForm({ slug, accent, texte, fond }: Props) {
       </div>
       <div>
         <label className="text-xs font-semibold mb-1.5 block" style={{ color: texte, opacity: 0.7 }}>{t("Email")}</label>
-        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="vous@example.com" className={inputCls} style={inputStyle} />
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t("vous@example.com")} className={inputCls} style={inputStyle} />
       </div>
       <div>
         <label className="text-xs font-semibold mb-1.5 block" style={{ color: texte, opacity: 0.7 }}>{t("Message")}</label>

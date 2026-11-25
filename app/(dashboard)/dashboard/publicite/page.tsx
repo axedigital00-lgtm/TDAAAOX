@@ -335,7 +335,7 @@ Adapté marché africain. UNIQUEMENT le JSON.`,
             </div>
           )}
 
-          <Field label={t("Lien de destination")}>{(p) => <input {...p} className="axd-input" value={form.urlDestination} onChange={e => setForm(f => ({ ...f, urlDestination: e.target.value }))} placeholder="https://axsoafrica.com/votre-boutique" />}</Field>
+          <Field label={t("Lien de destination")}>{(p) => <input {...p} className="axd-input" value={form.urlDestination} onChange={e => setForm(f => ({ ...f, urlDestination: e.target.value }))} placeholder={t("https://axsoafrica.com/votre-boutique")} />}</Field>
         </div>
       </Modal>
     </Page>

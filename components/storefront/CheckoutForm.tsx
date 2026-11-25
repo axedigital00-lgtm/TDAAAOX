@@ -839,7 +839,7 @@ function CheckoutNumerique({ theme, slug, devise, tenantId, items, total, codePr
           <input className={champ} style={style} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} autoComplete="name" placeholder={t("Votre nom")} />
         </Field>
         <Field label={t("E-mail (pour recevoir votre accès)")} required>
-          <input className={champ} style={style} type="email" inputMode="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" placeholder="vous@exemple.com" />
+          <input className={champ} style={style} type="email" inputMode="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" placeholder={t("vous@exemple.com")} />
         </Field>
         <Field label={t("Pays")} required>
           <select className={champ} style={style} value={form.pays} onChange={(e) => setForm({ ...form, pays: e.target.value })} disabled={!pays}>

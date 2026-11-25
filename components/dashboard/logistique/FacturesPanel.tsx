@@ -63,7 +63,7 @@ function FacturePDF({ facture }: { facture: Facture }) {
   <div><h1>FACTURE</h1><p>${facture.numero}</p><p class="label">${new Date(facture.emiseAt).toLocaleDateString(t.loc)}</p></div>
   <div class="total"><span class="badge">${STATUT_CONFIG[facture.statut]?.label ?? facture.statut}</span></div>
 </div>
-<p><strong>Client :</strong> ${facture.clientNom} (${facture.clientEmail})</p>
+<p><strong>{t("Client :")}</strong> ${facture.clientNom} (${facture.clientEmail})</p>
 <div class="total">
   ${facture.tauxTVA > 0 ? `<p>Montant HT : ${facture.montantHT.toLocaleString("fr")} ${facture.devise}</p><p>TVA (${(facture.tauxTVA * 100).toFixed(0)}%) : ${facture.montantTVA.toLocaleString("fr")} ${facture.devise}</p>` : ""}
   <p class="ttc">Total : ${facture.montantTTC.toLocaleString("fr")} ${facture.devise}</p>
