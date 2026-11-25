@@ -1,4 +1,5 @@
 // Clients (MASTERPROMPT §8.9) : récapitulatif de la base, vues, recherche et table.
+import { Traduit, LibelleDefini } from "@/components/dashboard/design-system/components/Traduit";
 import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
@@ -82,7 +83,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       <div className="axd-mstrip">
         <div className="axd-mstrip__m">
           <div className="axd-mstrip__t">{nombre(total)} client{total > 1 ? "s" : ""}</div>
-          <div className="axd-mstrip__v"><span className="axd-muted">{part} % de votre base clients</span></div>
+          <div className="axd-mstrip__v"><span className="axd-muted"><Traduit valeurs={[part]}>{"{0} % de votre base clients"}</Traduit></span></div>
         </div>
       </div>
 
@@ -103,7 +104,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             href: `/dashboard/commandes?q=${encodeURIComponent(c.telephone || c.nom)}`,
             cells: {
               nom: c.nom,
-              abonnement: c.relancesRefuseesLe ? <Badge>Non abonné</Badge> : <Badge tone="success">Abonné</Badge>,
+              abonnement: c.relancesRefuseesLe ? <Badge><Traduit>Non abonné</Traduit></Badge> : <Badge tone="success"><Traduit>Abonné</Traduit></Badge>,
               emplacement: [c.ville, c.pays].filter(Boolean).join(", "),
               commandes: `${nombre(c.totalCommandes)} commande${c.totalCommandes > 1 ? "s" : ""}`,
               depense: formatMontant(c.totalDepense, devise),
@@ -117,13 +118,13 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           emptyState={(
             <div className="axd-empty">
               {q || vue !== "tous" ? <>
-                <h3>Aucun client trouvé</h3>
-                <p>Essayez de modifier les filtres ou le terme de recherche</p>
-                <div className="axd-empty__actions"><Button href="/dashboard/clients">Effacer les filtres</Button></div>
+                <h3><Traduit>Aucun client trouvé</Traduit></h3>
+                <p><Traduit>Essayez de modifier les filtres ou le terme de recherche</Traduit></p>
+                <div className="axd-empty__actions"><Button href="/dashboard/clients"><Traduit>Effacer les filtres</Traduit></Button></div>
               </> : <>
                 <EmptyArt name="campaign" />
-                <h3>Vos clients s’afficheront ici</h3>
-                <p>Chaque client qui commande sur votre boutique, par WhatsApp ou en caisse est ajouté automatiquement.</p>
+                <h3><Traduit>Vos clients s’afficheront ici</Traduit></h3>
+                <p><Traduit>Chaque client qui commande sur votre boutique, par WhatsApp ou en caisse est ajouté automatiquement.</Traduit></p>
               </>}
             </div>
           )}

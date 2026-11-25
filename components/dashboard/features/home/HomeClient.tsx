@@ -38,6 +38,8 @@ export type FeedItem = {
   task?: { done: number; total: number };
   title: string;
   text: string;
+  /** Valeurs des {0}, {1}… du titre et du texte (traduits avant remplacement). */
+  valeurs?: unknown[];
   action: { label: string; href: string };
 };
 
@@ -64,8 +66,8 @@ export function HomeFeed({ items }: { items: FeedItem[] }) {
           </div>
           <button type="button" className="axd-icon-btn axd-fc__x" onClick={() => masquer(i.id)} aria-label={t("Masquer la recommandation")}><Icon name="x" /></button>
           <div className="axd-fc__bd">
-            <h4>{t(i.title)}</h4>
-            <p>{t(i.text)}</p>
+            <h4>{t(i.title, ...(i.valeurs ?? []))}</h4>
+            <p>{t(i.text, ...(i.valeurs ?? []))}</p>
             <div className="axd-fc__go"><Link href={i.action.href} className="axd-btn axd-btn--sm">{t(i.action.label)}</Link></div>
           </div>
         </article>

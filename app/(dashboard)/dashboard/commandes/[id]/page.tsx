@@ -1,6 +1,7 @@
 // Fiche commande (MASTERPROMPT §8.3) : en-tête avec badges et navigation entre
 // commandes, colonne principale (traitement, paiement, livraison numérique,
 // chronologie) et colonne latérale (notes, client, adresse, livreur, suivi).
+import { Traduit } from "@/components/dashboard/design-system/components/Traduit";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -186,21 +187,21 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
             <Link href={`/dashboard/clients?q=${encodeURIComponent(commande.clientTelephone || commande.clientNom)}`} style={{ color: "var(--color-link)" }}>{commande.clientNom}</Link>
             {commande.client && <div className="axd-muted" style={{ fontSize: 12 }}>{nombre(commande.client.totalCommandes)} commande{commande.client.totalCommandes > 1 ? "s" : ""}</div>}
             <Divider />
-            <div className="axd-card__title" style={{ fontSize: 12 }}>Coordonnées</div>
+            <div className="axd-card__title" style={{ fontSize: 12 }}><Traduit>Coordonnées</Traduit></div>
             <a href={`tel:${commande.clientTelephone}`} style={{ display: "block", color: "var(--color-link)" }}>{commande.clientTelephone}</a>
             {commande.clientEmail && <a href={`mailto:${commande.clientEmail}`} style={{ display: "block", color: "var(--color-link)", overflowWrap: "anywhere" }}>{commande.clientEmail}</a>}
-            {telWa && <a href={`https://wa.me/${telWa}`} target="_blank" rel="noopener noreferrer" className="axd-btn axd-btn--sm" style={{ marginTop: 8 }}><Icon name="whatsapp" />Écrire sur WhatsApp</a>}
+            {telWa && <a href={`https://wa.me/${telWa}`} target="_blank" rel="noopener noreferrer" className="axd-btn axd-btn--sm" style={{ marginTop: 8 }}><Icon name="whatsapp" /><Traduit>Écrire sur WhatsApp</Traduit></a>}
             <Divider />
             <div className="axd-card__title" style={{ fontSize: 12 }}>Adresse de livraison</div>
             <p style={{ margin: "4px 0 0" }}>{commande.clientNom}<br />{commande.adresseExacte || commande.adresseLivraison}<br />{commande.ville}, {commande.pays}</p>
             <a href={commande.mapsLienClient || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${commande.adresseLivraison}, ${commande.ville}`)}`}
-              target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, color: "var(--color-link)" }}>Voir sur la carte</a>
+              target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, color: "var(--color-link)" }}><Traduit>Voir sur la carte</Traduit></a>
           </Card>
 
           <Card title="Livreur">
             {commande.livreur ? (
               <p style={{ margin: "0 0 8px" }}>{commande.livreur.nom} · <a href={`tel:${commande.livreur.telephone}`} style={{ color: "var(--color-link)" }}>{commande.livreur.telephone}</a></p>
-            ) : <p className="axd-muted" style={{ margin: "0 0 8px" }}>Aucun livreur assigné</p>}
+            ) : <p className="axd-muted" style={{ margin: "0 0 8px" }}><Traduit>Aucun livreur assigné</Traduit></p>}
             <AssignerLivreur
               commandeId={commande.id}
               livreurActuelId={commande.livreurId || null}
@@ -212,7 +213,7 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
                 <Divider />
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                   <div style={{ width: 96, height: 96, flex: "none" }} dangerouslySetInnerHTML={{ __html: qrLivreur }} />
-                  <p className="axd-muted" style={{ fontSize: 12, margin: 0 }}>À faire scanner par le livreur depuis cet écran, au départ. Ne l’imprimez pas et ne le mettez pas dans le colis.</p>
+                  <p className="axd-muted" style={{ fontSize: 12, margin: 0 }}><Traduit>À faire scanner par le livreur depuis cet écran, au départ. Ne l’imprimez pas et ne le mettez pas dans le colis.</Traduit></p>
                 </div>
               </>
             )}
@@ -226,7 +227,7 @@ export default async function CommandeDetailPage({ params }: { params: Promise<{
 
           {(lienSuivi || commande.numeroSuivi || commande.transporteur) && (
             <Card title="Suivi du colis">
-              {lienSuivi && <a href={lienSuivi} target="_blank" rel="noreferrer" className="axd-btn axd-btn--sm" style={{ marginBottom: 8 }}>Ouvrir le suivi client</a>}
+              {lienSuivi && <a href={lienSuivi} target="_blank" rel="noreferrer" className="axd-btn axd-btn--sm" style={{ marginBottom: 8 }}><Traduit>Ouvrir le suivi client</Traduit></a>}
               {commande.transporteur && <div className="axd-muted">{commande.transporteur}</div>}
               {commande.numeroSuivi && <div style={{ fontFamily: "monospace" }}>{commande.numeroSuivi}</div>}
             </Card>

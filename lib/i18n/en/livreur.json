@@ -65,5 +65,8 @@
  "Position partagée pendant cette livraison": "Location shared during this delivery",
  "Position non partagée : autorisez la localisation": "Location not shared: please enable location services",
  "Suivi de livraison": "Delivery tracking",
- "Notifications": "Notifications"
+ "Notifications": "Notifications",
+ "Client absent": "Customer absent",
+ "Client injoignable": "Customer unreachable",
+ "Piéton": "Walking courier"
 }

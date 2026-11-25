@@ -1,5 +1,6 @@
 // Produits (MASTERPROMPT §8.6) : en-tête, métriques sur 30 jours (taux de
 // vente, jours de stock restants, analyse ABC), vues, recherche et table.
+import { Traduit } from "@/components/dashboard/design-system/components/Traduit";
 import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
@@ -127,7 +128,7 @@ export default async function ProduitsPage({ searchParams }: { searchParams: Pro
       image: <span className="axd-thumb">{p.images[0] ? <img src={p.images[0]} alt="" loading="lazy" /> : <Icon name="image" />}</span>,
       produit: <span className="axd-ix-clamp">{p.nom}</span>,
       statut: <MappedBadge {...productBadge(p.actif ? "active" : "draft")} />,
-      stock: p.type === "digital" ? <span className="axd-subdued">Stock non suivi</span>
+      stock: p.type === "digital" ? <span className="axd-subdued"><Traduit>Stock non suivi</Traduit></span>
         : <span className={p.stock <= SEUIL_STOCK_BAS ? "axd-critical-text" : undefined}>{nombre(p.stock)} en stock</span>,
       categorie: p.categorie ?? "",
       type: TYPES[p.type] ?? p.type,
@@ -156,7 +157,7 @@ export default async function ProduitsPage({ searchParams }: { searchParams: Pro
         metrics={[
           { label: "Taux de vente moyen", definition: "Unités vendues / (unités vendues + unités en stock) sur 30 jours.", value: tauxVente === null ? "—" : pourcentage(tauxVente, 2) },
           { label: "Produits par jours de stock restants", definition: "Produit qui sera en rupture le plus tôt au rythme des ventes des 30 derniers jours.",
-            value: joursRestants ? <span className="axd-muted" style={{ fontWeight: 400 }}>{joursRestants.nom.slice(0, 28)} : {nombre(joursRestants.jours)} jour{joursRestants.jours > 1 ? "s" : ""}</span> : <span className="axd-muted" style={{ fontWeight: 400 }}>Aucune donnée</span> },
+            value: joursRestants ? <span className="axd-muted" style={{ fontWeight: 400 }}>{joursRestants.nom.slice(0, 28)} : {nombre(joursRestants.jours)} jour{joursRestants.jours > 1 ? "s" : ""}</span> : <span className="axd-muted" style={{ fontWeight: 400 }}><Traduit>Aucune donnée</Traduit></span> },
           { label: "Analyse ABC des produits", definition: "Chiffre d’affaires des 30 derniers jours : A = 80 %, B = 15 %, C = 5 % des ventes.",
             value: (
               <span style={{ display: "inline-flex", gap: 10 }}>
@@ -180,16 +181,16 @@ export default async function ProduitsPage({ searchParams }: { searchParams: Pro
           } : undefined}
           emptyState={filtre ? (
             <div className="axd-empty">
-              <h3>Aucun produit trouvé</h3>
-              <p>Essayez de modifier les filtres ou le terme de recherche</p>
-              <div className="axd-empty__actions"><Button href="/dashboard/produits">Effacer les filtres</Button></div>
+              <h3><Traduit>Aucun produit trouvé</Traduit></h3>
+              <p><Traduit>Essayez de modifier les filtres ou le terme de recherche</Traduit></p>
+              <div className="axd-empty__actions"><Button href="/dashboard/produits"><Traduit>Effacer les filtres</Traduit></Button></div>
             </div>
           ) : (
             <div className="axd-empty">
               <EmptyArt name="catalog" />
-              <h3>Ajoutez vos produits</h3>
-              <p>Commencez par ajouter un premier produit, ou importez votre catalogue depuis un fichier Excel.</p>
-              <div className="axd-empty__actions"><Button href="/dashboard/produits/nouveau" variant="primary">Ajouter un produit</Button></div>
+              <h3><Traduit>Ajoutez vos produits</Traduit></h3>
+              <p><Traduit>Commencez par ajouter un premier produit, ou importez votre catalogue depuis un fichier Excel.</Traduit></p>
+              <div className="axd-empty__actions"><Button href="/dashboard/produits/nouveau" variant="primary"><Traduit>Ajouter un produit</Traduit></Button></div>
             </div>
           )}
         />

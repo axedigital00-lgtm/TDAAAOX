@@ -80,7 +80,7 @@ export function DonutChart({ parts, centre, unite }: { parts: { label: string; v
       <div style={{ fontSize: 12 }}>
         {parts.map((p, i) => (
           <div key={p.label} className="axd-kv" style={{ border: 0, padding: "3px 0" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><i className="axd-legend-dot" style={{ background: PALETTE[i % PALETTE.length] }} />{p.label}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><i className="axd-legend-dot" style={{ background: PALETTE[i % PALETTE.length] }} />{typeof p.label === "string" ? <Traduit>{p.label}</Traduit> : p.label}</span>
             <span>{total ? Math.round((p.value / total) * 100) : 0} %</span>
           </div>
         ))}
@@ -96,7 +96,7 @@ export function HorizontalBars({ items, format = (v) => compact(v) }: { items: {
     <div>
       {items.map((i) => (
         <div key={i.label} style={{ margin: "10px 0" }}>
-          <div style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.label}</div>
+          <div style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}><Traduit>{i.label}</Traduit></div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className="axd-hbar" style={{ width: `${Math.max(2, (i.value / max) * 85)}%` }} />
             <span className="axd-muted" style={{ fontSize: 12 }}>{format(i.value)}</span>
@@ -113,9 +113,10 @@ export function KeyValue({ rows }: { rows: { label: React.ReactNode; value: Reac
     <div>
       {rows.map((r, i) => (
         <div key={i} className="axd-kv" style={r.strong ? { fontWeight: 600, color: "var(--color-text-strong)" } : undefined}>
-          <span>{r.label}</span><span className="axd-tabular">{r.value}</span>
+          <span>{typeof r.label === "string" ? <Traduit>{r.label}</Traduit> : r.label}</span><span className="axd-tabular">{r.value}</span>
         </div>
       ))}
     </div>
   );
 }
+import { Traduit } from "./Traduit";

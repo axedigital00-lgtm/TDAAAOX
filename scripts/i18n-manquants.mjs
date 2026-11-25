@@ -36,6 +36,9 @@ const APPEL = /\b(?:t|tr)\(\s*(["'`])((?:\\.|(?!\1)[^\\])*?)\1/g;
 const CLES = "label|titre|texte|description|desc|but|action|astuce|nom|detail|contenu|sousTitre|placeholder|title|libelle|message|question|reponse|aide|court";
 const PROP = new RegExp(`\\b(?:${CLES})\\s*:\\s*(["'\`])((?:\\\\.|(?!\\1)[^\\\\])*?)\\1`, "g");
 const francais = (s) => /[a-zA-ZÀ-ÿ]/.test(s) && (/\s/.test(s) || /[À-ÿ]/.test(s)) && !/^(https?:|\/|#|[a-z-]+:|var\(|[\w-]+\.(png|svg|webp|jpg))/.test(s) && !/\$\{/.test(s) && s.length <= 600 && !/^[a-z0-9_-]+$/.test(s);
+const LARGE = process.argv.includes("--large");
+const LITTERAL = /(["'])((?:\\.|(?!\1)[^\\\n])*?)\1/g;
+const MOT_FR = /[àâçéèêëîïôûùœ]|\b(vous|votre|vos|les|des|pour|avec|une|mes|mon|ma|aucun|commande|boutique|produit|client)\b/i;
 const nettoyer = (s, q) => q === "`" ? s : s.replace(/\\n/g, "\n").replace(/\\(["'\\])/g, "$1");
 
 const manquants = { commun: new Map(), dashboard: new Map(), admin: new Map(), boutique: new Map(), livreur: new Map() };
@@ -43,12 +46,20 @@ let total = 0;
 for (const f of DOSSIERS.flatMap((d) => fichiers(path.join(RACINE, d)))) {
   const rel = path.relative(RACINE, f);
   const src = fs.readFileSync(f, "utf8");
-  const traduit = /\buseT\(|\bgetT\(|\btr\(|\bt\(/.test(src);
+  const traduit = /\buseT\(|\bgetT\(|\btr\(|\bt\(|<Traduit\b/.test(src);
   if (!traduit) continue;
   const zone = zoneDe(rel);
   const vus = new Set();
   for (const m of src.matchAll(APPEL)) if (m[2].trim() && !m[2].includes("${")) vus.add(nettoyer(m[2], m[1]));
   for (const m of src.matchAll(PROP)) if (francais(m[2])) vus.add(nettoyer(m[2], m[1]));
+  // --large : toute phrase française entre guillemets dans les fichiers d'interface (listes de
+  // suggestions, champs courts t/d/l…), hors routes d'API et code serveur de lib/.
+  if (LARGE && !/[\\/]api[\\/]/.test(rel) && !rel.startsWith("lib")) {
+    for (const m of src.matchAll(LITTERAL)) {
+      const s = nettoyer(m[2], m[1]);
+      if (francais(s) && MOT_FR.test(s) && (!/^[a-zà-ÿ]/.test(s.trim()) || s.trim().split(/\s+/).length >= 4) && !/[{}<>=;]|\b(flex|grid|px-|py-|text-|bg-|rounded)\b/.test(s)) vus.add(s);
+    }
+  }
   for (const s of vus) {
     if (!/[a-zA-ZÀ-ÿ]{2}/.test(s)) continue;
     const coeur = s.trim();

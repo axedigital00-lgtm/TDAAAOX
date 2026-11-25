@@ -1,6 +1,7 @@
 // Accueil (MASTERPROMPT §8.1), sans en-tête de page : barre de KPI sur 30 jours,
 // salutation, champ Stella, actions à traiter et fil de recommandations.
 // Les analyses détaillées vivent dans Analyses de données.
+import { Traduit } from "@/components/dashboard/design-system/components/Traduit";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -102,8 +103,9 @@ export default async function AccueilPage() {
     const v = Math.round(Math.abs((tVis - tVisPrec) / tVisPrec) * 100);
     feed.push({
       id: `visites-${jourCle(debut7)}`, art: <div className="axd-fc__chart"><MiniLineChart data={visSemaine} compare={visSemainePrec} /></div>,
-      title: tVis > tVisPrec ? `Les visites de votre boutique ont augmenté de ${v} %` : `Les visites de votre boutique ont baissé de ${v} %`,
-      text: `Il s’agit d’une ${tVis > tVisPrec ? "hausse" : "baisse"} de ${v} %, passant de ${nombre(tVisPrec)} à ${nombre(tVis)} visites par rapport à la semaine dernière.`,
+      title: tVis > tVisPrec ? "Les visites de votre boutique ont augmenté de {0} %" : "Les visites de votre boutique ont baissé de {0} %",
+      text: tVis > tVisPrec ? "Il s’agit d’une hausse de {0} %, passant de {1} à {2} visites par rapport à la semaine dernière." : "Il s’agit d’une baisse de {0} %, passant de {1} à {2} visites par rapport à la semaine dernière.",
+      valeurs: [v, nombre(tVisPrec), nombre(tVis)],
       action: { label: "Afficher le rapport", href: "/dashboard/analytics" },
     });
   }
@@ -112,8 +114,9 @@ export default async function AccueilPage() {
     const v = Math.round(((e.semaine - e.prec) / e.prec) * 100);
     feed.push({
       id: `produit-${jourCle(debut7)}`, art: <div className="axd-fc__chart"><MiniLineChart data={e.s} compare={e.p} /></div>,
-      title: `${nom} : ventes en hausse de ${v} %`,
-      text: `Les ventes de ce produit ont progressé de ${v} %, passant de ${formatMontant(e.prec, devise)} à ${formatMontant(e.semaine, devise)} par rapport à la semaine dernière.`,
+      title: "{0} : ventes en hausse de {1} %",
+      text: "Les ventes de ce produit ont progressé de {1} %, passant de {2} à {3} par rapport à la semaine dernière.",
+      valeurs: [nom, v, formatMontant(e.prec, devise), formatMontant(e.semaine, devise)],
       action: { label: "Afficher le rapport", href: "/dashboard/rapports" },
     });
   }
@@ -132,7 +135,8 @@ export default async function AccueilPage() {
   if (totalCommandes < 100) feed.push({
     id: "100-ventes", art: <FeedArt name="catalog" />, task: { done: Math.min(totalCommandes, 100), total: 100 },
     title: "Réalisez vos 100 premières ventes",
-    text: `Vous en êtes à ${nombre(totalCommandes)} commande${totalCommandes > 1 ? "s" : ""}. Partagez votre boutique, lancez une promotion et relancez vos clients pour y arriver.`,
+    text: totalCommandes > 1 ? "Vous en êtes à {0} commandes. Partagez votre boutique, lancez une promotion et relancez vos clients pour y arriver." : "Vous en êtes à {0} commande. Partagez votre boutique, lancez une promotion et relancez vos clients pour y arriver.",
+    valeurs: [nombre(totalCommandes)],
     action: { label: "Démarrer", href: "/dashboard/marketing" },
   });
 
@@ -147,19 +151,19 @@ export default async function AccueilPage() {
     <Page width="narrow">
       <AccueilTutorial />
       <div className="axd-kbar">
-        <div className="axd-kbar__side"><span style={{ fontWeight: 550, color: "var(--color-text-strong)" }}>30 derniers jours</span> · Tous les canaux</div>
+        <div className="axd-kbar__side"><span style={{ fontWeight: 550, color: "var(--color-text-strong)" }}>30 derniers jours</span> <Traduit>· Tous les canaux</Traduit></div>
         <Link href="/dashboard/analytics" className="axd-kbar__k">
           <div>Visites</div>
           <div className="axd-kbar__v">{nombre(nbVisites)} <Delta value={variation(nbVisites, nbVisitesPrec)} /></div>
         </Link>
         {voitFinance && (
           <Link href="/dashboard/analytics" className="axd-kbar__k">
-            <div>Ventes totales</div>
+            <div><Traduit>Ventes totales</Traduit></div>
             <div className="axd-kbar__v">{compactMontant(ventes(cmd30))} <Delta value={variation(ventes(cmd30), ventes(cmdPrec))} /></div>
           </Link>
         )}
         <Link href="/dashboard/commandes" className="axd-kbar__k">
-          <div>Commandes</div>
+          <div><Traduit>Commandes</Traduit></div>
           <div className="axd-kbar__v">{nombre(cmd30.length)} <Delta value={variation(cmd30.length, cmdPrec.length)} /></div>
         </Link>
         <Link href="/dashboard/analytics" className="axd-kbar__k">
@@ -172,17 +176,17 @@ export default async function AccueilPage() {
       </div>
 
       <div className="axd-hero">
-        <h1>Bonjour{prenom ? ` ${prenom}` : ""} !<br />Continuons à développer votre entreprise.</h1>
+        <h1>Bonjour{prenom ? ` ${prenom}` : ""} !<br /><Traduit>Continuons à développer votre entreprise.</Traduit></h1>
       </div>
 
       <HomeAsk />
 
       <div className="axd-chips">
         {droits.commandes !== "aucun" && aTraiter > 0 && (
-          <Link href="/dashboard/commandes?view=non_traitees" className="axd-chip">Traiter les commandes <b>{aTraiter > 50 ? "50+" : aTraiter}</b></Link>
+          <Link href="/dashboard/commandes?view=non_traitees" className="axd-chip"><Traduit>Traiter les commandes</Traduit> <b>{aTraiter > 50 ? "50+" : aTraiter}</b></Link>
         )}
         {droits.commandes !== "aucun" && aEncaisser > 0 && (
-          <Link href="/dashboard/commandes?view=non_payees" className="axd-chip">Confirmer les paiements à la livraison <b>{aEncaisser > 50 ? "50+" : aEncaisser}</b></Link>
+          <Link href="/dashboard/commandes?view=non_payees" className="axd-chip"><Traduit>Confirmer les paiements à la livraison</Traduit> <b>{aEncaisser > 50 ? "50+" : aEncaisser}</b></Link>
         )}
       </div>
 

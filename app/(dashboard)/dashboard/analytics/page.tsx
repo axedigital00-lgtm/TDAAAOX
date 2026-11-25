@@ -2,6 +2,7 @@
 // au fil du temps avec comparaison, ventilation, canaux, visites, produits,
 // moyens de paiement, refus à la livraison et entonnoir.
 // Palier sans « analytics_avance » : résumé sur 7 jours (règle existante).
+import { Traduit, LibelleDefini } from "@/components/dashboard/design-system/components/Traduit";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -119,8 +120,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
       {!avance && (
         <div style={{ marginBottom: 14 }}>
-          <Banner tone="info" action={<Link href="/dashboard/abonnement" className="axd-btn axd-btn--sm">Voir les forfaits</Link>}>
-            Votre forfait affiche un résumé sur 7 jours. L’historique complet, l’entonnoir et les analyses par produit sont inclus dans les paliers Pro et Illimité.
+          <Banner tone="info" action={<Link href="/dashboard/abonnement" className="axd-btn axd-btn--sm"><Traduit>Voir les forfaits</Traduit></Link>}>
+            <Traduit>Votre forfait affiche un résumé sur 7 jours. L’historique complet, l’entonnoir et les analyses par produit sont inclus dans les paliers Pro et Illimité.</Traduit>
           </Banner>
         </div>
       )}
@@ -140,7 +141,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <div className="axd-grid axd-g4">
         {kpis.map((k) => (
           <div key={k.t} className="axd-card axd-card--pad">
-            <span className="axd-kpi__t axd-dotted" title={k.d}>{k.t}</span>
+            <span className="axd-kpi__t"><LibelleDefini label={k.t} definition={k.d} /></span>
             <div className="axd-kpi__v">{k.v} <Delta value={k.delta} /></div>
             {k.serie && <Sparkline data={k.serie} width={240} height={30} />}
           </div>
@@ -149,21 +150,21 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
       <div className="axd-grid axd-g21 axd-section">
         <div className="axd-card axd-card--pad">
-          <div className="axd-kpi__t">Ventes totales au fil du temps</div>
+          <div className="axd-kpi__t"><Traduit>Ventes totales au fil du temps</Traduit></div>
           <div className="axd-kpi__v axd-kpi__v--lg">{formatMontant(totales, devise)} <Delta value={variation(totales, totalesPrec)} /></div>
           <LineChart data={serieVentes} compare={serieVentesPrec} labels={labels} legend={legendes} summary={`Ventes totales : ${formatMontant(totales, devise)} sur la période`} />
         </div>
         <div className="axd-card axd-card--pad">
-          <div className="axd-kpi__t" style={{ marginBottom: 6 }}>Ventilation des ventes totales</div>
+          <div className="axd-kpi__t" style={{ marginBottom: 6 }}><Traduit>Ventilation des ventes totales</Traduit></div>
           <KeyValue rows={[
-            { label: <Link href="/dashboard/rapports" className="axd-btn--plain" style={{ color: "var(--color-link)" }}>Ventes brutes</Link>, value: formatMontant(brutes, devise) },
+            { label: <Link href="/dashboard/rapports" className="axd-btn--plain" style={{ color: "var(--color-link)" }}><Traduit>Ventes brutes</Traduit></Link>, value: formatMontant(brutes, devise) },
             { label: "Réductions", value: formatMontant(reductions ? -reductions : 0, devise) },
             { label: "Ventes nettes", value: formatMontant(brutes - reductions, devise) },
             { label: "Frais de livraison", value: formatMontant(livraison, devise) },
             { label: "Ventes totales", value: formatMontant(totales, devise), strong: true },
             { label: "Dont encaissées", value: formatMontant(somme(payees, (c) => c.montantTotal), devise) },
           ]} />
-          <p className="axd-muted" style={{ fontSize: 12, margin: "8px 0 0" }}>Période précédente : {formatMontant(somme(payeesPrec, (c) => c.montantTotal), devise)} encaissés</p>
+          <p className="axd-muted" style={{ fontSize: 12, margin: "8px 0 0" }}><Traduit valeurs={[formatMontant(somme(payeesPrec, (c) => c.montantTotal), devise)]}>{"Période précédente : {0} encaissés"}</Traduit></p>
         </div>
       </div>
 
@@ -171,7 +172,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         <>
           <div className="axd-grid axd-g3 axd-section">
             <div className="axd-card axd-card--pad">
-              <div className="axd-kpi__t">Ventes par canal</div>
+              <div className="axd-kpi__t"><Traduit>Ventes par canal</Traduit></div>
               <DonutChart parts={parCanal.length ? parCanal : [{ label: "Aucune vente", value: 0 }]} centre={totales >= 1e3 ? `${nombre(totales / 1e3, 1)} k` : nombre(totales)} unite={fcfa} />
             </div>
             <div className="axd-card axd-card--pad">
@@ -180,19 +181,19 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
               <LineChart data={serieVisites} compare={serieVisitesPrec} labels={[labels[0], labels[labels.length - 1]]} width={380} height={180} summary={`${nombre(nbVisites)} visites sur la période`} />
             </div>
             <div className="axd-card axd-card--pad">
-              <div className="axd-kpi__t">Ventes totales par produit</div>
-              {parProduit.length ? <HorizontalBars items={parProduit} /> : <p className="axd-muted">Aucune vente sur la période.</p>}
+              <div className="axd-kpi__t"><Traduit>Ventes totales par produit</Traduit></div>
+              {parProduit.length ? <HorizontalBars items={parProduit} /> : <p className="axd-muted"><Traduit>Aucune vente sur la période.</Traduit></p>}
             </div>
           </div>
 
           <div className="axd-grid axd-g3 axd-section">
             <div className="axd-card axd-card--pad">
-              <div className="axd-kpi__t">Ventes par moyen de paiement</div>
-              {parMoyen.length ? <HorizontalBars items={parMoyen} /> : <p className="axd-muted">Aucune vente sur la période.</p>}
+              <div className="axd-kpi__t"><Traduit>Ventes par moyen de paiement</Traduit></div>
+              {parMoyen.length ? <HorizontalBars items={parMoyen} /> : <p className="axd-muted"><Traduit>Aucune vente sur la période.</Traduit></p>}
             </div>
             <div className="axd-card axd-card--pad">
-              <div className="axd-kpi__t">Taux de refus à la livraison par ville</div>
-              {refusParVille.length ? <HorizontalBars items={refusParVille} format={(v) => pourcentage(v, 1)} /> : <p className="axd-muted">Aucune livraison terminée sur la période.</p>}
+              <div className="axd-kpi__t"><Traduit>Taux de refus à la livraison par ville</Traduit></div>
+              {refusParVille.length ? <HorizontalBars items={refusParVille} format={(v) => pourcentage(v, 1)} /> : <p className="axd-muted"><Traduit>Aucune livraison terminée sur la période.</Traduit></p>}
             </div>
             <div className="axd-card axd-card--pad">
               <div className="axd-kpi__t">Taux de conversion</div>
@@ -203,7 +204,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
           {avis.length > 0 && (
             <div className="axd-card axd-card--pad axd-section">
-              <div className="axd-card__head"><h2 className="axd-card__title">Derniers avis clients</h2><Link href="/dashboard/avis" className="axd-btn axd-btn--plain axd-btn--sm">Tout afficher</Link></div>
+              <div className="axd-card__head"><h2 className="axd-card__title"><Traduit>Derniers avis clients</Traduit></h2><Link href="/dashboard/avis" className="axd-btn axd-btn--plain axd-btn--sm">Tout afficher</Link></div>
               {avis.map((a) => (
                 <div key={a.id} className="axd-kv"><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b>{a.produit?.nom ?? "Boutique"}</b> · {a.commentaire}</span><span className="axd-muted">{a.note}/5</span></div>
               ))}

@@ -1,5 +1,6 @@
 // Commandes (MASTERPROMPT §8.2) : en-tête, bande de métriques de la période,
 // vues, recherche et table d'index. Filtres, tri et page dans l'URL.
+import { Traduit } from "@/components/dashboard/design-system/components/Traduit";
 import { auth } from "@/lib/auth";
 import { exigerModule } from "@/lib/permissions-server";
 import { prisma } from "@/lib/prisma";
@@ -175,16 +176,16 @@ export default async function CommandesPage({ searchParams }: { searchParams: Pr
           } : undefined}
           emptyState={recherche ? (
             <div className="axd-empty">
-              <h3>Aucune commande trouvée</h3>
-              <p>Essayez de modifier les filtres ou le terme de recherche</p>
-              <div className="axd-empty__actions"><Button href="/dashboard/commandes">Effacer les filtres</Button></div>
+              <h3><Traduit>Aucune commande trouvée</Traduit></h3>
+              <p><Traduit>Essayez de modifier les filtres ou le terme de recherche</Traduit></p>
+              <div className="axd-empty__actions"><Button href="/dashboard/commandes"><Traduit>Effacer les filtres</Traduit></Button></div>
             </div>
           ) : (
             <div className="axd-empty">
               <EmptyArtInline />
-              <h3>Vos commandes s’afficheront ici</h3>
-              <p>Les commandes passées sur votre boutique, par WhatsApp ou en caisse apparaissent ici en temps réel.</p>
-              <div className="axd-empty__actions"><Button href="/dashboard/boutique">Voir ma boutique</Button></div>
+              <h3><Traduit>Vos commandes s’afficheront ici</Traduit></h3>
+              <p><Traduit>Les commandes passées sur votre boutique, par WhatsApp ou en caisse apparaissent ici en temps réel.</Traduit></p>
+              <div className="axd-empty__actions"><Button href="/dashboard/boutique"><Traduit>Voir ma boutique</Traduit></Button></div>
             </div>
           )}
         />
