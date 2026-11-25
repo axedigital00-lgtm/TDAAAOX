@@ -5,7 +5,7 @@
 // Une étape dont la cible est absente s'affiche au centre de l'écran, sauf si elle est
 // facultative : elle est alors sautée.
 
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/components/I18nProvider";
 
@@ -43,10 +43,14 @@ export function VisiteGuidee({ cle, etapes, auto = true }: { cle: string; etapes
   const [i, setIBrut] = useState<number | null>(null);
   // Étapes retenues au démarrage : les facultatives sans cible sur la page sont sautées.
   const [actives, setActives] = useState<EtapeGuide[]>(etapes);
+  // Les pages recréent la liste des étapes à chaque rendu : on garde la dernière dans une référence,
+  // pour que le démarrage ne se relance jamais tout seul (retour à l'étape 1 en pleine visite).
+  const etapesRef = useRef(etapes);
+  etapesRef.current = etapes;
   const setI = useCallback((n: number | null) => {
-    if (n === 0) setActives(etapes.filter((e) => !e.facultative || cibleVisible(e.cible)));
+    if (n === 0) setActives(etapesRef.current.filter((e) => !e.facultative || cibleVisible(e.cible)));
     setIBrut(n);
-  }, [etapes]);
+  }, []);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const stockage = `axso:visite:${cle}`;
 

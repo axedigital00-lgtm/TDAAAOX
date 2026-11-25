@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
-import { reductionPromo } from "@/lib/pricing";
+import { reductionPromo, TYPES_NUMERIQUES } from "@/lib/pricing";
 import { formatMontant } from "@/lib/utils";
 import { usePrix, useVisiteur } from "@/components/storefront/DeviseVitrine";
 import { useSearchParams } from "next/navigation";
@@ -891,8 +891,9 @@ export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoU
   const viderPanier = () => {};
   const [commandee, setCommandee] = useState(false); // écran de confirmation : plus de badge ni de code promo
 
-  // digital + dropshipping → paiement en ligne (indisponible) ; physique → WhatsApp / paiement à la livraison
-  const typePanier = !article ? "vide" : article.type === "physique" ? "physique" : "digital";
+  // Numérique → paiement Mobile Money sur AXSO ; tout le reste (physique, dropshipping) → commande
+  // signalée au marchand (e-mail, notification, WhatsApp du client) et payée à la livraison.
+  const typePanier = !article ? "vide" : TYPES_NUMERIQUES.has(article.type) ? "digital" : "physique";
 
   useEffect(() => {
     if (!article) return;

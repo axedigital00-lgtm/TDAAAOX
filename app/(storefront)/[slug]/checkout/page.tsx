@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { boutiqueVisible } from "@/lib/tenant";
 import Link from "next/link";
 import { CheckoutForm, type ArticleCommande } from "@/components/storefront/CheckoutForm";
-import { prixClient } from "@/lib/pricing";
+import { prixClient, TYPES_NUMERIQUES } from "@/lib/pricing";
 import { lireVenteGros, prixPourQuantite } from "@/lib/commerce/gros";
 import { habillageDesign } from "@/components/storefront/templates/HabillageDesign";
 import { resolveConfigVitrine } from "@/lib/vitrine-design";
@@ -29,11 +29,11 @@ async function articleCommande(tenantId: string, taux: number, q: { produit?: st
   });
   if (!p) return null;
   const variante = q.variante ? p.variantes.find((v) => `${v.nom}: ${v.valeur}` === q.variante) : undefined;
-  const gros = p.type === "physique" ? lireVenteGros(p.venteGros) : null;
-  const quantite = Math.min(Math.max(Math.floor(Number(q.quantite) || 1), 1), p.type !== "physique" ? 10 : gros ? 99999 : 999);
+  const gros = !TYPES_NUMERIQUES.has(p.type) ? lireVenteGros(p.venteGros) : null;
+  const quantite = Math.min(Math.max(Math.floor(Number(q.quantite) || 1), 1), TYPES_NUMERIQUES.has(p.type) ? 10 : gros ? 99999 : 999);
   return {
     produitId: p.id, nom: p.nom, type: p.type, imageUrl: p.images[0],
-    prix: p.type === "physique" ? prixPourQuantite(variante?.prix ?? p.prix, gros, quantite) : prixClient(variante?.prix ?? p.prix, taux, p.type),
+    prix: !TYPES_NUMERIQUES.has(p.type) ? prixPourQuantite(variante?.prix ?? p.prix, gros, quantite) : prixClient(variante?.prix ?? p.prix, taux, p.type),
     // Mêmes plafonds que la création de commande : 999 (à la livraison, 99 999 en gros), 10 (payé en ligne).
     quantite,
     variante: variante ? q.variante : undefined,
@@ -74,7 +74,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
             <span className="text-xl font-bold font-playfair" style={{ color: theme.accent }}>{t(tenant.nomBoutique)}</span>
           </Link>
           <div className="flex items-center gap-2 text-sm opacity-50">
-            <span className="text-xs">{article?.type === "physique" ? t("Paiement à la livraison") : t("Paiement sécurisé")}</span>
+            <span className="text-xs">{!TYPES_NUMERIQUES.has(article?.type ?? "") ? t("Paiement à la livraison") : t("Paiement sécurisé")}</span>
             <Lock size={14} />
           </div>
         </div>
@@ -96,7 +96,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
       </div>
 
       <footer className="border-t py-8 text-center text-sm opacity-50" style={{ borderColor: `${theme.accent}20` }}>
-        <p>{article?.type === "physique" ? t("Paiement à la livraison") : t("Paiement sécurisé")}</p>
+        <p>{!TYPES_NUMERIQUES.has(article?.type ?? "") ? t("Paiement à la livraison") : t("Paiement sécurisé")}</p>
       </footer>
     </div>
   );

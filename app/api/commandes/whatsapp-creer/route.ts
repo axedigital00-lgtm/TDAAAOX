@@ -1,5 +1,6 @@
-// Créer une commande physique (paiement à la livraison) + lien WhatsApp + tokens tracking/facture.
-// Le dropshipping et le digital se paient en ligne (indisponible pour l'instant) : refusés ici.
+// Créer une commande physique ou en dropshipping (paiement à la livraison) + lien WhatsApp + tokens
+// tracking/facture. Le marchand est prévenu par e-mail et sur le dashboard ; le client lui envoie sa
+// commande sur WhatsApp. Seuls les produits numériques se paient en ligne : refusés ici.
 import { lienBoutique } from "@/lib/origine-site";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,7 @@ import { villeCommande } from "@/lib/livraison-reglages";
 import { codePays } from "@/lib/devise-convert";
 import { randomBytes } from "crypto";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
-import { reductionPromo, filtreUsagePromo } from "@/lib/pricing";
+import { reductionPromo, filtreUsagePromo, TYPES_NUMERIQUES } from "@/lib/pricing";
 import { RuptureStock, sortirStock } from "@/lib/stock";
 import { COOKIE_XP, noterConversion } from "@/lib/builder/experiences";
 import { lireReglagesPaiement, moyensPhysique } from "@/lib/paiement-pays";
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     for (const item of itemsClient) {
       const p = produits.find((x) => x.id === String(item.produitId));
       if (!p) return NextResponse.json({ error: "Produit introuvable dans cette boutique" }, { status: 400 });
-      if (p.type !== "physique") {
+      if (TYPES_NUMERIQUES.has(p.type)) {
         return NextResponse.json({ error: "Ce produit se paie en ligne" }, { status: 400 });
       }
       const variante = item.variante ? p.variantes.find((v) => `${v.nom}: ${v.valeur}` === item.variante) : null;
