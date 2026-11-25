@@ -1,22 +1,30 @@
 import { AVEC_CENTIMES } from "./changement-devise";
 
-// POLITIQUE DE PRIX (depuis le 20/10/2026) — le client paie la majoration en plus, le vendeur
-// garde toujours son prix :
-// - physique ou dropshipping payé EN LIGNE : +10 % (7 % Axso + 3 % frais de paiement) ;
-// - produit numérique : +13 % (10 % Axso + 3 % frais de paiement) ;
-// - physique payé À LA LIVRAISON, en espèces au marchand : rien n'est ajouté ni prélevé.
-// `taux` = Tenant.commissionRate (0,10 par défaut) ; le numérique y ajoute SUPPLEMENT_NUMERIQUE.
+// POLITIQUE DE PRIX (depuis le 25/11/2026) :
+// - produit numérique, payé en ligne par pawaPay : le client paie le prix fixé par le marchand ;
+//   Axso prélève COMMISSION_NUMERIQUE (10 %, frais pawaPay compris), le marchand reçoit 90 % ;
+// - physique payé À LA LIVRAISON, en espèces au marchand : rien n'est ajouté ni prélevé ;
+// - dropshipping payé en ligne (hors service pour l'instant) : +`taux` ajouté au prix.
 // Texte public : page /legal/politique-prix.
-export const SUPPLEMENT_NUMERIQUE = 0.03;
+export const COMMISSION_NUMERIQUE = 0.10;
+/** Ancienne majoration du numérique (abandonnée) ; gardée à 0 pour les calculs qui l'additionnent. */
+export const SUPPLEMENT_NUMERIQUE = 0;
 export const TYPES_NUMERIQUES = new Set(["digital", "fichier", "formation", "licence", "bundle", "evenement", "bootcamp", "service", "abonnement", "parcours"]);
 
-/** Majoration d'un produit payé en ligne, selon son type. */
-export const tauxProduit = (taux: number, typeProduit: string) => (TYPES_NUMERIQUES.has(typeProduit) ? taux + SUPPLEMENT_NUMERIQUE : taux);
+/** Majoration ajoutée au prix d'un produit payé en ligne : aucune pour le numérique (commission prélevée). */
+export const tauxProduit = (taux: number, typeProduit: string) => (TYPES_NUMERIQUES.has(typeProduit) ? 0 : taux);
 
-/** Prix payé par le client. "physique" = prix affiché, payé à la livraison ; "en_ligne" = physique payé en ligne. */
+/** Prix payé par le client : le prix du marchand, sauf dropshipping payé en ligne (majoré). */
 export function prixClient(prixVendeur: number, tauxCommission: number, typeProduit: string): number {
-  if (typeProduit === "physique") return prixVendeur;
+  if (typeProduit === "physique" || TYPES_NUMERIQUES.has(typeProduit)) return prixVendeur;
   return Math.round(prixVendeur * (1 + tauxProduit(tauxCommission, typeProduit)));
+}
+
+/** Vente numérique payée : part d'Axso (10 %, frais pawaPay compris) et part du marchand. Arrondi à l'unité de la devise. */
+export function repartitionNumerique(montantPaye: number, devise: string) {
+  const pas = AVEC_CENTIMES.has(devise) ? 100 : 1;
+  const axso = Math.round(montantPaye * COMMISSION_NUMERIQUE * pas) / pas;
+  return { axso, vendeur: Math.round((montantPaye - axso) * pas) / pas };
 }
 
 /**

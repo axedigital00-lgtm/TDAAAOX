@@ -112,9 +112,10 @@ export async function crediterBonusWallet(tenantId: string, montant: number, dev
 // (updateMany conditionnel) pour éliminer toute race condition entre deux retraits
 // concurrents qui passeraient tous les deux un contrôle de solde fait séparément.
 //
-// Circuit MANUEL : chaque retrait reste « en_attente » ; Axso est prévenu (cloche + push du Command
-// Center, e-mail à EMAIL_RETRAITS), fait le transfert lui-même, puis le marque payé ou refusé dans
-// Admin › Finances.
+// Mobile Money : versement AUTOMATIQUE par pawaPay (frais déduits, payés par le marchand).
+// Circuit MANUEL (virement bancaire, pawaPay absent, opérateur non reconnu) : le retrait reste
+// « en_attente » ; Axso est prévenu (cloche + push du Command Center, e-mail à EMAIL_RETRAITS),
+// fait le transfert lui-même, puis le marque payé ou refusé dans Admin › Finances.
 
 // Lie la ligne RETRAIT du wallet à son retrait.
 const refRetrait = (retraitId: string) => `AXSO-${retraitId}`;
@@ -145,7 +146,7 @@ const sommeEnSequestreTx = async (tx: Tx, walletId: string) =>
 export async function debiterDisponibleTx(tx: Tx, tenantId: string, montant: number, retrait = false) {
   const [w] = await tx.$queryRaw<{ id: string; solde: number; devise: string }[]>`SELECT "id", "solde", "devise" FROM "Wallet" WHERE "tenantId" = ${tenantId} FOR UPDATE`;
   if (!w) throw new Error("Wallet introuvable");
-  if (w.solde - (await sommeEnSequestreTx(tx, w.id)) < montant - 1e-6) throw new Error("Solde disponible insuffisant (les ventes des dernières 48 h sont encore en séquestre)");
+  if (w.solde - (await sommeEnSequestreTx(tx, w.id)) < montant - 1e-6) throw new Error("Solde disponible insuffisant (les ventes les plus récentes sont encore en séquestre)");
   await tx.wallet.update({ where: { id: w.id }, data: { solde: { decrement: montant }, ...(retrait ? { totalRetire: { increment: montant } } : {}) } });
   return w;
 }
@@ -190,9 +191,16 @@ export async function initierRetrait(params: RetraitParams) {
     return { retrait: r };
   });
 
-  // Jamais bloquant : le retrait est enregistré même si l'alerte échoue (il reste visible dans Finances).
-  await signalerRetraitAValider(retrait.id).catch((e) => console.error("[wallet/retrait] alerte admin", retrait.id, e?.message));
-  return retrait;
+  // Mobile Money : versé automatiquement par pawaPay (lib/paiements/versements-marchands.ts) ; sinon,
+  // ou si pawaPay n'est pas configuré, circuit manuel : Axso est prévenu. Jamais bloquant : le retrait
+  // est enregistré même si l'envoi ou l'alerte échoue (la tâche planifiée reprend les versements).
+  if (methode === "mobile_money") {
+    const { lancerVersement } = await import("./paiements/versements-marchands");
+    await lancerVersement(retrait.id).catch((e) => console.error("[wallet/retrait] versement", retrait.id, e?.message));
+  } else {
+    await signalerRetraitAValider(retrait.id).catch((e) => console.error("[wallet/retrait] alerte admin", retrait.id, e?.message));
+  }
+  return prisma.retrait.findUniqueOrThrow({ where: { id: retrait.id } });
 }
 
 /** Destinataire des alertes « retrait à valider ». */
@@ -262,7 +270,9 @@ async function prevenirMarchandRetrait(retraitId: string, paye: boolean) {
   await notifierMarchand({
     tenantId: retrait.tenantId, type: paye ? "retrait_paye" : "retrait_refuse", lien: "/dashboard/wallet",
     titre: paye ? `Retrait de ${montant} envoyé` : `Retrait de ${montant} refusé`,
-    message: paye ? `Axso a envoyé ${montant} à ${retrait.destinataire}.` : `Le retrait vers ${retrait.destinataire} n'a pas pu être fait : ${montant} ont été remis sur votre solde.`,
+    message: paye
+      ? `${(retrait.montant - retrait.frais).toLocaleString("fr-FR")} ${retrait.devise} envoyés sur ${retrait.destinataire}${retrait.frais ? ` (frais de versement : ${retrait.frais.toLocaleString("fr-FR")} ${retrait.devise})` : ""}.`
+      : `Le retrait vers ${retrait.destinataire} n'a pas pu être fait : ${montant} ont été remis sur votre solde.`,
   }).catch((e) => console.error("[wallet/retrait] notification", retraitId, e?.message));
 }
 

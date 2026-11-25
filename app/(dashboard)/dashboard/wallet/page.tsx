@@ -12,7 +12,7 @@ import { useT } from "@/components/I18nProvider";
 import { exempleTelephone, normaliserTelephone } from "@/lib/devise-convert";
 
 const WALLET_TUTORIAL_STEPS = [
-  { Icon: ShieldCheck,     titre: "Séquestre 48h",   description: "Chaque vente payée en ligne reste 48h en séquestre (protection acheteur) avant de passer sur ton solde disponible." },
+  { Icon: ShieldCheck,     titre: "Séquestre 24 h",  description: "Chaque vente payée en ligne reste 24 h en séquestre (protection acheteur) avant de passer sur ton solde disponible." },
   { Icon: ArrowUpFromLine, titre: "Retirer tes fonds", description: "Clique \"Retirer les fonds\" dès que ton solde disponible le permet (minimum l'équivalent de 1 000 FCFA) — par Mobile Money ou virement bancaire." },
   { Icon: TrendingUp,      titre: "Suivi complet",     description: "Total reçu, total retiré, commissions Axso et montant en séquestre — tout est visible en un coup d'œil." },
   { Icon: Clock,           titre: "Historique détaillé", description: "Bascule entre l'onglet Transactions et Retraits pour suivre chaque mouvement et son statut (en attente, en cours, complété)." },
@@ -31,7 +31,7 @@ interface WalletData {
   solde: number; totalRecu: number; totalRetire: number;
   totalCommission: number;
   retraitsEnAttente: number; devise: string;
-  // Séquestre 48 h (lib/wallet.ts) : seul `disponible` est retirable.
+  // Séquestre (24 h pour une vente numérique) : seul `disponible` est retirable.
   disponible?: number; enAttente?: number; liberations?: { montant: number; le: string }[]; minimumRetrait?: number;
   transactions: Transaction[]; retraits: RetraitItem[];
 }
@@ -109,6 +109,9 @@ export default function WalletPage() {
     operateur: "MTN",
     notes: "",
   });
+  // Versement automatique pawaPay (opérateur reconnu d'après le numéro) et frais de retrait en %.
+  const [versementAuto, setVersementAuto] = useState(false);
+  const [fraisPourcent, setFraisPourcent] = useState(0);
 
   async function charger() {
     setLoading(true);
@@ -118,6 +121,8 @@ export default function WalletPage() {
       setWallet(data.wallet);
       setBoutiques(data.boutiques ?? []);
       setPays(data.pays ?? null);
+      setVersementAuto(!!data.versementAuto);
+      setFraisPourcent(Number(data.fraisRetraitPourcent) || 0);
     } catch { toast.error(tr("Erreur chargement wallet")); }
     finally { setLoading(false); }
   }
@@ -136,7 +141,9 @@ export default function WalletPage() {
       });
       const data = await res.json();
       if (!res.ok) { toast.error(tr(data.error) ?? tr("Erreur retrait")); return; }
-      toast.success(tr("Retrait demandé ! Axso l'envoie sous 24–48h ouvrées et vous prévient dès que c'est fait."));
+      toast.success(versementAuto && form.methode === "mobile_money"
+        ? tr("Retrait lancé ! L'argent arrive sur votre Mobile Money dans quelques minutes.")
+        : tr("Retrait demandé ! Axso l'envoie sous 24–48h ouvrées et vous prévient dès que c'est fait."));
       setShowRetrait(false);
       setForm({ montant: "", methode: "mobile_money", destinataire: "", operateur: "MTN", notes: "" });
       charger();
@@ -144,7 +151,7 @@ export default function WalletPage() {
   }
 
   const devise = wallet?.devise ?? "XAF";
-  // Retirable : le solde hors ventes encore en séquestre 48 h.
+  // Retirable : le solde hors ventes encore en séquestre.
   const solde = wallet?.disponible ?? wallet?.solde ?? 0;
   const MINIMUM_RETRAIT = wallet?.minimumRetrait ?? 1000; // calculé par le serveur dans la devise du wallet
   const montant = Number(form.montant);
@@ -153,11 +160,12 @@ export default function WalletPage() {
     : !(montant >= MINIMUM_RETRAIT) ? tr("Le minimum de retrait est de {0}.", fmt(MINIMUM_RETRAIT, devise))
     : montant > solde ? tr("Ce montant dépasse votre solde disponible ({0}).", fmt(solde, devise))
       + ((wallet?.enAttente ?? 0) > 0 && wallet?.liberations?.[0]
-        ? " " + tr("{0} sont encore en séquestre 48 h, libérés à partir du {1}.", fmt(wallet.enAttente!, devise),
+        ? " " + tr("{0} sont encore en séquestre, libérés à partir du {1}.", fmt(wallet.enAttente!, devise),
             new Date(wallet.liberations[0].le).toLocaleString(tr.loc, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))
         : "")
     : null;
   // Même normalisation que le serveur : indicatif du pays de la boutique.
+  const fraisMontant = versementAuto && form.methode === "mobile_money" ? Math.ceil((Number(form.montant) || 0) * fraisPourcent / 100) : 0;
   const telInternational = form.methode === "mobile_money" ? normaliserTelephone(form.destinataire, pays) : null;
   const erreurDestinataire = !form.destinataire.trim() ? null
     : form.methode === "mobile_money" && !telInternational ? tr("Numéro invalide : vérifie-le, avec l'indicatif de ton pays s'il est à l'étranger.")
@@ -223,7 +231,7 @@ export default function WalletPage() {
                 {(wallet?.enAttente ?? 0) > 0 && (
                   <p className="text-[12.5px] opacity-80 mt-2 flex items-center gap-1.5">
                     <Clock size={12} />
-                    {tr("En attente (séquestre 48h) : {0}", fmt(wallet!.enAttente!, devise))}
+                    {tr("En attente (séquestre) : {0}", fmt(wallet!.enAttente!, devise))}
                     {wallet?.liberations?.[0] && <> · {tr("libéré le {0}", new Date(wallet.liberations[0].le).toLocaleString(tr.loc, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}{wallet.liberations.length > 1 && ` (+${wallet.liberations.length - 1})`}</>}
                   </p>
                 )}
@@ -303,7 +311,7 @@ export default function WalletPage() {
             <Info size={15} className="text-[#F5A623] mt-0.5 flex-shrink-0" />
             <p className="text-[12.5px] text-[#92400E] leading-relaxed">
               <strong>{tr("Comment fonctionne le Wallet Axso ?")}</strong><br />
-              {tr("Chaque vente payée en ligne reste")}{" "}<strong>{tr("48h en séquestre")}</strong>{" "}{tr("(protection acheteur) : elle apparaît tout de suite en attente, puis passe sur votre solde disponible, retirable. Un remboursement pendant ce délai reprend d'abord l'argent en attente. Vous recevez l'intégralité de votre prix : la commission Axso et les frais de paiement (10 %, ou 13 % pour un produit numérique) sont ajoutés au prix payé par le client.")}
+              {tr("Chaque vente payée en ligne reste")}{" "}<strong>{tr("24 h en séquestre")}</strong>{" "}{tr("(protection acheteur) : elle apparaît tout de suite en attente, puis passe sur votre solde disponible, retirable. Un remboursement pendant ce délai reprend d'abord l'argent en attente. Le client paie votre prix ; Axso prélève 10 % sur chaque vente de produit numérique, frais de paiement compris, et vous recevez 90 %.")}
             </p>
           </div>
 
@@ -477,7 +485,7 @@ export default function WalletPage() {
               </div>
 
               {/* Opérateur (Mobile Money) */}
-              {form.methode === "mobile_money" && (
+              {form.methode === "mobile_money" && !versementAuto && (
                 <div>
                   <label className="ax-label block mb-2">{tr("Opérateur")}</label>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -512,7 +520,7 @@ export default function WalletPage() {
                 />
                 {erreurDestinataire
                   ? <p role="alert" className="text-[11.5px] mt-1.5 text-[#DC2626] font-semibold">{erreurDestinataire}</p>
-                  : telInternational && <p className="text-[11.5px] mt-1.5 text-[#15803D]">{tr("Envoi vers le {0}", telInternational)}</p>}
+                  : telInternational && <p className="text-[11.5px] mt-1.5 text-[#15803D]">{versementAuto ? tr("Envoi vers le {0} · opérateur reconnu automatiquement", telInternational) : tr("Envoi vers le {0}", telInternational)}</p>}
               </div>
 
               {/* Notes */}
@@ -533,7 +541,7 @@ export default function WalletPage() {
                 <div className="bg-[#F9F9F9] border border-[#F0F0F0] rounded-2xl p-4 space-y-2">
                   {[
                     { label: "Montant demandé", value: fmt(Number(form.montant), devise), bold: false },
-                    { label: "Frais de virement", value: "Inclus", bold: false },
+                    { label: "Frais de versement", value: fraisMontant ? `− ${fmt(fraisMontant, devise)} (${fraisPourcent} %)` : "Aucun", bold: false },
                     { label: "Solde après retrait", value: fmt(solde - montant, devise), bold: false },
                   ].map(row => (
                     <div key={row.label} className="flex justify-between text-[12.5px]">
@@ -544,7 +552,7 @@ export default function WalletPage() {
                   <div className="border-t border-[#EBEBEB] pt-2 flex justify-between text-[13px] font-bold">
                     <span className="text-[#111111]">{tr("Vous recevrez")}</span>
                     <span className="text-[#F5A623]" style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {fmt(Number(form.montant), devise)}
+                      {fmt(Number(form.montant) - fraisMontant, devise)}
                     </span>
                   </div>
                 </div>
@@ -554,7 +562,9 @@ export default function WalletPage() {
               <div className="flex items-start gap-2 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-3">
                 <AlertCircle size={13} className="text-[#D97706] mt-0.5 flex-shrink-0" />
                 <p className="text-[11.5px] text-[#92400E]">
-                  {tr("Traitement sous 24–48h ouvrées. Les fonds sont débités immédiatement de votre wallet.")}
+                  {versementAuto && form.methode === "mobile_money"
+                    ? tr("Versement automatique : l'argent arrive en quelques minutes. S'il échoue, il est remis aussitôt sur votre solde.")
+                    : tr("Traitement sous 24–48h ouvrées. Les fonds sont débités immédiatement de votre wallet.")}
                 </p>
               </div>
 

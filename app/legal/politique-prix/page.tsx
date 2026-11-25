@@ -6,25 +6,24 @@ export const metadata: Metadata = {
   title: "Politique de prix",
 };
 
-// Reflète lib/pricing.ts (prixClient, tauxProduit, SUPPLEMENT_NUMERIQUE) : à modifier ensemble.
+// Reflète lib/pricing.ts (prixClient, COMMISSION_NUMERIQUE, repartitionNumerique) : à modifier ensemble.
 const CAS = [
-  { nom: "Produit numérique", detail: "Dès le retour du paiement en ligne", majoration: "+13 %", axso: "10 %", paiement: "3 %", exemple: "10 000 F → le client paie 11 300 F" },
-  { nom: "Produit physique payé en ligne", detail: "Dès le retour du paiement en ligne", majoration: "+10 %", axso: "7 %", paiement: "3 %", exemple: "10 000 F → le client paie 11 000 F" },
+  { nom: "Produit numérique", detail: "Payé en ligne par Mobile Money", majoration: "10 %", axso: "10 %", paiement: "inclus", exemple: "10 000 F → le client paie 10 000 F, vous recevez 9 000 F" },
   { nom: "Produit physique payé à la livraison", detail: "En espèces, directement au marchand", majoration: "0 %", axso: "0 %", paiement: "0 %", exemple: "10 000 F → le client paie 10 000 F" },
 ];
 
 const SECTIONS = [
   {
-    titre: "1. Vous gardez toujours votre prix",
-    contenu: "Le prix que vous saisissez pour un produit est celui que vous recevez. AXSO ne retire jamais rien de votre prix : sa commission et les frais du prestataire de paiement sont ajoutés au prix payé par le client.",
+    titre: "1. Le client paie le prix que vous fixez",
+    contenu: "Le prix que vous saisissez est exactement celui que paie votre client : AXSO n'ajoute rien. Sur une vente de produit numérique, AXSO prélève une commission de 10 %, qui couvre aussi les frais du prestataire de paiement. Sur une vente payée à la livraison, AXSO ne prélève rien.",
   },
   {
     titre: "2. Produits numériques",
-    contenu: "Un produit numérique (fichier à télécharger, formation, licence, pack, événement en ligne) se paie en ligne : sa vente est suspendue tant que le paiement en ligne n'est pas de nouveau disponible. À son retour, la plateforme ajoutera 13 % à votre prix : 10 % pour AXSO et 3 % pour le prestataire qui encaisse le paiement. Exemple : si votre produit vaut 10 000 F, le client verra et paiera 11 300 F ; vous recevrez 10 000 F.",
+    contenu: "Un produit numérique (fichier à télécharger, formation, licence, pack, événement en ligne) se paie en ligne par Mobile Money sur AXSO, depuis de nombreux pays africains. Dès que le paiement est confirmé, votre client reçoit son accès par e-mail, et vous êtes crédité de 90 % du montant payé. AXSO garde 10 %, frais de paiement compris. Exemple : pour un produit à 10 000 F, le client paie 10 000 F et vous recevez 9 000 F.",
   },
   {
-    titre: "3. Produits physiques payés en ligne",
-    contenu: "Le paiement en ligne est momentanément indisponible. À son retour, quand votre client paiera un produit physique en ligne, la plateforme ajoutera 10 % à votre prix : 7 % pour AXSO et 3 % pour le prestataire de paiement. Exemple : pour un produit à 10 000 F, le client paiera 11 000 F et vous recevrez 10 000 F.",
+    titre: "3. Produits physiques",
+    contenu: "Les produits physiques se paient à la livraison ou par WhatsApp, directement au marchand. Ils ne se paient pas en ligne sur AXSO.",
   },
   {
     titre: "4. Paiement à la livraison",
@@ -36,7 +35,7 @@ const SECTIONS = [
   },
   {
     titre: "6. Où arrive votre argent",
-    contenu: "Aujourd'hui, votre client vous paie directement, à la livraison. Quand le paiement en ligne reviendra, ces paiements seront crédités sur votre wallet AXSO, déjà débarrassés de la commission et des frais de paiement : vous recevrez votre prix et vos frais de livraison. Vous demandez le retrait de votre solde depuis votre tableau de bord ; l'équipe AXSO vous le verse.",
+    contenu: "Une vente de produit numérique est créditée sur votre wallet AXSO dès la confirmation du paiement, commission déduite. Elle devient retirable 24 heures plus tard (délai de sécurité contre les litiges et la fraude). Vous retirez ensuite votre argent quand vous voulez depuis votre tableau de bord : le versement part automatiquement sur votre Mobile Money, en quelques minutes. Les frais du versement sont déduits de la somme envoyée et affichés avant que vous confirmiez. Un versement qui échoue est remis aussitôt sur votre solde. Les ventes payées à la livraison vous sont payées directement par le client.",
   },
   {
     titre: "7. Modifications",
@@ -47,9 +46,9 @@ const SECTIONS = [
 export default async function PolitiquePrixPage() {
   const t = await getT();
   return (
-    <PageLegale t={t} actif="/legal/politique-prix" titre={t("Politique de prix")} maj={t("Dernière mise à jour : 2 novembre 2026")}>
+    <PageLegale t={t} actif="/legal/politique-prix" titre={t("Politique de prix")} maj={t("Dernière mise à jour : 25 novembre 2026")}>
 
-          <div className="axm-grid axm-g3" style={{ marginBottom: 48 }}>
+          <div className="axm-grid axm-g2" style={{ marginBottom: 48 }}>
             {CAS.map((c) => (
               <div key={c.nom} className="axm-card" style={{ padding: 24 }}>
                 <p style={{ fontWeight: 600 }}>{t(c.nom)}</p>

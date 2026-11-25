@@ -1,5 +1,6 @@
 "use client";
 // Coins IA : solde, studio premium (visuels, publicités) et historique.
+import { PaiementMobileMoney } from "@/components/dashboard/PaiementMobileMoney";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
@@ -18,7 +19,28 @@ export default function CoinsPage() {
   const [brief, setBrief] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [resultat, setResultat] = useState<any>(null);
+  const [achat, setAchat] = useState<string | null>(null);
+  // Pack choisi : le champ du numéro Mobile Money s'ouvre sous les packs.
+  const [packChoisi, setPackChoisi] = useState<string | null>(null);
+  const [attente, setAttente] = useState(false);
   const charger = useCallback(() => fetch("/api/coins").then((r) => (r.ok ? r.json() : null)).then(setD).catch(() => {}), []);
+  useEffect(() => {
+    // Paiement en attente de validation sur le téléphone : le solde se met à jour dès la confirmation.
+    if (!attente && !new URLSearchParams(location.search).get("achat")) return;
+    let n = 0; const i = setInterval(() => { charger(); if (++n >= 30) { clearInterval(i); setAttente(false); } }, 4000);
+    return () => clearInterval(i);
+  }, [charger, attente]);
+  const acheter = async (pack: string, telephone: string) => {
+    setAchat(pack);
+    try {
+      const r = await fetch("/api/coins/acheter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pack, telephone }) });
+      const x = await r.json().catch(() => ({}));
+      if (!r.ok || !x.id) throw new Error(x.error ?? "Paiement indisponible");
+      toast.success(t("Demande envoyée : valide le paiement sur ton téléphone avec ton code secret."));
+      setPackChoisi(null); setAttente(true);
+    } catch (e: any) { toast.error(t(e.message)); }
+    finally { setAchat(null); }
+  };
   useEffect(() => { charger(); }, [charger]);
   const lancer = async () => {
     setEnvoi(true); setResultat(null);
@@ -55,8 +77,11 @@ export default function CoinsPage() {
         </div>
       </Card>
       <Card title={t("Acheter des coins")}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 160px), 1fr))", gap: 10 }}>{d.packs.map((p: any) => <div key={p.id} style={{ border: "1px solid var(--color-border, #e3e3e3)", borderRadius: 12, padding: 12 }}><b style={{ fontSize: 18 }}>{p.coins} {t("coins")}</b><p className="axd-muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>{formatMontant(p.prix, "XAF")}</p><Button size="sm" disabled>{t("Bientôt")}</Button></div>)}</div>
-        <p className="axd-muted" style={{ margin: "10px 0 0", fontSize: 12.5 }}>{t("Paiement Mobile Money bientôt disponible. Forfait Pro : {0} coins par mois. Illimité : {1} coins par mois. Les coins du forfait expirent à la fin du mois.", String(d.inclus.mensuels.palier1), String(d.inclus.mensuels.palier2))}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 160px), 1fr))", gap: 10 }}>{d.packs.map((p: any) => <div key={p.id} style={{ border: "1px solid var(--color-border, #e3e3e3)", borderRadius: 12, padding: 12 }}><b style={{ fontSize: 18 }}>{p.coins} {t("coins")}</b><p className="axd-muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>{formatMontant(p.prix, "XAF")}</p><Button size="sm" variant={packChoisi === p.id ? "primary" : "default"} disabled={!d.achatOuvert || !!achat} loading={achat === p.id} onClick={() => setPackChoisi(p.id)}>{t(d.achatOuvert ? (packChoisi === p.id ? "Choisi" : "Acheter") : "Bientôt")}</Button></div>)}</div>
+        {packChoisi && <div style={{ maxWidth: 360, marginTop: 12 }}><PaiementMobileMoney key={packChoisi} libelle="Payer par Mobile Money" onPayer={(tel) => acheter(packChoisi, tel)} /></div>}
+        {attente && <p style={{ margin: "12px 0 0", fontSize: 13.5 }}>{t("En attente de ta validation sur le téléphone… Tes coins arrivent dès la confirmation.")}</p>}
+        {d.lienAutorisation && <div style={{ marginTop: 10 }}><Button variant="primary" href={d.lienAutorisation}>{t("Valider dans mon application Mobile Money")}</Button></div>}
+        <p className="axd-muted" style={{ margin: "10px 0 0", fontSize: 12.5 }}>{d.achatOuvert ? (d.achatTest ? t("Mode test : aucun argent réel n'est débité.") + " " : "") : t("Paiement Mobile Money bientôt disponible.") + " "}{t("Forfait Pro : {0} coins par mois. Illimité : {1} coins par mois. Les coins du forfait expirent à la fin du mois.", String(d.inclus.mensuels.palier1), String(d.inclus.mensuels.palier2))}</p>
       </Card>
       <Card title={t("Historique")} padding="none">{!d.historique.length ? <div style={{ padding: 16 }}><p className="axd-muted" style={{ margin: 0 }}>{t("Aucun mouvement.")}</p></div> : <table className="axd-ix"><tbody>{d.historique.map((e: any) => <tr key={e.id}><td>{t(TYPES[e.type] ?? e.type)}{e.action && d.actions[e.action] ? ` · ${t(d.actions[e.action].nom)}` : ""}{e.motif ? ` · ${e.motif}` : ""}</td><td><Badge tone={e.source === "achete" ? "info" : "neutral"}>{t(e.source === "achete" ? "Acheté" : "Forfait")}</Badge></td><td style={{ textAlign: "right", fontWeight: 600 }}>{e.montant > 0 ? `+${e.montant}` : e.montant}</td><td className="axd-muted" style={{ textAlign: "right", fontSize: 12.5 }}>{new Date(e.createdAt).toLocaleDateString(t.loc)}</td></tr>)}</tbody></table>}</Card>
     </div>

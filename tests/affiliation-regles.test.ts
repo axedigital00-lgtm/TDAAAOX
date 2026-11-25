@@ -6,10 +6,11 @@ import { prixClient, tauxCommande } from "@/lib/pricing";
 
 for (const type of ["service", "abonnement", "parcours"]) {
   test(`tarification et affiliation numériques pour un ${type}`, () => {
+    // Numérique : le client paie le prix du marchand (commission de 10 % prélevée, pas ajoutée).
     const prix = prixClient(10000, 0.10, type);
-    assert.equal(prix, 11300);
+    assert.equal(prix, 10000);
     const taux = tauxCommande([{ prix, quantite: 1, type }], 0.10);
-    assert.ok(Math.abs(taux - 0.13) < 1e-9);
+    assert.ok(Math.abs(taux) < 1e-9);
     assert.equal(commissionCommande({ lignes: [ligne(prix, type)], montantTotal: prix, montantLivraison: 0, tauxCommission: taux, devise: "XAF" }), 2000);
   });
 }

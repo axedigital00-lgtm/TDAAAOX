@@ -1,7 +1,7 @@
 // Répartition d'un paiement en ligne : le vendeur touche son prix et sa livraison en entier.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { partVendeur, prixClient } from "../lib/pricing";
+import { partVendeur, prixClient, repartitionNumerique } from "../lib/pricing";
 
 test("dropshipping : la commission ne porte pas sur la livraison", () => {
   const brut = prixClient(10_000, 0.1, "dropshipping") + 2_000; // 11 000 + 2 000
@@ -9,9 +9,11 @@ test("dropshipping : la commission ne porte pas sur la livraison", () => {
 });
 
 test("FCFA : jamais de centimes dans le portefeuille", () => {
-  const r = partVendeur(prixClient(999, 0.1, "digital"), 0, 0.13, "XAF");
+  const r = partVendeur(prixClient(999, 0.1, "dropshipping"), 0, 0.1, "XAF");
   assert.equal(Number.isInteger(r.montantNet) && Number.isInteger(r.montantCommission), true);
-  assert.equal(r.montantNet + r.montantCommission, 1_129);
+  assert.equal(r.montantNet + r.montantCommission, 1_099);
+  const n = repartitionNumerique(999, "XAF");
+  assert.equal(Number.isInteger(n.vendeur) && Number.isInteger(n.axso), true);
 });
 
 test("monnaie à centimes : arrondi au centime, total conservé", () => {
@@ -20,7 +22,7 @@ test("monnaie à centimes : arrondi au centime, total conservé", () => {
 });
 
 test("quantité > 1 : le vendeur reçoit son prix exact, au franc près", () => {
-  for (const [prix, taux, type] of [[1_001, 0.13, "digital"], [999, 0.1, "dropshipping"], [4_999, 0.1, "dropshipping"]] as const) {
+  for (const [prix, taux, type] of [[1_001, 0.1, "dropshipping"], [999, 0.1, "dropshipping"], [4_999, 0.1, "dropshipping"]] as const) {
     const unitaire = prixClient(prix, 0.1, type);
     const r = partVendeur(unitaire * 10, 0, taux, "XAF", [{ prix: unitaire, quantite: 10 }]);
     assert.equal(r.montantNet, prix * 10, `${prix} × 10`);

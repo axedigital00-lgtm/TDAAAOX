@@ -20,17 +20,19 @@ export function adaptateurVersement(env: Record<string, string | undefined> = pr
   const entetes = { Authorization: `Bearer ${env.PAWAPAY_API_TOKEN}`, "Content-Type": "application/json" };
   return {
     async envoyer(p) {
-      const r = await f(`${base}/payouts`, { method: "POST", headers: entetes, signal: AbortSignal.timeout(15_000), body: JSON.stringify({ payoutId: p.id, amount: String(Math.floor(p.montant)), currency: p.devise, correspondent: p.correspondant, recipient: { type: "MSISDN", address: { value: p.numero } }, customerTimestamp: new Date().toISOString(), statementDescription: "AXSO livraisons" }) });
+      const r = await f(`${base}/v2/payouts`, { method: "POST", headers: entetes, signal: AbortSignal.timeout(15_000), body: JSON.stringify({ payoutId: p.id, amount: String(Math.floor(p.montant)), currency: p.devise, recipient: { type: "MMO", accountDetails: { phoneNumber: p.numero, provider: p.correspondant } }, customerMessage: "AXSO livraisons" }) });
       const d = await r.json().catch(() => ({}));
       if (d.status === "ACCEPTED" || d.status === "DUPLICATE_IGNORED") return { etat: "accepte" };
-      if (d.status === "REJECTED") return { etat: "echec", motif: String(d.rejectionReason?.rejectionCode ?? "Refusé par l'opérateur") };
+      if (d.status === "REJECTED") return { etat: "echec", motif: String(d.failureReason?.failureCode ?? "Refusé par l'opérateur") };
       return { etat: "inconnu", motif: `Réponse ${r.status}` };
     },
     async statut(id) {
-      const r = await f(`${base}/payouts/${id}`, { headers: entetes, signal: AbortSignal.timeout(10_000) });
+      const r = await f(`${base}/v2/payouts/${id}`, { headers: entetes, signal: AbortSignal.timeout(10_000) });
       if (!r.ok) return { etat: "inconnu", motif: `Réponse ${r.status}` };
-      const x = (await r.json().catch(() => []))?.[0];
-      if (!x) return { etat: "inconnu", motif: "Versement non reçu" };
+      const d = await r.json().catch(() => null);
+      if (d?.status === "NOT_FOUND") return { etat: "inconnu", motif: "Versement non reçu" };
+      const x = d?.status === "FOUND" ? d.data : null;
+      if (!x) return { etat: "inconnu", motif: "Réponse illisible" };
       if (x.status === "COMPLETED") return { etat: "paye" };
       if (x.status === "FAILED") return { etat: "echec", motif: String(x.failureReason?.failureCode ?? "Échec opérateur") };
       return { etat: "en_cours" };

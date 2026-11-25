@@ -37,7 +37,7 @@ test("versements : aucun envoi sans jeton et activation explicite", async () => 
   assert.equal(adaptateurVersement({ PAWAPAY_API_TOKEN: "x" }), null);
   assert.equal(adaptateurVersement({ AXSO_VERSEMENTS_AUTO: "1" }), null);
   let url = "";
-  const a = adaptateurVersement({ AXSO_VERSEMENTS_AUTO: "1", PAWAPAY_API_TOKEN: "x" }, (async (u: string) => { url = u; return new Response(JSON.stringify({ status: "REJECTED", rejectionReason: { rejectionCode: "INVALID" } })); }) as typeof fetch)!;
+  const a = adaptateurVersement({ AXSO_VERSEMENTS_AUTO: "1", PAWAPAY_API_TOKEN: "x" }, (async (u: string) => { url = u; return new Response(JSON.stringify({ status: "REJECTED", failureReason: { failureCode: "INVALID" } })); }) as typeof fetch)!;
   assert.deepEqual(await a.envoyer({ id: "1", montant: 1000, devise: "XAF", correspondant: "MTN_MOMO_CMR", numero: "237690000000" }), { etat: "echec", motif: "INVALID" });
   assert.ok(url.includes("sandbox"));
 });

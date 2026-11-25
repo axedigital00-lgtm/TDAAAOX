@@ -29,8 +29,8 @@ const METHODE_LABEL: Record<string, string> = {
 
 function methodeLabel(m: string | null) {
   if (!m) return "—";
-  if (m.startsWith("campay:")) return `Campay · ${m.split(":")[1]?.toUpperCase() ?? ""}`;
-  if (m.startsWith("cinetpay:")) return `CinetPay · ${m.split(":")[1]?.toUpperCase() ?? ""}`;
+  // Le prestataire n'est jamais affiché : seul le moyen de paiement l'est.
+  if (m === "pawapay" || m.startsWith("campay:") || m.startsWith("cinetpay:")) return "Mobile Money";
   return METHODE_LABEL[m] ?? m;
 }
 

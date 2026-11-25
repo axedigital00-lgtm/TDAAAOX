@@ -263,7 +263,7 @@ export default function InscriptionPage() {
     // next-auth répond « ok » même quand la connexion est refusée : seul `error` le dit.
     if (!lr?.ok || lr.error) {
       if (code) return "Code invalide ou expiré";
-      window.location.href = "/connexion?inscription=success";
+      window.location.href = "/connexion?inscription=success&callbackUrl=%2Fdashboard%2Fma-boutique%3Fguide%3D1";
       return null;
     }
     suivre("fin", "revelation");
@@ -275,7 +275,7 @@ export default function InscriptionPage() {
   const apresVol = useCallback(() => {
     if (!compte) return;
     if (creation.codeRequis) aller("code", "remplacer");
-    else connecter(compte).catch(() => { window.location.href = "/connexion?inscription=success"; });
+    else connecter(compte).catch(() => { window.location.href = "/connexion?inscription=success&callbackUrl=%2Fdashboard%2Fma-boutique%3Fguide%3D1"; });
   }, [compte, creation.codeRequis, aller, connecter]);
 
   // Rechargement après la création : plus de mot de passe en mémoire, il reste à se connecter.
@@ -611,7 +611,7 @@ function Revelation({ nom, slug, leger, themeId, copie, onCopier }: {
         <span>{nom}</span>{" "}{tr("est en ligne… presque.")}
       </Question>
       <p className="text-[16px] sm:text-[18px] text-gray-500 leading-relaxed">
-        {tr("Elle reste privée tant que tu ne la publies pas. Vérifie tes produits proposés par Stella (prix, photos, stock), personnalise ton design, puis publie-la.")}
+        {tr("Elle reste privée tant que tu ne la publies pas. Il te reste quelques étapes simples, guidées une par une : ton logo, tes produits, ta livraison, puis la mise en ligne.")}
       </p>
       <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-[28px] overflow-hidden border border-gray-200 bg-gray-50 shadow-[0_40px_80px_-30px_rgba(17,17,17,0.45)]">
         {themeId && <img src={miniatureTheme(themeId)} alt="" className="absolute inset-0 w-full h-full object-cover object-top" />}
@@ -627,7 +627,7 @@ function Revelation({ nom, slug, leger, themeId, copie, onCopier }: {
         </button>
       </div>
       <div className="flex flex-col sm:flex-row gap-3">
-        <BoutonNoir onClick={() => { window.location.href = "/dashboard/builder?bienvenue=1"; }}>{tr("Personnaliser ma boutique")}</BoutonNoir>
+        <BoutonNoir onClick={() => { window.location.href = "/dashboard/ma-boutique?guide=1"; }}>{tr("Terminer ma boutique et vendre")}</BoutonNoir>
         <a href={`/${slug}`} target="_blank" rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-2 rounded-full px-7 h-14 text-[15px] font-bold text-[#111111] border border-gray-200 bg-white hover:border-[#111111] transition-colors">
           <ExternalLink size={16} /> {tr("Voir ma boutique")}

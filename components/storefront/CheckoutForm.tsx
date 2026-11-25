@@ -758,14 +758,112 @@ function CheckoutPhysique({ theme, slug, devise, tenantId, items, total, codePro
 // ═══════════════════════════════════════════════════════════════════════════════
 // PRODUIT NUMÉRIQUE / DROPSHIPPING — se paie en ligne : pas encore disponible
 // ═══════════════════════════════════════════════════════════════════════════════
-function PaiementEnLigneIndisponible() {
+// Produit numérique : paiement Mobile Money direct (validation sur le téléphone du client, marque AXSO
+// seulement), accès envoyé par e-mail dès la confirmation.
+// Indicatif téléphonique des pays Mobile Money (le numéro saisi sans indicatif est complété).
+const INDICATIFS: Record<string, string> = {
+  CM: "237", CG: "242", GA: "241", CI: "225", SN: "221", BJ: "229", BF: "226", CD: "243", GH: "233", NG: "234",
+  KE: "254", RW: "250", UG: "256", TZ: "255", ZM: "260", MW: "265", MZ: "258", SL: "232", LS: "266", ET: "251", ZW: "263",
+};
+function numeroComplet(saisie: string, indicatif: string) {
+  const d = saisie.replace(/\D/g, "").replace(/^00/, "");
+  if (!indicatif || d.startsWith(indicatif)) return d;
+  return indicatif + d.replace(/^0+/, "");
+}
+
+function CheckoutNumerique({ theme, slug, devise, tenantId, items, total, codePromo, paysBoutique }: any) {
   const t = useT();
+  const visiteur = useVisiteur();
+  const searchParams = useSearchParams();
+  const article = items[0];
+  const [pays, setPays] = useState<{ code: string; devise: string; operateurs: string[] }[] | null>(null);
+  const [form, setForm] = useState({ nom: "", email: "", telephone: "", pays: "" });
+  const indicatif = INDICATIFS[form.pays] ?? "";
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const codeRef = useMemo(() => {
+    const fromUrl = searchParams?.get("ref") ?? null;
+    if (fromUrl) { memoriserRef(fromUrl); return fromUrl; }
+    return lireRef();
+  }, [searchParams]);
+
+  useEffect(() => {
+    fetch("/api/paiement/pays").then((r) => r.json()).then((d) => {
+      const liste = d.disponible ? d.pays : [];
+      setPays(liste);
+      const prefere = [visiteur?.pays, paysBoutique, "CM"].find((c) => liste.some((p: any) => p.code === c));
+      setForm((f) => ({ ...f, pays: f.pays || prefere || liste[0]?.code || "" }));
+    }).catch(() => setPays([]));
+  }, [paysBoutique, visiteur?.pays]);
+
+  const choisi = pays?.find((p) => p.code === form.pays);
+  const nomPays = (code: string) => PAYS_OPTIONS.find((p) => p.code === code)?.nom ?? code;
+  const payer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErreur("");
+    if (!form.nom.trim() || !form.telephone.trim()) return setErreur(t("Indiquez votre nom et votre numéro Mobile Money."));
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return setErreur(t("Indiquez un e-mail valide : votre accès y sera envoyé."));
+    setEnvoi(true);
+    try {
+      const r = await fetch("/api/commandes/numerique", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, produitId: article.produitId, codePromo, codeAffiliation: codeRef || undefined, client: { ...form, telephone: numeroComplet(form.telephone, indicatif) } }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.id) throw new Error(d.error || t("Paiement indisponible pour le moment"));
+      trackPixelEvent("AddPaymentInfo", { value: total, currency: devise, content_ids: [article.produitId] });
+      window.location.href = `/${slug}/paiement?id=${encodeURIComponent(d.id)}`;
+    } catch (err: any) {
+      setErreur(err.message);
+      setEnvoi(false);
+    }
+  };
+
+  if (pays && !pays.length) {
+    return (
+      <div className="max-w-lg mx-auto py-12 text-center space-y-3">
+        <CreditCard size={28} className="mx-auto opacity-40" />
+        <p className="font-semibold">{t("Le paiement en ligne n'est pas encore disponible pour cette boutique.")}</p>
+        <p className="text-sm opacity-60">{t("Contactez la boutique pour acheter ce produit.")}</p>
+      </div>
+    );
+  }
+  const champ = "w-full rounded-2xl px-4 py-3.5 text-[16px] outline-none transition-all";
+  const style = { background: theme.surface, color: theme.texte, border: `1.5px solid ${theme.texte}1f` };
   return (
-    <div className="max-w-lg mx-auto py-12 text-center space-y-3">
-      <CreditCard size={28} className="mx-auto opacity-40" />
-      <p className="font-semibold">{t("Le paiement en ligne n'est pas encore disponible pour cette boutique.")}</p>
-      <p className="text-sm opacity-60">{t("Contactez la boutique pour acheter ce produit.")}</p>
-    </div>
+    <form onSubmit={payer} className="max-w-xl mx-auto space-y-5">
+      <Recap theme={theme} devise={devise} items={items} total={total} codePromo={codePromo} label={t("Votre achat")} />
+      <div className="rounded-3xl p-5 sm:p-6 space-y-4" style={{ background: theme.surface, border: `1px solid ${theme.texte}14` }}>
+        <Field label={t("Nom complet")} required>
+          <input className={champ} style={style} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} autoComplete="name" placeholder={t("Votre nom")} />
+        </Field>
+        <Field label={t("E-mail (pour recevoir votre accès)")} required>
+          <input className={champ} style={style} type="email" inputMode="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" placeholder="vous@exemple.com" />
+        </Field>
+        <Field label={t("Pays")} required>
+          <select className={champ} style={style} value={form.pays} onChange={(e) => setForm({ ...form, pays: e.target.value })} disabled={!pays}>
+            {(pays ?? []).map((p) => <option key={p.code} value={p.code}>{t(nomPays(p.code))}</option>)}
+          </select>
+          {!!choisi?.operateurs.length && <p className="mt-1.5 text-xs opacity-60">{t("Opérateurs acceptés : {0}", choisi.operateurs.join(", "))}</p>}
+        </Field>
+        <Field label={t("Numéro Mobile Money")} required>
+          <div className="flex gap-2">
+            {indicatif && <span className={`${champ} flex-none w-auto`} style={{ ...style, opacity: 0.75 }}>+{indicatif}</span>}
+            <input className={champ} style={style} type="tel" inputMode="tel" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} autoComplete="tel" placeholder={exempleTelephone(form.pays || "CM")} />
+          </div>
+          <p className="mt-1.5 text-xs opacity-60">{t("Vous validerez le paiement sur ce téléphone avec votre code secret Mobile Money.")}</p>
+        </Field>
+      </div>
+      {erreur && <p className="flex items-start gap-2 text-sm text-red-600"><AlertCircle size={16} className="mt-0.5 flex-none" />{erreur}</p>}
+      <button type="submit" disabled={envoi || !pays}
+        className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-[16px] font-bold transition-all disabled:opacity-60"
+        style={{ background: theme.accent, color: "#fff" }}>
+        {envoi ? <Loader2 size={18} className="animate-spin" /> : <Lock size={17} />}
+        {envoi ? t("Ouverture du paiement…") : t("Payer {0} par Mobile Money", formatMontant(total, devise))}
+      </button>
+      <p className="flex items-center justify-center gap-1.5 text-xs opacity-60"><Shield size={13} />{t("Paiement sécurisé AXSO · accès envoyé par e-mail dès la confirmation")}</p>
+      {choisi && choisi.devise !== devise && <p className="text-center text-xs opacity-60">{t("Le montant sera converti en {0} au taux du jour.", choisi.devise)}</p>}
+    </form>
   );
 }
 
@@ -831,10 +929,10 @@ export function CheckoutForm({ theme, slug, devise, tenantId, nomBoutique, logoU
         )}
       </div>}
 
-      {!commandee && typePanier === "physique" && <CodePromo theme={theme} slug={slug} devise={devise} sousTotal={sousTotal} items={items} promo={promo} onChange={setPromo} />}
+      {!commandee && <CodePromo theme={theme} slug={slug} devise={devise} sousTotal={sousTotal} items={items} promo={promo} onChange={setPromo} />}
 
       {typePanier === "physique" && <CheckoutPhysique {...commonProps} onCommandee={() => setCommandee(true)} />}
-      {typePanier === "digital"  && <PaiementEnLigneIndisponible />}
+      {typePanier === "digital"  && <CheckoutNumerique {...commonProps} />}
     </>
   );
 }

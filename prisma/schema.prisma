@@ -1040,6 +1040,9 @@ model Retrait {
   statut       String   @default("en_attente") // en_attente | traitement | complete | echoue
   reference    String?
   notes        String?
+  // Versement automatique pawaPay : identifiant du payout (UUID) et frais déduits du montant envoyé.
+  payoutId     String?  @unique
+  frais        Float    @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -4837,6 +4840,29 @@ model ContratTransporteur {
   @@index([fournisseurId, statut])
 }
 
+model PaiementPawapay {
+  id                 String    @id // depositId UUID envoyé à pawaPay
+  type               String    @default("abonnement") // abonnement | commande | coins
+  tenantId           String
+  userId             String? // compte qui paie (abonnement, coins) ; aucun pour un client de la vitrine
+  plan               String? // abonnement : palier ; coins : pack
+  jours              Int?
+  commandeId         String?   @unique // commande numérique payée par ce dépôt
+  montant            Int
+  devise             String
+  pays               String
+  statut             String    @default("cree") // cree | paye | echoue | a_verifier
+  motifEchec         String?
+  referenceOperateur String?
+  parrainTraite      Boolean   @default(false)
+  payeLe             DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([statut, createdAt])
+  @@index([tenantId, createdAt])
+}
+
 model EcritureCoins {
   id        String   @id @default(cuid())
   tenantId  String
@@ -4869,6 +4895,26 @@ model DepenseIa {
 
   @@index([createdAt])
   @@index([tenantId, createdAt])
+}
+
+model AchatCoins {
+  id                 String    @id // transaction_id envoyé au prestataire
+  tenantId           String
+  userId             String
+  pack               String
+  coins              Int
+  montant            Int
+  devise             String
+  prestataire        String
+  statut             String    @default("cree") // cree | paye | echoue | a_verifier
+  motif              String?
+  referenceOperateur String?
+  payeLe             DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([statut, createdAt])
 }
 
 model ReglageIa {

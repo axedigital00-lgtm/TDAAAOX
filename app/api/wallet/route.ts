@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getWalletResume } from "@/lib/wallet";
 import { prisma } from "@/lib/prisma";
 import { boutiquesDuCompte } from "@/lib/tenant";
+import { tauxFraisRetrait, versementAutoPossible } from "@/lib/paiements/versements-marchands";
 
 const WALLET_VIDE = {
   solde: 0, totalRecu: 0, totalRetire: 0, totalCommission: 0,
@@ -38,7 +39,8 @@ export async function GET() {
 
     // Pays de la boutique : le numéro Mobile Money d'un retrait prend son indicatif (lib/wallet.ts).
     const { pays } = (await prisma.tenant.findUnique({ where: { id: tenantId }, select: { pays: true } })) ?? {};
-    return NextResponse.json({ wallet: wallet ?? WALLET_VIDE, boutiques, pays });
+    // Retrait Mobile Money versé automatiquement par pawaPay, frais (en %) déduits de la somme envoyée.
+    return NextResponse.json({ wallet: wallet ?? WALLET_VIDE, boutiques, pays, versementAuto: await versementAutoPossible(pays).catch(() => false), fraisRetraitPourcent: tauxFraisRetrait() * 100 });
   } catch (err: any) {
     // Tables Wallet pas encore migrées → retourner wallet vide
     // Lancer : npx prisma migrate dev --name add_wallet_system

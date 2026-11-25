@@ -39,7 +39,7 @@ export function GainsCoins({ peutModifier }: { peutModifier: boolean }) {
   ];
   return <div className="space-y-4">
     <div className="flex gap-1">{[7, 30, 90].map((j) => <button key={j} type="button" className={`cc-btn cc-btn-sm ${jours === j ? "cc-btn-primary" : ""}`} onClick={() => setJours(j)}>{j} {t("jours")}</button>)}</div>
-    {k.coinsAchetes === 0 && <Note>{t("La vente de packs ouvrira avec pawaPay. En attendant, seuls les coins inclus sont consommés : ils représentent un coût d'acquisition, pas un revenu.")}</Note>}
+    {k.coinsAchetes === 0 && <Note>{t("La vente de packs ouvrira avec le paiement Mobile Money. En attendant, seuls les coins inclus sont consommés : ils représentent un coût d'acquisition, pas un revenu.")}</Note>}
     <GrilleKpi colonnes={6}>{kpis.map(([l, v, s]) => <div key={l} className="cc-card px-4 py-3 min-w-0"><p className="cc-faint text-[12px] truncate">{t(l)}</p><p className="text-[21px] font-semibold cc-num truncate">{v}</p>{s && <p className="cc-faint text-[11px] truncate">{s}</p>}</div>)}</GrilleKpi>
     <div className="grid gap-3 xl:grid-cols-[1.6fr_1fr]">
       <Carte titre={t("Valeur facturée et coût réel par jour")} sousTitre={t("En FCFA")}>

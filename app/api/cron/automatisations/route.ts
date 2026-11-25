@@ -20,6 +20,9 @@ import { passeRappelsAbonnement } from "@/lib/abonnement-paiement";
 import { passeRappelsSeances } from "@/lib/numerique/service";
 import { passeAdhesions } from "@/lib/numerique/abonnement";
 import { passeLancements } from "@/lib/commerce/lancements";
+import { passePaiements } from "@/lib/paiements/abonnement";
+import { passeVersements } from "@/lib/paiements/versements-marchands";
+import { passeAchats } from "@/lib/ia/achats";
 import { passeLogistique } from "@/lib/logistique/service";
 
 export const maxDuration = 60;
@@ -38,6 +41,9 @@ const taches = {
   adhesions: () => passeAdhesions(),
   lancements: () => passeLancements(),
   logistique: () => passeLogistique(),
+  paiements: () => passePaiements(),
+  versements: () => passeVersements(),
+  achatsCoins: () => passeAchats(),
 };
 type Tache = keyof typeof taches;
 
