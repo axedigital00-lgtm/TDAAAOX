@@ -9,7 +9,8 @@ import { ouvrirRecherche } from "./CommandPalette";
 import { NotificationsPanel, useFermeture, useNotifications } from "./AccountPanels";
 import { ouvrirAxia } from "./AxiaDock";
 
-export function MobileTopBar({ onMenu, boutiqueNom, initiales }: { onMenu: () => void; boutiqueNom?: string; initiales: string }) {
+/** `menuEnHaut` : seulement quand la barre d'onglets du bas (qui porte le menu) est absente. */
+export function MobileTopBar({ onMenu, boutiqueNom, initiales, menuEnHaut = true }: { onMenu: () => void; boutiqueNom?: string; initiales: string; menuEnHaut?: boolean }) {
   const t = useT();
   const notifs = useNotifications();
   const [ouvert, setOuvert] = useState(false);
@@ -19,7 +20,7 @@ export function MobileTopBar({ onMenu, boutiqueNom, initiales }: { onMenu: () =>
 
   return (
     <div className="axd-mobile-top" ref={zone}>
-      <button type="button" className="axd-mobile-top__btn" onClick={onMenu} aria-label={t("Menu")}><Icon name="menu" size={20} /></button>
+      {menuEnHaut && <button type="button" className="axd-mobile-top__btn" onClick={onMenu} aria-label={t("Menu")}><Icon name="menu" size={20} /></button>}
       <button type="button" className="axd-mobile-search" onClick={ouvrirRecherche}><Icon name="search" />{t("Rechercher")}</button>
       <button type="button" className="axd-mobile-top__btn" onClick={() => ouvrirAxia()} aria-label="Stella"><AxiaMark size={24} surface="dark" /></button>
       <button type="button" className="axd-mobile-top__btn" onClick={() => setOuvert((v) => !v)} aria-label={t("Notifications")} aria-expanded={ouvert}>

@@ -16,6 +16,7 @@ import { StorefrontCustomCss } from "@/components/storefront/StorefrontCustomCss
 import { ElementsPagesVitrine } from "@/components/storefront/ElementsPagesVitrine";
 import { StorefrontPopups } from "@/components/storefront/StorefrontPopups";
 import { MetaPixel } from "@/components/storefront/MetaPixel";
+import { listePixels } from "@/lib/pixels";
 import { TikTokPixel } from "@/components/storefront/TikTokPixel";
 import { SnapchatPixel } from "@/components/storefront/SnapchatPixel";
 import { GoogleTagManager } from "@/components/storefront/GoogleTagManager";
@@ -114,9 +115,9 @@ async function ContenuVitrine({ children, params }: Props) {
         <>
           <StorefrontPageView slug={slug} />
           <StorefrontPopups slug={slug} accentColor={accent} />
-          {tenant.metaPixelId && <MetaPixel pixelId={tenant.metaPixelId} />}
-          {tenant.tiktokPixelId && <TikTokPixel pixelId={tenant.tiktokPixelId} />}
-          {tenant.snapPixelId && <SnapchatPixel pixelId={tenant.snapPixelId} />}
+          {tenant.metaPixelId && <MetaPixel pixelIds={listePixels(tenant.metaPixelId)} />}
+          {tenant.tiktokPixelId && <TikTokPixel pixelIds={listePixels(tenant.tiktokPixelId)} />}
+          {tenant.snapPixelId && <SnapchatPixel pixelIds={listePixels(tenant.snapPixelId)} />}
           {tenant.gtmId && <GoogleTagManager containerId={tenant.gtmId} />}
           {tenant.trackingScripts && <CustomTrackingScripts html={tenant.trackingScripts} />}
         </>

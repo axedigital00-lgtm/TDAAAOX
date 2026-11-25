@@ -10,6 +10,7 @@ import { Button } from "@/components/dashboard/design-system/components/Button";
 import { Badge } from "@/components/dashboard/design-system/components/Badge";
 import { Modal } from "@/components/dashboard/design-system/components/Modal";
 import { Icon } from "@/components/dashboard/design-system/icons/Icon";
+import { EmptyArt } from "@/components/dashboard/design-system/illustrations/Illustration";
 
 interface Media {
   id: string; prompt: string; style: string;
@@ -188,8 +189,7 @@ export default function MediasPage() {
                   aria-label={tr("Exemple de film produit")} style={{ width: "100%", borderRadius: 16 }} />
                 <figcaption>{tr("Exemple de film produit")}</figcaption>
               </figure>
-            ) : <img src="/visuels/board-medias.webp" alt="" loading="lazy" width={320} height={160}
-              style={{ width: "min(100%, 320px)", height: "auto", aspectRatio: "2 / 1", objectFit: "cover", margin: "0 auto 20px", borderRadius: 16 }} />}
+            ) : <EmptyArt name="blog" />}
             <h3>{tr("Créez vos premiers visuels avec l’IA")}</h3>
             <p>{tr("Photos produit, mises en situation et vidéos publicitaires, générées à partir d’une simple description.")}</p>
             <div className="axd-empty__actions"><Button variant="primary" onClick={() => setShowModal(true)}>{tr("Générer un média")}</Button></div>

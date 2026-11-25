@@ -6,15 +6,16 @@ declare global {
   interface Window { ttq?: any; }
 }
 
-interface Props { pixelId: string; }
+interface Props { pixelIds: string[]; }
 
 /** Charge le TikTok Pixel et déclenche une page view à chaque changement de route */
-export function TikTokPixel({ pixelId }: Props) {
+export function TikTokPixel({ pixelIds }: Props) {
+  const cle = pixelIds.join(",");
   const pathname = usePathname();
   const initRef = useRef(false);
 
   useEffect(() => {
-    if (!pixelId || typeof window === "undefined") return;
+    if (!pixelIds.length || typeof window === "undefined") return;
 
     if (!initRef.current) {
       initRef.current = true;
@@ -40,13 +41,13 @@ export function TikTokPixel({ pixelId }: Props) {
           const first = d.getElementsByTagName("script")[0];
           first.parentNode?.insertBefore(script, first);
         };
-        ttq.load(pixelId);
+        for (const id of pixelIds) ttq.load(id);
         ttq.page();
       })(window, document, "ttq");
     } else {
       window.ttq?.page();
     }
-  }, [pixelId, pathname]);
+  }, [cle, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }

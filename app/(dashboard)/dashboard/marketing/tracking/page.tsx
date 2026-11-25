@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { FORMAT_PIXEL } from "@/lib/pixels";
+import { FORMAT_PIXEL, PIXELS_MULTIPLES, MAX_PIXELS, listePixels } from "@/lib/pixels";
 import {
   CheckCircle2,
   Loader2,
@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   Zap,
+  X,
 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { iconePlateforme } from "@/components/brand/LogoPlateforme";
@@ -151,38 +152,44 @@ function PlatformCard({
   const tr = useT();
   const { key, nom, sousTitre, couleur, couleurDark, bg, border, Icone, placeholder, guide, events } = platform;
 
-  const [valeur, setValeur]   = useState(valeurInitiale ?? "");
+  // Meta, TikTok, Snapchat : plusieurs pixels par boutique ; GTM : un seul conteneur.
+  const multiple = PIXELS_MULTIPLES.includes(key);
+  const [valeur, setValeur]   = useState(multiple ? "" : valeurInitiale ?? "");
   const [saved, setSaved]     = useState<string | null>(valeurInitiale);
   const [open, setOpen]       = useState(false);
   const [saving, setSaving]   = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    setValeur(valeurInitiale ?? "");
+    setValeur(multiple ? "" : valeurInitiale ?? "");
     setSaved(valeurInitiale);
-  }, [valeurInitiale]);
+  }, [valeurInitiale, multiple]);
 
-  const isActif = Boolean(saved);
+  const ids = listePixels(saved);
+  const isActif = ids.length > 0;
+  const masquer = (id: string) => (id.length > 8 ? `${id.slice(0, 4)}••••••••${id.slice(-4)}` : "••••••••");
 
-  const maskedId = saved
-    ? saved.length > 8
-      ? `${saved.slice(0, 4)}••••••••${saved.slice(-4)}`
-      : "••••••••"
-    : null;
+  async function enregistrer(liste: string[], message: string) {
+    const v = liste.length ? liste.join(",") : null;
+    await patchTenant({ [key]: v });
+    setSaved(v);
+    onSaved(v);
+    toast.success(message);
+  }
 
   async function sauvegarder() {
     setSaving(true);
     try {
-      const v = valeur.trim() || null;
-      if (v && !FORMAT_PIXEL[key].test(v)) {
-        toast.error(tr("Un seul {0} par boutique : colle un seul identifiant (ex. {1}).", nom, placeholder));
-        return;
-      }
-      await patchTenant({ [key]: v });
-      setSaved(v);
-      setOpen(false);
-      onSaved(v);
-      toast.success(v ? tr("{0} activé avec succès !", nom) : tr("{0} retiré", nom));
+      const nouveaux = listePixels(valeur);
+      if (!nouveaux.length) return;
+      const invalide = nouveaux.find((id) => !FORMAT_PIXEL[key].test(id));
+      if (invalide) { toast.error(tr("Identifiant invalide : {0} (exemple attendu : {1})", invalide, placeholder)); return; }
+      const liste = multiple ? listePixels([...ids, ...nouveaux].join(",")) : nouveaux.slice(0, 1);
+      if (!multiple && nouveaux.length > 1) { toast.error(tr("Un seul conteneur {0} par boutique.", nom)); return; }
+      if (liste.length > MAX_PIXELS) { toast.error(tr("{0} pixels au maximum par plateforme.", String(MAX_PIXELS))); return; }
+      await enregistrer(liste, multiple && ids.length ? tr("Pixel ajouté : {0} pixels {1} actifs", String(liste.length), nom) : tr("{0} activé avec succès !", nom));
+      setValeur(multiple ? "" : liste[0]);
+      if (!multiple) setOpen(false);
     } catch {
       toast.error(tr("Erreur de sauvegarde"));
     } finally {
@@ -190,14 +197,16 @@ function PlatformCard({
     }
   }
 
+  async function retirerUn(id: string) {
+    try { await enregistrer(ids.filter((x) => x !== id), tr("Pixel retiré")); }
+    catch { toast.error(tr("Erreur")); }
+  }
+
   async function retirer() {
     try {
-      await patchTenant({ [key]: null });
+      await enregistrer([], tr("{0} désactivé", nom));
       setValeur("");
-      setSaved(null);
       setOpen(false);
-      onSaved(null);
-      toast.success(tr("{0} désactivé", nom));
     } catch {
       toast.error(tr("Erreur"));
     }
@@ -302,27 +311,25 @@ function PlatformCard({
           ))}
         </div>
 
-        {/* Active ID preview (when closed) */}
-        {isActif && !open && (
-          <div
-            className="flex items-center gap-2 mt-3 px-3 py-2 rounded-xl"
-            style={{ background: bg, border: `1px solid ${border}` }}
-          >
-            <code
-              className="text-xs font-mono flex-1 truncate"
-              style={{ color: couleur }}
-            >
-              {visible ? tr(saved) : tr(maskedId)}
-            </code>
-            <button
-              onClick={() => setVisible(v => !v)}
-              className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity"
-            >
-              {visible
-                ? <EyeOff size={12} style={{ color: couleur }} />
-                : <Eye size={12} style={{ color: couleur }} />}
-            </button>
-            <CheckCircle2 size={13} style={{ color: couleur }} className="flex-shrink-0" />
+        {/* Pixels actifs : chacun peut être retiré séparément. */}
+        {isActif && (
+          <div className="mt-3 space-y-1.5">
+            {ids.map((id) => (
+              <div key={id} className="flex items-center gap-2 pl-3 pr-1 py-1 rounded-xl" style={{ background: bg, border: `1px solid ${border}` }}>
+                <CheckCircle2 size={13} style={{ color: couleur }} className="flex-shrink-0" />
+                <code className="text-xs font-mono flex-1 truncate" style={{ color: couleur }}>{visible ? id : masquer(id)}</code>
+                <button onClick={() => setVisible(v => !v)} aria-label={visible ? tr("Masquer") : tr("Afficher")}
+                  className="w-9 h-9 flex items-center justify-center flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+                  {visible ? <EyeOff size={14} style={{ color: couleur }} /> : <Eye size={14} style={{ color: couleur }} />}
+                </button>
+                {multiple && (
+                  <button onClick={() => retirerUn(id)} aria-label={tr("Retirer ce pixel")}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg flex-shrink-0 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -360,7 +367,7 @@ function PlatformCard({
           {/* Input */}
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 block">
-              {tr("Identifiant du pixel")}
+              {multiple ? (isActif ? tr("Ajouter un autre pixel") : tr("Identifiant du pixel")) : tr("Identifiant du pixel")}
             </label>
             <div className="relative">
               <input
@@ -399,17 +406,20 @@ function PlatformCard({
             >
               {saving
                 ? <><Loader2 size={13} className="animate-spin" />{" "}{tr("Activation…")}</>
-                : <><Zap size={13} />{" "}{tr("Activer le pixel")}</>}
+                : <><Zap size={13} />{" "}{multiple && isActif ? tr("Ajouter ce pixel") : tr("Activer le pixel")}</>}
             </button>
             {saved && (
               <button
                 onClick={retirer}
                 className="px-4 py-2.5 rounded-xl text-xs font-bold border border-red-200 text-red-400 hover:bg-red-50 transition-all"
               >
-                {tr("Retirer")}
+                {multiple && ids.length > 1 ? tr("Tout retirer") : tr("Retirer")}
               </button>
             )}
           </div>
+          {multiple && (
+            <p className="text-[11px] text-gray-400 -mt-2">{tr("Vous pouvez ajouter jusqu'à {0} pixels {1} : chaque visite et chaque vente leur est envoyée à tous.", String(MAX_PIXELS), nom)}</p>
+          )}
         </div>
       )}
     </div>
@@ -558,7 +568,7 @@ export default function TrackingPage() {
   }, []);
 
   const actifs = tenant
-    ? [tenant.metaPixelId, tenant.tiktokPixelId, tenant.snapPixelId, tenant.gtmId].filter(Boolean).length
+    ? [tenant.metaPixelId, tenant.tiktokPixelId, tenant.snapPixelId, tenant.gtmId].reduce((n, v) => n + listePixels(v).length, 0)
     : 0;
 
   if (loading) {

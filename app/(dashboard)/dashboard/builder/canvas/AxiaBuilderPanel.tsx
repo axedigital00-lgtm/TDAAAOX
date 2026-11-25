@@ -143,7 +143,7 @@ function AxiaFloatingBubble({ onSyncWithServer, defaultOpen, decalageDroite = 0,
   const { messages, input, setInput, loading, scrollRef, envoyer } = useAxiaChat(onSyncWithServer, contexte);
 
   return (
-    <div className="fixed bottom-5 z-30 flex flex-col items-end gap-3 transition-[right] duration-300" style={{ right: 20 + decalageDroite }}>
+    <div className="axc-stella fixed bottom-5 z-30 flex flex-col items-end gap-3 transition-[right] duration-300" style={{ right: 20 + decalageDroite }}>
       {open && (
         <div role="dialog" aria-label="Stella" className="w-[380px] h-[520px] max-h-[calc(100vh-140px)] bg-white rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.18)] border border-[#E8E8E8] flex flex-col overflow-hidden">
           <div className="px-4 h-14 flex items-center justify-between flex-shrink-0 bg-[#111111]">

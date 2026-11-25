@@ -24,7 +24,7 @@ import { BarcodeLabelPreview } from "@/components/dashboard/produits/BarcodeLabe
 import { genererEAN13 } from "@/lib/barcode";
 import Link from "next/link";
 import { toast } from "sonner";
-import { envoyerImagesCarrees, dimensions, estCarre, MESSAGE_REFUS } from "@/lib/images-carrees";
+import { envoyerImagesCarrees, dimensions, MESSAGE_REFUS } from "@/lib/images-carrees";
 
 import { useDevise } from "@/components/dashboard/DeviseProvider";
 import { useT } from "@/components/I18nProvider";
@@ -231,7 +231,7 @@ export default function EditProduitPage() {
   const promoInvalide = !!form.prixCompare && prixCompareNum > 0 && prixNum > 0 && prixCompareNum <= prixNum;
   const remisePct = prixCompareNum > prixNum && prixNum > 0 ? Math.round((1 - prixNum / prixCompareNum) * 100) : null;
 
-  // Images du produit : plusieurs à la fois, carrées uniquement (lib/images-carrees.ts).
+  // Images du produit : plusieurs à la fois, tout format (mises au carré sans rognage, lib/images-carrees.ts).
   async function ajouterImages(fichiers: File[]) {
     if (!fichiers.length) return;
     setUploadingMedia(true);
@@ -253,7 +253,6 @@ export default function EditProduitPage() {
     if (!u) return;
     const d = await dimensions(u).catch(() => null);
     if (!d) return void toast.error(tr("Image introuvable à cette adresse"));
-    if (!estCarre(d.l, d.h)) return void toast.error(MESSAGE_REFUS([`${d.l}×${d.h}`]));
     setFormState(f => ({ ...f, images: [...f.images, u] }));
     setImageInput("");
   }
@@ -712,7 +711,7 @@ export default function EditProduitPage() {
                   </button>
                   <button onClick={() => fileInputRef.current?.click()} disabled={uploadingMedia}
                     className="flex items-center gap-1.5 text-xs bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">
-                    {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}{" "}{tr("Importer (images carrées)")}
+                    {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}{" "}{tr("Importer des photos")}
                   </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept="image/*" multiple
                     onChange={e => ajouterImages(Array.from(e.target.files ?? []))} />

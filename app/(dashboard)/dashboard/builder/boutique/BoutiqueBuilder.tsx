@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { LogOut, LayoutList, Settings2, LayoutTemplate, Monitor, Tablet, Smartphone, Undo2, Redo2, ExternalLink, Save, Check, RefreshCw, Rocket, EyeOff, ChevronRight, ArrowLeft, LifeBuoy, type LucideIcon } from "lucide-react";
+import { LogOut, LayoutList, Settings2, LayoutTemplate, Monitor, Tablet, Smartphone, Undo2, Redo2, ExternalLink, Save, Check, RefreshCw, Rocket, EyeOff, ChevronRight, ArrowLeft, LifeBuoy, X, type LucideIcon } from "lucide-react";
 import { lienSignalement } from "@/lib/signalements";
 import type { BlockNode, ThemeConfig } from "@/lib/theme-config";
 import {
@@ -10,7 +10,6 @@ import {
   updateNodeConfig, updateNodeStyle, updateNodeResponsiveStyle, findNode, getSiblingPosition, genBlockId, type Zone,
 } from "@/lib/block-tree";
 import { MANIFESTE_LIBRAIRIE } from "@/lib/axso-design-manifest";
-import { PCOnlyGate } from "@/components/dashboard/PCOnlyGate";
 import { BlockStylePanel } from "../canvas/BlockStylePanel";
 import { AxiaBuilderPanel } from "../canvas/AxiaBuilderPanel";
 import { createDefaultNode, STARTER_TEMPLATES } from "../canvas/blockDefaults";
@@ -34,6 +33,7 @@ import { StyleCss } from "@/components/storefront/StyleCss";
 import { CSS_MENUS_DEROULANTS } from "../menusDeroulants";
 import { majStyleElement, type ElementStyles } from "@/lib/element-styles";
 import { useT } from "@/components/I18nProvider";
+import { VisiteGuidee } from "@/components/dashboard/VisiteGuidee";
 import { urlBoutique } from "@/lib/utils";
 
 type Device = "desktop" | "tablet" | "mobile";
@@ -76,6 +76,18 @@ export function BoutiqueBuilder(p: Props) {
   const tr = useT();
   const { config, set, tenant, device } = p;
   const [onglet, setOnglet] = useState<Onglet>("sections");
+  // Téléphone (< 768px) : aperçu plein écran, panneau de gauche en feuille
+  // ouverte depuis la barre d'outils du bas, aperçu forcé en mode mobile.
+  const [feuille, setFeuille] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 767px)").matches && device !== "mobile") p.setDevice("mobile");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const ouvrirFeuille = (id: Onglet) => {
+    setReglageOuvert(null); setAjout(null);
+    if (feuille && onglet === id) { setFeuille(false); return; }
+    setOnglet(id); setFeuille(true);
+  };
   // Page de la boutique en cours d'édition (sélecteur de la barre du haut).
   const [page, setPageBrute] = useState<PageEditee>(p.pageInitiale ?? "accueil");
   const setPage = (pg: PageEditee) => { setPageBrute(pg); setOnglet("sections"); setReglageOuvert(null); setAjout(null); setSelectedId(null); setElPage(null); };
@@ -271,35 +283,42 @@ export function BoutiqueBuilder(p: Props) {
   return (
     <div className="ax-constructeur fixed inset-0 z-[9999] flex flex-col bg-[#F1F2F4] text-[#111111] overflow-hidden" style={{ fontFamily: "var(--merchant-font)" }}>
       <StyleCss css={CSS_MENUS_DEROULANTS} />
-      <PCOnlyGate label={tr("Le Constructeur de boutique")} />
+      <VisiteGuidee cle="builder" etapes={[
+        { titre: "Bienvenue dans le Constructeur", texte: "Ici, vous voyez votre boutique exactement comme vos clients. Tout se modifie en quelques gestes." },
+        { cible: "builder-apercu", titre: "Touchez ce que vous voulez changer", texte: "Un titre, une image, un bouton : touchez-le dans l'aperçu et ses réglages s'ouvrent." },
+        { cible: "builder-sections", titre: "Les sections de la page", texte: "La liste des blocs de votre page : ouvrez-en un, changez l'ordre, masquez-le ou ajoutez-en un nouveau." },
+        { cible: "builder-parametres", titre: "Couleurs et polices", texte: "Changez les couleurs, les polices et le style des boutons de toute la boutique en une fois." },
+        { cible: "builder-enregistrer", titre: "Enregistrez", texte: "Vos changements s'enregistrent tout seuls après quelques secondes. Ce bouton enregistre tout de suite." },
+        { cible: "builder-publier", titre: "Mettez en ligne", texte: "Quand tout vous plaît, touchez « Publier » : votre boutique est visible par tous vos clients." },
+      ]} />
 
       {/* ── Barre du haut : fixe, identique quel que soit le design ── */}
-      <header className="h-[60px] flex-shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-3 bg-white border-b border-[#E5E5E5]">
+      <header className="axc-barre h-[60px] flex-shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-3 bg-white border-b border-[#E5E5E5]">
         <div className="flex items-center gap-1.5 min-w-0">
           <Link href="/dashboard" title={tr("Quitter le constructeur")} aria-label={tr("Quitter le constructeur")}
             className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors">
             <LogOut size={20} className="rotate-180" />
           </Link>
-          <span className="w-px h-6 bg-[#E5E5E5] mx-1" />
+          <span className="axc-pc w-px h-6 bg-[#E5E5E5] mx-1" />
           {([["sections", LayoutList, "Sections"], ["parametres", Settings2, "Paramètres du thème"], ["modeles", LayoutTemplate, "Modèles"]] as [Onglet, LucideIcon, string][]).map(([id, Icon, label]) => (
-            <button key={id} onClick={() => { setOnglet(id); setReglageOuvert(null); setAjout(null); }} title={label} aria-label={label} aria-pressed={onglet === id}
-              className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${onglet === id ? "bg-[#FFF1D6] text-[#C77C0A]" : "text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5]"}`}>
+            <button key={id} data-guide={`builder-${id}`} onClick={() => { setOnglet(id); setReglageOuvert(null); setAjout(null); }} title={label} aria-label={label} aria-pressed={onglet === id}
+              className={`axc-pc w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${onglet === id ? "bg-[#FFF1D6] text-[#C77C0A]" : "text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5]"}`}>
               <Icon size={20} />
             </button>
           ))}
         </div>
 
         <div className="flex items-center gap-3 text-[14px] min-w-0">
-          <span className="flex items-center gap-2 font-medium text-[#111111] truncate">
+          <span className="axc-pc flex items-center gap-2 font-medium text-[#111111] truncate">
             <LayoutTemplate size={18} className="text-[#777777] flex-shrink-0" />
             {tr(design?.nom) ?? tr("Mon thème")}
           </span>
-          {tenant.statut === "active"
+          <span className="axc-pc contents">{tenant.statut === "active"
             ? <span className="px-2 py-0.5 rounded-md text-[12.5px] font-semibold bg-[#DCFCE7] text-[#15803D]">{tr("En ligne")}</span>
             : tenant.statut === "brouillon"
               ? <span className="px-2 py-0.5 rounded-md text-[12.5px] font-semibold bg-[#FFF1D6] text-[#B45309]">{tr("Brouillon")}</span>
-              : <span className="px-2 py-0.5 rounded-md text-[12.5px] font-semibold bg-[#F3F4F6] text-[#4B5563]">{tr("Hors ligne")}</span>}
-          <span className="w-px h-5 bg-[#E5E5E5]" />
+              : <span className="px-2 py-0.5 rounded-md text-[12.5px] font-semibold bg-[#F3F4F6] text-[#4B5563]">{tr("Hors ligne")}</span>}</span>
+          <span className="axc-pc w-px h-5 bg-[#E5E5E5]" />
           <SelecteurPage page={page} onChange={setPage}
             pagesLibres={Object.entries(pagesLibres).sort(([, a], [, b]) => (a.ordre ?? 0) - (b.ordre ?? 0)).map(([c, pg]) => ({ cle: c, nom: pg.nom || c }))} />
         </div>
@@ -308,7 +327,7 @@ export function BoutiqueBuilder(p: Props) {
           <span className="hidden xl:block text-[13px] text-[#888888] mr-1 truncate">
             {p.saving ? tr("Enregistrement…") : p.saved ? tr("Enregistré") : p.hasChanges ? tr("Modifications non enregistrées") : ""}
           </span>
-          <div className="flex items-center rounded-lg bg-[#F3F3F3] p-0.5">
+          <div className="axc-pc flex items-center rounded-lg bg-[#F3F3F3] p-0.5">
             {([["desktop", Monitor, "Ordinateur"], ["tablet", Tablet, "Tablette"], ["mobile", Smartphone, "Mobile"]] as [Device, LucideIcon, string][]).map(([d, Icon, label]) => (
               <button key={d} onClick={() => p.setDevice(d)} title={label} aria-label={label} aria-pressed={device === d}
                 className={`w-10 h-10 flex items-center justify-center rounded-md transition-all ${device === d ? "bg-white text-[#111111] shadow-sm" : "text-[#777777] hover:text-[#111111]"}`}>
@@ -316,24 +335,26 @@ export function BoutiqueBuilder(p: Props) {
               </button>
             ))}
           </div>
-          <BoutonBarre titre={tr("Annuler (Ctrl+Z)")} onClick={p.undo} disabled={!p.peutAnnuler}><Undo2 size={19} /></BoutonBarre>
-          <BoutonBarre titre={tr("Rétablir (Ctrl+Y)")} onClick={p.redo} disabled={!p.peutRetablir}><Redo2 size={19} /></BoutonBarre>
+          <span className="axc-pc contents">
+            <BoutonBarre titre={tr("Annuler (Ctrl+Z)")} onClick={p.undo} disabled={!p.peutAnnuler}><Undo2 size={19} /></BoutonBarre>
+            <BoutonBarre titre={tr("Rétablir (Ctrl+Y)")} onClick={p.redo} disabled={!p.peutRetablir}><Redo2 size={19} /></BoutonBarre>
+          </span>
           {tenant.statut === "active" && (
             <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer" title={tr("Voir la boutique")} aria-label={tr("Voir la boutique")}
-              className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors">
+              className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors axc-pc">
               <ExternalLink size={19} />
             </a>
           )}
           {/* Nouvel onglet : le Constructeur reste ouvert avec ses modifications. */}
           <a href={lienSignalement("/dashboard/builder")} target="_blank" rel="noopener noreferrer" title={tr("Signaler un problème")} aria-label={tr("Signaler un problème")}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors">
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#555555] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors axc-pc">
             <LifeBuoy size={19} />
           </a>
-          <button onClick={p.handleSave} disabled={p.saving || (!p.hasChanges && !p.saved)}
-            className={`h-10 flex items-center gap-2 px-4 rounded-lg text-[14px] font-semibold transition-colors disabled:cursor-not-allowed ${
+          <button data-guide="builder-enregistrer" onClick={p.handleSave} disabled={p.saving || (!p.hasChanges && !p.saved)}
+            className={`axc-enregistrer h-10 flex items-center gap-2 px-4 rounded-lg text-[14px] font-semibold transition-colors disabled:cursor-not-allowed ${
               p.saved ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#F5A623] text-[#111111] hover:bg-[#E8990F] disabled:bg-[#EDEDED] disabled:text-[#AAAAAA]"}`}>
             {p.saving ? <RefreshCw size={15} className="animate-spin" /> : p.saved ? <Check size={15} /> : <Save size={15} />}
-            {p.saving ? tr("Enregistrement…") : p.saved ? tr("Enregistré") : tr("Enregistrer")}
+            <span className="axc-libelle">{p.saving ? tr("Enregistrement…") : p.saved ? tr("Enregistré") : tr("Enregistrer")}</span>
           </button>
           {tenant.statut === "active" ? (
             <button onClick={p.depublier} disabled={p.publishing} title={tr("Retirer la boutique de la vente en ligne")}
@@ -342,7 +363,7 @@ export function BoutiqueBuilder(p: Props) {
               {p.publishing ? "…" : tr("Dépublier")}
             </button>
           ) : (
-            <button onClick={p.publier} disabled={p.publishing || p.criteresManquants.length > 0}
+            <button data-guide="builder-publier" onClick={p.publier} disabled={p.publishing || p.criteresManquants.length > 0}
               title={p.criteresManquants.length ? tr("Complète d'abord : {0}", p.criteresManquants.map((c) => c.label).join(", ")) : undefined}
               className="h-10 flex items-center gap-2 px-4 rounded-lg text-[14px] font-semibold bg-[#111111] text-white hover:bg-[#333333] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
               {p.publishing ? <RefreshCw size={15} className="animate-spin" /> : <Rocket size={15} />}
@@ -356,7 +377,11 @@ export function BoutiqueBuilder(p: Props) {
 
       <div className="flex-1 flex min-h-0">
         {/* ── Panneau de gauche ── */}
-        <aside className="relative w-[320px] flex-shrink-0 flex flex-col bg-white border-r border-[#E5E5E5]">
+        <aside className="axc-gauche relative w-[320px] flex-shrink-0 flex flex-col bg-white border-r border-[#E5E5E5]" data-ouvert={feuille || undefined}>
+          <div className="axc-poignee">
+            <span>{tr(onglet === "sections" ? "Sections de la page" : onglet === "parametres" ? "Couleurs, polices et style" : "Modèles prêts à l'emploi")}</span>
+            <button type="button" onClick={() => setFeuille(false)} aria-label={tr("Fermer")}><X size={20} /></button>
+          </div>
           <div className="px-3 py-3 border-b border-[#EEEEEE]">
             <RechercheConstructeur tree={tree} reglages={p.reglages} onChoisir={ouvrirResultat} />
           </div>
@@ -452,6 +477,7 @@ export function BoutiqueBuilder(p: Props) {
         />}
 
         {/* ── Réglages de l'élément sélectionné ── */}
+        <div className="axc-droite">
         {elPage && !avecSections && (
           <PanneauElement
             key={cleEl}
@@ -531,7 +557,21 @@ export function BoutiqueBuilder(p: Props) {
             onClose={() => setSelectedId(null)}
           />
         )}
+        </div>
       </div>
+
+      {/* ── Téléphone : barre d'outils du bas ── */}
+      <nav className="axc-outils" aria-label={tr("Outils du constructeur")}>
+        {([["sections", LayoutList, "Sections"], ["parametres", Settings2, "Style"], ["modeles", LayoutTemplate, "Modèles"]] as [Onglet, LucideIcon, string][]).map(([id, Icon, label]) => (
+          <button key={id} type="button" data-guide={`builder-${id}`} onClick={() => ouvrirFeuille(id)} aria-pressed={feuille && onglet === id}>
+            <Icon size={21} /><span>{tr(label)}</span>
+          </button>
+        ))}
+        <button type="button" onClick={p.undo} disabled={!p.peutAnnuler}><Undo2 size={21} /><span>{tr("Annuler")}</span></button>
+        {tenant.statut === "active"
+          ? <a href={urlBoutique(tenant)} target="_blank" rel="noopener noreferrer"><ExternalLink size={21} /><span>{tr("Voir")}</span></a>
+          : <button type="button" onClick={p.redo} disabled={!p.peutRetablir}><Redo2 size={21} /><span>{tr("Rétablir")}</span></button>}
+      </nav>
 
       <AxiaBuilderPanel onSyncWithServer={p.onSyncWithServer} decalageDroite={selection || elPage ? 340 : 0} contexte={[
         libre ? `page libre « ${libellePage} » (p/${cle})` : `page « ${libellePage} »`,

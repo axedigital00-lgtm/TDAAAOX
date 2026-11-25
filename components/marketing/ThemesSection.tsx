@@ -21,8 +21,8 @@ const THEMES = MANIFESTE_LIBRAIRIE.map((e, i) => ({
 
 /**
  * Cartes des designs — partagées par la landing (6 premiers) et /themes (tous).
- * `captures` (landing) : image légère (public/themes-apercu, capture de l'aperçu réel) au lieu
- * du design chargé en direct, carrousel au doigt sur mobile, carte entière cliquable.
+ * `captures` : image légère (public/themes-apercu, capture de l'aperçu réel) au lieu
+ * du design chargé en direct. Carte entière cliquable, styles `.axm-theme` (site.css).
  */
 export async function GrilleThemes({ limite, captures, famille }: { limite?: number; captures?: boolean; famille?: string }) {
   const t = await getT();

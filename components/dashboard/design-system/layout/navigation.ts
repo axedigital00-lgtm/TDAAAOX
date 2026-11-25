@@ -167,6 +167,86 @@ export const SETTINGS: NavSection = {
   match: ["/dashboard/abonnement", "/dashboard/profil", "/dashboard/livraison", "/dashboard/entrepots", "/dashboard/connecteurs", "/dashboard/marketing/tracking"],
 };
 
+/**
+ * Espaces de la barre d'onglets mobile (≤ 820px). Le premier lien autorisé de
+ * chaque espace est sa page d'arrivée ; les autres deviennent ses rubriques.
+ */
+export const ESPACES_MOBILE: (NavSection & { sub: NavLink[]; /** Libellé de l'onglet, si le nom complet ne tient pas. */ court?: string })[] = [
+  { id: "m-accueil", icon: "home", label: "Accueil", href: "/dashboard/accueil", sub: [{ label: "Accueil", href: "/dashboard/accueil" }] },
+  {
+    id: "m-ventes", icon: "orders", label: "Ventes", href: "/dashboard/commandes", count: "commandes",
+    sub: [
+      { label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes" },
+      { label: "Devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
+      { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours", "/dashboard/pos/retours"] },
+      { label: "Clients", href: "/dashboard/clients", moduleKey: "clients" },
+      { label: "Entreprises", href: "/dashboard/clients/entreprises", moduleKey: "clients" },
+      { label: "Avis", href: "/dashboard/avis", moduleKey: "clients" },
+      { label: "WhatsApp", href: "/dashboard/whatsapp", moduleKey: "clients" },
+      { label: "Caisse", href: "/dashboard/pos/caisse", moduleKey: "pos", match: ["/dashboard/pos"] },
+    ],
+  },
+  {
+    id: "m-catalogue", icon: "tag", label: "Catalogue", href: "/dashboard/produits",
+    sub: [
+      { label: "Produits", href: "/dashboard/produits", moduleKey: "produits" },
+      { label: "Collections", href: "/dashboard/produits/categories", moduleKey: "produits" },
+      { label: "Stock", href: "/dashboard/pos/stock", moduleKey: "pos" },
+      { label: "Inventaires", href: "/dashboard/pos/inventaire", moduleKey: "pos" },
+      { label: "Bons de commande", href: "/dashboard/pos/achats", moduleKey: "pos", match: ["/dashboard/pos/receptions"] },
+      { label: "Transferts", href: "/dashboard/pos/transferts", moduleKey: "pos" },
+      { label: "Numériques", href: "/dashboard/produits/digital", moduleKey: "produits", match: ["/dashboard/produits/creer", "/dashboard/produits/studio", "/dashboard/produits/live"] },
+      { label: "Médias", href: "/dashboard/medias" },
+      { label: "Fichiers", href: "/dashboard/fichiers", moduleKey: "boutique" },
+      { label: "Import magique", href: "/dashboard/magic-import", moduleKey: "produits" },
+    ],
+  },
+  {
+    id: "m-logistique", icon: "truck", label: "Logistique", href: "/dashboard/logistique",
+    sub: [
+      { label: "Livraisons", href: "/dashboard/logistique", moduleKey: "commandes" },
+      { label: "Réseau", href: "/dashboard/logistique/reseau", moduleKey: "commandes" },
+      { label: "Livreurs", href: "/dashboard/livreurs", moduleKey: "commandes", match: ["/dashboard/logistique/livreurs"] },
+      { label: "Partenaires", href: "/dashboard/transporteurs", moduleKey: "commandes", match: ["/dashboard/logistique/transporteurs"] },
+      { label: "Entrepôts", href: "/dashboard/entrepots", match: ["/dashboard/logistique/entrepots"] },
+    ],
+  },
+  {
+    id: "m-boutique", icon: "store", label: "Ma boutique", court: "Boutique", href: "/dashboard/ma-boutique",
+    sub: [
+      { label: "Ma boutique", href: "/dashboard/ma-boutique", moduleKey: "boutique" },
+      { label: "Thèmes", href: "/dashboard/themes", moduleKey: "boutique" },
+      { label: "Constructeur", href: "/dashboard/builder", moduleKey: "boutique" },
+      { label: "Informations", href: "/dashboard/boutique", moduleKey: "boutique" },
+      { label: "Codes promo", href: "/dashboard/marketing/codes-promo", moduleKey: "marketing", requiresPalier: PRO },
+      { label: "Marketing", href: "/dashboard/marketing", moduleKey: "marketing", requiresPalier: PRO },
+      { label: "Campagnes", href: "/dashboard/campagnes", moduleKey: "marketing" },
+      { label: "Publicité", href: "/dashboard/publicite" },
+      { label: "E-mails", href: "/dashboard/marketing/email", moduleKey: "marketing", requiresPalier: PRO },
+      { label: "SMS", href: "/dashboard/sms" },
+      { label: "Affiliation", href: "/dashboard/affiliation", moduleKey: "marketing" },
+      { label: "Analyses", href: "/dashboard/analytics", moduleKey: "produits" },
+      { label: "Rapports", href: "/dashboard/rapports", moduleKey: "produits" },
+      { label: "Objectifs", href: "/dashboard/objectifs", moduleKey: "produits" },
+      { label: "Planificateur", href: "/dashboard/scheduler" },
+    ],
+  },
+  {
+    id: "m-finances", icon: "wallet", label: "Finances", href: "/dashboard/revenus",
+    sub: [
+      { label: "Revenus", href: "/dashboard/revenus", moduleKey: "finance" },
+      { label: "Paiements", href: "/dashboard/paiements", moduleKey: "finance" },
+      { label: "Wallet", href: "/dashboard/wallet", moduleKey: "finance" },
+      { label: "Factures", href: "/dashboard/factures", moduleKey: "finance" },
+      { label: "Encaissements COD", href: "/dashboard/logistique/encaissements", moduleKey: "finance" },
+      { label: "Rapprochement", href: "/dashboard/pos/rapprochement", moduleKey: "finance" },
+      { label: "Comptabilité", href: "/dashboard/pos/comptabilite", moduleKey: "finance" },
+      { label: "Charges", href: "/dashboard/pos/charges", moduleKey: "finance" },
+      { label: "Coins IA", href: "/dashboard/coins" },
+    ],
+  },
+];
+
 // ─── Filtrage et état actif ─────────────────────────────────────────────────
 
 export function autorise(l: NavLink, permissions?: Record<ModuleKey, Niveau>) {

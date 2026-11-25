@@ -132,6 +132,7 @@ export function Apercu({ config, tree, slug, collections, device, selectedId, on
       {config.builderCss && reglages.animations && config.animations && <AnimationsDesign animations={config.animations} racine={() => defileur.current} />}
       <div
         ref={racine}
+        data-guide="builder-apercu"
         onMouseMove={(e) => { sourisIci.current = true; onMouseMove(e); signalerSurvol(cleSous(e.target)); }}
         onMouseLeave={() => { sourisIci.current = false; onMouseLeave(); signalerSurvol(null); }}
         className="relative mx-auto bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] min-h-full transition-[width] duration-300"

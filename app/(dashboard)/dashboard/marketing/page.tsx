@@ -68,7 +68,7 @@ export default async function CroissancePage() {
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "24px 0 10px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, margin: "24px 0 10px" }}>
         <h2 className="axd-card__title" style={{ flex: 1 }}>Performance marketing</h2>
         <span className="axd-btn axd-btn--sm" style={{ cursor: "default" }}><Icon name="calendar" />30 derniers jours</span>
         <Link href="/dashboard/analytics" className="axd-btn axd-btn--plain axd-btn--sm">Afficher les détails</Link>

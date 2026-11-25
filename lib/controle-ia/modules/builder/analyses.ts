@@ -4,6 +4,7 @@
 // charger la config (brouillon par défaut) et les données de la boutique, puis mettre en forme.
 // Chaque problème : { gravite, domaine, cible, message, correction: { op, args } | null },
 // correction applicable telle quelle par axso_builder_apply.
+import { listePixels } from "@/lib/pixels";
 import { prisma } from "@/lib/prisma";
 import { resolveThemeConfigAsync } from "@/lib/theme-config-server";
 import type { ThemeConfig } from "@/lib/theme-config";
@@ -104,7 +105,7 @@ async function charger(ctx: CtxOutil, source: "brouillon" | "publie") {
     nom: t.nomBoutique, slug: t.slug, devise: t.devise, description: t.description, metaTitle: t.metaTitle, metaDescription: t.metaDescription,
     logoUrl: t.logoUrl, bannerUrl: t.bannerUrl, whatsapp: t.whatsapp, livraison: t.parametresLivraison as Record<string, any>,
     // Jamais le contenu des scripts : seulement leur taille et le nombre de pixels.
-    scripts: { octets: t.trackingScripts?.length ?? 0, pixels: [t.metaPixelId, t.tiktokPixelId, t.snapPixelId, t.gtmId].filter(Boolean).length },
+    scripts: { octets: t.trackingScripts?.length ?? 0, pixels: [t.metaPixelId, t.tiktokPixelId, t.snapPixelId, t.gtmId].reduce((n, v) => n + listePixels(v).length, 0) },
     produits, collections, avisApprouves,
     medias: medias.map((m) => ({ url: m.url, largeur: m.largeur, hauteur: m.hauteur, octets: Number((m.metadonnees as any)?.octets) || null })),
   };

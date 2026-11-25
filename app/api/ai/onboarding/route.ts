@@ -3,9 +3,10 @@ import { rattacherFilleul } from "@/lib/parrainage";
 import { COOKIE_PARRAIN } from "@/lib/parrainage-regles";
 import { aiLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { annoncerInscription } from "@/lib/push";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { generateProductImageUrl, buildProductImagePrompt } from "@/lib/image-gen";
 import { prisma } from "@/lib/prisma";
-import { hash } from "@/lib/mots-de-passe";
+import { compare, hash } from "@/lib/mots-de-passe";
 import { analyserBusinessEtCreerPlan, deviseDuPays } from "@/lib/ai-agent";
 import { slugify, slugBoutiqueValide } from "@/lib/utils";
 import { z } from "zod";
@@ -95,10 +96,20 @@ export async function POST(request: Request) {
       // Email normalisé : la connexion compare en minuscules, sans espaces.
       compte.email = compte.email.trim().toLowerCase();
 
-      // Vérifier que l'email n'existe pas déjà
+      // Vérifier que l'email n'existe pas déjà. Exception : nouvel essai après une création
+      // réussie dont la réponse s'est perdue (coupure réseau, délai) : même e-mail, même mot de
+      // passe, boutique créée il y a moins de 30 min → on renvoie cette boutique, sans doublon.
       const emailPris = await emailDejaPris(compte.email, "user");
       if (emailPris) {
-        return NextResponse.json({ message: emailPris }, { status: 400 });
+        const existant = await prisma.user.findFirst({
+          where: { email: { equals: compte.email, mode: "insensitive" }, role: "owner", createdAt: { gte: new Date(Date.now() - 30 * 60_000) } },
+          select: { password: true, tenantId: true },
+        });
+        const boutique = existant?.tenantId ? await prisma.tenant.findUnique({ where: { id: existant.tenantId }, select: { id: true, slug: true } }) : null;
+        if (boutique && existant?.password && await compare(compte.password, existant.password).catch(() => false)) {
+          return NextResponse.json({ success: true, slug: boutique.slug, tenantId: boutique.id, repris: true }, { status: 201 });
+        }
+        return NextResponse.json({ message: emailPris, code: "email_pris" }, { status: 400 });
       }
 
       // Vérifier unicité du slug
@@ -140,6 +151,11 @@ export async function POST(request: Request) {
         ...(designsProposes?.length && { designsOrigine: designsProposes }),
       };
 
+      // Mot de passe chiffré AVANT la transaction : sur Workers, le chiffrement passe par
+      // PostgreSQL sur une seconde connexion ; dans la transaction, son ouverture (base en veille)
+      // faisait expirer la transaction et échouer l'inscription.
+      const motDePasseChiffre = await hash(compte.password, 10);
+
       // Transaction : créer tenant + user + produits
       const codeParrain = (await cookies()).get(COOKIE_PARRAIN)?.value;
       const { tenant, produitsCreees } = await prisma.$transaction(async (tx) => {
@@ -168,7 +184,7 @@ export async function POST(request: Request) {
           data: {
             name: compte.name,
             email: compte.email,
-            password: await hash(compte.password, 10),
+            password: motDePasseChiffre,
             tenantId: tenant.id,
             role: "owner",
             // Lien propriétaire ↔ boutique : sans lui, le multi-boutique ne voit pas cette boutique.
@@ -178,13 +194,13 @@ export async function POST(request: Request) {
 
         // Slugs uniques avant la boucle : une erreur dans la transaction l'annulerait en entier (Postgres).
         const slugsPris = new Set<string>();
-        const produitsCreees: string[] = [];
+        const produitsCreees: { id: string; nom: string; categorie: string }[] = [];
         for (const p of plan.produits.slice(0, 5)) {
           const base = slugify(p.nom) || "produit";
           let produitSlug = base;
           for (let n = 2; slugsPris.has(produitSlug); n++) produitSlug = `${base}-${n}`;
           slugsPris.add(produitSlug);
-          await tx.produit.create({
+          const cree = await tx.produit.create({
             data: {
               tenantId: tenant.id,
               nom: p.nom,
@@ -201,44 +217,47 @@ export async function POST(request: Request) {
               featured: true,
             },
           });
-          produitsCreees.push(p.nom);
+          produitsCreees.push({ id: cree.id, nom: p.nom, categorie: p.categorie });
         }
 
         return { tenant, produitsCreees };
-      });
-      await rattacherFilleul(tenant.id, { email: compte.email, telephone: compte.whatsapp }, codeParrain);
-
-      await annoncerInscription({ name: compte.name, email: compte.email, role: "owner", tenantId: tenant.id });
-
-      // Boutique créée en "brouillon" — notifie le marchand qu'il lui reste
-      // à compléter/vérifier ses infos avant de publier (voir lib/boutique-completion.ts).
-      await notifierMarchand({
-        tenantId: tenant.id,
-        type: "boutique_a_completer",
-        titre: "Ta boutique n'est pas encore publiée",
-        message: "Vérifie tes infos (WhatsApp, description) dans le Constructeur. Les produits proposés par l'IA sont en brouillon avec un stock à 0 : vérifie prix, photos et stock puis active-les avant de publier ta boutique.",
-        lien: "/dashboard/builder",
-      });
-
-      // Provisionne le design de la bibliothèque AXSO Design choisi par
-      // plan.themeId (un fichier, ex. "aube-site" — voir lib/ai-agent.ts)
-      // maintenant que les vrais produits existent en base : la grille
-      // accueil/boutique les affiche directement. Non bloquant — en cas
-      // d'échec, la boutique reste sur le socle par défaut ("terre-et-or").
-      // Boutique digitale : même design, adapté au rendu (lib/liens-design.ts).
-      try {
-        const theme = await provisionerThemeInitial({
-          tenantId: tenant.id,
-          categorie: plan.categorie,
-          slug: tenant.slug,
-          nomBoutique: tenant.nomBoutique,
-          devise: tenant.devise,
-          fichier: plan.themeId,
+      }, { maxWait: 10_000, timeout: 20_000 });
+      // Tout le reste se fait APRÈS la réponse : le marchand n'attend plus, et un échec
+      // (calcul trop long sur le Worker, quota d'images, notification) ne peut plus faire
+      // échouer une inscription dont la boutique est déjà créée. Si le thème n'a pas pu être
+      // préparé, la boutique reste sur le socle par défaut et « Ma boutique » propose
+      // l'étape « Choisissez un thème ».
+      after(async () => {
+        const etape = async (nom: string, f: () => Promise<unknown>) => {
+          try { await f(); } catch (err) { console.warn(`[API/AI/ONBOARDING] ${nom} (non bloquant):`, err instanceof Error ? err.message.slice(0, 160) : err); }
+        };
+        await etape("parrainage", () => rattacherFilleul(tenant.id, { email: compte.email, telephone: compte.whatsapp }, codeParrain));
+        // Design de la bibliothèque AXSO Design choisi par plan.themeId, avec les vrais produits.
+        await etape("thème", async () => {
+          const theme = await provisionerThemeInitial({
+            tenantId: tenant.id, categorie: plan.categorie, slug: tenant.slug,
+            nomBoutique: tenant.nomBoutique, devise: tenant.devise, fichier: plan.themeId,
+          });
+          await prisma.tenant.update({ where: { id: tenant.id }, data: { themeId: theme.id } });
         });
-        await prisma.tenant.update({ where: { id: tenant.id }, data: { themeId: theme.id } });
-      } catch (err) {
-        console.warn("[API/AI/ONBOARDING] Provisionnement bibliothèque échoué (non bloquant):", err);
-      }
+        // Boutique créée en "brouillon" : il reste à vérifier ses infos avant de publier.
+        await etape("notification", () => notifierMarchand({
+          tenantId: tenant.id,
+          type: "boutique_a_completer",
+          titre: "Ta boutique n'est pas encore publiée",
+          message: "Vérifie tes infos (WhatsApp, description) dans le Constructeur. Les produits proposés par l'IA sont en brouillon avec un stock à 0 : vérifie prix, photos et stock puis active-les avant de publier ta boutique.",
+          lien: "/dashboard/builder",
+        }));
+        await etape("annonce", () => annoncerInscription({ name: compte.name, email: compte.email, role: "owner", tenantId: tenant.id }));
+        // Visuels des produits proposés (brouillons) : en dernier, chacun limité à 20 s.
+        await etape("visuels", () => Promise.all(produitsCreees.map(async (p) => {
+          const url = await Promise.race([
+            generateProductImageUrl(buildProductImagePrompt(p.nom, p.categorie || plan.categorie), tenant.id),
+            new Promise<string>((ok) => setTimeout(() => ok(""), 20_000)),
+          ]);
+          if (url && !url.startsWith("data:")) await prisma.produit.update({ where: { id: p.id }, data: { images: [url] } });
+        })));
+      });
 
       // Aucun avis ni client fictif : la vitrine masque la section Avis tant qu'il n'y a pas de vrais avis.
       return NextResponse.json({

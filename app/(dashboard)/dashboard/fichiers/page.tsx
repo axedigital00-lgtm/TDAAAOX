@@ -13,6 +13,7 @@ import { Button } from "@/components/dashboard/design-system/components/Button";
 import { Badge } from "@/components/dashboard/design-system/components/Badge";
 import { IndexTable, type IndexColumn, type IndexRow } from "@/components/dashboard/design-system/components/IndexTable";
 import { Icon } from "@/components/dashboard/design-system/icons/Icon";
+import { EmptyArt } from "@/components/dashboard/design-system/illustrations/Illustration";
 
 // externe : image d'un produit hébergée ailleurs (IA, lien collé) — affichée, jamais supprimée d'ici.
 interface Fichier { url: string; nom: string; type: "image" | "video" | "document"; taille: number | null; date: string; externe?: boolean; produitId?: string }
@@ -167,7 +168,7 @@ export default function FichiersPage() {
             <p className="axd-fichiers__etat">{t("Chargement…")}</p>
           ) : !visibles.length ? (
             <div className="axd-empty">
-              <img src="/visuels/board-fichiers.webp" alt="" width={200} height={150} style={{ margin: "0 auto 8px", maxWidth: "100%" }} />
+              <EmptyArt name="draft" />
               <h3>{recherche ? t("Aucun fichier ne correspond") : t("Importez et gérez vos fichiers")}</h3>
               <p>{recherche ? t("Essayez un autre nom de fichier.") : t("Les images, vidéos et documents de votre boutique, réutilisables partout : constructeur, pages, liens.")}</p>
             </div>

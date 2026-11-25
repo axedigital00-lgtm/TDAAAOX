@@ -15,6 +15,7 @@ import { Button } from "@/components/dashboard/design-system/components/Button";
 import { Icon } from "@/components/dashboard/design-system/icons/Icon";
 import { ProductsIndex } from "@/components/dashboard/features/products/ProductsIndex";
 import { nombre, pourcentage, debutJour } from "@/components/dashboard/design-system/format";
+import { EmptyArt } from "@/components/dashboard/design-system/illustrations/Illustration";
 
 const PAR_PAGE = 50;
 const SEUIL_STOCK_BAS = 5;
@@ -185,7 +186,7 @@ export default async function ProduitsPage({ searchParams }: { searchParams: Pro
             </div>
           ) : (
             <div className="axd-empty">
-              <img src="/visuels/board-produits.webp" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />
+              <EmptyArt name="catalog" />
               <h3>Ajoutez vos produits</h3>
               <p>Commencez par ajouter un premier produit, ou importez votre catalogue depuis un fichier Excel.</p>
               <div className="axd-empty__actions"><Button href="/dashboard/produits/nouveau" variant="primary">Ajouter un produit</Button></div>

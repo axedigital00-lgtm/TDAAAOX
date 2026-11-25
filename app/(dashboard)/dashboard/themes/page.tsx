@@ -2,10 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PCOnlyGate } from "@/components/dashboard/PCOnlyGate";
 import { ApercuDesign, parametresApercu, fichierDuTheme, CONFIRMER_CHANGEMENT } from "@/components/dashboard/ApercuDesign";
 import { ModuleTutorial, BoutonRevoirTutoriel } from "@/components/dashboard/ModuleTutorial";
-import { Palette, Sparkles } from "lucide-react";
+import { VisiteGuidee } from "@/components/dashboard/VisiteGuidee";
+import { Palette, Sparkles, X, Check } from "lucide-react";
 import { Page, PageHeader, Card, Button, Badge } from "@/components/dashboard/design-system";
 import { useT } from "@/components/I18nProvider";
 import { urlBoutique } from "@/lib/utils";
@@ -36,6 +36,8 @@ export default function ThemesPage() {
   const [activating, setActivating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [params, setParams] = useState(""); // aperçus avec les vrais nom, devise et produits
+  // Aperçu plein écran d'un thème de la bibliothèque (toucher une carte).
+  const [zoom, setZoom] = useState<{ fichier: string; nom: string } | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -140,7 +142,12 @@ export default function ThemesPage() {
   return (
     <Page>
       <ModuleTutorial moduleKey="themes" titre={tr("Thèmes")} sousTitre={tr("Personnalise l'apparence de ta boutique")} steps={THEMES_TUTORIAL_STEPS} />
-      <PCOnlyGate label={tr("Thèmes")} />
+      <VisiteGuidee cle="themes" etapes={[
+        { cible: "theme-actuel", titre: "Votre thème actuel", texte: "C'est le design que voient vos clients en ce moment." },
+        { cible: "theme-ambiances", titre: "Filtrez par style", texte: "Mode, beauté, artisanat… touchez un style pour ne voir que les thèmes qui vous ressemblent." },
+        { cible: "theme-carte", titre: "Touchez un thème pour le voir en grand", texte: "Il s'ouvre en plein écran, avec vos vrais produits. Si vous l'aimez, touchez « Utiliser ce thème » en bas." },
+        { cible: "theme-personnaliser", titre: "Ensuite, personnalisez", texte: "Ce bouton ouvre le Constructeur : changez les textes, les images et les couleurs." },
+      ]} />
       <PageHeader
         icon="store"
         title={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{tr("Thèmes")}<BoutonRevoirTutoriel moduleKey="themes" /></span>}
@@ -152,7 +159,7 @@ export default function ThemesPage() {
       <div style={{ display: "grid", gap: "var(--space-400)" }}>
         {/* ── Thème actuel ── */}
         <Card title={tr("Thème actuel")}>
-          <div className="axd-theme-actuel">
+          <div className="axd-theme-actuel" data-guide="theme-actuel">
             <div className="axd-theme-actuel__apercu">
               {actif && fichierDuTheme(actif.slug)
                 ? <ApercuDesign fichier={fichierDuTheme(actif.slug)!} params={params} className="h-full" />
@@ -165,7 +172,7 @@ export default function ThemesPage() {
               </div>
               {actif?.description && <p style={{ color: "var(--color-text-subdued)", margin: "4px 0 0" }}>{tr(actif.description)}</p>}
               <div style={{ display: "flex", gap: 8, marginTop: "var(--space-400)", flexWrap: "wrap" }}>
-                <Button variant="primary" href="/dashboard/builder">{tr("Personnaliser")}</Button>
+                <span data-guide="theme-personnaliser" style={{ display: "inline-flex" }}><Button variant="primary" href="/dashboard/builder">{tr("Personnaliser")}</Button></span>
                 {tenant?.slug && <Button href={urlBoutique(tenant)} external icon="external">{tr("Aperçu")}</Button>}
               </div>
             </div>
@@ -201,7 +208,7 @@ export default function ThemesPage() {
             </div>
             <input className="axd-input" style={{ maxWidth: 280 }} type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={tr("Rechercher un thème")} aria-label={tr("Rechercher un thème")} />
           </div>
-          <div className="axd-chips" role="group" aria-label={tr("Filtrer par style")}>
+          <div className="axd-chips" data-guide="theme-ambiances" role="group" aria-label={tr("Filtrer par style")}>
             <button type="button" className="axd-chip" aria-pressed={!filtre} onClick={() => setFiltre(null)}>{tr("Tous")}</button>
             {ambiances.map((a) => <button key={a} type="button" className="axd-chip" aria-pressed={filtre === a} onClick={() => setFiltre(filtre === a ? null : a)}>{tr(a)}</button>)}
           </div>
@@ -210,7 +217,10 @@ export default function ThemesPage() {
               const estActif = isLibrairieActive(t.fichier);
               return (
                 <article key={t.id} className="axd-store-carte">
-                  <div className="axd-store-carte__img"><ApercuDesign fichier={t.fichier} params={params} className="h-full" /></div>
+                  <button type="button" className="axd-store-carte__img" data-guide="theme-carte" onClick={() => setZoom({ fichier: t.fichier, nom: t.nom })} aria-label={tr("Voir le thème {0} en grand", tr(t.nom))}>
+                    <ApercuDesign fichier={t.fichier} params={params} className="h-full" />
+                    <span className="axd-store-carte__voir">{tr("Voir en grand")}</span>
+                  </button>
                   <div className="axd-store-carte__corps">
                     <div style={{ minWidth: 0 }}>
                       <h3 className="axd-store-carte__nom">{tr(t.nom)}</h3>
@@ -227,6 +237,25 @@ export default function ThemesPage() {
           </div>
         </Card>
       </div>
+
+      {zoom && (
+        <div className="axd-theme-zoom" role="dialog" aria-modal="true" aria-label={tr(zoom.nom)}>
+          <div className="axd-theme-zoom__barre">
+            <button type="button" onClick={() => setZoom(null)} aria-label={tr("Fermer")}><X size={22} /></button>
+            <div className="axd-theme-zoom__nom">{tr(zoom.nom)}<small>{tr("Aperçu avec vos produits")}</small></div>
+          </div>
+          <iframe className="axd-theme-zoom__cadre" title={tr("Aperçu du design")} sandbox="allow-same-origin allow-scripts"
+            src={`/api/preview-theme?fichier=${encodeURIComponent(zoom.fichier)}${params}`} />
+          <div className="axd-theme-zoom__pied">
+            {isLibrairieActive(zoom.fichier)
+              ? <span className="axd-theme-zoom__actuel"><Check size={18} />{tr("C'est votre thème actuel")}</span>
+              : <button type="button" className="axd-theme-zoom__choisir" disabled={!!activating}
+                  onClick={async () => { await activerLibrairie(zoom.fichier, zoom.nom); setZoom(null); }}>
+                  {activating === zoom.fichier ? tr("Activation…") : tr("Utiliser ce thème")}
+                </button>}
+          </div>
+        </div>
+      )}
     </Page>
   );
 }

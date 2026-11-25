@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { envoyerImagesCarrees, dimensions, estCarre, MESSAGE_REFUS } from "@/lib/images-carrees";
+import { envoyerImagesCarrees, dimensions, MESSAGE_REFUS } from "@/lib/images-carrees";
+import { VisiteGuidee } from "@/components/dashboard/VisiteGuidee";
 import { slugify } from "@/lib/utils";
 import { BarcodeCaptureModal } from "@/components/dashboard/BarcodeCaptureModal";
 import { useCategoriesBoutique, optionsVariantes } from "@/components/dashboard/CategoriesProduit";
@@ -128,7 +129,7 @@ function FormulaireProduit() {
     : null;
 
   // ─── Upload image/vidéo ──────────────────────────────────────────
-  // Images du produit : plusieurs à la fois, carrées uniquement (lib/images-carrees.ts).
+  // Images du produit : plusieurs à la fois, tout format (mises au carré sans rognage, lib/images-carrees.ts).
   async function ajouterImages(fichiers: File[]) {
     if (!fichiers.length) return;
     setUploadingMedia(true);
@@ -150,7 +151,6 @@ function FormulaireProduit() {
     if (!u) return;
     const d = await dimensions(u).catch(() => null);
     if (!d) return void toast.error(tr("Image introuvable à cette adresse"));
-    if (!estCarre(d.l, d.h)) return void toast.error(MESSAGE_REFUS([`${d.l}×${d.h}`]));
     setForm(f => ({ ...f, images: [...f.images, u] }));
     setImageInput("");
   }
@@ -300,6 +300,13 @@ function FormulaireProduit() {
 
   return (
     <div className="max-w-4xl space-y-6">
+      <VisiteGuidee cle="produit-nouveau" etapes={[
+        { titre: "Créons votre produit", texte: "Trois choses suffisent : une photo, un nom et un prix. Le reste est facultatif et peut attendre." },
+        { cible: "produit-nom", titre: "1. Le nom du produit", texte: "Écrivez le nom tel que vos clients le cherchent, par exemple « Robe wax longue »." },
+        { cible: "produit-prix", titre: "2. Le prix de vente", texte: "Le prix en FCFA que paie le client. Vous pourrez ajouter un ancien prix barré plus tard." },
+        { cible: "produit-photos", titre: "3. Les photos", texte: "Touchez ici pour choisir vos photos dans la galerie ou prendre une photo. Tous les formats passent : AXSO les cadre automatiquement." },
+        { cible: "produit-creer", titre: "4. Enregistrez", texte: "Touchez « Créer le produit ». Il apparaît aussitôt dans votre boutique." },
+      ]} />
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -316,7 +323,7 @@ function FormulaireProduit() {
             className={`px-4 py-2 rounded-xl text-sm border transition-all ${form.actif ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-gray-200 text-gray-500"}`}>
             {form.actif ? tr("✓ Actif") : tr("Brouillon")}
           </button>
-          <button onClick={sauvegarder} disabled={saving}
+          <button data-guide="produit-creer" onClick={sauvegarder} disabled={saving}
             className="flex items-center gap-2 bg-[#F5A623] text-white font-semibold px-5 py-2 rounded-xl text-sm hover:bg-[#d4820a] transition-all disabled:opacity-50 shadow-lg shadow-[#F5A623]/25">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             {tr("Créer le produit")}
@@ -373,7 +380,7 @@ function FormulaireProduit() {
             </div>
             <div>
               <label className="ax-label block mb-1.5">{tr("Nom du produit *")}</label>
-              <input value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={tr("Ex: Robe Wax Premium")} maxLength={120} className={inputClass} />
+              <input data-guide="produit-nom" value={form.nom} onChange={e => set("nom", e.target.value)} placeholder={tr("Ex: Robe Wax Premium")} maxLength={120} className={inputClass} />
             </div>
             <div>
               <label className="ax-label block mb-1.5">{tr("Slug URL")}</label>
@@ -406,7 +413,7 @@ function FormulaireProduit() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="ax-label block mb-1.5">{tr("Prix de vente *")}</label>
-                <input type="number" value={form.prix} onChange={e => set("prix", e.target.value)} placeholder="0" min="0" className={inputClass} />
+                <input data-guide="produit-prix" type="number" inputMode="numeric" value={form.prix} onChange={e => set("prix", e.target.value)} placeholder="0" min="0" className={inputClass} />
                 <div className="mt-2"><PolitiquePrix prix={form.prix} type={form.type} /></div>
               </div>
               <div>
@@ -568,7 +575,7 @@ function FormulaireProduit() {
                   </button>
                   <button onClick={() => fileInputRef.current?.click()} disabled={uploadingMedia}
                     className="flex items-center gap-1.5 text-xs bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">
-                    {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}{" "}{tr("Importer (images carrées)")}
+                    {uploadingMedia ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}{" "}{tr("Importer des photos")}
                   </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept="image/*" multiple
                     onChange={e => ajouterImages(Array.from(e.target.files ?? []))} />
@@ -588,7 +595,7 @@ function FormulaireProduit() {
                 <div className="grid grid-cols-4 gap-2">
                   {form.images.map((img, i) => (
                     <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-200">
-                      <img src={img} alt="" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = "none")} />
+                      <img src={img} alt="" className="w-full h-full object-contain bg-white" onError={e => (e.currentTarget.style.display = "none")} />
                       {i === 0 && <div className="absolute bottom-1 left-1 bg-[#F5A623] text-white text-[9px] px-1.5 py-0.5 rounded font-medium">{tr("Principale")}</div>}
                       <button onClick={() => set("images", form.images.filter((_, j) => j !== i))}
                         className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -598,9 +605,14 @@ function FormulaireProduit() {
                   ))}
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
-                  <p className="text-gray-400 text-xs">{tr("Uploadez ou collez des URLs d'images ci-dessus")}</p>
-                </div>
+                <button type="button" data-guide="produit-photos" onClick={() => fileInputRef.current?.click()} disabled={uploadingMedia}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-2xl px-4 py-8 text-center hover:border-[#EBA900] hover:bg-[#EBA900]/5 active:scale-[.99] transition-all">
+                  <span className="mx-auto mb-3 w-14 h-14 rounded-2xl bg-[#EBA900]/12 text-[#8A6400] flex items-center justify-center">
+                    {uploadingMedia ? <Loader2 size={24} className="animate-spin" /> : <Upload size={24} />}
+                  </span>
+                  <span className="block text-[15px] font-semibold text-gray-900">{uploadingMedia ? tr("Envoi des photos…") : tr("Ajouter des photos")}</span>
+                  <span className="block mt-1 text-[13px] text-gray-500">{tr("Depuis la galerie ou l'appareil photo. Tous les formats sont acceptés.")}</span>
+                </button>
               )}
             </div>
 

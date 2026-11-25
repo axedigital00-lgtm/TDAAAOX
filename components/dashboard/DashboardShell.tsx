@@ -15,6 +15,7 @@ import { CompteurPromoDashboard } from "@/components/promo/CompteurPromo";
 import { MobileTopBar } from "@/components/dashboard/design-system/layout/MobileTopBar";
 import { CommandPalette } from "@/components/dashboard/design-system/layout/CommandPalette";
 import { AxiaDock } from "@/components/dashboard/design-system/layout/AxiaDock";
+import { MobileRubriques, MobileTabBar } from "@/components/dashboard/design-system/layout/MobileTabBar";
 import { SettingsSidebar, estRouteParametres, memoriserRetour } from "@/components/dashboard/design-system/layout/SettingsSidebar";
 
 /** Écrans plein cadre : pas de conteneur de page ni de dock Stella. */
@@ -75,6 +76,8 @@ export function DashboardShell({
   const estAccueilAxia = pathname === "/dashboard";
   const fullBleed = estAccueilAxia || FULLBLEED_PREFIXES.some((r) => pathname.startsWith(r));
   const dock = !fullBleed && !SANS_DOCK.includes(pathname);
+  // Barre d'onglets mobile sur toutes les pages, Stella comprise ; le Constructeur a la sienne.
+  const avecOnglets = !pathname.startsWith("/dashboard/builder");
   const parametres = estRouteParametres(pathname);
 
   useEffect(() => {
@@ -116,7 +119,7 @@ export function DashboardShell({
         steps={BIENVENUE_STEPS}
       />
 
-      <div className="ax-admin ax-dashboard-shell axd-shell" data-nav-open={navOuverte || undefined} data-nav={rail ? "rail" : undefined} data-axia={axiaOuvert || undefined}>
+      <div className="ax-admin ax-dashboard-shell axd-shell" data-nav-open={navOuverte || undefined} data-nav={rail ? "rail" : undefined} data-axia={axiaOuvert || undefined} data-onglets={avecOnglets || undefined}>
         <Suspense fallback={null}><NavigationInstantanee /></Suspense>
         <a href="#axd-contenu" className="sr-only focus:not-sr-only">{t("Aller au contenu")}</a>
         {/* Tiroir : fermeture par glissement vers la gauche. */}
@@ -141,10 +144,11 @@ export function DashboardShell({
         </div>
         <div className="axd-nav-scrim" onClick={() => setNavOuverte(false)} aria-hidden />
 
-        <MobileTopBar onMenu={() => setNavOuverte(true)} boutiqueNom={boutique?.nomBoutique} initiales={initiales(boutique?.nomBoutique)} />
+        <MobileTopBar onMenu={() => setNavOuverte(true)} boutiqueNom={boutique?.nomBoutique} initiales={initiales(boutique?.nomBoutique)} menuEnHaut={!avecOnglets} />
 
         <main id="axd-contenu" className={`axd-main${fullBleed ? " axd-main--bleed" : ""}`}>
           {promo && estAccueilAxia && <CompteurPromoDashboard finLe={promo.finLe} maintenant={promo.maintenant} compact />}
+          {!fullBleed && !parametres && <MobileRubriques pathname={pathname} permissions={permissions} palier={palier} />}
           {fullBleed ? children : (
             <div key={pathname} className={`axd-content axd-content--legacy ax-page-enter${parametres ? " axd-content--settings" : ""}`}>
               {promo && pathname === "/dashboard/accueil" && <CompteurPromoDashboard finLe={promo.finLe} maintenant={promo.maintenant} banniere />}
@@ -155,6 +159,7 @@ export function DashboardShell({
         </main>
 
         {dock && <AxiaDock />}
+        {avecOnglets && <MobileTabBar pathname={pathname} permissions={permissions} palier={palier} commandesATraiter={commandesATraiter} onMenu={() => setNavOuverte(true)} />}
         <CommandPalette permissions={permissions} palier={palier} />
       </div>
     </>

@@ -8,7 +8,7 @@ import { oublierRappelsBrouillon } from "@/lib/tenant";
 import { declarerSousDomaine } from "@/lib/domaines";
 import { mergeThemeConfig, appliquerNouveauTheme } from "@/lib/theme-config";
 import { resolveThemeConfigAsync } from "@/lib/theme-config-server";
-import { FORMAT_PIXEL } from "@/lib/pixels";
+import { FORMAT_PIXEL, normaliserPixels, type ClePixel } from "@/lib/pixels";
 import { requireNiveau } from "@/lib/permissions-server";
 import type { ModuleKey } from "@/lib/permissions";
 
@@ -50,12 +50,12 @@ export async function PATCH(request: Request) {
       if (body[key] !== undefined) champs[key] = body[key];
     }
     // Domaine personnalisé : uniquement via /api/domaine (validation, unicité, ajout au projet Vercel).
-    // Un seul pixel par plateforme : refuse une liste ou un ID mal formé.
-    for (const [cle, format] of Object.entries(FORMAT_PIXEL)) {
-      const v = champs[cle];
-      if (typeof v === "string" && v.trim() && !format.test(v.trim())) {
-        return NextResponse.json({ error: `Identifiant ${cle} invalide : un seul pixel par plateforme.` }, { status: 400 });
-      }
+    // Pixels : plusieurs par plateforme (Meta, TikTok, Snapchat), un seul conteneur GTM ; chaque ID vérifié.
+    for (const cle of Object.keys(FORMAT_PIXEL) as ClePixel[]) {
+      if (champs[cle] === undefined) continue;
+      const r = normaliserPixels(cle, champs[cle]);
+      if ("erreur" in r) return NextResponse.json({ error: r.erreur }, { status: 400 });
+      champs[cle] = r.valeur;
     }
     // Pays changé → devise alignée d'office (vitrine, dashboard et Stella lisent tenant.devise).
     if (champs.pays) champs.devise = deviseDuPays(champs.pays, champs.devise ?? body.devise ?? "XOF");

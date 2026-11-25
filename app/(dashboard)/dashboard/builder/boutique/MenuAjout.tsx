@@ -34,7 +34,7 @@ export function MenuAjout({ mode, onChoisir, onSurvol, onFermer }: {
 
   return (
     <div ref={ref} role="dialog" aria-label={mode === "section" ? tr("Ajouter une section") : tr("Ajouter un bloc")}
-      className="absolute left-[calc(100%+8px)] top-2 bottom-2 z-40 w-[340px] flex flex-col bg-white rounded-xl border border-[#E8E8E8] shadow-[0_12px_40px_rgba(0,0,0,0.14)]">
+      className="axc-ajout absolute left-[calc(100%+8px)] top-2 bottom-2 z-40 w-[340px] flex flex-col bg-white rounded-xl border border-[#E8E8E8] shadow-[0_12px_40px_rgba(0,0,0,0.14)]">
       <div className="flex items-center justify-between px-4 h-14 border-b border-[#EEEEEE] flex-shrink-0">
         <p className="text-[15px] font-semibold text-[#111111]">{mode === "section" ? tr("Ajouter une section") : tr("Ajouter un bloc")}</p>
         <button onClick={onFermer} aria-label={tr("Fermer")} className="w-10 h-10 flex items-center justify-center rounded-lg text-[#888888] hover:text-[#111111] hover:bg-[#F5F5F5]"><X size={19} /></button>

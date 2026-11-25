@@ -178,11 +178,18 @@ export default function InscriptionPage() {
     const iv = setInterval(() => setIndexAnalyse((i) => Math.min(i + 1, ETAPES_ANALYSE.length - 1)), 2600);
     const typeLabel = p.typeBoutique === "physique" ? "physiques uniquement" : p.typeBoutique === "digital" ? "digitaux uniquement (ebooks, formations, templates…)" : "";
     const description = `${p.vente}. Nom de boutique choisi par le marchand: "${p.nom}". Pays: ${p.paysNom} (${p.paysCode}).${typeLabel ? ` Type de produits: ${typeLabel}.` : ""}`;
-    fetch("/api/ai/onboarding", {
-      method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
-      body: JSON.stringify({ phase: "analyser", description }),
-    })
-      .then((r) => r.json())
+    // Coupure ou erreur passagère du serveur : jusqu'à 2 nouveaux essais avant de revenir en arrière.
+    const analyser = async (essai = 0): Promise<any> => {
+      const r = await fetch("/api/ai/onboarding", {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
+        body: JSON.stringify({ phase: "analyser", description }),
+      }).catch((e) => { if (ctrl.signal.aborted) throw e; return null; });
+      const data = r ? await r.json().catch(() => ({})) : {};
+      if (data.plan || ctrl.signal.aborted || essai >= 2 || (r && r.status >= 400 && r.status < 500 && r.status !== 429)) return data;
+      await new Promise((ok) => setTimeout(ok, 1500 * (essai + 1)));
+      return analyser(essai + 1);
+    };
+    analyser()
       .then((data) => {
         if (!data.plan) throw new Error(data.message || "Erreur d'analyse.");
         // Le nom et le pays viennent du marchand, jamais de l'IA ; la devise suit le pays.
@@ -217,15 +224,24 @@ export default function InscriptionPage() {
     setErreurGlobale("");
     aller("decollage");
     try {
-      const res = await fetch("/api/ai/onboarding", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phase: "executer", plan: p.plan, typeBoutique: p.typeBoutique || undefined, designsProposes: p.themeIds,
-          compte: { name: p.prenom.trim(), email: identifiants.email, password: motDePasse, whatsapp: p.whatsapp.trim() },
-        }),
+      const corps = JSON.stringify({
+        phase: "executer", plan: p.plan, typeBoutique: p.typeBoutique || undefined, designsProposes: p.themeIds,
+        compte: { name: p.prenom.trim(), email: identifiants.email, password: motDePasse, whatsapp: p.whatsapp.trim() },
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Erreur lors de la création.");
+      // Coupure, délai ou erreur du serveur : nouvel essai automatique pendant le vol (le serveur
+      // retrouve une boutique déjà créée, sans doublon). Seule une erreur de saisie (4xx) arrête tout.
+      let data: any = {};
+      for (let essai = 0; ; essai++) {
+        const res = await fetch("/api/ai/onboarding", { method: "POST", headers: { "Content-Type": "application/json" }, body: corps }).catch(() => null);
+        data = res ? await res.json().catch(() => ({})) : {};
+        if (res?.ok && data.slug) break;
+        const definitive = !!res && res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429;
+        if (definitive || essai >= 3) {
+          suivre("erreur", "decollage", { valeur: `${res?.status ?? "reseau"} ${String(data.code || data.message || "").slice(0, 40)}` });
+          throw new Error(data.message || "La connexion a été interrompue. Vérifie ta connexion internet puis réessaie : tes réponses sont gardées.");
+        }
+        await new Promise((ok) => setTimeout(ok, 1500 * (essai + 1)));
+      }
       setCompte(identifiants);
       setP((x) => ({ ...x, creee: { email: identifiants.email, slug: data.slug } }));
       // Code par email (double authentification) : demandé maintenant, pendant le vol.
@@ -235,7 +251,6 @@ export default function InscriptionPage() {
       setCreation({ fini: true, slug: data.slug, codeRequis });
     } catch (e) {
       arreterSons();
-      suivre("erreur", "decollage");
       setErreurGlobale(e instanceof Error && e.message !== "Failed to fetch" ? e.message : "Erreur réseau.");
       setP((x) => ({ ...x, etape: "acces" }));
       try { history.replaceState({ insc: "acces" }, ""); } catch {}

@@ -6,15 +6,16 @@ declare global {
   interface Window { fbq?: any; _fbq?: any; }
 }
 
-interface Props { pixelId: string; }
+interface Props { pixelIds: string[]; }
 
-/** Charge le Meta Pixel et déclenche PageView à chaque changement de route (App Router = navigation client-side) */
-export function MetaPixel({ pixelId }: Props) {
+/** Charge le Meta Pixel (un ou plusieurs IDs) et déclenche PageView à chaque changement de route ; chaque événement part vers tous les pixels. */
+export function MetaPixel({ pixelIds }: Props) {
+  const cle = pixelIds.join(",");
   const pathname = usePathname();
   const initRef = useRef(false);
 
   useEffect(() => {
-    if (!pixelId || typeof window === "undefined") return;
+    if (!pixelIds.length || typeof window === "undefined") return;
 
     if (!initRef.current) {
       initRef.current = true;
@@ -28,16 +29,18 @@ export function MetaPixel({ pixelId }: Props) {
         const t = b.createElement(e); t.async = true; t.src = v;
         const s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
       })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
-      window.fbq("init", pixelId);
+      for (const id of pixelIds) window.fbq("init", id);
     }
     window.fbq?.("track", "PageView");
-  }, [pixelId, pathname]);
+  }, [cle, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!pixelId) return null;
+  if (!pixelIds.length) return null;
   return (
     <noscript>
-      <img height="1" width="1" style={{ display: "none" }} alt=""
-        src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`} />
+      {pixelIds.map((id) => (
+        <img key={id} height="1" width="1" style={{ display: "none" }} alt=""
+          src={`https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1`} />
+      ))}
     </noscript>
   );
 }

@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/dashboard/design-system/components/prim
 import { Button } from "@/components/dashboard/design-system/components/Button";
 import { OrdersIndex } from "@/components/dashboard/features/orders/OrdersIndex";
 import { dateRelativeAdmin, nombre, variation, bornesPeriode, serie, PERIODES, type Periode } from "@/components/dashboard/design-system/format";
+import { EmptyArt } from "@/components/dashboard/design-system/illustrations/Illustration";
 
 const PAR_PAGE = 50;
 
@@ -193,5 +194,5 @@ export default async function CommandesPage({ searchParams }: { searchParams: Pr
 }
 
 function EmptyArtInline() {
-  return <img src="/visuels/board-commandes.webp" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />;
+  return <EmptyArt name="po" />;
 }

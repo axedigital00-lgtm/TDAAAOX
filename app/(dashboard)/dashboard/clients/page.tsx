@@ -11,6 +11,7 @@ import { Badge } from "@/components/dashboard/design-system/components/Badge";
 import { IndexFilters, IndexTable } from "@/components/dashboard/design-system/components/IndexTable";
 import { Button } from "@/components/dashboard/design-system/components/Button";
 import { nombre, debutJour } from "@/components/dashboard/design-system/format";
+import { EmptyArt } from "@/components/dashboard/design-system/illustrations/Illustration";
 
 const PAR_PAGE = 50;
 const VUES = [
@@ -120,7 +121,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 <p>Essayez de modifier les filtres ou le terme de recherche</p>
                 <div className="axd-empty__actions"><Button href="/dashboard/clients">Effacer les filtres</Button></div>
               </> : <>
-                <img src="/visuels/board-clients.webp" alt="" width={200} height={150} style={{ display: "block", margin: "0 auto var(--space-500)" }} />
+                <EmptyArt name="campaign" />
                 <h3>Vos clients s’afficheront ici</h3>
                 <p>Chaque client qui commande sur votre boutique, par WhatsApp ou en caisse est ajouté automatiquement.</p>
               </>}

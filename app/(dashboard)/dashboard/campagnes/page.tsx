@@ -10,6 +10,7 @@ import { Banner, Field, Toggle } from "@/components/dashboard/design-system/comp
 import { Badge } from "@/components/dashboard/design-system/components/Badge";
 import { Button } from "@/components/dashboard/design-system/components/Button";
 import { Modal } from "@/components/dashboard/design-system/components/Modal";
+import { EmptyArt } from "@/components/dashboard/design-system/illustrations/Illustration";
 
 const CAMPAGNES_TUTORIAL_STEPS = [
   { Icon: Megaphone,   titre: "Créez des popups",              description: "Popup centré, bandeau ou slide-in : affichez une offre au bon moment (délai, exit intent, scroll, 1ère visite)." },
@@ -63,7 +64,7 @@ function OngletPopups({ creation, setCreation }: { creation: boolean; setCreatio
     <>
       {loading ? <p className="axd-fichiers__etat">{t("Chargement…")}</p> : popups.length === 0 ? (
         <div className="axd-empty">
-          <img src="/visuels/board-campagnes.webp" width={200} height={150} alt="" style={{ margin: "0 auto 8px", maxWidth: "100%" }} />
+          <EmptyArt name="campaign" />
           <h3>{t("Affichez une offre au bon moment")}</h3>
           <p>{t("Popup, bandeau ou fenêtre en coin : après un délai, au départ du visiteur, à mi-page ou à sa première visite.")}</p>
           <div className="axd-empty__actions"><Button variant="primary" onClick={() => setCreation(true)}>{t("Créer un popup")}</Button></div>

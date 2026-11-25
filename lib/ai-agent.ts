@@ -1,5 +1,4 @@
 import { completionAuto } from "./llm-client";
-import { generateProductImageUrl, buildProductImagePrompt } from "./image-gen";
 import { selectionnerGabaritLibrairie } from "./axso-design-manifest";
 
 export interface PlanProduit {
@@ -142,26 +141,14 @@ export async function analyserBusinessEtCreerPlan(
   // déterministe, aucun appel IA supplémentaire (voir Templates/*.html).
   plan.themeId = selectionnerGabaritLibrairie(plan.categorie || "").fichier;
 
-  // Génère les visuels produits via Gemini dès la création de la boutique
-  // (échec silencieux par image — ne doit jamais faire échouer la création de boutique)
-  if (Array.isArray(plan.produits)) {
-    plan.produits = await Promise.all(plan.produits.map(async (p: any) => ({
-      ...p,
-      imageUrl: await generateProductImageUrl(buildProductImagePrompt(p.nom, p.categorie || plan.categorie)),
-    })));
-  }
-
-  // Convertit les imagePrompts des sections gallery en vraies images Gemini
+  // Aucune image générée ici : l'analyse doit répondre vite pendant l'inscription.
+  // Les visuels des produits sont générés après la création de la boutique
+  // (app/api/ai/onboarding, phase « executer », en arrière-plan).
   if (Array.isArray(plan.sections)) {
-    plan.sections = await Promise.all(plan.sections.map(async (section: any) => {
-      if (section.type === "gallery" && Array.isArray(section.config?.imagePrompts)) {
-        const images = await Promise.all(
-          section.config.imagePrompts.map((prompt: string) => generateProductImageUrl(prompt))
-        );
-        return { ...section, config: { ...section.config, images, imagePrompts: undefined } };
-      }
-      return section;
-    }));
+    plan.sections = plan.sections.map((section: any) =>
+      section.type === "gallery" && Array.isArray(section.config?.imagePrompts)
+        ? { ...section, config: { ...section.config, images: [], imagePrompts: undefined } }
+        : section);
   }
 
   return plan;
