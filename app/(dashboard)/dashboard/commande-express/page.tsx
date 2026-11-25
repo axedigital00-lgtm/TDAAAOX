@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Page, PageHeader, Card, Banner, Badge, Button, Toggle } from "@/components/dashboard/design-system";
 import { useT } from "@/components/I18nProvider";
+import { OngletsCommandeExpress } from "@/components/dashboard/commande-express/OngletsApp";
 import { formatMontant } from "@/lib/utils";
 
 type Reglages = { actif: boolean; boutonCollant: boolean; texteBouton: string; couleur: string; demanderEmail: boolean };
@@ -49,7 +50,16 @@ export default function CommandeExpressPage() {
     <Page width="narrow">
       <PageHeader icon="orders" title={t("Commande Express")}
         secondaryActions={d.slug ? [{ content: t("Voir ma boutique"), href: `/${d.slug}`, external: true, icon: "external" }] : []} />
-      <div style={{ display: "grid", gap: "var(--space-400)" }}>
+      <OngletsCommandeExpress />
+      <div style={{ display: "grid", gap: "var(--space-400)", marginTop: "var(--space-400)" }}>
+        {(d.stats.a_confirmer ?? 0) > 0 && (
+          <Banner tone="warning" title={t("{0} client(s) à appeler", d.stats.a_confirmer)}>
+            <div style={{ display: "grid", gap: 10 }}>
+              <span>{t("Une commande confirmée par téléphone est beaucoup plus souvent livrée et payée.")}</span>
+              <span><Button variant="primary" size="sm" href="/dashboard/commande-express/confirmation">{t("Ouvrir le centre de confirmation")}</Button></span>
+            </div>
+          </Banner>
+        )}
         <Banner tone="info" title={t("Le client commande en un seul écran")}>
           {t("Nom, téléphone, ville, quantité : « Commander ». Pas de compte, pas de carte, paiement à la livraison. Vous êtes prévenu par e-mail et sur AXSO, et le client vous envoie sa commande sur WhatsApp.")}
         </Banner>

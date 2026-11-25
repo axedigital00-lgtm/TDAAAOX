@@ -4972,9 +4972,29 @@ model CommandeExpress {
   scoreRisque        Int?
   facteursRisque     Json?
   reponse            Json? // réponse renvoyée à l'acheteur, rejouée telle quelle en cas de double envoi
+  tentatives         Int       @default(0) // appels restés sans réponse
+  rappelA            DateTime? // rappel demandé par le client
+  noteConfirmation   String?
+  confirmeeAt        DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   @@index([tenantId, createdAt])
   @@index([tenantId, statutConfirmation])
+}
+
+// Centre de confirmation : chaque appel passé à un client Commande Express.
+model AppelConfirmation {
+  id                String    @id @default(cuid())
+  tenantId          String
+  commandeExpressId String
+  agentId           String?
+  agentNom          String?
+  resultat          String // confirmee | injoignable | rappeler | annulee | faux_numero
+  note              String?
+  rappelA           DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([commandeExpressId])
 }

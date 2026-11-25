@@ -40,7 +40,6 @@ export const NAV: NavSection[] = [
   {
     id: "orders", icon: "orders", label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes", count: "commandes",
     sub: [
-      { label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes" },
       { label: "Brouillons et devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
       { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours"] },
       { label: "Factures", href: "/dashboard/factures", moduleKey: "finance" },
@@ -104,6 +103,13 @@ export const CHANNELS: NavSection[] = [
 ];
 
 export const APPS: NavSection[] = [
+  {
+    id: "commande-express", icon: "bolt", label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes",
+    sub: [
+      { label: "Vue d'ensemble", href: "/dashboard/commande-express", moduleKey: "commandes" },
+      { label: "Confirmation", href: "/dashboard/commande-express/confirmation", moduleKey: "commandes" },
+    ],
+  },
   {
     id: "axia", icon: "sparkle", label: "Stella", href: "/dashboard", exact: true, requiresPalier: PRO,
     messageVerrou: "Stella, ton assistante personnelle, est disponible à partir du Palier Pro.",
@@ -179,6 +185,7 @@ export const ESPACES_MOBILE: (NavSection & { sub: NavLink[]; /** Libellé de l'o
     sub: [
       { label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes" },
       { label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes" },
+      { label: "Confirmation", href: "/dashboard/commande-express/confirmation", moduleKey: "commandes" },
       { label: "Devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
       { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours", "/dashboard/pos/retours"] },
       { label: "Clients", href: "/dashboard/clients", moduleKey: "clients" },
