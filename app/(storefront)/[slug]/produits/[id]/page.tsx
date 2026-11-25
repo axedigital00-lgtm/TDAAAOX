@@ -13,6 +13,7 @@ import { habillageDesign } from "@/components/storefront/templates/HabillageDesi
 import { ViewContentTracker } from "@/components/storefront/ViewContentTracker";
 import { StorefrontNavbar } from "@/components/storefront/StorefrontNavbar";
 import { ProductPageClient } from "@/components/storefront/ProductPageClient";
+import { CommandeExpressWidget } from "@/components/storefront/CommandeExpressWidget";
 import { lireReglagesPaiement } from "@/lib/paiement-pays";
 import { lienBoutique } from "@/lib/origine-site";
 
@@ -217,11 +218,14 @@ export default async function ProduitPage({ params }: Props) {
   // dans le Constructeur) autour de la fiche pilotée par les sections du
   // panneau « Fiche produit » — variantes, quantité, badges, avis réels.
   const Habillage = habillageDesign(cfg);
+  // Commande Express AXSO (formulaire 1 écran, payé à la livraison) si le marchand l'a activée.
+  const express = <CommandeExpressWidget tenant={tenant} produit={{ id: produit.id, nom: produit.nom, type: produit.type, prix: prixAffiche, images: produit.images, variantes: produit.variantes }} />;
   if (Habillage) {
     return (
       <Habillage>
         <ViewContentTracker produitId={produit.id} nom={produit.nom} prix={prixAffiche} devise={tenant.devise} />
         <ProductPageClient produit={produitProps} tenant={tenantProps} produitsSimilaires={produitsSimilaires} sansPied />
+        {express}
       </Habillage>
     );
   }
@@ -248,6 +252,7 @@ export default async function ProduitPage({ params }: Props) {
         tenant={tenantProps}
         produitsSimilaires={produitsSimilaires}
       />
+      {express}
     </>
   );
 }

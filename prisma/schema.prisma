@@ -4938,3 +4938,43 @@ model VersionModele {
 
   @@unique([nom, version])
 }
+
+// ─── Commande Express AXSO (docs/cod-engine) ──────────────────────────────────
+// Formulaire de commande en 1 écran, payé à la livraison. Réglages par boutique.
+model ReglagesCommandeExpress {
+  id            String   @id @default(cuid())
+  tenantId      String   @unique
+  actif         Boolean  @default(false)
+  boutonCollant Boolean  @default(true) // bouton collant en bas de l'écran sur téléphone
+  texteBouton   String   @default("Commander maintenant")
+  couleur       String   @default("#0A1A33")
+  demanderEmail Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Une commande passée par Commande Express : la clé d'idempotence garantit qu'un double envoi
+// (double toucher, réseau qui coupe puis revient) ne crée qu'une seule commande.
+model CommandeExpress {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  cleIdempotence     String   @unique
+  commandeId         String?  @unique // null le temps de la création
+  produitId          String?
+  quartier           String?
+  repere             String?
+  latitude           Float?
+  longitude          Float?
+  source             Json     @default("{}") // utm_*, fbclid, ttclid, gclid, page, référent
+  statutConfirmation String   @default("a_confirmer") // a_confirmer | confirmee | injoignable | rappeler | annulee | faux_numero
+  agentId            String?
+  montantEncaisse    Float?
+  scoreRisque        Int?
+  facteursRisque     Json?
+  reponse            Json? // réponse renvoyée à l'acheteur, rejouée telle quelle en cas de double envoi
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, statutConfirmation])
+}

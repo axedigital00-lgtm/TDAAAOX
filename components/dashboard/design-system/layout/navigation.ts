@@ -40,6 +40,7 @@ export const NAV: NavSection[] = [
   {
     id: "orders", icon: "orders", label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes", count: "commandes",
     sub: [
+      { label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes" },
       { label: "Brouillons et devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
       { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours"] },
       { label: "Factures", href: "/dashboard/factures", moduleKey: "finance" },
@@ -177,6 +178,7 @@ export const ESPACES_MOBILE: (NavSection & { sub: NavLink[]; /** Libellé de l'o
     id: "m-ventes", icon: "orders", label: "Ventes", href: "/dashboard/commandes", count: "commandes",
     sub: [
       { label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes" },
+      { label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes" },
       { label: "Devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
       { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours", "/dashboard/pos/retours"] },
       { label: "Clients", href: "/dashboard/clients", moduleKey: "clients" },
