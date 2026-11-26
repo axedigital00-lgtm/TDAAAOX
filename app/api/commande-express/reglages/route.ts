@@ -41,5 +41,5 @@ export async function PATCH(req: NextRequest) {
   if ("erreur" in c) return c.erreur;
   const maj = nettoyerReglages((await req.json().catch(() => ({}))) ?? {});
   const r = await prisma.reglagesCommandeExpress.upsert({ where: { tenantId: c.tenantId }, create: { tenantId: c.tenantId, ...maj }, update: maj });
-  return NextResponse.json({ reglages: { actif: r.actif, boutonCollant: r.boutonCollant, texteBouton: r.texteBouton, couleur: r.couleur, demanderEmail: r.demanderEmail } });
+  return NextResponse.json({ reglages: { actif: r.actif, boutonCollant: r.boutonCollant, texteBouton: r.texteBouton, couleur: r.couleur, demanderEmail: r.demanderEmail, limiteParJour: r.limiteParJour } });
 }

@@ -4949,8 +4949,21 @@ model ReglagesCommandeExpress {
   texteBouton   String   @default("Commander maintenant")
   couleur       String   @default("#0A1A33")
   demanderEmail Boolean  @default(false)
+  limiteParJour Int      @default(3) // commandes max par numéro et par connexion sur 24 h (0 : sans limite)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// Liste noire Commande Express : numéros (format international) ou connexions (empreinte d'IP).
+model ListeNoireCommande {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String // telephone | ip
+  valeur    String
+  motif     String?
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, type, valeur])
 }
 
 // Une commande passée par Commande Express : la clé d'idempotence garantit qu'un double envoi
@@ -4976,11 +4989,16 @@ model CommandeExpress {
   rappelA            DateTime? // rappel demandé par le client
   noteConfirmation   String?
   confirmeeAt        DateTime?
+  telephone          String? // numéro au format international, pour l'historique et la liste noire
+  ipHash             String? // empreinte de la connexion (jamais l'adresse elle-même)
+  dureeRemplissage   Int? // millisecondes entre l'ouverture du formulaire et l'envoi
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   @@index([tenantId, createdAt])
   @@index([tenantId, statutConfirmation])
+  @@index([tenantId, telephone])
+  @@index([tenantId, ipHash])
 }
 
 // Centre de confirmation : chaque appel passé à un client Commande Express.

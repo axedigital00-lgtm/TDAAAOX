@@ -1,5 +1,16 @@
 # Commande Express AXSO — journal des phases
 
+## Phase 3 — Anti-fraude (2026-11-26)
+
+- **Score de risque 0–100** calculé à chaque commande, avec la raison de chaque point : numéro déjà signalé faux (+45), refus ou annulation à la livraison (+25 à +40), téléphone au format inhabituel (+25), formulaire rempli en moins de 4 s (+30), envoi hors formulaire (+20), même numéro dans les 24 h (+15), 3 commandes ou plus depuis la même connexion (+20), nom inhabituel (+20), quantité > 10 (+15), client déjà livré (−20). Faible < 30, moyen < 60, élevé ≥ 60.
+- Le score **ne refuse jamais** une commande : il remonte les clients à risque en tête du centre de confirmation, avec les raisons affichées.
+- **Refus** seulement pour : champ piège rempli (robot), numéro ou connexion en **liste noire** (message neutre au client), **limite par jour** dépassée (par numéro et par connexion, 3 par défaut, réglable, 0 = sans limite).
+- **Jeton anti-robot** signé (HMAC, 7 jours) glissé dans la configuration du formulaire ; **empreinte de connexion** (HMAC de l'IP) : l'adresse IP n'est jamais stockée ni affichée.
+- Page **Anti-fraude** de l'application : limite par jour, liste noire (ajout d'un numéro, déblocage), commandes à risque des 30 jours. « Bloquer ce client » depuis le centre de confirmation bloque son numéro et sa connexion.
+- Modèles : `ListeNoireCommande` ; `ReglagesCommandeExpress.limiteParJour` ; `CommandeExpress.telephone`, `ipHash`, `dureeRemplissage`. Migration `20261201090000_anti_fraude` (ajouts seulement).
+- Tests : `tests/commande-express-risque.test.ts`. Widget : 5,7 Ko gzip.
+- Reste : OTP par WhatsApp/SMS (compte WhatsApp Business d'AXSO ou Africa's Talking nécessaire), réputation partagée entre boutiques (option).
+
 ## Phase 2 — Centre de confirmation (2026-11-25)
 
 - Commande Express devient une **application** de la sidebar (groupe « Applications ») avec ses pages : Vue d'ensemble, Confirmation. Sur mobile : onglet Ventes → Commande Express, Confirmation.

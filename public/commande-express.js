@@ -52,7 +52,7 @@
     try { (window.dataLayer = window.dataLayer || []).push({ event: "axso_" + nom, value: params && params.value, currency: C.devise }); } catch (e) {}
   };
 
-  var qte = 1, variante = (P.variantes && P.variantes[0]) || null, position = null, ouvert = false;
+  var qte = 1, variante = (P.variantes && P.variantes[0]) || null, position = null, ouvert = false, ouvertA = 0;
   var prixUnit = function () { return variante && variante.prix != null ? variante.prix : P.prix; };
   var cleStock = "axso_ce_cle_" + P.id;
   var cle = function () {
@@ -71,7 +71,7 @@
   document.addEventListener("click", function (e) { var c = e.target && e.target.closest && e.target.closest("[data-axso-commande]"); if (c) { e.preventDefault(); ouvrir(); } });
 
   function ouvrir() {
-    if (ouvert) return; ouvert = true;
+    if (ouvert) return; ouvert = true; ouvertA = Date.now();
     piste("InitiateCheckout", { content_ids: [P.id], value: prixUnit(), currency: C.devise });
     var voile = el("div", { class: "axce-voile", role: "dialog", "aria-modal": "true", "aria-label": t("titre", "Commander") });
     var boite = el("div", { class: "axce-boite" });
@@ -119,7 +119,7 @@
       if (!v("zone") && !v("ville")) return erreur(t("errZone", "Indiquez votre ville ou zone de livraison."));
       envoi.disabled = true; envoi.textContent = t("envoi", "Envoi de la commande…");
       var corps = {
-        cle: cle(), produitId: P.id, canal: C.canal || "direct", source: Object.assign({ page: location.href.slice(0, 300) }, src),
+        cle: cle(), jeton: C.jeton, duree: Date.now() - ouvertA, site: v("site"), produitId: P.id, canal: C.canal || "direct", source: Object.assign({ page: location.href.slice(0, 300) }, src),
         client: { nom: v("nom"), telephone: v("telephone"), email: v("email") || undefined, ville: v("ville") || v("zone"), pays: C.pays },
         items: [{ produitId: P.id, quantite: qte, variante: variante ? variante.nom + ": " + variante.valeur : undefined }],
         zone: v("zone") || undefined, quartier: v("quartier") || undefined, repere: v("repere") || undefined, position: position || undefined,

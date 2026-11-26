@@ -1,12 +1,12 @@
 // Commande Express AXSO : réglages d'une boutique et source d'une commande (UTM, identifiants de clic).
 import { prisma } from "@/lib/prisma";
 
-export type ReglagesExpress = { actif: boolean; boutonCollant: boolean; texteBouton: string; couleur: string; demanderEmail: boolean };
-export const REGLAGES_DEFAUT: ReglagesExpress = { actif: false, boutonCollant: true, texteBouton: "Commander maintenant", couleur: "#0A1A33", demanderEmail: false };
+export type ReglagesExpress = { actif: boolean; boutonCollant: boolean; texteBouton: string; couleur: string; demanderEmail: boolean; limiteParJour: number };
+export const REGLAGES_DEFAUT: ReglagesExpress = { actif: false, boutonCollant: true, texteBouton: "Commander maintenant", couleur: "#0A1A33", demanderEmail: false, limiteParJour: 3 };
 
 export async function lireReglages(tenantId: string): Promise<ReglagesExpress> {
   const r = await prisma.reglagesCommandeExpress.findUnique({ where: { tenantId } }).catch(() => null);
-  return r ? { actif: r.actif, boutonCollant: r.boutonCollant, texteBouton: r.texteBouton, couleur: r.couleur, demanderEmail: r.demanderEmail } : REGLAGES_DEFAUT;
+  return r ? { actif: r.actif, boutonCollant: r.boutonCollant, texteBouton: r.texteBouton, couleur: r.couleur, demanderEmail: r.demanderEmail, limiteParJour: r.limiteParJour } : REGLAGES_DEFAUT;
 }
 
 /** Réglages envoyés par le marchand, nettoyés (texte borné, couleur hexadécimale seulement). */
@@ -17,6 +17,7 @@ export function nettoyerReglages(b: Record<string, unknown>): Partial<ReglagesEx
   if (typeof b.demanderEmail === "boolean") o.demanderEmail = b.demanderEmail;
   if (typeof b.texteBouton === "string" && b.texteBouton.trim()) o.texteBouton = b.texteBouton.trim().slice(0, 40);
   if (typeof b.couleur === "string" && /^#[0-9a-f]{6}$/i.test(b.couleur)) o.couleur = b.couleur;
+  if (typeof b.limiteParJour === "number" && Number.isInteger(b.limiteParJour) && b.limiteParJour >= 0 && b.limiteParJour <= 50) o.limiteParJour = b.limiteParJour;
   return o;
 }
 

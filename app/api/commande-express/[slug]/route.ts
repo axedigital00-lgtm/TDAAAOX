@@ -3,7 +3,8 @@
 // POST : crée la commande, payée à la livraison. Réutilise la création de commande existante
 //        (prix, remise, frais de livraison et stock recalculés côté serveur, e-mail et notification au
 //        marchand, liens WhatsApp) ; ajoute la clé d'idempotence (un double envoi = une seule commande)
-//        et la source de la commande (UTM, identifiants de clic).
+//        et la source de la commande (UTM, identifiants de clic). Anti-fraude : champ piège, liste
+//        noire et limite par jour refusent ; le score de risque guide seulement l'appel de confirmation.
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +13,9 @@ import { lireReglagesLivraison } from "@/lib/livraison-reglages";
 import { lireReglagesPaiement } from "@/lib/paiement-pays";
 import { cleValide, lireReglages, lireSource } from "@/lib/commande-express/reglages";
 import { POST as creerCommandeLivraison } from "@/app/api/commandes/whatsapp-creer/route";
+import { normaliserTelephone } from "@/lib/devise-convert";
+import { empreinteIp, jetonValide } from "@/lib/commande-express/risque";
+import { controlerCommande, evaluerCommande } from "@/lib/commande-express/anti-fraude";
 
 const limite = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "commande-express" });
 
@@ -37,18 +41,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   if (!l.success) return rateLimitResponse(l.reset);
   const t = await boutique((await params).slug);
   if (!t || t.statut !== "active") return NextResponse.json({ error: "Boutique introuvable" }, { status: 404 });
-  if (!(await lireReglages(t.id)).actif) return NextResponse.json({ error: "Commande Express n'est pas activée" }, { status: 409 });
+  const reglages = await lireReglages(t.id);
+  if (!reglages.actif) return NextResponse.json({ error: "Commande Express n'est pas activée" }, { status: 409 });
   const b = await req.json().catch(() => null);
   if (!b || !cleValide(b.cle)) return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
+  // Champ piège invisible : seul un robot le remplit.
+  if (typeof b.site === "string" && b.site.trim()) return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
+  const telephone = normaliserTelephone(String(b.client?.telephone ?? ""), String(b.client?.pays ?? t.pays ?? ""));
+  const ipHash = empreinteIp(getClientIp(req));
+  const dureeMs = typeof b.duree === "number" && Number.isFinite(b.duree) && b.duree >= 0 ? Math.min(Math.round(b.duree), 86_400_000) : null;
 
   // Verrou d'idempotence posé AVANT la création : deux envois simultanés ne passent jamais tous les deux.
   try {
-    await prisma.commandeExpress.create({ data: { tenantId: t.id, cleIdempotence: b.cle, produitId: typeof b.produitId === "string" ? b.produitId : null, source: lireSource(b.source) as Prisma.InputJsonValue } });
+    await prisma.commandeExpress.create({ data: { tenantId: t.id, cleIdempotence: b.cle, produitId: typeof b.produitId === "string" ? b.produitId : null, source: lireSource(b.source) as Prisma.InputJsonValue, telephone, ipHash, dureeRemplissage: dureeMs } });
   } catch (e) {
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e;
     const deja = await prisma.commandeExpress.findUnique({ where: { cleIdempotence: b.cle }, select: { tenantId: true, reponse: true } });
     if (deja?.tenantId === t.id && deja.reponse) return NextResponse.json({ ...(deja.reponse as object), rejouee: true });
     return NextResponse.json({ error: "Commande en cours d'enregistrement, patientez un instant" }, { status: 409 });
+  }
+
+  const refus = await controlerCommande({ tenantId: t.id, telephone, ipHash, limiteParJour: reglages.limiteParJour });
+  if (refus) {
+    await prisma.commandeExpress.delete({ where: { cleIdempotence: b.cle } }).catch(() => {});
+    return NextResponse.json({ error: refus.message, code: refus.code }, { status: 403 });
   }
 
   // Création par le parcours existant (même requête que le formulaire de la vitrine).
@@ -71,6 +87,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     await prisma.commandeExpress.delete({ where: { cleIdempotence: b.cle } }).catch(() => {});
     return NextResponse.json({ error: data.error ?? "Commande impossible pour le moment" }, { status: res.status >= 400 ? res.status : 500 });
   }
+  const fiche = await prisma.commandeExpress.findUnique({ where: { cleIdempotence: b.cle }, select: { id: true } });
+  const risque = fiche ? await evaluerCommande({
+    tenantId: t.id, ficheId: fiche.id, telephone, ipHash, nom: corps.client.nom, dureeMs, jetonValide: jetonValide(b.jeton, t.id),
+    quantite: corps.items.reduce((n: number, i: { quantite?: unknown }) => n + (Number(i?.quantite) || 0), 0),
+  }).catch(() => null) : null;
   const reponse = { numero: data.numero, commandeId: data.commandeId, whatsappUrl: data.whatsappUrl, trackingUrl: data.trackingUrl, factureUrl: data.factureUrl, montantTotal: data.montantTotal, montantLivraison: data.montantLivraison };
   await prisma.commandeExpress.update({
     where: { cleIdempotence: b.cle },
@@ -78,6 +99,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       commandeId: data.commandeId, reponse: reponse as Prisma.InputJsonValue,
       quartier: typeof b.quartier === "string" ? b.quartier.slice(0, 120) : null, repere: typeof b.repere === "string" ? b.repere.slice(0, 200) : null,
       latitude: corps.localisation?.lat ?? null, longitude: corps.localisation?.lng ?? null,
+      ...(risque && { scoreRisque: risque.score, facteursRisque: risque.facteurs as unknown as Prisma.InputJsonValue }),
     },
   });
   return NextResponse.json(reponse);

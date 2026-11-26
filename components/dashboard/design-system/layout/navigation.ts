@@ -108,6 +108,7 @@ export const APPS: NavSection[] = [
     sub: [
       { label: "Vue d'ensemble", href: "/dashboard/commande-express", moduleKey: "commandes" },
       { label: "Confirmation", href: "/dashboard/commande-express/confirmation", moduleKey: "commandes" },
+      { label: "Anti-fraude", href: "/dashboard/commande-express/anti-fraude", moduleKey: "commandes" },
     ],
   },
   {
@@ -186,6 +187,7 @@ export const ESPACES_MOBILE: (NavSection & { sub: NavLink[]; /** Libellé de l'o
       { label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes" },
       { label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes" },
       { label: "Confirmation", href: "/dashboard/commande-express/confirmation", moduleKey: "commandes" },
+      { label: "Anti-fraude", href: "/dashboard/commande-express/anti-fraude", moduleKey: "commandes" },
       { label: "Devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
       { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours", "/dashboard/pos/retours"] },
       { label: "Clients", href: "/dashboard/clients", moduleKey: "clients" },

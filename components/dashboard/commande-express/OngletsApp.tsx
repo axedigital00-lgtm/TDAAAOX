@@ -7,6 +7,7 @@ import { useT } from "@/components/I18nProvider";
 export const PAGES_COMMANDE_EXPRESS = [
   { id: "apercu", label: "Vue d'ensemble", href: "/dashboard/commande-express" },
   { id: "confirmation", label: "Confirmation", href: "/dashboard/commande-express/confirmation" },
+  { id: "anti-fraude", label: "Anti-fraude", href: "/dashboard/commande-express/anti-fraude" },
 ];
 
 export function OngletsCommandeExpress() {

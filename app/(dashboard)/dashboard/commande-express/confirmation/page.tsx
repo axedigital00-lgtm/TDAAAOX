@@ -6,13 +6,14 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Page, PageHeader, Card, Badge, Button, Banner, Icon } from "@/components/dashboard/design-system";
 import { OngletsCommandeExpress } from "@/components/dashboard/commande-express/OngletsApp";
+import { BadgeRisque } from "@/components/dashboard/commande-express/BadgeRisque";
 import { useT } from "@/components/I18nProvider";
 import { formatMontant } from "@/lib/utils";
 
 type Appel = { resultat: string; note: string | null; agentNom: string | null; rappelA: string | null; createdAt: string };
 type Element = {
   id: string; statutConfirmation: string; tentatives: number; rappelA: string | null; note: string | null; quartier: string | null; repere: string | null;
-  latitude: number | null; longitude: number | null; scoreRisque: number | null; source: Record<string, string>; createdAt: string; aTraiter: boolean;
+  latitude: number | null; longitude: number | null; scoreRisque: number | null; facteursRisque: { code: string; points: number; libelle: string }[] | null; source: Record<string, string>; createdAt: string; aTraiter: boolean;
   commande: { id: string; numero: string; clientNom: string; clientTelephone: string; montantTotal: number; devise: string; ville: string; adresse: string; statut: string; livraisonStatut: string; produits: string };
   lienAppel: string | null; lienWhatsApp: string | null; appels: Appel[];
 };
@@ -112,6 +113,13 @@ function FicheAppel({ e, apres }: { e: Element; apres: () => void }) {
     finally { setEnvoi(null); }
   };
 
+  const bloquer = async () => {
+    if (!confirm(t("Bloquer le numéro et la connexion de ce client ? Il ne pourra plus commander en ligne dans votre boutique."))) return;
+    const r = await fetch("/api/commande-express/anti-fraude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "bloquer_commande", ficheId: e.id }) });
+    const x = await r.json().catch(() => ({}));
+    if (r.ok) toast.success(t("Client bloqué")); else toast.error(t(x.error ?? "Blocage impossible"));
+  };
+
   return (
     <Card padding="none">
       <div style={{ padding: 16, display: "grid", gap: 12 }}>
@@ -127,6 +135,13 @@ function FicheAppel({ e, apres }: { e: Element; apres: () => void }) {
             <Badge tone={s.ton}>{t(s.libelle)}{e.statutConfirmation === "injoignable" ? ` ${e.tentatives}/3` : ""}</Badge>
           </div>
         </div>
+
+        {e.scoreRisque !== null && e.scoreRisque >= 30 && (
+          <div style={{ display: "grid", gap: 4 }}>
+            <div><BadgeRisque score={e.scoreRisque} /></div>
+            <ul className="axd-muted" style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{(e.facteursRisque ?? []).filter((f) => f.points > 0).map((f) => <li key={f.code}>{t(f.libelle)}</li>)}</ul>
+          </div>
+        )}
 
         <div style={{ fontSize: 14, display: "grid", gap: 4 }}>
           <div>{e.commande.produits}</div>
@@ -160,7 +175,10 @@ function FicheAppel({ e, apres }: { e: Element; apres: () => void }) {
                 {creneaux().map((c) => <Button key={c.label} size="sm" disabled={!!envoi} onClick={() => enregistrer("rappeler", c.date)}>{t(c.label)}</Button>)}
               </div>
             )}
-            <button type="button" className="axd-btn axd-btn--plain axd-btn--sm" style={{ justifySelf: "start" }} disabled={!!envoi} onClick={() => { if (confirm(t("Signaler un faux numéro et annuler la commande ?"))) enregistrer("faux_numero"); }}>{t("Faux numéro")}</button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className="axd-btn axd-btn--plain axd-btn--sm" disabled={!!envoi} onClick={() => { if (confirm(t("Signaler un faux numéro et annuler la commande ?"))) enregistrer("faux_numero"); }}>{t("Faux numéro")}</button>
+              <button type="button" className="axd-btn axd-btn--plain axd-btn--sm" disabled={!!envoi} onClick={() => bloquer()}>{t("Bloquer ce client")}</button>
+            </div>
           </>
         )}
 

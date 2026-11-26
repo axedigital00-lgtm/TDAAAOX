@@ -7,6 +7,7 @@ import { lireReglagesLivraison } from "@/lib/livraison-reglages";
 import { lireReglagesPaiement } from "@/lib/paiement-pays";
 import { exempleTelephone } from "@/lib/devise-convert";
 import { TYPES_NUMERIQUES } from "@/lib/pricing";
+import { signerJeton } from "@/lib/commande-express/risque";
 
 type Props = {
   tenant: { id: string; slug: string; devise: string; pays?: string | null; parametresLivraison: unknown; parametresPaiement: unknown };
@@ -23,7 +24,7 @@ export async function CommandeExpressWidget({ tenant, produit }: Props) {
     slug: tenant.slug, devise: tenant.devise, pays: tenant.pays ?? "", couleur: r.couleur, boutonCollant: r.boutonCollant, demanderEmail: r.demanderEmail,
     texteBouton: T(r.texteBouton), canal: lireReglagesPaiement(tenant.parametresPaiement).livraison ? "direct" : "whatsapp",
     zones: lireReglagesLivraison(tenant.parametresLivraison).zones.map((z) => z.nom),
-    exempleTelephone: exempleTelephone(tenant.pays),
+    exempleTelephone: exempleTelephone(tenant.pays), jeton: signerJeton(tenant.id),
     produit: { id: produit.id, nom: produit.nom, prix: produit.prix, image: produit.images[0] ?? null, variantes: (produit.variantes ?? []).map((v) => ({ nom: v.nom, valeur: v.valeur, prix: v.prix })) },
     textes: Object.fromEntries(Object.entries({
       commander: "Commander maintenant", titre: "Commander", fermer: "Fermer", option: "Option", quantite: "Quantité", nom: "Nom complet",
