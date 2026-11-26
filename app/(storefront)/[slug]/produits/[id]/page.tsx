@@ -16,24 +16,28 @@ import { ProductPageClient } from "@/components/storefront/ProductPageClient";
 import { CommandeExpressWidget } from "@/components/storefront/CommandeExpressWidget";
 import { lireReglagesPaiement } from "@/lib/paiement-pays";
 import { lienBoutique } from "@/lib/origine-site";
+import { adresse, cheminProduit, donneesProduit, jsonLd, texteSeo } from "@/lib/seo-boutique";
 
 interface Props {
   params: Promise<{ slug: string; id: string }>;
 }
 
 export async function generateMetadata({ params }: Props) {
-  const { id } = await params;
-  const produit = await prisma.produit.findUnique({ where: { id } });
-  if (!produit) return { title: "Produit introuvable" };
+  const { slug, id } = await params;
+  const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, slug: true, nomBoutique: true, customDomain: true, domaineActifAt: true, sousDomaineAt: true } });
+  if (!tenant) return { title: "Produit introuvable", robots: { index: false } };
+  // Par id puis par slug, toujours dans cette boutique.
+  const produit = (await prisma.produit.findFirst({ where: { id, tenantId: tenant.id } })) ?? (await prisma.produit.findFirst({ where: { slug: id, tenantId: tenant.id } }));
+  if (!produit || !produit.actif) return { title: "Produit introuvable", robots: { index: false } };
   const ogImageUrl = (produit as any).ogImage || produit.images[0] || null;
+  const titre = produit.metaTitle || `${produit.nom} — ${tenant.nomBoutique}`;
+  const description = texteSeo(produit.metaDesc || produit.description) || `${produit.nom}, disponible chez ${tenant.nomBoutique}.`;
+  const url = adresse(tenant, cheminProduit(produit));
   return {
-    title: produit.metaTitle || produit.nom,
-    description: produit.metaDesc || produit.description || "",
-    openGraph: {
-      title: produit.metaTitle || produit.nom,
-      description: produit.metaDesc || produit.description || "",
-      images: ogImageUrl ? [{ url: ogImageUrl, width: 1200, height: 630 }] : [],
-    },
+    title: titre, description,
+    alternates: { canonical: url },
+    openGraph: { type: "website", url, siteName: tenant.nomBoutique, title: titre, description, images: ogImageUrl ? [{ url: ogImageUrl, width: 1200, height: 630, alt: produit.nom }] : [] },
+    twitter: { card: ogImageUrl ? "summary_large_image" : "summary", title: titre, description, images: ogImageUrl ? [ogImageUrl] : [] },
   };
 }
 
@@ -218,20 +222,24 @@ export default async function ProduitPage({ params }: Props) {
   // dans le Constructeur) autour de la fiche pilotée par les sections du
   // panneau « Fiche produit » — variantes, quantité, badges, avis réels.
   const Habillage = habillageDesign(cfg);
-  // Commande Express AXSO (formulaire 1 écran, payé à la livraison) si le marchand l'a activée.
+  // Releasit COD AXSO (formulaire 1 écran, payé à la livraison) si le marchand l'a activée.
   const express = <CommandeExpressWidget tenant={tenant} produit={{ id: produit.id, nom: produit.nom, type: produit.type, prix: prixAffiche, images: produit.images, variantes: produit.variantes }} />;
+  // Données structurées (Google : prix, stock, avis en étoiles, fil d'Ariane).
+  const seo = <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(donneesProduit(tenant, { ...produit, prix: prixAffiche, avis: produit.avis })) }} />;
   if (Habillage) {
     return (
       <Habillage>
         <ViewContentTracker produitId={produit.id} nom={produit.nom} prix={prixAffiche} devise={tenant.devise} />
         <ProductPageClient produit={produitProps} tenant={tenantProps} produitsSimilaires={produitsSimilaires} sansPied />
         {express}
+        {seo}
       </Habillage>
     );
   }
 
   return (
     <>
+      {seo}
       <ViewContentTracker produitId={produit.id} nom={produit.nom} prix={prixAffiche} devise={tenant.devise} />
       <StorefrontNavbar
         slug={slug}

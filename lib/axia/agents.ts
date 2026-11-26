@@ -87,7 +87,7 @@ Commence par dashboard_livraison pour avoir la vue d'ensemble. Priorise les comm
 Assigner, changer un statut et confirmer une remise d'espèces passent par l'accord du marchand : annonce ce que tu prépares, ne dis jamais que c'est fait.
 
 ${REGISTRE_COMMUN}`,
-    tools: ["dashboard_livraison", "lister_commandes", "lister_livreurs", "statut_commande", "assigner_livreur", "changer_statut_commande", "marquer_especes_remises", "calculer_frais_livraison", "lister_regles_livraison", "configurer_livraison", "ajouter_regle_livraison", "verifier_retards_fournisseurs"],
+    tools: ["releasit_a_confirmer", "releasit_statistiques", "releasit_diagnostic", "releasit_suggestions", "releasit_creer_offre_quantite", "dashboard_livraison", "lister_commandes", "lister_livreurs", "statut_commande", "assigner_livreur", "changer_statut_commande", "marquer_especes_remises", "calculer_frais_livraison", "lister_regles_livraison", "configurer_livraison", "ajouter_regle_livraison", "verifier_retards_fournisseurs"],
   },
   {
     id: "boutique",

@@ -1,11 +1,11 @@
-// Commande Express AXSO — API publique de la vitrine.
+// Releasit COD AXSO — API publique de la vitrine.
 // GET  : configuration du formulaire (bouton, couleur, zones de livraison, moyens acceptés).
 // POST : crée la commande, payée à la livraison. Réutilise la création de commande existante
 //        (prix, remise, frais de livraison et stock recalculés côté serveur, e-mail et notification au
 //        marchand, liens WhatsApp) ; ajoute la clé d'idempotence (un double envoi = une seule commande)
 //        et la source de la commande (UTM, identifiants de clic). Anti-fraude : champ piège, liste
 //        noire et limite par jour refusent ; le score de risque guide seulement l'appel de confirmation.
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
@@ -16,6 +16,10 @@ import { POST as creerCommandeLivraison } from "@/app/api/commandes/whatsapp-cre
 import { normaliserTelephone } from "@/lib/devise-convert";
 import { empreinteIp, jetonValide } from "@/lib/commande-express/risque";
 import { controlerCommande, evaluerCommande } from "@/lib/commande-express/anti-fraude";
+import { compterOffres, jetonAjout } from "@/lib/commande-express/offres";
+import { lireFormulaire, lireReponses } from "@/lib/commande-express/formulaire";
+import { marquerRecuperee } from "@/lib/commande-express/abandons";
+import { envoyerAchatCommande } from "@/lib/commande-express/pixels-serveur";
 
 const limite = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "commande-express" });
 
@@ -42,18 +46,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const t = await boutique((await params).slug);
   if (!t || t.statut !== "active") return NextResponse.json({ error: "Boutique introuvable" }, { status: 404 });
   const reglages = await lireReglages(t.id);
-  if (!reglages.actif) return NextResponse.json({ error: "Commande Express n'est pas activée" }, { status: 409 });
+  if (!reglages.actif) return NextResponse.json({ error: "Releasit COD AXSO n'est pas activée" }, { status: 409 });
   const b = await req.json().catch(() => null);
   if (!b || !cleValide(b.cle)) return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
   // Champ piège invisible : seul un robot le remplit.
   if (typeof b.site === "string" && b.site.trim()) return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
   const telephone = normaliserTelephone(String(b.client?.telephone ?? ""), String(b.client?.pays ?? t.pays ?? ""));
   const ipHash = empreinteIp(getClientIp(req));
+  // Champs personnalisés de l'éditeur : seuls ceux configurés, obligatoires vérifiés ici.
+  const cfg = await prisma.reglagesCommandeExpress.findUnique({ where: { tenantId: t.id }, select: { formulaire: true } });
+  const reponses = lireReponses(lireFormulaire(cfg?.formulaire), b.champs);
+  if (!reponses.ok) return NextResponse.json({ error: reponses.erreur }, { status: 400 });
   const dureeMs = typeof b.duree === "number" && Number.isFinite(b.duree) && b.duree >= 0 ? Math.min(Math.round(b.duree), 86_400_000) : null;
 
   // Verrou d'idempotence posé AVANT la création : deux envois simultanés ne passent jamais tous les deux.
   try {
-    await prisma.commandeExpress.create({ data: { tenantId: t.id, cleIdempotence: b.cle, produitId: typeof b.produitId === "string" ? b.produitId : null, source: lireSource(b.source) as Prisma.InputJsonValue, telephone, ipHash, dureeRemplissage: dureeMs } });
+    await prisma.commandeExpress.create({ data: { tenantId: t.id, cleIdempotence: b.cle, produitId: typeof b.produitId === "string" ? b.produitId : null, source: lireSource(b.source) as Prisma.InputJsonValue, telephone, ipHash, dureeRemplissage: dureeMs,
+      ...(reponses.champs.length && { champs: reponses.champs as Prisma.InputJsonValue }), variante: b.variante === "B" ? "B" : b.variante === "A" ? "A" : null } });
   } catch (e) {
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e;
     const deja = await prisma.commandeExpress.findUnique({ where: { cleIdempotence: b.cle }, select: { tenantId: true, reponse: true } });
@@ -92,7 +101,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     tenantId: t.id, ficheId: fiche.id, telephone, ipHash, nom: corps.client.nom, dureeMs, jetonValide: jetonValide(b.jeton, t.id),
     quantite: corps.items.reduce((n: number, i: { quantite?: unknown }) => n + (Number(i?.quantite) || 0), 0),
   }).catch(() => null) : null;
-  const reponse = { numero: data.numero, commandeId: data.commandeId, whatsappUrl: data.whatsappUrl, trackingUrl: data.trackingUrl, factureUrl: data.factureUrl, montantTotal: data.montantTotal, montantLivraison: data.montantLivraison };
+  // Offres acceptées dans le formulaire (case à cocher, offre à la fermeture) : pour le taux d'acceptation.
+  await compterOffres(t.id, b.offres, "acceptations").catch(() => {});
+  const reponse = { jetonAjout: jetonAjout(data.commandeId), numero: data.numero, commandeId: data.commandeId, whatsappUrl: data.whatsappUrl, trackingUrl: data.trackingUrl, factureUrl: data.factureUrl, montantTotal: data.montantTotal, montantLivraison: data.montantLivraison };
   await prisma.commandeExpress.update({
     where: { cleIdempotence: b.cle },
     data: {
@@ -102,5 +113,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       ...(risque && { scoreRisque: risque.score, facteursRisque: risque.facteurs as unknown as Prisma.InputJsonValue }),
     },
   });
+  await marquerRecuperee(t.id, b.cle, data.commandeId).catch(() => {});
+  // Conversion serveur (Meta, TikTok) après la réponse : l'acheteur n'attend pas.
+  if (fiche) after(() => envoyerAchatCommande(t.id, fiche.id, "creation", { ip: getClientIp(req), userAgent: req.headers.get("user-agent") }).catch(() => null));
   return NextResponse.json(reponse);
 }

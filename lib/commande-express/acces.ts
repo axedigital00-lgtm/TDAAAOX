@@ -1,4 +1,4 @@
-// Accès du dashboard à Commande Express : session marchand + droit sur les commandes.
+// Accès du dashboard à Releasit COD AXSO : session marchand + droit sur les commandes.
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireNiveau } from "@/lib/permissions-server";

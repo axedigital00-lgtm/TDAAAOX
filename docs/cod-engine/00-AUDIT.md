@@ -2,7 +2,7 @@
 
 Date : 25 novembre 2026. Branche : `refonte-charte-axso`.
 
-Ce document recense ce qu'AXSO possède déjà pour chaque partie du master prompt « Commande Express AXSO », et les points où le prompt ne correspond pas à la stack réelle. Le plan (`01-PLAN.md`) en tient compte : rien de ce qui existe n'est réécrit.
+Ce document recense ce qu'AXSO possède déjà pour chaque partie du master prompt « Releasit COD AXSO », et les points où le prompt ne correspond pas à la stack réelle. Le plan (`01-PLAN.md`) en tient compte : rien de ce qui existe n'est réécrit.
 
 ## 1. Stack réelle
 

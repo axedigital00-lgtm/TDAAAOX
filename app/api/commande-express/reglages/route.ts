@@ -1,11 +1,13 @@
-// Commande Express AXSO — réglages et suivi pour le dashboard du marchand.
-// GET : réglages, chiffres des 30 derniers jours et dernières commandes express.
+// Releasit COD AXSO — réglages et suivi pour le dashboard du marchand.
+// GET : réglages, chiffres des 30 derniers jours et dernières commandes Releasit.
 // PATCH : réglages (droit d'écriture sur les commandes).
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireNiveau } from "@/lib/permissions-server";
 import { lireReglages, nettoyerReglages } from "@/lib/commande-express/reglages";
+import { lireRelances } from "@/lib/commande-express/abandons";
+import { lirePixels } from "@/lib/commande-express/pixels-serveur";
 
 async function contexte(niveau: "lecture" | "ecriture") {
   const session = await auth();
@@ -20,17 +22,21 @@ export async function GET() {
   const c = await contexte("lecture");
   if ("erreur" in c) return c.erreur;
   const depuis = new Date(Date.now() - 30 * 86_400_000);
-  const [reglages, recentes, parStatut, tenant] = await Promise.all([
+  const [reglages, recentes, parStatut, tenant, brut, offres] = await Promise.all([
     lireReglages(c.tenantId),
     prisma.commandeExpress.findMany({ where: { tenantId: c.tenantId, commandeId: { not: null } }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, commandeId: true, statutConfirmation: true, quartier: true, source: true, createdAt: true } }),
     prisma.commandeExpress.groupBy({ by: ["statutConfirmation"], where: { tenantId: c.tenantId, commandeId: { not: null }, createdAt: { gte: depuis } }, _count: { _all: true } }),
     prisma.tenant.findUnique({ where: { id: c.tenantId }, select: { slug: true, devise: true, parametresLivraison: true } }),
+    prisma.reglagesCommandeExpress.findUnique({ where: { tenantId: c.tenantId }, select: { formulaire: true, relances: true, pixelsServeur: true } }),
+    prisma.offreReleasit.count({ where: { tenantId: c.tenantId, actif: true } }),
   ]);
+  const px = lirePixels(brut?.pixelsServeur);
   const commandes = await prisma.commande.findMany({ where: { id: { in: recentes.map((r) => r.commandeId!) }, tenantId: c.tenantId }, select: { id: true, numero: true, clientNom: true, clientTelephone: true, montantTotal: true, devise: true, ville: true, statut: true } });
   const parId = new Map(commandes.map((x) => [x.id, x]));
   const zones = Array.isArray((tenant?.parametresLivraison as any)?.zones) ? (tenant!.parametresLivraison as any).zones.length : 0;
   return NextResponse.json({
     reglages, slug: tenant?.slug, zonesConfigurees: zones,
+    miseEnRoute: { offres, formulaire: !!brut?.formulaire, relances: lireRelances(brut?.relances).actif, pixels: !!(px.metaToken || px.tiktokToken) },
     stats: Object.fromEntries(parStatut.map((s) => [s.statutConfirmation, s._count._all])),
     recentes: recentes.map((r) => ({ ...r, commande: parId.get(r.commandeId!) ?? null })),
   });

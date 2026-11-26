@@ -40,6 +40,7 @@ const REGLES: Record<string, Regle> = {
   pos_produits_rupture: L("produits"), pos_produits_dormants: L("produits"), pos_quoi_commander: L("produits"),
   pos_comparer_fournisseurs: E("produits"), pos_relance_client: E("clients"),
   // Académie (lib/axia/academie-tools.ts)
+  releasit_a_confirmer: L("commandes"), releasit_statistiques: L("commandes"), releasit_diagnostic: L("commandes"), releasit_suggestions: L("commandes"), releasit_creer_offre_quantite: E("commandes"),
   academie_lister_studios: L("produits"), academie_estimer_generation: L("produits"), academie_controle_qualite: L("produits"), academie_tester_tuteur: E("produits"),
   academie_creer_studio: E("produits"), academie_lancer_generation: E("produits"), academie_publier_formation: E("produits"),
   academie_progression_apprenants: L("clients"), academie_relance_apprenant: E("clients"),

@@ -48,6 +48,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Référencement d'une boutique sur son adresse (nom.axsoafrica.com ou domaine propre) : son propre
+  // plan du site et son propre robots.txt, servis par /[slug]/sitemap.xml et /[slug]/robots.txt.
+  if ((pathname === "/sitemap.xml" || pathname === "/robots.txt") && hostname !== DOMAINE_APP && hostname !== `www.${DOMAINE_APP}`) {
+    const sousDomaine = hostname.endsWith(`.${DOMAINE_APP}`);
+    const local = hostname.startsWith("localhost") || /^127\.0\.0\.1(:\d+)?$/.test(hostname) || hostname.endsWith(".vercel.app") || hostname.endsWith(".workers.dev");
+    const slug = sousDomaine ? slugDeSousDomaine(hostname, DOMAINE_APP) : local ? null : await slugPourDomaine(hostname);
+    if (slug) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${slug}${pathname}`;
+      return NextResponse.rewrite(url, { request: { headers: request.headers } });
+    }
+  }
+
   // Ignorer les fichiers statiques
   if (
     pathname.startsWith("/_next") ||

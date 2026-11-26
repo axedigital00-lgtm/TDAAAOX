@@ -4,7 +4,7 @@ const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://www.axsoafrica.com";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/dashboard", "/admin", "/api", "/livreur", "/oauth", "/affilie", "/scanner", "/depot", "/transporteur$"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/dashboard", "/admin", "/api", "/livreur", "/oauth", "/affilie", "/scanner", "/depot", "/transporteur$", "/*/panier", "/*/checkout", "/*/paiement", "/*/mon-compte", "/*/commande-confirmee", "/*/confirmation", "/*/facture", "/*/tracking", "/*/wishlist", "/*/devis"] },
     sitemap: `${BASE}/sitemap.xml`,
   };
 }

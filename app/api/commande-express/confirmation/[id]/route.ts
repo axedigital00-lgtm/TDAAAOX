@@ -1,10 +1,11 @@
 // Enregistre le résultat d'un appel de confirmation et répercute la décision sur la commande
 // (confirmée ou annulée) par le cycle de livraison habituel : stock, notifications, WhatsApp.
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { contexteMarchand } from "@/lib/commande-express/acces";
 import { apresAppel, schemaAppel, statutCommandePour } from "@/lib/commande-express/confirmation";
 import { changerStatutCommande } from "@/lib/cycle-livraison";
+import { envoyerAchatCommande } from "@/lib/commande-express/pixels-serveur";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const c = await contexteMarchand("ecriture");
@@ -32,5 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const r = await changerStatutCommande({ commandeId: commande.id, statut, echecRaison: appel.note ?? null, acteur: { type: "marchand", tenantId: c.tenantId, source: "interface" } });
     if (!r.ok) avertissement = r.error;
   }
+  // Mode « Purchase à la confirmation » : la publicité n'apprend que des commandes réellement confirmées.
+  if (appel.resultat === "confirmee") after(() => envoyerAchatCommande(c.tenantId, fiche.id, "confirmation").catch(() => null));
   return NextResponse.json({ ok: true, statutConfirmation: etat.statutConfirmation, tentatives: etat.tentatives, statutCommande: statut ?? commande.statut, avertissement });
 }

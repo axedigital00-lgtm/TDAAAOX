@@ -1,5 +1,5 @@
 "use client";
-// Commande Express AXSO : activation, apparence du bouton et suivi des commandes passées par le
+// Releasit COD AXSO : activation, apparence du bouton et suivi des commandes passées par le
 // formulaire 1 écran (payé à la livraison) de la fiche produit.
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -11,7 +11,7 @@ import { formatMontant } from "@/lib/utils";
 
 type Reglages = { actif: boolean; boutonCollant: boolean; texteBouton: string; couleur: string; demanderEmail: boolean };
 type Recente = { id: string; statutConfirmation: string; quartier: string | null; source: Record<string, string>; createdAt: string; commande: { id: string; numero: string; clientNom: string; clientTelephone: string; montantTotal: number; devise: string; ville: string } | null };
-type Donnees = { reglages: Reglages; slug: string; zonesConfigurees: number; stats: Record<string, number>; recentes: Recente[] };
+type Donnees = { reglages: Reglages; slug: string; zonesConfigurees: number; stats: Record<string, number>; recentes: Recente[]; miseEnRoute: { offres: number; formulaire: boolean; relances: boolean; pixels: boolean } };
 
 const STATUTS: Record<string, { libelle: string; ton: "info" | "success" | "warning" | "critical" | "neutral" }> = {
   a_confirmer: { libelle: "À confirmer", ton: "warning" }, confirmee: { libelle: "Confirmée", ton: "success" }, injoignable: { libelle: "Injoignable", ton: "neutral" },
@@ -33,22 +33,26 @@ export default function CommandeExpressPage() {
       const x = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(x.error ?? "Enregistrement impossible");
       setD((v) => (v ? { ...v, reglages: x.reglages } : v)); setBrouillon(x.reglages);
-      toast.success(t(maj.actif === true ? "Commande Express est activée sur vos fiches produits" : maj.actif === false ? "Commande Express est désactivée" : "Réglages enregistrés"));
+      toast.success(t(maj.actif === true ? "Releasit COD AXSO est activée sur vos fiches produits" : maj.actif === false ? "Releasit COD AXSO est désactivée" : "Réglages enregistrés"));
     } catch (e: any) { toast.error(t(e.message)); }
     finally { setEnvoi(false); }
   };
 
-  if (!d || !brouillon) return <Page><PageHeader icon="orders" title={t("Commande Express")} /><Card><p className="axd-muted">{t("Chargement...")}</p></Card></Page>;
+  if (!d || !brouillon) return <Page><PageHeader icon="orders" title={t("Releasit COD AXSO")} /><Card><p className="axd-muted">{t("Chargement...")}</p></Card></Page>;
   const modifie = JSON.stringify(brouillon) !== JSON.stringify(d.reglages);
   const total = Object.values(d.stats).reduce((a, b) => a + b, 0);
   const etapes = [
     { fait: d.zonesConfigurees > 0, titre: "Indiquez vos zones de livraison", texte: "Le client choisit sa ville ou son quartier dans une liste, et les frais s'ajoutent tout seuls.", lien: "/dashboard/livraison", action: "Régler la livraison" },
-    { fait: d.reglages.actif, titre: "Activez Commande Express", texte: "Le bouton « Commander maintenant » apparaît sur toutes vos fiches de produits physiques.", lien: null, action: null },
+    { fait: d.reglages.actif, titre: "Activez Releasit COD AXSO", texte: "Le bouton « Commander maintenant » apparaît sur toutes vos fiches de produits physiques.", lien: null, action: null },
+    { fait: d.miseEnRoute.formulaire, titre: "Personnalisez le formulaire", texte: "Modèle de design, champs, questions en plus et messages, avec l'aperçu en direct.", lien: "/dashboard/commande-express/formulaire", action: "Ouvrir l'éditeur" },
+    { fait: d.miseEnRoute.offres > 0, titre: "Créez une offre", texte: "« 2 pour… », case à cocher ou ajout en 1 clic : le panier moyen monte tout seul.", lien: "/dashboard/commande-express/offres", action: "Créer une offre" },
+    { fait: d.miseEnRoute.relances, titre: "Activez les relances WhatsApp", texte: "Les clients qui partent sans commander reçoivent un rappel aux délais choisis.", lien: "/dashboard/commande-express/abandons", action: "Activer" },
+    { fait: d.miseEnRoute.pixels, titre: "Reliez vos publicités", texte: "Les ventes partent directement à Meta et TikTok depuis le serveur.", lien: "/dashboard/commande-express/integrations", action: "Relier" },
   ];
 
   return (
     <Page width="narrow">
-      <PageHeader icon="orders" title={t("Commande Express")}
+      <PageHeader icon="orders" title={t("Releasit COD AXSO")}
         secondaryActions={d.slug ? [{ content: t("Voir ma boutique"), href: `/${d.slug}`, external: true, icon: "external" }] : []} />
       <OngletsCommandeExpress />
       <div style={{ display: "grid", gap: "var(--space-400)", marginTop: "var(--space-400)" }}>
@@ -64,7 +68,7 @@ export default function CommandeExpressPage() {
           {t("Nom, téléphone, ville, quantité : « Commander ». Pas de compte, pas de carte, paiement à la livraison. Vous êtes prévenu par e-mail et sur AXSO, et le client vous envoie sa commande sur WhatsApp.")}
         </Banner>
 
-        <Card title={t("Activation")} actions={<span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}><Badge tone={d.reglages.actif ? "success" : "neutral"}>{t(d.reglages.actif ? "Activée" : "Désactivée")}</Badge><Toggle checked={d.reglages.actif} disabled={envoi} label={t("Activer Commande Express")} onChange={(v) => enregistrer({ actif: v })} /></span>}>
+        <Card title={t("Activation")} actions={<span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}><Badge tone={d.reglages.actif ? "success" : "neutral"}>{t(d.reglages.actif ? "Activée" : "Désactivée")}</Badge><Toggle checked={d.reglages.actif} disabled={envoi} label={t("Activer Releasit COD AXSO")} onChange={(v) => enregistrer({ actif: v })} /></span>}>
           <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 12 }}>
             {etapes.map((e, i) => (
               <li key={e.titre} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -103,7 +107,7 @@ export default function CommandeExpressPage() {
         </Card>
 
         <Card title={t("30 derniers jours")}>
-          {total === 0 ? <p className="axd-muted" style={{ margin: 0 }}>{t("Aucune commande express pour l'instant.")}</p> : (
+          {total === 0 ? <p className="axd-muted" style={{ margin: 0 }}>{t("Aucune commande Releasit pour l'instant.")}</p> : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
               <div><div style={{ fontSize: 24, fontWeight: 700 }}>{total}</div><div className="axd-muted" style={{ fontSize: 13 }}>{t("Commandes")}</div></div>
               {Object.entries(STATUTS).filter(([k]) => d.stats[k]).map(([k, s]) => <div key={k}><div style={{ fontSize: 24, fontWeight: 700 }}>{d.stats[k]}</div><div className="axd-muted" style={{ fontSize: 13 }}>{t(s.libelle)}</div></div>)}
@@ -111,7 +115,7 @@ export default function CommandeExpressPage() {
           )}
         </Card>
 
-        <Card title={t("Dernières commandes express")} padding="none">
+        <Card title={t("Dernières commandes Releasit")} padding="none">
           {!d.recentes.length ? <div style={{ padding: 16 }}><p className="axd-muted" style={{ margin: 0 }}>{t("Elles apparaîtront ici dès la première commande.")}</p></div> : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {d.recentes.map((r) => r.commande && (

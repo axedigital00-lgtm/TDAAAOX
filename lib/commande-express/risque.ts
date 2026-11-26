@@ -1,4 +1,4 @@
-// Anti-fraude Commande Express : score de risque 0–100 expliqué facteur par facteur, jeton anti-robot
+// Anti-fraude Releasit COD AXSO : score de risque 0–100 expliqué facteur par facteur, jeton anti-robot
 // signé et empreinte d'IP. Le score n'empêche jamais une commande : il guide l'appel de confirmation.
 // Seuls la liste noire, le champ piège et la limite par jour refusent une commande.
 import { createHmac } from "node:crypto";

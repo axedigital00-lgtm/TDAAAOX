@@ -1,4 +1,4 @@
-// Anti-fraude Commande Express : liste noire, limite par jour et commandes à risque (30 jours).
+// Anti-fraude Releasit COD AXSO : liste noire, limite par jour et commandes à risque (30 jours).
 // GET : état ; POST : bloquer un numéro, ou le numéro et la connexion d'une commande ; DELETE ?id= : débloquer.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

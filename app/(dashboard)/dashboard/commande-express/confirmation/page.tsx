@@ -1,5 +1,5 @@
 "use client";
-// Centre de confirmation Commande Express : la file des clients à appeler, dans l'ordre utile
+// Centre de confirmation Releasit COD AXSO : la file des clients à appeler, dans l'ordre utile
 // (rappels à l'heure, nouvelles commandes, injoignables), avec appel, WhatsApp et résultat en 1 geste.
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -13,7 +13,7 @@ import { formatMontant } from "@/lib/utils";
 type Appel = { resultat: string; note: string | null; agentNom: string | null; rappelA: string | null; createdAt: string };
 type Element = {
   id: string; statutConfirmation: string; tentatives: number; rappelA: string | null; note: string | null; quartier: string | null; repere: string | null;
-  latitude: number | null; longitude: number | null; scoreRisque: number | null; facteursRisque: { code: string; points: number; libelle: string }[] | null; source: Record<string, string>; createdAt: string; aTraiter: boolean;
+  latitude: number | null; longitude: number | null; scoreRisque: number | null; facteursRisque: { code: string; points: number; libelle: string }[] | null; champs: { libelle: string; valeur: string }[] | null; source: Record<string, string>; createdAt: string; aTraiter: boolean;
   commande: { id: string; numero: string; clientNom: string; clientTelephone: string; montantTotal: number; devise: string; ville: string; adresse: string; statut: string; livraisonStatut: string; produits: string };
   lienAppel: string | null; lienWhatsApp: string | null; appels: Appel[];
 };
@@ -54,7 +54,7 @@ export default function CentreConfirmationPage() {
             <Card>
               <div style={{ textAlign: "center", padding: "24px 8px" }}>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>{t(vue === "a_traiter" ? "Aucun client à appeler" : "Rien à afficher")}</div>
-                <p className="axd-muted" style={{ margin: 0 }}>{t(vue === "a_traiter" ? "Chaque nouvelle commande express arrive ici pour être confirmée par téléphone ou WhatsApp." : "Les commandes traitées depuis 60 jours apparaissent ici.")}</p>
+                <p className="axd-muted" style={{ margin: 0 }}>{t(vue === "a_traiter" ? "Chaque nouvelle commande Releasit arrive ici pour être confirmée par téléphone ou WhatsApp." : "Les commandes traitées depuis 60 jours apparaissent ici.")}</p>
               </div>
             </Card>
           ) : elements.map((e) => <FicheAppel key={e.id} e={e} apres={() => charger(vue)} />)}
@@ -146,6 +146,7 @@ function FicheAppel({ e, apres }: { e: Element; apres: () => void }) {
         <div style={{ fontSize: 14, display: "grid", gap: 4 }}>
           <div>{e.commande.produits}</div>
           <div className="axd-muted">{[e.commande.ville, e.quartier, e.repere].filter(Boolean).join(" · ")}{carte && <> · <a href={carte} target="_blank" rel="noreferrer">{t("Voir la position")}</a></>}</div>
+          {(e.champs ?? []).map((ch) => <div key={ch.libelle} style={{ fontSize: 13.5 }}><span className="axd-muted">{ch.libelle} :</span> {ch.valeur}</div>)}
           {e.source?.utm_source && <div className="axd-muted" style={{ fontSize: 12.5 }}>{t("Source")} : {e.source.utm_source}{e.source.utm_campaign ? ` · ${e.source.utm_campaign}` : ""}</div>}
         </div>
 

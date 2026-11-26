@@ -1,6 +1,6 @@
 # COD Engine — Phase 0 : plan d'exécution
 
-Nom marchand : **Commande Express AXSO**. Nom interne : `commande-express`.
+Nom marchand : **Releasit COD AXSO**. Nom interne : `commande-express`.
 Ce plan s'appuie sur l'audit (`00-AUDIT.md`). Il réutilise le parcours de commande à la livraison, les zones, les codes promo, la vente en gros, les pixels, les tests A/B, la logistique et les quotas existants. Chaque phase se termine par des tests verts, une migration Neon appliquée avec accord, un déploiement et une ligne dans `CHANGELOG.md`.
 
 ## Ordre proposé (par valeur pour le COD africain)

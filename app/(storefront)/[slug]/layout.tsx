@@ -31,6 +31,11 @@ import { ratioConversion } from "@/lib/devise-convert";
 import { affichageVisiteur, lireMarches } from "@/lib/commerce/marches";
 import { I18nProvider } from "@/components/I18nProvider";
 import { getLangue, dico } from "@/lib/i18n/serveur";
+import type { Metadata } from "next";
+import { donneesBoutique, jsonLd } from "@/lib/seo-boutique";
+
+// Titres des pages de boutique au nom de la boutique, sans le suffixe « | AXSO » du site.
+export const metadata: Metadata = { title: { template: "%s", default: "Boutique" } };
 
 interface Props {
   children: React.ReactNode;
@@ -54,6 +59,7 @@ async function ContenuVitrine({ children, params }: Props) {
       marches: true,
       id: true, nomBoutique: true, themeId: true, themeConfig: true, statut: true, devise: true,
       metaPixelId: true, tiktokPixelId: true, snapPixelId: true, gtmId: true, trackingScripts: true,
+      slug: true, customDomain: true, domaineActifAt: true, sousDomaineAt: true, description: true, logoUrl: true, telephone: true, whatsappNumero: true, adresse: true, pays: true,
     },
   });
 
@@ -111,6 +117,7 @@ async function ContenuVitrine({ children, params }: Props) {
           fondEntete={navDesign.style === "dark" ? "#111111" : navDesign.style === "light" ? "#FFFFFF" : cfg.colors.fond} accent={accent} texte={navDesign.style === "dark" ? "#FFFFFF" : cfg.colors.texte} />
       )}
       {animDesign && <AnimationsDesign animations={animDesign} />}
+      {tenant.statut === "active" && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(donneesBoutique(tenant)) }} />}
       {!apercu && (
         <>
           <StorefrontPageView slug={slug} />

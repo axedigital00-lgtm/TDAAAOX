@@ -22,6 +22,7 @@ import { passeAdhesions } from "@/lib/numerique/abonnement";
 import { passeLancements } from "@/lib/commerce/lancements";
 import { passePaiements } from "@/lib/paiements/abonnement";
 import { passeVersements } from "@/lib/paiements/versements-marchands";
+import { passeAbandons } from "@/lib/commande-express/abandons";
 import { passeAchats } from "@/lib/ia/achats";
 import { passeLogistique } from "@/lib/logistique/service";
 
@@ -44,6 +45,7 @@ const taches = {
   paiements: () => passePaiements(),
   versements: () => passeVersements(),
   achatsCoins: () => passeAchats(),
+  abandonsReleasit: () => passeAbandons(),
 };
 type Tache = keyof typeof taches;
 

@@ -104,11 +104,16 @@ export const CHANNELS: NavSection[] = [
 
 export const APPS: NavSection[] = [
   {
-    id: "commande-express", icon: "bolt", label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes",
+    id: "commande-express", icon: "bolt", label: "Releasit COD AXSO", href: "/dashboard/commande-express", moduleKey: "commandes",
     sub: [
       { label: "Vue d'ensemble", href: "/dashboard/commande-express", moduleKey: "commandes" },
       { label: "Confirmation", href: "/dashboard/commande-express/confirmation", moduleKey: "commandes" },
+      { label: "Offres", href: "/dashboard/commande-express/offres", moduleKey: "commandes" },
+      { label: "Formulaire", href: "/dashboard/commande-express/formulaire", moduleKey: "commandes" },
+      { label: "Abandons", href: "/dashboard/commande-express/abandons", moduleKey: "commandes" },
+      { label: "Statistiques", href: "/dashboard/commande-express/statistiques", moduleKey: "commandes" },
       { label: "Anti-fraude", href: "/dashboard/commande-express/anti-fraude", moduleKey: "commandes" },
+      { label: "Intégrations", href: "/dashboard/commande-express/integrations", moduleKey: "commandes" },
     ],
   },
   {
@@ -185,9 +190,14 @@ export const ESPACES_MOBILE: (NavSection & { sub: NavLink[]; /** Libellé de l'o
     id: "m-ventes", icon: "orders", label: "Ventes", href: "/dashboard/commandes", count: "commandes",
     sub: [
       { label: "Commandes", href: "/dashboard/commandes", moduleKey: "commandes" },
-      { label: "Commande Express", href: "/dashboard/commande-express", moduleKey: "commandes" },
+      { label: "Releasit COD AXSO", href: "/dashboard/commande-express", moduleKey: "commandes" },
       { label: "Confirmation", href: "/dashboard/commande-express/confirmation", moduleKey: "commandes" },
+      { label: "Offres", href: "/dashboard/commande-express/offres", moduleKey: "commandes" },
+      { label: "Formulaire", href: "/dashboard/commande-express/formulaire", moduleKey: "commandes" },
+      { label: "Abandons", href: "/dashboard/commande-express/abandons", moduleKey: "commandes" },
+      { label: "Statistiques", href: "/dashboard/commande-express/statistiques", moduleKey: "commandes" },
       { label: "Anti-fraude", href: "/dashboard/commande-express/anti-fraude", moduleKey: "commandes" },
+      { label: "Intégrations", href: "/dashboard/commande-express/integrations", moduleKey: "commandes" },
       { label: "Devis", href: "/dashboard/commandes/devis", moduleKey: "commandes" },
       { label: "Retours", href: "/dashboard/retours", moduleKey: "commandes", match: ["/dashboard/logistique/retours", "/dashboard/pos/retours"] },
       { label: "Clients", href: "/dashboard/clients", moduleKey: "clients" },

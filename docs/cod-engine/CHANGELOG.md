@@ -1,4 +1,34 @@
-# Commande Express AXSO — journal des phases
+# Releasit COD AXSO — journal des phases
+
+## Phases 6 à 10 — Éditeur, abandons, conversions serveur, statistiques, durcissement (2026-11-26)
+
+- **Éditeur** (onglet Formulaire) : 6 modèles, animation du bouton (pulsation, secousse, halo), ordre des champs par glisser-déposer ou flèches, libellés, champs affichés / obligatoires, jusqu'à 6 champs personnalisés (texte, liste, case) vérifiés côté serveur et affichés dans le centre de confirmation, titre, sous-titre, bouton et message de succès, aperçu en direct sur téléphone.
+- **Mode hors-ligne** : réseau coupé, la commande reste sur l'appareil et part au retour de la connexion, avec la même clé (jamais de doublon).
+- **Abandons** (onglet Abandons) : capture dès nom + téléphone (consentement affiché), relances WhatsApp automatiques à 1 à 3 délais (tâche toutes les 5 min), arrêt dès la commande, récupération et CA récupéré, relance ou appel en un geste.
+- **Conversions serveur** (onglet Intégrations) : Meta Conversions API et TikTok Events API, même identifiant que le pixel (n° de commande), téléphone et nom hachés, jetons chiffrés jamais affichés, « Purchase » à la commande ou à la confirmation (le navigateur envoie alors un « Lead »), événement de test.
+- **Statistiques** : entonnoir (fiches vues, formulaires ouverts, commandes, confirmées, livrées), CA commandé / encaissé, panier moyen, sources et villes, quota du forfait. **Test A/B** du texte du bouton : attribution stable par visiteur, taux, confiance, gagnant après 100 visites par variante.
+- **Recommandations** à partir des ventes réelles (meilleure vente, achetés ensemble, article d'impulsion, code à la fermeture), pré-remplies dans l'éditeur d'offres.
+- **Stella** : outils `releasit_a_confirmer`, `releasit_statistiques`, `releasit_diagnostic`, `releasit_suggestions`, `releasit_creer_offre_quantite` (validation du marchand).
+- **Durcissement** : libellés reliés aux champs, focus gardé dans la fenêtre puis rendu, erreurs annoncées ; widget 9,7 Ko gzip ; vue d'ensemble avec la mise en route complète ; `PARITY-MATRIX.md` et `GUIDE-MARCHAND.md`.
+- Migration `20261203090000_releasit_complet` (ajouts seulement) : `AbandonReleasit`, `StatReleasitJour`, colonnes de réglages et de commande. Tests : `tests/commande-express-phases-6-9.test.ts`.
+- Restent : Google Sheets (projet Google Cloud), OTP (compte WhatsApp Business ou SMS), CSS personnalisé et formulaires par produit, prépaiement Mobile Money dans le formulaire, tourniquet des agents, réputation partagée.
+
+## Phase 4 — Offres (2026-11-26)
+
+- Le module s'appelle désormais **Releasit COD AXSO** partout (menu, pages, guides, anglais) ; les adresses internes `/dashboard/commande-express` ne changent pas.
+- **Offre de quantité** : paliers « 1 / 2 / 3 » avec libellé, badge (« Le plus populaire »), prix barré et économie affichée. Les paliers sont écrits dans `Produit.venteGros` : la création de commande les applique côté serveur (aussi au panier classique).
+- **Case à cocher** dans le formulaire : un produit ajouté d'un geste (garantie, emballage cadeau, 2e produit, livraison express créée comme produit), à son prix réel.
+- **Ajout en 1 clic après la commande** : même commande, sans rien ressaisir, avec un jeton signé valable 30 min ; stock sorti pour la seule nouvelle ligne (`sortirStock(… ligneIds)`), totaux mis à jour, refus si la commande n'est plus « en attente ».
+- **Offre à la fermeture** : si le client ferme sans commander, un code promo lui est proposé (une fois par visite) puis appliqué et revérifié par le serveur.
+- Page **Offres** de l'application : création des 4 types, activation, modification, suppression, vues / acceptations / taux.
+- Modèle `OffreReleasit`, migration `20261202090000_offres_releasit` (ajout seulement). Tests : `tests/commande-express-offres.test.ts`. Widget : 7,7 Ko gzip.
+
+## Référencement des boutiques (2026-11-26)
+
+- Chaque boutique a **son propre plan du site** (`/sitemap.xml` sur son adresse : accueil, produits avec image, collections, catalogue, pages publiées, à propos, contact) et **son propre robots.txt** (pages privées exclues, lien vers son plan du site).
+- Titres au nom de la boutique (sans « | AXSO »), descriptions propres (sans HTML, 160 caractères), **adresse canonique**, Open Graph et Twitter complets.
+- **Données structurées** : `Product` + `Offer` (prix, devise, stock), note moyenne des avis, fil d'Ariane, `OnlineStore` + `WebSite` pour la boutique.
+- Pages privées (panier, paiement, compte, suivi, facture…) en `noindex`.
 
 ## Phase 3 — Anti-fraude (2026-11-26)
 
@@ -13,7 +43,7 @@
 
 ## Phase 2 — Centre de confirmation (2026-11-25)
 
-- Commande Express devient une **application** de la sidebar (groupe « Applications ») avec ses pages : Vue d'ensemble, Confirmation. Sur mobile : onglet Ventes → Commande Express, Confirmation.
+- Releasit COD AXSO devient une **application** de la sidebar (groupe « Applications ») avec ses pages : Vue d'ensemble, Confirmation. Sur mobile : onglet Ventes → Releasit COD AXSO, Confirmation.
 - **File d'appel** triée : rappels arrivés à l'heure, nouvelles commandes (risque, montant, ancienneté), injoignables (moins d'essais d'abord), rappels à venir.
 - Fiche par client : bouton **Appeler** (`tel:` au format international), **WhatsApp** avec message de confirmation pré-rédigé, quartier, repère, position, source de la visite.
 - Résultats en un geste : Confirmée, Injoignable (1/3, 2/3, 3/3 puis sortie de la file), À rappeler (dans 1 h, 3 h, demain 9 h), Annulée, Faux numéro ; note facultative ; historique des appels.

@@ -1,5 +1,5 @@
 "use client";
-// Pastille du score de risque Commande Express (0–100) : faible, moyen, élevé.
+// Pastille du score de risque Releasit COD AXSO (0–100) : faible, moyen, élevé.
 import { Badge } from "@/components/dashboard/design-system";
 import { useT } from "@/components/I18nProvider";
 

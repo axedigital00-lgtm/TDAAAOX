@@ -1,4 +1,4 @@
-// Anti-fraude Commande Express, côté base : liste noire, limite par jour et historique du numéro.
+// Anti-fraude Releasit COD AXSO, côté base : liste noire, limite par jour et historique du numéro.
 // Tout est scopé par tenantId : la liste noire et l'historique d'une boutique ne touchent jamais une autre.
 import { prisma } from "@/lib/prisma";
 import { scoreRisque, type Indices } from "./risque";

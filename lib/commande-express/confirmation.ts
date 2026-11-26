@@ -1,4 +1,4 @@
-// Centre de confirmation Commande Express : résultats d'appel, file de priorité et effet sur la
+// Centre de confirmation Releasit COD AXSO : résultats d'appel, file de priorité et effet sur la
 // commande. Les fonctions pures sont testées (tests/commande-express-confirmation.test.ts).
 import { z } from "zod";
 

@@ -1,4 +1,4 @@
-// Commande Express AXSO : réglages d'une boutique et source d'une commande (UTM, identifiants de clic).
+// Releasit COD AXSO : réglages d'une boutique et source d'une commande (UTM, identifiants de clic).
 import { prisma } from "@/lib/prisma";
 
 export type ReglagesExpress = { actif: boolean; boutonCollant: boolean; texteBouton: string; couleur: string; demanderEmail: boolean; limiteParJour: number };

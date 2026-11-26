@@ -20,6 +20,7 @@ import { BlockTreeRenderer } from "@/components/storefront/blocks/BlockTreeRende
 import { ordonnerParZone } from "@/lib/block-tree";
 import { cssSectionsDesign } from "@/lib/scope-css";
 import { getT } from "@/lib/i18n/serveur";
+import { adresse, texteSeo } from "@/lib/seo-boutique";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -28,11 +29,17 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const tenant = await prisma.tenant.findUnique({ where: { slug } });
-  if (!tenant) return { title: "Boutique introuvable" };
+  if (!tenant) return { title: "Boutique introuvable", robots: { index: false } };
+  const titre = tenant.metaTitle || tenant.nomBoutique;
+  const description = texteSeo(tenant.metaDescription || tenant.description) || `${tenant.nomBoutique} : commandez en ligne, paiement à la livraison ou par Mobile Money.`;
+  const url = adresse(tenant);
+  const image = tenant.bannerUrl || tenant.logoUrl;
   return {
-    title: tenant.metaTitle || tenant.nomBoutique,
-    description: tenant.metaDescription || tenant.description || "",
-    openGraph: { images: tenant.bannerUrl ? [{ url: tenant.bannerUrl }] : [] },
+    title: { absolute: titre }, description,
+    alternates: { canonical: url },
+    openGraph: { type: "website", url, siteName: tenant.nomBoutique, title: titre, description, images: image ? [{ url: image }] : [] },
+    twitter: { card: image ? "summary_large_image" : "summary", title: titre, description, images: image ? [image] : [] },
+    ...(tenant.statut !== "active" && { robots: { index: false, follow: false } }),
   };
 }
 

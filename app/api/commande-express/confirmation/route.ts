@@ -1,4 +1,4 @@
-// Centre de confirmation : file des commandes express à appeler, et chiffres des 30 derniers jours.
+// Centre de confirmation : file des commandes Releasit à appeler, et chiffres des 30 derniers jours.
 // ?vue=a_traiter (défaut) | traitees | toutes
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const message = messageConfirmation({ nom: cmd.clientNom, numero: cmd.numero, boutique: tenant?.nomBoutique ?? "", produits, total: formatMontant(cmd.montantTotal, cmd.devise), ville: cmd.ville });
     return [{
       id: f.id, statutConfirmation: f.statutConfirmation, tentatives: f.tentatives, rappelA: f.rappelA, note: f.noteConfirmation,
-      quartier: f.quartier, repere: f.repere, latitude: f.latitude, longitude: f.longitude, scoreRisque: f.scoreRisque, facteursRisque: f.facteursRisque, source: f.source, createdAt: f.createdAt,
+      quartier: f.quartier, repere: f.repere, latitude: f.latitude, longitude: f.longitude, scoreRisque: f.scoreRisque, facteursRisque: f.facteursRisque, champs: f.champs, source: f.source, createdAt: f.createdAt,
       montant: cmd.montantTotal, aTraiter: aTraiter(f),
       commande: { id: cmd.id, numero: cmd.numero, clientNom: cmd.clientNom, clientTelephone: cmd.clientTelephone, montantTotal: cmd.montantTotal, devise: cmd.devise, ville: cmd.ville, adresse: cmd.adresseLivraison, statut: cmd.statut, livraisonStatut: cmd.livraisonStatut, produits },
       lienAppel: tel ? `tel:${tel}` : null,

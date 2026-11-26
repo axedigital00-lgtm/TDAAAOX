@@ -76,9 +76,9 @@ async function variantesDeLigne(tx: Tx, l: LigneVariante): Promise<(string | nul
  * - `autoriserNegatif` : laisse passer sous zéro au lieu de refuser (vente hors
  *   ligne rejouée). Jamais utilisé par la vitrine.
  */
-export async function sortirStock(tx: Tx, p: { tenantId: string; commandeId: string; motif: string; creePar?: string | null; entrepotId?: string | null; varianteId?: string | null; autoriserNegatif?: boolean }) {
+export async function sortirStock(tx: Tx, p: { tenantId: string; commandeId: string; motif: string; creePar?: string | null; entrepotId?: string | null; varianteId?: string | null; autoriserNegatif?: boolean; /** Seulement ces lignes (ajout après achat). */ ligneIds?: string[] }) {
   const lignes = await tx.ligneCommande.findMany({
-    where: { commandeId: p.commandeId },
+    where: { commandeId: p.commandeId, ...(p.ligneIds && { id: { in: p.ligneIds } }) },
     include: { produit: { select: { type: true, nom: true } } },
   });
   const lieu = await resoudreLieu(tx, p.tenantId, p.entrepotId);

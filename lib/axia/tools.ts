@@ -32,6 +32,7 @@ import { findNode } from "@/lib/block-tree";
 import { FONTS } from "@/lib/theme-fonts";
 import { AXIA_POS_TOOLS, executerOutilPos } from "./pos-tools";
 import { AXIA_ACADEMIE_TOOLS, executerOutilAcademie } from "./academie-tools";
+import { AXIA_RELEASIT_TOOLS, executerOutilReleasit } from "./releasit-tools";
 import { PAGES_DASHBOARD, resultatOuverture } from "./pages";
 import { modifierProduit, supprimerProduit } from "@/lib/produits";
 import { mouvementStock } from "@/lib/pos/stock";
@@ -1084,6 +1085,7 @@ export const AXIA_TOOLS: AxiaToolDef[] = [
   ...AXIA_POS_TOOLS,
   // ─── ACADÉMIE (lib/axia/academie-tools.ts) ────────────────────────────────
   ...AXIA_ACADEMIE_TOOLS,
+  ...AXIA_RELEASIT_TOOLS,
 ];
 
 // ─── AIDES PRODUIT & VUE D'ENSEMBLE ───────────────────────────────────────────
@@ -2197,6 +2199,7 @@ export const executerOutilDirect: ToolExecutor = async (nom, args, tenantId) => 
       default: {
         if (nom.startsWith("pos_")) return executerOutilPos(nom, args, tenantId);
         if (nom.startsWith("academie_")) return executerOutilAcademie(nom, args, tenantId);
+        if (nom.startsWith("releasit_")) return executerOutilReleasit(nom, args, tenantId);
         const MCP_PREFIXES = ["meta_", "whatsapp_", "gmail_", "sms_", "tiktok_", "google_ads_", "higgsfield_"];
         if (MCP_PREFIXES.some(p => nom.startsWith(p))) {
           const res = await executerOutilMcp(nom, args, tenantId);

@@ -1,5 +1,5 @@
 "use client";
-// Anti-fraude Commande Express : limite de commandes par jour, liste noire et commandes à risque.
+// Anti-fraude Releasit COD AXSO : limite de commandes par jour, liste noire et commandes à risque.
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
